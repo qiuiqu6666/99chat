@@ -1,0 +1,7 @@
+# This repository maintains customized UIKit source here.
+!third_party/
+third_party/*
+!third_party/tencent_cloud_chat_uikit/
+third_party/tencent_cloud_chat_uikit/*
+!third_party/tencent_cloud_chat_uikit/lib/
+!third_party/tencent_cloud_chat_uikit/test/

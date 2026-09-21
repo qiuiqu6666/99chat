@@ -1,0 +1,67 @@
+test.git-credentials
+
+# Local indexes, archives, and machine-specific configuration
+.gitnexus/
+.dart-appdata/
+reconstruction-before-20260807/
+test_outputs/
+/x.json
+wechat_message_animation_patch/
+wechat_message_animation_patch_current/
+android/local.properties
+**/key.properties
+*.jks
+*.keystore
+.env
+.env.*
+!.env.example
+**/ephemeral/
+**/flutter_export_environment.sh
+**/Generated.xcconfig
+
+# Flutter/Dart generated output
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Platform-generated dependency trees
+ios/Pods/
+.gradle/
+.cxx/
+
+# Local agent/editor/app state
+.codex-appdata/
+.cursor/
+.firecrawl/
+.DS_Store
+
+# Local diagnostics and runtime logs
+*.log
+*.stderr.txt
+*.stdout.txt
+*_log_*.txt
+app_runtime_log.txt
+device_debug*.txt
+.focused_analyze_after_bootstrap.txt
+.lk_analyze_out.txt
+android/日志.txt
+
+# Local credentials and temporary files
+*.pem
+*.p12
+*.mobileprovision
+*.key
+*.tmp
+*.bak
+
+# Local deleted-chain/archive backup is not part of the product source tree
+.deleted-conversation-chain/
+
+# Plan 125 perf trace inputs are large local-only analysis files
+# (see docs/perf-traces/README.md; README itself stays tracked)
+docs/perf-traces/*.json
+docs/perf-traces/*.pb
+docs/perf-traces/*.perfetto
+docs/perf-traces/*.gz
+docs/perf-traces/*.zip

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="keep_alive_notification_title">99chat</string>
+    <string name="keep_alive_notification_text">正在后台保持消息连接</string>
+    <string name="keep_alive_notification_channel_name">消息连接</string>
+    <string name="keep_alive_notification_channel_desc">保持消息推送连接，关闭后可能无法及时收到消息</string>
+    <string name="chat_notification_channel_name">消息通知</string>
+    <string name="chat_notification_channel_desc">新消息提醒</string>
+    <string name="system_message_channel_sound_vibrate_name">系统消息（声音与振动）</string>
+    <string name="system_message_channel_sound_vibrate_desc">好友申请等系统消息，含声音与振动</string>
+    <string name="system_message_channel_sound_name">系统消息（仅声音）</string>
+    <string name="system_message_channel_sound_desc">好友申请等系统消息，仅声音</string>
+    <string name="system_message_channel_vibrate_name">系统消息（仅振动）</string>
+    <string name="system_message_channel_vibrate_desc">好友申请等系统消息，仅振动</string>
+    <string name="system_message_channel_silent_name">系统消息（静默）</string>
+    <string name="system_message_channel_silent_desc">好友申请等系统消息，无声音无振动</string>
+</resources>
