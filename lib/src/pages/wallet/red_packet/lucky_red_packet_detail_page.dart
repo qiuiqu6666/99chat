@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:tencent_cloud_chat_demo/src/api/wallet_amount.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/wallet/widgets/wallet_page_colors.dart';
@@ -74,6 +73,7 @@ class LuckyRedPacketDetailData {
   final String claimedAmountText;
   final String totalAmountText;
   final List<LuckyRedPacketClaimPreviewData> claims;
+
   /// 红包币种代码（如 `99` / `USDT`）。
   final String currency;
   final bool allClaimed;
@@ -100,415 +100,257 @@ class LuckyRedPacketDetailData {
   }
 }
 
-class LuckyRedPacketDetailPage extends StatefulWidget {
-  const LuckyRedPacketDetailPage({
-    super.key,
-    required this.data,
-    this.onBack,
-  });
-
+/// Presentation shared by the open result and historical packet details.
+class LuckyRedPacketDetailPage extends StatelessWidget {
+  const LuckyRedPacketDetailPage({super.key, required this.data, this.onBack});
   final LuckyRedPacketDetailData data;
   final VoidCallback? onBack;
 
   @override
-  State<LuckyRedPacketDetailPage> createState() =>
-      _LuckyRedPacketDetailPageState();
-}
-
-class _LuckyRedPacketDetailPageState extends State<LuckyRedPacketDetailPage>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _introCtrl;
-  late final Animation<double> _contentScale;
-
-  @override
-  void initState() {
-    super.initState();
-    _introCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 460),
-    );
-    _contentScale = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(begin: 0.94, end: 1.08)
-            .chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 52,
-      ),
-      TweenSequenceItem(
-        tween: Tween(begin: 1.08, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeOutBack)),
-        weight: 48,
-      ),
-    ]).animate(_introCtrl);
-    _introCtrl.forward();
-  }
-
-  @override
-  void dispose() {
-    _introCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final cs = WalletPageColors.of(context);
+    final surface = cs.dark ? const Color(0xFF191919) : Colors.white;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: redPacketImmersiveOverlayStyle(context),
       child: Scaffold(
+        backgroundColor: surface,
         extendBodyBehindAppBar: true,
-        backgroundColor: cs.bg,
-        appBar: buildRedPacketDetailAppBar(
-          context,
-          immersive: true,
-          onBack: widget.onBack,
-        ),
-        body: LayoutBuilder(
-          builder: (context, viewport) {
-            final width = viewport.maxWidth;
-            final height = viewport.maxHeight;
-            final maxContentWidth = width > 720 ? width * 0.42 : width;
-            final navHeight = redPacketDetailNavHeight(context);
-            final decorativeHeight = height * (width > 720 ? 0.025 : 0.03);
-            final totalHeaderHeight = navHeight + decorativeHeight;
-            final mascotWidth = maxContentWidth * (width > 720 ? 0.20 : 0.24);
-
-            return Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxContentWidth),
-                child: Column(
-                  children: [
-                    SizedBox(
-                      height: totalHeaderHeight,
-                      width: double.infinity,
-                      child: IgnorePointer(
-                        child: Stack(
-                          clipBehavior: Clip.hardEdge,
-                          fit: StackFit.expand,
-                          children: [
-                            const CustomPaint(
-                              painter: _LuckyHeaderPainter(),
-                            ),
-                            Align(
-                              alignment: const Alignment(0, 0.55),
-                              child: Transform.translate(
-                                offset: Offset(0, 4.h),
-                                child: Image.asset(
-                                  'assets/img/psqtou.png',
-                                  width: mascotWidth,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: ColoredBox(
-                        color: cs.bg,
-                        child: _LuckyDetailBody(
-                          contentScale: _contentScale,
-                          data: widget.data,
-                        ),
-                      ),
-                    ),
-                    buildRedPacketDetailFooter(context),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
+        appBar: buildRedPacketDetailAppBar(context,
+            immersive: true, onBack: onBack),
+        body: Column(children: [
+          SizedBox(
+            height: redPacketDetailNavHeight(context) + 64,
+            width: double.infinity,
+            child: const CustomPaint(painter: _LuckyHeaderPainter()),
+          ),
+          Expanded(
+              child: Center(
+                  child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: _LuckyDetailBody(data: data),
+          ))),
+          buildRedPacketDetailFooter(context),
+        ]),
       ),
     );
   }
 }
 
 class _LuckyDetailBody extends StatelessWidget {
-  const _LuckyDetailBody({
-    required this.contentScale,
-    required this.data,
-  });
-
-  final Animation<double> contentScale;
+  const _LuckyDetailBody({required this.data});
   final LuckyRedPacketDetailData data;
 
   @override
   Widget build(BuildContext context) {
     final cs = WalletPageColors.of(context);
     final i18n = AppI18n.of(context);
-
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(34.w, 0, 34.w, 32.h),
-      child: Column(
-        children: [
-          AnimatedBuilder(
-            animation: contentScale,
-            builder: (context, child) {
-              return Transform.scale(
-                scale: contentScale.value,
-                alignment: Alignment.center,
-                child: child,
-              );
-            },
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AppUserAvatar(
-                      faceUrl: data.senderAvatar,
-                      showName: data.displaySenderName,
-                      size: 40.w,
-                    ),
-                    SizedBox(width: 10.w),
-                    Flexible(
-                      child: Text(
-                        '${data.displaySenderName}发出的红包',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: cs.text,
-                          fontSize: 27.sp,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8.h),
-                Text(
-                  data.displayGreeting,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: cs.subText,
-                    fontSize: 24.sp,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                SizedBox(height: 12.h),
-                if (data.displayAmount.isNotEmpty)
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: data.displayAmount,
-                          style: TextStyle(
-                            color: _kRedPacketAmountGold,
-                            fontSize: 38.sp,
-                            fontWeight: FontWeight.w500,
-                            height: 1.0,
-                          ),
-                        ),
-                        TextSpan(
-                          text: ' ${data.coinUnit}',
-                          style: TextStyle(
-                            color: _kRedPacketAmountGold,
-                            fontSize: 24.sp,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else if (data.statusHint.isNotEmpty)
-                  Text(
-                    data.statusHint,
+    final gold = cs.dark ? const Color(0xFFE6C58B) : _kRedPacketAmountGold;
+    return CustomScrollView(slivers: [
+      SliverToBoxAdapter(
+          child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+        child: Column(children: [
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            AppUserAvatar(
+                faceUrl: data.senderAvatar,
+                showName: data.displaySenderName,
+                size: 28,
+                borderRadius: BorderRadius.circular(5)),
+            const SizedBox(width: 8),
+            Flexible(
+                child: Text(
+                    i18n.t(
+                        zhHans: '${data.displaySenderName}的红包',
+                        zhHant: '${data.displaySenderName}的紅包',
+                        en: 'Red packet from ${data.displaySenderName}',
+                        ja: '${data.displaySenderName}の紅包',
+                        ko: '${data.displaySenderName}님의 홍바오'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: cs.subText,
-                      fontSize: 27.sp,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          SizedBox(height: 10.h),
-          Text(
-            data.progressText,
-            style: TextStyle(
-              color: data.allClaimed ? cs.subText : cs.text,
-              fontSize: 22.sp,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(height: 12.h),
-          if (data.claims.isEmpty)
-            Padding(
-              padding: EdgeInsets.only(top: 80.h),
-              child: Text(
-                !data.claimsLoaded
-                    ? i18n.t(
-                        zhHans: '领取记录暂时加载失败',
-                        zhHant: '領取記錄暫時載入失敗',
-                        en: 'Failed to load claim records.',
-                        ja: '受取記録の読み込みに失敗しました。',
-                        ko: '수령 기록을 불러오지 못했습니다.',
-                      )
-                    : i18n.t(
-                        zhHans: '还没有人领取这个红包',
-                        zhHant: '還沒有人領取這個紅包',
-                        en: 'No one has claimed this red packet yet.',
-                        ja: 'まだ誰もこの紅包を受け取っていません。',
-                        ko: '아직 이 홍바오를 받은 사람이 없습니다.',
-                      ),
+                        color: cs.text,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500))),
+          ]),
+          if (data.displayGreeting.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(data.displayGreeting,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: cs.subText,
-                  fontSize: 24.sp,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            )
-          else
-            for (final claim in data.claims) ...[
-            Divider(height: 1, color: cs.line),
-            _ClaimRow(
-              avatarUrl: claim.avatarUrl,
-              name: claim.name,
-              time: claim.time,
-              amount: claim.amountText,
-              bestLuck: claim.bestLuck,
-              bestLuckLabel: i18n.t(
-                zhHans: '手气最佳',
-                zhHant: '手氣最佳',
-                en: 'Best luck',
-                ja: '運試し王',
-                ko: '최고 행운',
-              ),
-            ),
+                style: TextStyle(color: cs.text, fontSize: 20, height: 1.4)),
           ],
-        ],
-      ),
-    );
+          const SizedBox(height: 30),
+          if (data.displayAmount.isNotEmpty)
+            Text.rich(
+                TextSpan(children: [
+                  TextSpan(
+                      text: data.displayAmount,
+                      style: const TextStyle(
+                          fontSize: 56,
+                          fontWeight: FontWeight.w500,
+                          height: 1.15)),
+                  TextSpan(
+                      text: ' ${data.coinUnit}',
+                      style: const TextStyle(fontSize: 16)),
+                ]),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: gold))
+          else if (data.statusHint.isNotEmpty)
+            Text(data.statusHint,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: cs.subText, fontSize: 17, height: 1.5)),
+        ]),
+      )),
+      SliverToBoxAdapter(
+          child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+            color: cs.dark ? const Color(0xFF202020) : const Color(0xFFF7F7F7),
+            border: Border(bottom: BorderSide(color: cs.line, width: .5))),
+        child: Text(data.progressText,
+            style: TextStyle(color: cs.subText, fontSize: 13, height: 1.5)),
+      )),
+      if (data.claims.isEmpty)
+        SliverToBoxAdapter(
+            child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+          child: Text(
+              !data.claimsLoaded
+                  ? i18n.t(
+                      zhHans: '领取记录暂时加载失败',
+                      zhHant: '領取記錄暫時載入失敗',
+                      en: 'Failed to load claim records.',
+                      ja: '受取記録の読み込みに失敗しました。',
+                      ko: '수령 기록을 불러오지 못했습니다.')
+                  : i18n.t(
+                      zhHans: '还没有人领取这个红包',
+                      zhHant: '還沒有人領取這個紅包',
+                      en: 'No one has claimed this red packet yet.',
+                      ja: 'まだ誰もこの紅包を受け取っていません。',
+                      ko: '아직 이 홍바오를 받은 사람이 없습니다.'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: cs.subText, fontSize: 14)),
+        ))
+      else
+        SliverList(
+            delegate: SliverChildBuilderDelegate((context, index) {
+          final claim = data.claims[index];
+          return Column(children: [
+            _ClaimRow(
+                avatarUrl: claim.avatarUrl,
+                name: claim.name,
+                time: claim.time,
+                amount: claim.amountText,
+                bestLuck: claim.bestLuck,
+                bestLuckLabel: i18n.t(
+                    zhHans: '手气最佳',
+                    zhHant: '手氣最佳',
+                    en: 'Best luck',
+                    ja: '運試し王',
+                    ko: '최고 행운')),
+            if (index < data.claims.length - 1)
+              Divider(
+                  height: .5,
+                  thickness: .5,
+                  indent: 76,
+                  endIndent: 20,
+                  color: cs.line),
+          ]);
+        }, childCount: data.claims.length)),
+      const SliverToBoxAdapter(child: SizedBox(height: 24)),
+    ]);
   }
 }
 
 class _ClaimRow extends StatelessWidget {
-  const _ClaimRow({
-    required this.avatarUrl,
-    required this.name,
-    required this.time,
-    required this.amount,
-    required this.bestLuckLabel,
-    this.bestLuck = false,
-  });
-
-  final String avatarUrl;
-  final String name;
-  final String time;
-  final String amount;
-  final String bestLuckLabel;
+  const _ClaimRow(
+      {required this.avatarUrl,
+      required this.name,
+      required this.time,
+      required this.amount,
+      required this.bestLuckLabel,
+      this.bestLuck = false});
+  final String avatarUrl, name, time, amount, bestLuckLabel;
   final bool bestLuck;
 
   @override
   Widget build(BuildContext context) {
     final cs = WalletPageColors.of(context);
-
+    final amountView =
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+      Text(amount,
+          style: TextStyle(
+              color: cs.text, fontSize: 17, fontWeight: FontWeight.w500)),
+      if (bestLuck) ...[
+        const SizedBox(height: 5),
+        Text('♛ $bestLuckLabel',
+            style: TextStyle(color: cs.tagTextColor, fontSize: 12)),
+      ],
+    ]);
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 14.h),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final stackAmount = constraints.maxWidth < 300 ||
+            MediaQuery.textScalerOf(context).scale(14) > 20;
+        return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           AppUserAvatar(
-            faceUrl: avatarUrl,
-            showName: name,
-            size: 64.w,
-          ),
-          SizedBox(width: 14.w),
+              faceUrl: avatarUrl,
+              showName: name,
+              size: 44,
+              borderRadius: BorderRadius.circular(6)),
+          const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: cs.text,
-                    fontSize: 29.sp,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                Text(
-                  time,
-                  style: TextStyle(
-                    color: cs.subText,
-                    fontSize: 23.sp,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                amount,
-                style: TextStyle(
-                  color: cs.text,
-                  fontSize: 31.sp,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (bestLuck) ...[
-                SizedBox(height: 10.h),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.emoji_events_rounded,
-                      color: cs.tagTextColor,
-                      size: 22.sp,
-                    ),
-                    SizedBox(width: 6.w),
-                    Text(
-                      bestLuckLabel,
-                      style: TextStyle(
-                        color: cs.tagTextColor,
-                        fontSize: 22.sp,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
+                Text(name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        TextStyle(color: cs.text, fontSize: 16, height: 1.3)),
+                const SizedBox(height: 5),
+                Text(time, style: TextStyle(color: cs.subText, fontSize: 12)),
+                if (stackAmount) ...[const SizedBox(height: 8), amountView],
+              ])),
+          if (!stackAmount) ...[
+            const SizedBox(width: 12),
+            Flexible(
+              fit: FlexFit.tight,
+              child: Align(alignment: Alignment.topRight, child: amountView),
+            )
+          ],
+        ]);
+      }),
     );
   }
 }
 
 class _LuckyHeaderPainter extends CustomPainter {
   const _LuckyHeaderPainter();
-
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFE94B3F), Color(0xFFE23D32)],
-      ).createShader(Offset.zero & size);
-
+    const arcDepth = 24.0;
     final path = Path()
-      ..moveTo(0, 0)
       ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height * 0.78)
+      ..lineTo(size.width, size.height - arcDepth)
       ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 1.08,
-        0,
-        size.height * 0.78,
-      )
+          size.width / 2, size.height + arcDepth, 0, size.height - arcDepth)
       ..close();
-
-    canvas.drawPath(path, paint);
+    canvas.drawPath(path, Paint()..color = const Color(0xFFD9584D));
+    // Trace only the lower curve, leaving the top and side edges unbordered.
+    final goldEdge = Path()
+      ..moveTo(size.width, size.height - arcDepth)
+      ..quadraticBezierTo(
+          size.width / 2, size.height + arcDepth, 0, size.height - arcDepth);
+    canvas.drawPath(
+      goldEdge,
+      Paint()
+        ..color = const Color(0xFFE8C58B)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..isAntiAlias = true,
+    );
   }
 
   @override

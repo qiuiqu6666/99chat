@@ -214,6 +214,7 @@ class _TIMUIKitHistoryMessageListState
   bool _pendingScrollToFind = false;
   int _findingRetryCount = 0;
   final ChatListPaginationUiGate _paginationUi = ChatListPaginationUiGate();
+  final ChatPreviousLoadQueue _previousLoadQueue = ChatPreviousLoadQueue();
   final ChatLatestLoadIntent _latestLoadIntent = ChatLatestLoadIntent();
   int _latestPaginationGeneration = 0;
   int _previousPaginationGeneration = 0;
@@ -235,7 +236,10 @@ class _TIMUIKitHistoryMessageListState
   // debounce 触发时读取的最新锚点。顶部回弹会持续产生滚动事件，
   // 若每次都重置计时器会把 debounce 无限饿死；改为"已有计时器在跑就不重置、
   // 只更新锚点"，保证一定能在 120ms 后触发一次加载。
-  _PreviousLoadAnchor? _pendingLoadPreviousAnchor;
+  int? _shortViewportPreviousPointer;
+  Offset? _shortViewportPreviousPointerStart;
+  bool _shortViewportPreviousGestureRecorded = false;
+  bool _shortViewportPreviousGestureCancelled = false;
   bool _userScrollGestureActive = false;
   String _lastGeomJumpAttemptReason = '';
   int _lastGeomJumpAttemptAtMs = 0;
@@ -261,8 +265,6 @@ class _TIMUIKitHistoryMessageListState
   static const int _scrollingUnreadTongueMetricsThrottleMs = 80;
   static const _loadLatestCooldownMs =
       ChatListPaginationUiGate.loadLatestCooldownMs;
-  static const _loadPreviousDebounceMs =
-      ChatListPaginationUiGate.loadPreviousDebounceMs;
   static const _loadPreviousCooldownMs =
       ChatListPaginationUiGate.loadPreviousCooldownMs;
   static const _historyScrollProtectMs =
@@ -1957,7 +1959,7 @@ class _TIMUIKitHistoryMessageListState
       return true;
     }
     if (_paginationUi.isLoadingPrevious ||
-        _paginationUi.pendingLoadPrevious ||
+        _previousLoadQueue.isAdmitted ||
         loadingPlace == LoadingPlace.top) {
       return true;
     }
@@ -2031,7 +2033,6 @@ class _TIMUIKitHistoryMessageListState
   }
 
   void _clearTopHistoryLoading({bool notify = true}) {
-    _paginationUi.pendingLoadPrevious = false;
     _paginationUi.silentTopHistoryLoading = false;
     if (loadingPlace == LoadingPlace.top) {
       loadingPlace = LoadingPlace.none;
@@ -2048,7 +2049,6 @@ class _TIMUIKitHistoryMessageListState
   }
 
   void _markTopHistoryLoadingScheduled({bool silent = false}) {
-    _paginationUi.pendingLoadPrevious = true;
     _paginationUi.silentTopHistoryLoading = silent;
     if (silent) {
       // 静默：不占 loadingPlace、不记最短可见时间，避免闪一下转圈。
@@ -2363,7 +2363,7 @@ class _TIMUIKitHistoryMessageListState
         oldWidget.searchJumpAnchor != widget.searchJumpAnchor ||
         oldWidget.initFindingMsg != widget.initFindingMsg) {
       _latestLoadIntent.cancel();
-      _paginationUi.cancelPreviousGestureRetry();
+      _previousLoadQueue.cancel();
       _invalidatePreviousPagination();
     }
     _scheduleHistoryWindowTrim();
@@ -2464,9 +2464,7 @@ class _TIMUIKitHistoryMessageListState
       _paginationUi.lastTopReachConsumedAnchorKey = null;
       _paginationUi.previousLoadInFlightAnchorKey = null;
       _topHistoryLoadingVisible.value = false;
-      _paginationUi.loadPreviousDebounce?.cancel();
-      _paginationUi.loadPreviousDebounce = null;
-      _pendingLoadPreviousAnchor = null;
+      _previousLoadQueue.cancel();
       _paginationUi.loadPreviousTask = null;
       _bindSeparateModelListener();
       _chatGlobalModel?.clearActiveChatScrollController(
@@ -2792,8 +2790,7 @@ class _TIMUIKitHistoryMessageListState
       livedMs: DateTime.now().millisecondsSinceEpoch - _createdAtMs,
       keyDebug: widget.key?.toString(),
     );
-    _pendingLoadPreviousAnchor = null;
-    _paginationUi.pendingLoadPrevious = false;
+    _previousLoadQueue.dispose();
     _paginationUi.disposeTimers();
     _clearScrollPaginationCompensation();
     _viewportInsert.viewportInsertSlideGeneration++;
@@ -2934,8 +2931,7 @@ class _TIMUIKitHistoryMessageListState
         _paginationUi.isLoadingPrevious ||
         _paginationUi.isLoadingLatest ||
         _paginationUi.loadPreviousTask != null ||
-        _paginationUi.pendingLoadPrevious ||
-        (_paginationUi.loadPreviousDebounce?.isActive ?? false) ||
+        _previousLoadQueue.isAdmitted ||
         (_paginationUi.loadLatestDebounce?.isActive ?? false) ||
         _shouldCompensateScrollForPagination() ||
         global.isMessageContextMenuOverlayOpen ||
@@ -3153,8 +3149,7 @@ class _TIMUIKitHistoryMessageListState
     _historyWindowPaginationWasBlocked = false;
     // The edge gesture already owns one retry. A direct trim-resume load here
     // would leave that retry queued and fetch a second page for the same input.
-    if (_latestLoadIntent.isPending ||
-        _paginationUi.previousGestureRetry != null) return;
+    if (_latestLoadIntent.isPending || _previousLoadQueue.isPending) return;
     final position = _singleScrollPositionOrNull();
     if (position == null) return;
     final messages = _currentVisibleMessageList();
@@ -3174,7 +3169,7 @@ class _TIMUIKitHistoryMessageListState
         _paginationUi.previousLoadConsumedThisTopReach = false;
         _paginationUi.lastTopReachConsumedAnchorKey = null;
         _paginationUi.ignoreScrollLoadPrevious = 0;
-        unawaited(_loadPrevious(anchor));
+        _queuePreviousLoad(anchor, source: _PreviousLoadSource.trimResume);
       }
     } else if (_isNearLatestScrollEdge(position) &&
         _allowsLatestHistoryPagination(global) &&
@@ -3616,26 +3611,8 @@ class _TIMUIKitHistoryMessageListState
       _scheduleVisibleLatestConfirmation();
       return false;
     }
-    final resumed = widget.model.restoreTowardLatestFromUserScroll();
-    if (resumed) {
-      _newestInsertRoom = 0.0;
-      _newestInsertRoomAtMs = 0;
-      _clearBufferedRevealAnchor(reason: 'resumed');
-      _scheduleLiveCenterRelease();
-      _clearIncomingScrollAnchor(reason: 'release_live_center');
-      _logReadingHistoryIncoming('following_latest_restore');
-      ChatJitterDiag.logFollowingLatest(
-        action: 'restore',
-        conv: convId,
-        extras: <String, Object?>{
-          'distance': distance.toStringAsFixed(1),
-          'scrollEnded': scrollEnded,
-        },
-      );
-    } else {
-      logBlocked('restore_refused');
-    }
-    return resumed;
+    logBlocked('waiting_for_visible_confirmation');
+    return false;
   }
 
   void _maybeLatchLiveNewestSliver() {
@@ -8974,16 +8951,6 @@ class _TIMUIKitHistoryMessageListState
     }
   }
 
-  bool _shouldAllowLoadPreviousDespiteTopReach(
-    _PreviousLoadAnchor? anchor, {
-    bool bypassTopReachConsumed = false,
-  }) {
-    return _paginationUi.shouldAllowLoadPreviousAtTopReach(
-      bypassTopReachConsumed: bypassTopReachConsumed,
-      anchorKey: anchor == null ? null : _previousLoadAnchorKey(anchor),
-    );
-  }
-
   int _messageSortTime(V2TimMessage message) {
     return message.timestamp ?? int.tryParse(message.seq?.trim() ?? '') ?? 0;
   }
@@ -9087,14 +9054,6 @@ class _TIMUIKitHistoryMessageListState
         globalModel.hasDurableHistoryDeferred(_conversationId());
   }
 
-  bool _canScheduleLoadPrevious() {
-    if (_historyWindowBlocksPagination()) return false;
-    return _paginationUi.canScheduleLoadPrevious(
-      searchJumpStabilizing: _isSearchJumpStabilizing,
-      historyScrollProtected: _isHistoryScrollProtected,
-    );
-  }
-
   /// A local-first window is not cloud proof.  While the older boundary is
   /// still unknown we must let the first deliberate upward gesture enter the
   /// normal previous-page loader, even though `haveMoreData` is false for the
@@ -9112,53 +9071,10 @@ class _TIMUIKitHistoryMessageListState
     return 'seq:${anchor.seq ?? -1}';
   }
 
-  bool _isNearTopForHistoryLoad(ScrollMetrics metrics) {
-    if (!metrics.hasPixels || !metrics.hasContentDimensions) {
-      return false;
-    }
-    // 内容不足一屏（不可滚动）时，iOS 回弹会让 pixels 反复抖动，
-    // 若仍判定 near-top 会导致分页调度死循环。此时交给首屏加载即可。
-    if (metrics.maxScrollExtent <= 0) {
-      return false;
-    }
-    if (_isOverscrollingPastTop(metrics)) {
-      return false;
-    }
-    return metrics.pixels >= metrics.maxScrollExtent - _loadPreviousTopNearPx;
-  }
-
   bool _shouldTriggerLoadPreviousFromScroll(
     ScrollMetrics metrics, {
     _PreviousLoadAnchor? anchor,
-    bool bypassTopReachConsumed = false,
   }) {
-    String? blockReason;
-    if (_historyWindowBlocksPagination()) {
-      blockReason = 'history_memory_ceiling';
-    } else if (!_shouldAllowLoadPreviousDespiteTopReach(
-      anchor,
-      bypassTopReachConsumed: bypassTopReachConsumed,
-    )) {
-      blockReason = 'consumed_this_top_reach';
-    } else if (_paginationUi.ignoreScrollLoadPrevious > 0) {
-      blockReason = 'ignore_scroll';
-    } else if (_paginationUi.isLoadingPrevious) {
-      blockReason = 'loading_previous';
-    } else if (_paginationUi.loadPreviousTask != null) {
-      blockReason = 'load_task_in_flight';
-    } else if (_isSearchJumpStabilizing) {
-      blockReason = 'search_jump_stabilizing';
-    } else if (_isHistoryScrollProtected) {
-      blockReason = 'scroll_protected';
-    }
-    if (blockReason != null) {
-      _logScrollLoadPreviousBlocked(
-        metrics: metrics,
-        anchor: anchor,
-        reason: blockReason,
-      );
-      return false;
-    }
     if (!metrics.hasPixels || !metrics.hasContentDimensions) {
       return false;
     }
@@ -9250,86 +9166,191 @@ class _TIMUIKitHistoryMessageListState
       metrics.maxScrollExtent > metrics.minScrollExtent + 0.5 &&
       metrics.pixels >= metrics.maxScrollExtent - _loadPreviousTopNearPx;
 
+  bool _historyPhysicsAllowsUserScrolling(ScrollPhysics physics) {
+    // allowUserScrolling does not delegate to parent, unlike offset handling.
+    // Our pagination wrapper must not hide a configured NeverScrollable parent.
+    for (ScrollPhysics? current = physics;
+        current != null;
+        current = current.parent) {
+      if (!current.allowUserScrolling) return false;
+    }
+    return true;
+  }
+
   void _cancelPendingPreviousGesture() {
-    if (_paginationUi.previousGestureRetry == null &&
-        _paginationUi.loadPreviousDebounce == null &&
-        _pendingLoadPreviousAnchor == null) return;
-    _paginationUi.cancelPreviousGestureRetry();
-    _paginationUi.loadPreviousDebounce?.cancel();
-    _paginationUi.loadPreviousDebounce = null;
-    _pendingLoadPreviousAnchor = null;
+    if (!_previousLoadQueue.isPending) return;
+    _previousLoadQueue.cancel();
     if (!_paginationUi.isLoadingPrevious && !_paginationUi.isLoadingLatest) {
       _clearTopHistoryLoading();
     }
   }
 
-  /// Keep a fresh edge gesture through pagination/layout gates, without taking
-  /// the debounce/trim lock. The gesture that started a page cannot queue itself
-  /// again, and a zero-growth response still requires a later fresh gesture.
-  void _rememberPreviousEdgeGesture(ScrollMetrics metrics) {
-    // Window replacement can begin before its first model notification. A
-    // fresh gesture must not wait for the retired SDK future to release locks.
+  void _rememberPreviousEdgeGesture(ScrollMetrics metrics,
+      {bool allowShortViewport = false}) {
     if (_previousLoadWindowIsCurrent?.call() == false) {
       _invalidatePreviousPagination();
     }
-    final gesture = _paginationUi.previousUserGestureSequence;
-    if (!_isInPreviousGestureBand(metrics) ||
-        !_canAttemptPreviousHistoryPagination() ||
-        gesture <= _paginationUi.previousLoadGestureSequence ||
-        _paginationUi.previousGestureRetry != null) return;
-    final model = widget.model;
-    final global = _chatGlobalModel ?? model.globalModel;
-    final conversationID = _conversationId();
-    final windowIsCurrent = model.captureHistoryWindowPublicationFence();
-    void retry() {
-      _paginationUi.previousGestureRetry = null;
-      final position = _singleScrollPositionOrNull();
-      if (!mounted ||
-          !identical(widget.model, model) ||
-          _conversationId() != conversationID ||
-          !windowIsCurrent() ||
-          !widget.isAllowScroll ||
-          ModalRoute.of(context)?.isCurrent == false ||
-          gesture != _paginationUi.previousUserGestureSequence ||
-          gesture <= _paginationUi.previousLoadGestureSequence ||
-          global.isSearchJumpPending(conversationID) ||
-          global.isUserScrollToBottomInProgress(conversationID)) return;
-      if (_paginationUi.isLoadingPrevious ||
-          _paginationUi.loadPreviousTask != null ||
-          _paginationUi.isLoadingLatest ||
-          model.isLoadingChatHistory ||
-          _historyWindowBlocksPagination() ||
-          _isSearchJumpStabilizing ||
-          _isHistoryScrollProtected ||
-          _shouldCompensateScrollForPagination() ||
-          !_canScheduleLoadPrevious() ||
-          global.isMessageContextMenuOverlayOpen ||
-          global.isContextMenuViewportRestoreActive(conversationID) ||
-          global.shouldLockChatScrollForMediaPreview ||
-          global.isRestoringScrollAfterMediaPreview ||
-          position == null ||
-          !position.hasPixels ||
-          !position.hasContentDimensions ||
-          position.outOfRange) {
-        _paginationUi.previousGestureRetry =
-            Timer(const Duration(milliseconds: 120), retry);
-        return;
-      }
-      if (!_canAttemptPreviousHistoryPagination() ||
-          !_isInPreviousGestureBand(position)) return;
-      // A rejected page must not turn into automatic retries. onUserDragStart
-      // remains the only same-cursor gesture release after such a response.
-      if (_paginationUi.previousRetryNeedsUserGesture) return;
-      final anchor = _anchorForPreviousLoad(_currentVisibleMessageList());
-      if (anchor == null || !_shouldAllowLoadPreviousDespiteTopReach(anchor)) {
-        return;
-      }
-      _markTopHistoryLoadingScheduled();
-      unawaited(_loadPrevious(anchor));
-    }
+    if (!_isInPreviousGestureBand(metrics) &&
+        !(allowShortViewport &&
+            metrics.hasPixels &&
+            metrics.hasContentDimensions &&
+            metrics.maxScrollExtent - metrics.minScrollExtent <= 1)) return;
+    _queuePreviousLoad(null,
+        source: allowShortViewport
+            ? _PreviousLoadSource.shortTouch
+            : _PreviousLoadSource.edgeGesture);
+  }
 
-    _paginationUi.previousGestureRetry =
-        Timer(const Duration(milliseconds: 120), retry);
+  _PreviousLoadAnchor? _anchorForPreviousIntent(_PreviousLoadIntent intent) =>
+      intent.anchor ?? _anchorForPreviousLoad(_currentVisibleMessageList());
+
+  ChatPreviousLoadDecision _evaluatePreviousLoadIntent(
+      _PreviousLoadIntent intent) {
+    final userGesture = intent.source == _PreviousLoadSource.edgeGesture ||
+        intent.source == _PreviousLoadSource.shortTouch;
+    final canWait = userGesture || intent.source == _PreviousLoadSource.trimResume;
+    final blocked = canWait
+        ? ChatPreviousLoadDecision.wait
+        : ChatPreviousLoadDecision.discard;
+    final global = _chatGlobalModel ?? widget.model.globalModel;
+    final position = _singleScrollPositionOrNull();
+    if (!mounted ||
+        !identical(widget.model, intent.model) ||
+        _conversationId() != intent.conversationID ||
+        !intent.windowIsCurrent() ||
+        global.isSearchJumpPending(intent.conversationID) ||
+        global.isUserScrollToBottomInProgress(intent.conversationID) ||
+        (userGesture &&
+            (!widget.isAllowScroll ||
+                ModalRoute.of(context)?.isCurrent == false ||
+                intent.gesture != _paginationUi.previousUserGestureSequence ||
+                intent.gesture <= _paginationUi.previousLoadGestureSequence ||
+                (intent.source == _PreviousLoadSource.shortTouch &&
+                    position != null &&
+                    !_historyPhysicsAllowsUserScrolling(position.physics))))) {
+      return ChatPreviousLoadDecision.discard;
+    }
+    if (intent.silent &&
+        _historyOpenRevealReady &&
+        intent.source != _PreviousLoadSource.viewportFill) {
+      return ChatPreviousLoadDecision.discard;
+    }
+    // All paths share these locks. A waiting gesture does not itself prevent
+    // trim, and geometry is checked after transient locks/overscroll recover.
+    if (_paginationUi.isLoadingPrevious ||
+        _paginationUi.loadPreviousTask != null ||
+        _paginationUi.isLoadingLatest ||
+        _historyWindowTrimUi.isBusy ||
+        global.historyWindowPaginationBlocked(intent.conversationID) ||
+        _isSearchJumpStabilizing ||
+        _isHistoryScrollProtected ||
+        _shouldCompensateScrollForPagination() ||
+        !_paginationUi.canScheduleLoadPrevious(
+            searchJumpStabilizing: false, historyScrollProtected: false) ||
+        global.isMessageContextMenuOverlayOpen ||
+        global.isContextMenuViewportRestoreActive(intent.conversationID) ||
+        global.shouldLockChatScrollForMediaPreview ||
+        global.isRestoringScrollAfterMediaPreview ||
+        (userGesture &&
+            (position == null ||
+                !position.hasPixels ||
+                !position.hasContentDimensions ||
+                position.outOfRange))) return blocked;
+    // The former scroll scheduler admitted one explicit end probe even when
+    // haveMoreData was already false. Its transaction also owns reading-window
+    // suppression; removing it changes how subsequent arrivals are buffered.
+    final firstEndProbe = intent.source == _PreviousLoadSource.edgeGesture &&
+        !_paginationUi.triedPreviousAfterNoMore;
+    if (userGesture &&
+        !_canAttemptPreviousHistoryPagination() && !firstEndProbe) {
+      return ChatPreviousLoadDecision.discard;
+    }
+    // An edge intent was qualified by its input adapter. Lazy layout can grow
+    // maxScrollExtent during debounce; only real reversal/owner changes revoke it.
+    // A short touch additionally depends on still having a usable short/edge view.
+    if (intent.source == _PreviousLoadSource.shortTouch &&
+        !_isInPreviousGestureBand(position) &&
+        position!.maxScrollExtent - position.minScrollExtent > 1) {
+      return ChatPreviousLoadDecision.discard;
+    }
+    if (!widget.model.haveMoreData &&
+        widget.model.historyAvailability == HistoryAvailability.exhausted &&
+        _paginationUi.triedPreviousAfterNoMore) {
+      return ChatPreviousLoadDecision.discard;
+    }
+    final anchor = _anchorForPreviousIntent(intent);
+    if (anchor == null) return ChatPreviousLoadDecision.discard;
+    final anchorKey = _previousLoadAnchorKey(anchor);
+    // Evaluate without consuming a gesture or releasing a failed cursor.
+    // Those transitions belong to the synchronous dispatch below.
+    final changedFailedCursor = _paginationUi.previousRetryNeedsUserGesture &&
+        _paginationUi.lastTopReachConsumedAnchorKey != null &&
+        anchorKey != _paginationUi.lastTopReachConsumedAnchorKey;
+    final touchRetry = intent.retryGesture;
+    if (_paginationUi.previousRetryNeedsUserGesture &&
+        !changedFailedCursor && !touchRetry) {
+      return ChatPreviousLoadDecision.needsGesture;
+    }
+    if (_paginationUi.previousLoadConsumedThisTopReach &&
+        !changedFailedCursor &&
+        !(touchRetry && _paginationUi.previousRetryNeedsUserGesture) &&
+        intent.source != _PreviousLoadSource.viewportFill &&
+        intent.source != _PreviousLoadSource.trimResume) {
+      return ChatPreviousLoadDecision.discard;
+    }
+    return ChatPreviousLoadDecision.ready;
+  }
+
+  void _queuePreviousLoad(_PreviousLoadAnchor? anchor,
+      {required _PreviousLoadSource source, bool silent = false}) {
+    final model = widget.model;
+    final intent = (
+      anchor: anchor,
+      source: source,
+      model: model,
+      conversationID: _conversationId(),
+      windowIsCurrent: model.captureHistoryWindowPublicationFence(),
+      gesture: _paginationUi.previousUserGestureSequence,
+      silent: silent,
+      retryGesture: source == _PreviousLoadSource.shortTouch &&
+          _paginationUi.previousRetryNeedsUserGesture &&
+          !_paginationUi.isLoadingPrevious &&
+          _paginationUi.loadPreviousTask == null,
+    );
+    _previousLoadQueue.request(
+      userGesture: source == _PreviousLoadSource.edgeGesture ||
+          source == _PreviousLoadSource.shortTouch,
+      evaluate: () => _evaluatePreviousLoadIntent(intent),
+      load: () => _loadPrevious(intent),
+      onDecision: (decision) {
+        if (!mounted) return;
+        if (!identical(widget.model, model) ||
+            _conversationId() != intent.conversationID ||
+            !intent.windowIsCurrent()) {
+          if (!_previousLoadQueue.isAdmitted &&
+              !_paginationUi.isLoadingPrevious && !_paginationUi.isLoadingLatest) {
+            _clearTopHistoryLoading();
+          }
+          return;
+        }
+        if (decision == ChatPreviousLoadDecision.ready) {
+          _markTopHistoryLoadingScheduled(silent: silent);
+        } else {
+          _historyWindowBlocksPagination();
+          final position = _singleScrollPositionOrNull();
+          if (position != null) {
+            _logScrollLoadPreviousBlocked(
+                metrics: position,
+                anchor: _anchorForPreviousIntent(intent),
+                reason: 'queue_${source.name}_${decision.name}');
+          }
+          if (!_previousLoadQueue.isAdmitted &&
+              !_paginationUi.isLoadingPrevious && !_paginationUi.isLoadingLatest) {
+            _clearTopHistoryLoading();
+          }
+        }
+      },
+    );
   }
 
   void _logScrollLoadPreviousBlocked({
@@ -9377,152 +9398,13 @@ class _TIMUIKitHistoryMessageListState
     _PreviousLoadAnchor? anchor, {
     bool silent = false,
     bool allowAfterRevealForViewportFill = false,
-    bool bypassTopReachConsumed = false,
   }) {
-    ChatHistoryTrace.log(
-      'schedule_previous_attempt',
-      conversationID: _conversationId(),
-      extras: <String, Object?>{
-        'anchorMsgID': anchor?.msgID,
-        'anchorSeq': anchor?.seq,
-        'haveMoreData': widget.model.haveMoreData,
-        'silent': silent,
-        'allowAfterRevealForViewportFill': allowAfterRevealForViewportFill,
-        'bypassTopReachConsumed': bypassTopReachConsumed,
-        'topReachConsumed': _paginationUi.previousLoadConsumedThisTopReach,
-        'ignoreScroll': _paginationUi.ignoreScrollLoadPrevious,
-        'loadingPrevious': _paginationUi.isLoadingPrevious,
-        'taskInFlight': _paginationUi.loadPreviousTask != null,
-        'triedAfterNoMore': _paginationUi.triedPreviousAfterNoMore,
-      },
-    );
-    if (silent && _historyOpenRevealReady && !allowAfterRevealForViewportFill) {
-      ChatGeomSettleTrace.noteReason(
-        'schedule_previous_silent_blocked_post_reveal',
-        extras: <String, Object?>{
-          'haveMoreData': widget.model.haveMoreData,
-          'anchorMsgID': anchor?.msgID,
-        },
-      );
-      return;
-    }
-    if (anchor == null) {
-      ChatHistoryTrace.log(
-        'schedule_previous_no_anchor',
-        conversationID: _conversationId(),
-        extras: <String, Object?>{'haveMoreData': widget.model.haveMoreData},
-      );
-      return;
-    }
-    if (_isSearchJumpStabilizing ||
-        _isHistoryScrollProtected ||
-        (_chatGlobalModel?.isMessageContextMenuOverlayOpen ?? false) ||
-        !_shouldAllowLoadPreviousDespiteTopReach(
-          anchor,
-          bypassTopReachConsumed: bypassTopReachConsumed,
-        ) ||
-        _paginationUi.loadPreviousTask != null) {
-      ChatHistoryTrace.log(
-        'schedule_previous_blocked',
-        conversationID: _conversationId(),
-        extras: <String, Object?>{
-          'searchJump': _isSearchJumpStabilizing,
-          'scrollProtected': _isHistoryScrollProtected,
-          'menuOpen':
-              _chatGlobalModel?.isMessageContextMenuOverlayOpen ?? false,
-          'consumedTopReach': _paginationUi.previousLoadConsumedThisTopReach,
-          'taskInFlight': _paginationUi.loadPreviousTask != null,
-        },
-      );
-      return;
-    }
-    if (widget.model.haveMoreData) {
-      _paginationUi.triedPreviousAfterNoMore = false;
-    }
-    if (widget.model.historyAvailability == HistoryAvailability.exhausted &&
-        _paginationUi.triedPreviousAfterNoMore) {
-      ChatHistoryTrace.log(
-        'schedule_previous_no_more',
-        conversationID: _conversationId(),
-        extras: const <String, Object?>{'triedAfterNoMore': true},
-      );
-      return;
-    }
-    final anchorKey = _previousLoadAnchorKey(anchor);
-    if (_paginationUi.previousLoadInFlightAnchorKey == anchorKey) {
-      ChatHistoryTrace.log(
-        'schedule_previous_duplicate_anchor',
-        conversationID: _conversationId(),
-        extras: <String, Object?>{'anchorKey': anchorKey},
-      );
-      return;
-    }
-    if (!_canScheduleLoadPrevious()) {
-      ChatHistoryTrace.log(
-        'schedule_previous_cooldown',
-        conversationID: _conversationId(),
-        extras: <String, Object?>{
-          'loadingPrevious': _paginationUi.isLoadingPrevious,
-          'searchJump': _isSearchJumpStabilizing,
-          'scrollProtected': _isHistoryScrollProtected,
-        },
-      );
-      return;
-    }
-    ChatHistoryTrace.log(
-      'schedule_previous_debounce',
-      conversationID: _conversationId(),
-      extras: <String, Object?>{
-        'anchorMsgID': anchor.msgID,
-        'anchorSeq': anchor.seq,
-        'haveMoreData': widget.model.haveMoreData,
-        'silent': silent,
-      },
-    );
-    _markTopHistoryLoadingScheduled(silent: silent);
-    // 始终记录最新锚点，供计时器触发时使用。
-    _pendingLoadPreviousAnchor = anchor;
-    // 已有计时器在跑时不要重置：否则连续滚动（尤其顶部橡皮筋回弹）会把
-    // debounce 无限重启，导致加载永远等不到静默期而触发不了。
-    if (_paginationUi.loadPreviousDebounce?.isActive ?? false) {
-      return;
-    }
-    final scheduledModel = widget.model;
-    final scheduledConversation = _conversationId();
-    final scheduledWindowIsCurrent =
-        scheduledModel.captureHistoryWindowPublicationFence();
-    _paginationUi.loadPreviousDebounce = Timer(
-      const Duration(milliseconds: _loadPreviousDebounceMs),
-      () {
-        if (!mounted ||
-            !identical(widget.model, scheduledModel) ||
-            _conversationId() != scheduledConversation ||
-            !scheduledWindowIsCurrent()) {
-          _pendingLoadPreviousAnchor = null;
-          if (mounted) _clearTopHistoryLoading();
-          return;
-        }
-        final pendingAnchor = _pendingLoadPreviousAnchor ?? anchor;
-        _pendingLoadPreviousAnchor = null;
-        if (!_canScheduleLoadPrevious()) {
-          _clearTopHistoryLoading();
-          ChatHistoryTrace.log(
-            'schedule_previous_debounce_cancelled',
-            conversationID: _conversationId(),
-            extras: const <String, Object?>{
-              'reason': 'cooldown_after_debounce',
-            },
-          );
-          return;
-        }
-        if (_paginationUi.previousLoadInFlightAnchorKey ==
-            _previousLoadAnchorKey(pendingAnchor)) {
-          _clearTopHistoryLoading();
-          return;
-        }
-        _loadPrevious(pendingAnchor);
-      },
-    );
+    if (anchor == null) return;
+    _queuePreviousLoad(anchor,
+        source: allowAfterRevealForViewportFill
+            ? _PreviousLoadSource.viewportFill
+            : _PreviousLoadSource.prefetch,
+        silent: silent);
   }
 
   bool _allowsLatestHistoryPagination(TUIChatGlobalModel globalModel) {
@@ -9774,55 +9656,26 @@ class _TIMUIKitHistoryMessageListState
     _chatGlobalModel?.setMemoryWindowSuppressed(_conversationId(), true);
   }
 
-  Future<void> _loadPrevious(_PreviousLoadAnchor anchor) async {
-    final global = _chatGlobalModel ?? widget.model.globalModel;
-    if (global.isMessageContextMenuOverlayOpen ||
-        global.isContextMenuViewportRestoreActive(_conversationId()) ||
-        global.shouldLockChatScrollForMediaPreview ||
-        global.isRestoringScrollAfterMediaPreview) {
-      _clearTopHistoryLoading();
-      return;
+  Future<void> _loadPrevious(_PreviousLoadIntent intent) async {
+    // Queue evaluation and dispatch have no asynchronous gap. Only this entry
+    // consumes the admitted gesture/cursor; SDK and viewport ownership stay here.
+    final anchor = _anchorForPreviousIntent(intent);
+    if (anchor == null) return;
+    if (intent.retryGesture &&
+        _paginationUi.previousRetryNeedsUserGesture) {
+      _paginationUi.onUserDragStart();
     }
-    // Trim-resume can enter directly without the normal top-reach scheduler.
     _paginationUi.releasePreviousRetryForChangedAnchor(
-      _previousLoadAnchorKey(anchor),
-    );
-    if (_paginationUi.previousRetryNeedsUserGesture) {
-      _clearTopHistoryLoading();
-      return;
-    }
-    if (_historyWindowBlocksPagination()) {
-      _clearTopHistoryLoading();
-      return;
+        _previousLoadAnchorKey(anchor));
+    if (widget.model.haveMoreData) {
+      _paginationUi.triedPreviousAfterNoMore = false;
     }
     PerfTimeline.instant('chat_history_page_request', arguments: {
       'conversationId': _conversationId(),
     });
-    if (_paginationUi.loadPreviousTask != null) {
-      return _paginationUi.loadPreviousTask;
-    }
-    if (_paginationUi.isLoadingPrevious ||
-        _paginationUi.isLoadingLatest ||
-        (_chatGlobalModel?.isUserScrollToBottomInProgress(_conversationId()) ??
-            false) ||
-        !mounted) {
-      _clearTopHistoryLoading();
-      return;
-    }
-    if (widget.model.haveMoreData) {
-      _paginationUi.triedPreviousAfterNoMore = false;
-    }
-    if (widget.model.historyAvailability == HistoryAvailability.exhausted &&
-        _paginationUi.triedPreviousAfterNoMore) {
-      _clearTopHistoryLoading();
-      return;
-    }
-
     _paginationUi.markTopReachConsumedForPreviousLoad(
       _previousLoadAnchorKey(anchor),
     );
-    _paginationUi.loadPreviousDebounce?.cancel();
-    _paginationUi.loadPreviousDebounce = null;
     final task = _loadPreviousImpl(anchor);
     _paginationUi.loadPreviousTask = task;
     try {
@@ -9838,9 +9691,11 @@ class _TIMUIKitHistoryMessageListState
   void _invalidatePreviousPagination() {
     _previousPaginationGeneration++;
     _previousLoadWindowIsCurrent = null;
-    _paginationUi.cancelPreviousGestureRetry();
-    _paginationUi.loadPreviousDebounce?.cancel();
-    _paginationUi.loadPreviousDebounce = null;
+    _shortViewportPreviousPointer = null;
+    _shortViewportPreviousPointerStart = null;
+    _shortViewportPreviousGestureRecorded = false;
+    _shortViewportPreviousGestureCancelled = false;
+    _previousLoadQueue.cancel();
     _paginationUi.loadingIndicatorTimer?.cancel();
     _paginationUi.loadingIndicatorTimer = null;
     _paginationUi.loadPreviousTask = null;
@@ -9854,7 +9709,6 @@ class _TIMUIKitHistoryMessageListState
     _paginationUi.latestLoadSuppressedUntilMs = 0;
     _paginationUi.lastLoadPreviousCompletedAtMs = 0;
     _paginationUi.scrollPaginationCompensationGeneration++;
-    _pendingLoadPreviousAnchor = null;
     _clearPaginationRestoreAnchor();
     _clearScrollPaginationCompensation();
     _clearTopHistoryLoading(notify: false);
@@ -9898,7 +9752,6 @@ class _TIMUIKitHistoryMessageListState
     }
     _paginationUi.isLoadingPrevious = true;
     _paginationUserScrollSinceLoad = false;
-    _paginationUi.pendingLoadPrevious = false;
     _chatGlobalModel?.beginPreviousPageImageDecodeDefer();
     _paginationUi.previousLoadInFlightAnchorKey = _previousLoadAnchorKey(
       anchor,
@@ -13333,11 +13186,18 @@ class _TIMUIKitHistoryMessageListState
         _isSearchJumpStabilizing) {
       return;
     }
+    final scheduledModel = widget.model;
+    final scheduledConversation = _conversationId();
+    final scheduledWindowIsCurrent =
+        scheduledModel.captureHistoryWindowPublicationFence();
     _routeScroll.shortViewportHistoryFillScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _routeScroll.shortViewportHistoryFillScheduled = false;
       // C-fix 续：post-frame 再次校验 reveal 状态；reveal 未完成直接 return。
       if (!mounted ||
+          !identical(widget.model, scheduledModel) ||
+          _conversationId() != scheduledConversation ||
+          !scheduledWindowIsCurrent() ||
           !_historyOpenRevealPainted ||
           !_canAttemptPreviousHistoryPagination() ||
           _paginationUi.isLoadingPrevious ||
@@ -13399,7 +13259,6 @@ class _TIMUIKitHistoryMessageListState
         anchor,
         silent: true,
         allowAfterRevealForViewportFill: true,
-        bypassTopReachConsumed: true,
       );
     });
   }
@@ -14630,7 +14489,11 @@ class _TIMUIKitHistoryMessageListState
                 }
                 if (notification is ScrollStartNotification &&
                     notification.dragDetails != null) {
-                  _paginationUi.onUserDragStart();
+                  // A short-window retry waits for a deliberate older drag.
+                  // Merely starting a reversed drag must not release its latch.
+                  if (_shortViewportPreviousPointer == null) {
+                    _paginationUi.onUserDragStart();
+                  }
                   if (!_initialSearchJumpPending && !_scrollToFindInFlight) {
                     // Once the result is revealed, the user's gesture owns the
                     // viewport. Do not retain the positioning cooldown for 2.6s.
@@ -14691,12 +14554,17 @@ class _TIMUIKitHistoryMessageListState
                       (latestUserGesture ||
                           _singleScrollPositionOrNull()?.userScrollDirection ==
                               ScrollDirection.reverse);
+                  final shortViewportPreviousGesture =
+                      _shortViewportPreviousPointer != null &&
+                      _shortViewportPreviousGestureRecorded &&
+                      notification.metrics.hasContentDimensions &&
+                      notification.metrics.maxScrollExtent -
+                              notification.metrics.minScrollExtent <=
+                          1;
                   if (latestDragActive && (latestScrollDelta < 0 ||
-                      !_isInPreviousGestureBand(notification.metrics))) {
+                      (!_isInPreviousGestureBand(notification.metrics) &&
+                          !shortViewportPreviousGesture))) {
                     _cancelPendingPreviousGesture();
-                  }
-                  if (previousUserGesture) {
-                    _rememberPreviousEdgeGesture(notification.metrics);
                   }
                   if ((latestDragActive && latestScrollDelta > 0) ||
                       ((_userScrollGestureActive ||
@@ -14743,36 +14611,20 @@ class _TIMUIKitHistoryMessageListState
                   }
                   final metrics = notification.metrics;
                   _promotePreviousLoadSpinnerIfNearTop(metrics);
-                  if (previousUserGesture &&
-                      _isNearTopForHistoryLoad(metrics) &&
-                      previousAnchor != null &&
-                      _canAttemptPreviousHistoryPagination() &&
-                      !_paginationUi.triedPreviousAfterNoMore &&
-                      !_shouldShowTopHistoryLoading &&
-                      !_paginationUi.silentTopHistoryLoading &&
-                      !_paginationUi.isLoadingPrevious &&
-                      (_shouldTriggerLoadPreviousFromScroll(
-                            metrics,
-                            anchor: previousAnchor,
-                          ) ||
-                          (_paginationUi.loadPreviousDebounce?.isActive ??
-                              false))) {
-                    _markTopHistoryLoadingScheduled();
-                  }
-                  if (previousUserGesture && _shouldTriggerLoadPreviousFromScroll(
-                    metrics,
-                    anchor: previousAnchor,
-                  )) {
-                    _scheduleLoadPrevious(
-                      previousAnchor,
-                      silent: !HistoryPreviousPrefetchPolicy
-                          .shouldShowPreviousLoadSpinner(
-                        pixels: metrics.pixels,
-                        maxScrollExtent: metrics.maxScrollExtent,
-                        hasPixels: metrics.hasPixels,
-                        hasContentDimensions: metrics.hasContentDimensions,
-                      ),
-                    );
+                  if (previousUserGesture) {
+                    if (_isInPreviousGestureBand(metrics)) {
+                      _rememberPreviousEdgeGesture(metrics);
+                    } else if (_shouldTriggerLoadPreviousFromScroll(
+                        metrics, anchor: previousAnchor)) {
+                      _scheduleLoadPrevious(previousAnchor,
+                          silent: !HistoryPreviousPrefetchPolicy
+                              .shouldShowPreviousLoadSpinner(
+                            pixels: metrics.pixels,
+                            maxScrollExtent: metrics.maxScrollExtent,
+                            hasPixels: metrics.hasPixels,
+                            hasContentDimensions: metrics.hasContentDimensions,
+                          ));
+                    }
                   }
                   if (latestUserGesture &&
                       latestScrollDelta < 0 &&
@@ -14997,6 +14849,90 @@ class _TIMUIKitHistoryMessageListState
                         _historyOpenRevealPainted &&
                         !placeholderStillOpaque,
                     child: Listener(
+                      onPointerDown: (event) {
+                        final position = _singleScrollPositionOrNull();
+                        if (event.kind != PointerDeviceKind.touch ||
+                            _shortViewportPreviousPointer != null ||
+                            !_paginationUi.previousRetryNeedsUserGesture ||
+                            !widget.isAllowScroll ||
+                            position == null ||
+                            !_historyPhysicsAllowsUserScrolling(
+                                position.physics) ||
+                            !position.hasContentDimensions ||
+                            position.maxScrollExtent -
+                                    position.minScrollExtent >
+                                1) return;
+                        _shortViewportPreviousPointer = event.pointer;
+                        _shortViewportPreviousPointerStart = event.position;
+                        _shortViewportPreviousGestureRecorded = false;
+                        _shortViewportPreviousGestureCancelled = false;
+                      },
+                      onPointerMove: (event) {
+                        if (event.pointer != _shortViewportPreviousPointer ||
+                            _shortViewportPreviousGestureCancelled) return;
+                        final position = _singleScrollPositionOrNull();
+                        final global =
+                            _chatGlobalModel ?? widget.model.globalModel;
+                        // A menu, preview or configured physics can claim an
+                        // already-down pointer. Its later moves are not chat
+                        // pagination intent and must not replay after unlock.
+                        if (!widget.isAllowScroll ||
+                            position == null ||
+                            !_historyPhysicsAllowsUserScrolling(
+                                position.physics) ||
+                            global.isMessageContextMenuOverlayOpen ||
+                            global.isContextMenuViewportRestoreActive(
+                                _conversationId()) ||
+                            global.shouldLockChatScrollForMediaPreview ||
+                            global.isRestoringScrollAfterMediaPreview) {
+                          _shortViewportPreviousGestureCancelled = true;
+                          _cancelPendingPreviousGesture();
+                          return;
+                        }
+                        if (_shortViewportPreviousGestureRecorded) {
+                          if (event.delta.dy < 0) {
+                            _shortViewportPreviousGestureCancelled = true;
+                            _cancelPendingPreviousGesture();
+                          }
+                          return;
+                        }
+                        final delta = event.position -
+                            _shortViewportPreviousPointerStart!;
+                        if (delta.distance <= kTouchSlop) return;
+                        if (delta.dy <= delta.dx.abs()) {
+                          _shortViewportPreviousGestureCancelled = true;
+                          _cancelPendingPreviousGesture();
+                          return;
+                        }
+                        if (!position.hasContentDimensions ||
+                            position.maxScrollExtent -
+                                    position.minScrollExtent >
+                                1) return;
+                        // A non-scrollable viewport emits no drag notification.
+                        // Record one gesture while retaining the failed-page
+                        // latch until the queue is ready to dispatch its retry.
+                        _shortViewportPreviousGestureRecorded = true;
+                        _paginationUi.previousUserGestureSequence++;
+                        _previousLoadQueue.cancel();
+                        _latestLoadIntent.cancel();
+                        _rememberPreviousEdgeGesture(position,
+                            allowShortViewport: true);
+                      },
+                      onPointerUp: (event) {
+                        if (event.pointer == _shortViewportPreviousPointer) {
+                          _shortViewportPreviousPointer = null;
+                          _shortViewportPreviousPointerStart = null;
+                        }
+                      },
+                      onPointerCancel: (event) {
+                        if (event.pointer == _shortViewportPreviousPointer) {
+                          if (_shortViewportPreviousGestureRecorded) {
+                            _cancelPendingPreviousGesture();
+                          }
+                          _shortViewportPreviousPointer = null;
+                          _shortViewportPreviousPointerStart = null;
+                        }
+                      },
                       onPointerSignal: (event) {
                         // Mouse wheels have no ScrollStart dragDetails.
                         if (event is PointerScrollEvent &&
@@ -15122,6 +15058,19 @@ class _UnreadMessageAnchor {
     required this.seq,
   });
 }
+
+enum _PreviousLoadSource { edgeGesture, shortTouch, prefetch, viewportFill, trimResume }
+
+typedef _PreviousLoadIntent = ({
+  _PreviousLoadAnchor? anchor,
+  _PreviousLoadSource source,
+  TUIChatSeparateViewModel model,
+  String conversationID,
+  bool Function() windowIsCurrent,
+  int gesture,
+  bool silent,
+  bool retryGesture,
+});
 
 class _PreviousLoadAnchor {
   final String? msgID;

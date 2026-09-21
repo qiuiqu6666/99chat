@@ -40,10 +40,9 @@ import 'package:tencent_cloud_chat_demo/utils/user_avatar.dart';
 import 'package:tencent_cloud_chat_demo/utils/user_display_profile.dart';
 
 const Color _momentsNameColor = AppTokens.ink600;
-const Color _momentsActionBarColor = Color(0xF0202126);
 
 Color _momentsPageBackground(bool dark) =>
-    dark ? AppColors.background(dark: true) : AppColors.card(dark: false);
+    dark ? AppColors.background(dark: true) : const Color(0xFFF5F6F8);
 
 Color _momentsPanelColor(bool dark) => AppColors.surfaceAlt(dark: dark);
 
@@ -877,11 +876,7 @@ class _MomentsPageState extends State<MomentsPage> {
                                     : null,
                           ),
                           if (index < posts.length - 1)
-                            Divider(
-                              height: 12,
-                              thickness: 0.6,
-                              color: AppColors.line(dark: dark),
-                            ),
+                            const SizedBox(height: 10),
                         ],
                       );
                     },
@@ -1107,9 +1102,9 @@ class _HeaderCard extends StatelessWidget {
     this.onBack,
   });
 
-  static const double _coverBaseHeight = 224;
-  static const double _headerBaseHeight = 268;
-  static const double _profileTop = 190;
+  static const double _coverBaseHeight = 250;
+  static const double _headerBaseHeight = 250;
+  static const double _profileTop = 150;
 
   final bool dark;
   final String displayName;
@@ -1164,6 +1159,34 @@ class _HeaderCard extends StatelessWidget {
                     ),
                   ),
                   Positioned(
+                    left: 28,
+                    top: MediaQuery.paddingOf(context).top + 64,
+                    child: IgnorePointer(
+                        child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(TIM_t('生活很美好'),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w300,
+                              shadows: [
+                                Shadow(color: Colors.black26, blurRadius: 8)
+                              ],
+                            )),
+                        const SizedBox(height: 6),
+                        Text(TIM_t('记录每一个平凡的日子'),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              shadows: [
+                                Shadow(color: Colors.black26, blurRadius: 8)
+                              ],
+                            )),
+                      ],
+                    )),
+                  ),
+                  Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
@@ -1210,42 +1233,15 @@ class _HeaderCard extends StatelessWidget {
             top: profileTop,
             child: AppListPressable(
               onTap: onProfileTap,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Text(
-                      displayName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        shadows: [
-                          Shadow(
-                            color: Color(0x66000000),
-                            blurRadius: 6,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: AppUserAvatar(
-                      faceUrl: displayAvatar,
-                      showName: displayName,
-                      size: 78,
-                    ),
-                  ),
-                ],
+              child: Tooltip(
+                message: displayName,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                      color: Colors.white, shape: BoxShape.circle),
+                  child: AppUserAvatar(
+                      faceUrl: displayAvatar, showName: displayName, size: 72),
+                ),
               ),
             ),
           ),
@@ -1417,154 +1413,125 @@ class _MomentCard extends StatefulWidget {
 }
 
 class _MomentCardState extends State<_MomentCard> {
-  bool _showActions = false;
-
-  void _hideActions() {
-    if (_showActions) {
-      setState(() => _showActions = false);
-    }
-  }
-
-  void _runAction(VoidCallback action) {
-    _hideActions();
-    action();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final selfId = MomentsStore.safeLoginUserId();
+    final post = widget.post;
     final dark = widget.dark;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    final liked = post.likedBy(MomentsStore.safeLoginUserId());
+    final secondary = AppColors.subText(dark: dark);
+    Widget moreMenu() => PopupMenuButton<String>(
+          tooltip: TIM_t('更多'),
+          icon: Icon(Icons.more_horiz, color: secondary),
+          onSelected: (action) {
+            if (action == 'open') widget.onTap();
+            if (action == 'delete') widget.onDelete?.call();
+          },
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'open', child: Text(TIM_t('查看详情'))),
+            if (widget.onDelete != null)
+              PopupMenuItem(value: 'delete', child: Text(TIM_t('删除'))),
+          ],
+        );
+    Widget action(IconData icon, String label, VoidCallback onTap,
+        {bool active = false}) {
+      return TextButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 21),
+        label: Text(label, style: const TextStyle(fontSize: 13)),
+        style: TextButton.styleFrom(
+          foregroundColor: active ? AppColors.primaryBlue : secondary,
+          minimumSize: const Size(48, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      child: Material(
+        color: AppColors.card(dark: dark),
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
               GestureDetector(
                 onTap: widget.onAuthorTap,
-                behavior: HitTestBehavior.opaque,
-                child: MomentsUserAvatar(
-                  user: widget.post.author,
-                  size: 44,
-                ),
+                child: MomentsUserAvatar(user: post.author, size: 40),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                     GestureDetector(
                       onTap: widget.onAuthorTap,
-                      behavior: HitTestBehavior.opaque,
                       child: Text(
-                        UserDisplayProfile.nameOfSnapshot(widget.post.author),
-                        style: const TextStyle(
-                          color: _momentsNameColor,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    if (widget.post.text.trim().isNotEmpty)
-                      GestureDetector(
-                        onTap: widget.onTap,
-                        child: Text(
-                          widget.post.text,
+                          UserDisplayProfile.nameOfSnapshot(post.author),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: AppColors.text(dark: dark),
-                            fontSize: 15,
-                            height: 1.45,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+                              color: AppColors.text(dark: dark),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(_formatRelative(post.createdAt),
+                        style: TextStyle(color: secondary, fontSize: 12)),
+                  ])),
+              moreMenu(),
+            ]),
+            if (post.text.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              GestureDetector(
+                  onTap: widget.onTap,
+                  child: Text(post.text,
+                      style: TextStyle(
+                          color: AppColors.text(dark: dark),
+                          fontSize: 15,
+                          height: 1.5))),
             ],
-          ),
-          if (widget.post.hasMedia) ...[
-            const SizedBox(height: 5),
-            Padding(
-              padding: const EdgeInsets.only(left: 54),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 322),
-                child: _MediaGrid(post: widget.post),
+            if (post.hasMedia) ...[
+              const SizedBox(height: 10),
+              ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: _MediaGrid(post: post)),
+            ],
+            if ((post.location ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(post.location!.trim(),
+                  style: TextStyle(color: secondary, fontSize: 12)),
+            ],
+            const SizedBox(height: 6),
+            Row(children: [
+              action(
+                  liked ? Icons.thumb_up_alt : Icons.thumb_up_alt_outlined,
+                  post.likeCount > 0 ? '${post.likeCount}' : TIM_t('赞'),
+                  widget.onLike,
+                  active: liked),
+              const SizedBox(width: 20),
+              action(
+                  Icons.chat_bubble_outline_rounded,
+                  post.commentCount > 0 ? '${post.commentCount}' : TIM_t('评论'),
+                  widget.onComment),
+              const Spacer(),
+              moreMenu(),
+            ]),
+            if (post.likes.isNotEmpty ||
+                post.comments.isNotEmpty ||
+                post.commentCount > 0)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _EngagementRow(
+                    post: post,
+                    dark: dark,
+                    onTap: widget.onTap,
+                    onCommentLongPress: widget.onCommentLongPress),
               ),
-            ),
-          ],
-          const SizedBox(height: 3),
-          Padding(
-            padding: const EdgeInsets.only(left: 54),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: widget.onTap,
-                      child: Text(
-                        _formatRelative(widget.post.createdAt),
-                        style: TextStyle(
-                          color: AppColors.subText(dark: dark),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    if ((widget.post.location ?? '').trim().isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        widget.post.location!.trim(),
-                        style: TextStyle(
-                          color: AppColors.subText(dark: dark),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
-                    _MomentMoreButton(
-                      dark: dark,
-                      onTap: () {
-                        setState(() => _showActions = !_showActions);
-                      },
-                    ),
-                  ],
-                ),
-                if (_showActions)
-                  Positioned(
-                    right: 40,
-                    top: -6,
-                    child: _MomentInlineActions(
-                      likedBySelf: widget.post.likedBy(selfId),
-                      canDelete: widget.onDelete != null,
-                      onOpen: () => _runAction(widget.onTap),
-                      onLike: () => _runAction(widget.onLike),
-                      onComment: () => _runAction(widget.onComment),
-                      onDelete: widget.onDelete == null
-                          ? null
-                          : () => _runAction(widget.onDelete!),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (widget.post.likes.isNotEmpty ||
-              widget.post.comments.isNotEmpty ||
-              widget.post.commentCount > 0) ...[
-            const SizedBox(height: 5),
-            Padding(
-              padding: const EdgeInsets.only(left: 54),
-              child: _EngagementRow(
-                post: widget.post,
-                dark: dark,
-                onTap: widget.onTap,
-                onCommentLongPress: widget.onCommentLongPress,
-              ),
-            ),
-          ],
-        ],
+          ]),
+        ),
       ),
     );
   }
@@ -2168,148 +2135,6 @@ class _CommentInlineText extends StatelessWidget {
       ),
       maxLines: maxLines,
       overflow: maxLines == null ? TextOverflow.clip : TextOverflow.ellipsis,
-    );
-  }
-}
-
-class _MomentMoreButton extends StatelessWidget {
-  const _MomentMoreButton({
-    required this.dark,
-    required this.onTap,
-  });
-
-  final bool dark;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppListPressable(
-      onTap: onTap,
-      child: Container(
-        width: 34,
-        height: 24,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: _momentsButtonColor(dark),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: const Icon(
-          Icons.more_horiz_rounded,
-          color: _momentsNameColor,
-          size: 19,
-        ),
-      ),
-    );
-  }
-}
-
-class _MomentInlineActions extends StatelessWidget {
-  const _MomentInlineActions({
-    required this.likedBySelf,
-    required this.canDelete,
-    required this.onOpen,
-    required this.onLike,
-    required this.onComment,
-    this.onDelete,
-  });
-
-  final bool likedBySelf;
-  final bool canDelete;
-  final VoidCallback onOpen;
-  final VoidCallback onLike;
-  final VoidCallback onComment;
-  final VoidCallback? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        height: 36,
-        decoration: BoxDecoration(
-          color: _momentsActionBarColor,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _InlineActionButton(
-              icon: likedBySelf
-                  ? Icons.favorite_rounded
-                  : Icons.favorite_border_rounded,
-              label: likedBySelf ? TIM_t('取消') : TIM_t('赞'),
-              onTap: onLike,
-            ),
-            const _InlineActionDivider(),
-            _InlineActionButton(
-              icon: Icons.mode_comment_outlined,
-              label: TIM_t('评论'),
-              onTap: onComment,
-            ),
-            const _InlineActionDivider(),
-            _InlineActionButton(
-              icon: Icons.notes_rounded,
-              label: TIM_t('详情'),
-              onTap: onOpen,
-            ),
-            if (canDelete) ...[
-              const _InlineActionDivider(),
-              _InlineActionButton(
-                icon: Icons.delete_outline_rounded,
-                label: TIM_t('删除'),
-                onTap: onDelete,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InlineActionButton extends StatelessWidget {
-  const _InlineActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 9),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white, size: 17),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white, fontSize: 13),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InlineActionDivider extends StatelessWidget {
-  const _InlineActionDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 0.6,
-      height: 18,
-      color: Colors.white.withValues(alpha: 0.18),
     );
   }
 }

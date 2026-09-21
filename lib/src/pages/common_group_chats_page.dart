@@ -246,6 +246,14 @@ class _CommonGroupChatsPageState extends State<CommonGroupChatsPage> {
     required bool showDivider,
   }) {
     final name = _displayName(group);
+    final memberCountLabel = AppI18n.of(context).format(
+      zhHans: '{count}人',
+      zhHant: '{count}人',
+      en: '{count} members',
+      ja: '{count}人',
+      ko: '{count}명',
+      vars: {'count': group.memberCount.toString()},
+    );
     return Material(
       color: card,
       child: InkWell(
@@ -263,16 +271,29 @@ class _CommonGroupChatsPageState extends State<CommonGroupChatsPage> {
                       faceUrl: group.avatarUrl,
                       showName: name,
                       type: 2,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(999),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 16, color: textColor),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 16, color: textColor),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          memberCountLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 13, color: weakColor),
+                        ),
+                      ],
                     ),
                   ),
                   Icon(

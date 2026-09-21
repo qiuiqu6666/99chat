@@ -74,7 +74,6 @@ class TIMUIKitHistoryMessageListTongueContainer extends StatefulWidget {
 
 class _TongueUnreadSelectorData {
   final HistoryMessagePosition messageListPosition;
-  final int liveUnreadCount;
   final bool followingLatest;
   final int unreadRemaining;
   final bool unreadBelow;
@@ -91,7 +90,6 @@ class _TongueUnreadSelectorData {
 
   const _TongueUnreadSelectorData({
     required this.messageListPosition,
-    required this.liveUnreadCount,
     required this.followingLatest,
     required this.unreadRemaining,
     required this.unreadBelow,
@@ -292,28 +290,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
     }
   }
 
-  bool _commitOverallFollowIfReady() {
-    final conv = widget.model.conversationID;
-    if (!widget.model.isLiveRestoreDataReady) {
-      return false;
-    }
-    if (globalModel.deferredIncomingBufferedCount(conv) > 0 ||
-        globalModel.unadmittedRemainingLiveCountFor(conv) > 0) {
-      return false;
-    }
-    final visit = globalModel.unreadVisitGenerationFor(conv);
-    final receiveGen = globalModel.liveReceiveGenerationFor(conv);
-    final op = globalModel.beginLiveFollowRestoreOp(conv);
-    final covered = globalModel.remainingLiveIncomingIdsFor(conv);
-    final tip = _messageIdentity(_newestConfirmed(widget.messageList));
-    return widget.model.commitLiveFollowRestore(
-      visit: visit,
-      restoreOpId: op,
-      liveReceiveGeneration: receiveGen,
-      targetTipId: tip,
-      coveredIds: covered,
-    );
-  }
+  bool _commitOverallFollowIfReady() =>
+      widget.model.commitFollowAfterVisibleLatestConfirm();
 
   Future<void> scrollToLatestAndDismissUnreadCapsule() async {
     if (_atTrueLatestEndNow()) {
@@ -1250,10 +1228,9 @@ class TIMUIKitHistoryMessageListTongueContainerState
     });
   }
 
-  int _resolveDisplayUnreadCount(int unreadRemaining) {
+  int _resolveDisplayUnreadCount(
+      int unreadRemaining, int liveUnreadCount) {
     var result = unreadRemaining;
-    final liveUnreadCount =
-        globalModel.receivedNewMessageCountFor(widget.model.conversationID);
     if (UnreadTonguePolicy.isLiveNewMessageTongueEnabled(
           unreadCount: liveUnreadCount,
         ) &&
@@ -1277,6 +1254,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
     HistoryMessagePosition messageListPosition,
     List<V2TimGroupAtInfo?>? groupAtInfoList, {
     required int unreadRemaining,
+    required int liveUnreadCount,
     required bool unreadBelow,
   }) {
     if (messageListPosition == HistoryMessagePosition.notShowLatest &&
@@ -1312,8 +1290,6 @@ class TIMUIKitHistoryMessageListTongueContainerState
       return MessageListTongueType.showPrevious;
     }
 
-    final liveUnreadCount =
-        globalModel.receivedNewMessageCountFor(widget.model.conversationID);
     if (UnreadTonguePolicy.isLiveNewMessageTongueEnabled(
           unreadCount: liveUnreadCount,
         ) &&
@@ -1426,6 +1402,9 @@ class TIMUIKitHistoryMessageListTongueContainerState
     return Selector<TUIChatGlobalModel, _TongueUnreadSelectorData>(
       builder: (context, selectorData, child) {
         final unreadRemaining = selectorData.unreadRemaining;
+        // All live presentation uses the visit's unseen identity ledger.
+        // The durable/legacy received scalar belongs to data acknowledgement.
+        final liveUnreadCount = _liveCapsuleDisplayCount(selectorData);
         final presentationBottomLocked = globalModel
                 .isInboundPresentationBottomLocked(widget.model.conversationID) ||
             globalModel
@@ -1437,13 +1416,14 @@ class TIMUIKitHistoryMessageListTongueContainerState
           logicalPosition,
           groupAtInfoList,
           unreadRemaining: unreadRemaining,
+          liveUnreadCount: liveUnreadCount,
           unreadBelow: selectorData.unreadBelow,
         );
         final displayUnreadCount = valueType == MessageListTongueType.showUnread
-            ? selectorData.liveUnreadCount
+            ? liveUnreadCount
             : valueType == MessageListTongueType.showPrevious
                 ? _entryUnreadCount
-                : _resolveDisplayUnreadCount(unreadRemaining);
+                : _resolveDisplayUnreadCount(unreadRemaining, liveUnreadCount);
         final isAtTongue = valueType == MessageListTongueType.atMe ||
             valueType == MessageListTongueType.atAll;
         final isEntryUnreadTip =
@@ -1452,7 +1432,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
         // 贴底或轻离底都可点；真正离开底部时右下角另给「回到底部」。
         final showEntryUnreadAtTop = isEntryUnreadTip && !isAtTongue;
         final scrolledUpBottomType =
-            _bottomCapsuleTypeWhenScrolledUp(_liveCapsuleDisplayCount(selectorData));
+            _bottomCapsuleTypeWhenScrolledUp(liveUnreadCount);
         final livePosition = _singleScrollPositionOrNull();
         final atListEnd = TrueLatestEnd.atListEndFromPosition(livePosition);
         final latestRowMaterialized = _latestRowMaterialized;
@@ -1464,7 +1444,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
         );
         if (atTrueLatestEnd) {
           _userLeftBottomIntentionally = false;
-          if (selectorData.liveUnreadCount > 0 ||
+          if (liveUnreadCount > 0 ||
               selectorData.bufferedCount > 0 ||
               !selectorData.followingLatest) {
             final conv = widget.model.conversationID;
@@ -1484,7 +1464,6 @@ class TIMUIKitHistoryMessageListTongueContainerState
             }
           }
         }
-        final liveUnreadCount = _liveCapsuleDisplayCount(selectorData);
         final showScrolledUpBottomCapsule = !isAtTongue &&
             !presentationBottomLocked &&
             !_isProgrammaticScrollToBottomActive() &&
@@ -1589,16 +1568,11 @@ class TIMUIKitHistoryMessageListTongueContainerState
                 bottom: 16,
                 child: _buildBottomCapsule(
                   visible: showScrolledUpBottomCapsule,
-                  valueType:
-                      scrolledUpBottomType == MessageListTongueType.showPrevious
-                          ? MessageListTongueType.toLatest
-                          : scrolledUpBottomType,
-                  displayUnreadCount: _liveCapsuleDisplayCount(selectorData),
+                  valueType: scrolledUpBottomType,
+                  displayUnreadCount: liveUnreadCount,
                   onTap: () => _onBottomCapsuleTap(
-                    scrolledUpBottomType == MessageListTongueType.showPrevious
-                        ? MessageListTongueType.toLatest
-                        : scrolledUpBottomType,
-                    displayUnreadCount,
+                    scrolledUpBottomType,
+                    liveUnreadCount,
                   ),
                   atNum: atNum,
                 ),
@@ -1610,7 +1584,6 @@ class TIMUIKitHistoryMessageListTongueContainerState
       selector: (c, model) {
         final conversationID = widget.model.conversationID;
         return _TongueUnreadSelectorData(
-          liveUnreadCount: model.receivedNewMessageCountFor(conversationID),
           followingLatest: model.isFollowingLatest(conversationID),
           messageListPosition:
               pagePosition ?? model.getMessageListPosition(conversationID),
@@ -1632,7 +1605,6 @@ class TIMUIKitHistoryMessageListTongueContainerState
         );
       },
       shouldRebuild: (previous, next) =>
-          previous.liveUnreadCount != next.liveUnreadCount ||
           previous.remainingLiveIncomingCount !=
               next.remainingLiveIncomingCount ||
           previous.bufferedCount != next.bufferedCount ||

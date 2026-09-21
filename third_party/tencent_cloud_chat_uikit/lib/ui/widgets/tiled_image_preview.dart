@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'interactive_preview_fallback.dart';
 
 import 'package:flutter/material.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
@@ -125,7 +126,11 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
       if (refreshed is FileImage && File(refreshed.file.path).existsSync()) {
         setState(() => _localPath = refreshed.file.path);
         _requestVisibleTiles(settled: true);
+      } else {
+        setState(() => _unsupported = true);
       }
+    } catch (_) {
+      if (mounted) setState(() => _unsupported = true);
     } finally {
       _resolvingOriginal = false;
     }
@@ -283,7 +288,10 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
     final screen = MediaQuery.sizeOf(context);
     Widget body;
     if (_unsupported) {
-      body = _placeholderLayer(screen);
+      body = widget.placeholder == null
+          ? const Center(child: Icon(Icons.broken_image, color: Colors.white54))
+          : InteractivePreviewFallback(
+              image: widget.placeholder!, onTap: widget.onTap);
     } else {
       body = Listener(
         onPointerDown: _handlePointer,

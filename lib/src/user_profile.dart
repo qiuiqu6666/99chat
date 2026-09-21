@@ -541,8 +541,9 @@ class UserProfileState extends State<UserProfile> {
   Future<void> _openFriendRemarkEdit(BuildContext context) async {
     final model = _getProfileModel();
     final friendInfo = model?.userProfile?.friendInfo;
-    final faceUrl = TencentUtils.checkString(friendInfo?.userProfile?.faceUrl) ??
-        (widget.initialAvatarUrl ?? '');
+    final faceUrl =
+        TencentUtils.checkString(friendInfo?.userProfile?.faceUrl) ??
+            (widget.initialAvatarUrl ?? '');
     final result = await ProfileNicknameEditPage.pushFriendRemark(
       context,
       initialRemark: _friendRemarkForEdit(),
@@ -1025,7 +1026,7 @@ class UserProfileState extends State<UserProfile> {
 
   Widget _buildMobileProfileHeader(
       V2TimUserFullInfo? userInfo, TUITheme theme) {
-    const avatarSize = 72.0;
+    const avatarSize = 78.0;
     final name = _getDisplayName(userInfo);
     final userID = userInfo?.userID ?? "";
     final displayUserId = ChatIdFormat.display(userID);
@@ -1053,8 +1054,8 @@ class UserProfileState extends State<UserProfile> {
     final genderIcon = _buildGenderIcon(userInfo?.gender);
     return Container(
       width: double.infinity,
-      color: backgroundColor,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      color: Colors.transparent,
+      padding: const EdgeInsets.fromLTRB(20, 22, 16, 22),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -1115,15 +1116,21 @@ class UserProfileState extends State<UserProfile> {
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(color: accountBorderColor),
                         ),
-                        child: Text(
-                          displayUserId,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: theme.primaryColor ?? AppTokens.accent,
-                            fontSize: 14,
-                          ),
-                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Flexible(
+                              child: Text(
+                            displayUserId,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: weakTextColor,
+                              fontSize: 14,
+                            ),
+                          )),
+                          const SizedBox(width: 8),
+                          Icon(Icons.copy_outlined,
+                              size: 15, color: weakTextColor)
+                        ]),
                       ),
                     ),
                   ),
@@ -1142,6 +1149,28 @@ class UserProfileState extends State<UserProfile> {
               ],
             ),
           ),
+          if (!ProfilePageNav.isSelfUser(widget.userID))
+            ListenableBuilder(
+              listenable: StarredFriendProvider.shared,
+              builder: (context, _) {
+                final starred =
+                    StarredFriendProvider.shared.isStarred(widget.userID);
+                return IconButton(
+                  tooltip: AppI18n.of(context).t(
+                      zhHans: starred ? '取消特别关注' : '设为特别关注',
+                      zhHant: starred ? '取消特別關注' : '設為特別關注',
+                      en: starred ? 'Unstar' : 'Star',
+                      ja: 'スター',
+                      ko: '즐겨찾기'),
+                  onPressed: _handleToggleStarFriend,
+                  style: IconButton.styleFrom(backgroundColor: accountBgColor),
+                  icon: Icon(
+                      starred ? Icons.star_rounded : Icons.star_outline_rounded,
+                      color: starred ? AppTokens.warning : weakTextColor,
+                      size: 26),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -1153,140 +1182,111 @@ class UserProfileState extends State<UserProfile> {
     required Color iconColor,
     required Color textColor,
     required VoidCallback onTap,
+    required Color background,
   }) {
     return Expanded(
+        child: Material(
+      color: background,
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            children: [
-              Icon(icon, color: iconColor, size: 30),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-        ),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 16),
+            child: Column(children: [
+              Icon(icon, color: iconColor, size: 25),
+              const SizedBox(height: 10),
+              Text(label,
+                  textAlign: TextAlign.center,
+                  style:
+                      TextStyle(color: textColor, fontSize: 14, height: 1.3)),
+            ])),
       ),
-    );
+    ));
   }
 
   Widget _buildMobileActionArea(
-    BuildContext context,
-    V2TimConversation conversation,
-    TUITheme theme,
-  ) {
-    final isDark = ThemeData.estimateBrightnessForColor(
-          theme.conversationItemBgColor ?? AppColors.card(dark: false),
-        ) ==
+      BuildContext context, V2TimConversation conversation, TUITheme theme) {
+    final i18n = AppI18n.of(context);
+    final card = theme.conversationItemBgColor ?? Colors.white;
+    final text = theme.darkTextColor ?? Colors.black87;
+    final canCall = !PlatformUtils().isWeb && !PlatformUtils().isDesktop;
+    return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 14),
+        child: Row(children: [
+          if (canCall) ...[
+            _buildQuickActionItem(
+                icon: Icons.call_rounded,
+                label: i18n.t(
+                    zhHans: '语音通话',
+                    zhHant: '語音通話',
+                    en: 'Voice Call',
+                    ja: '音声通話',
+                    ko: '음성 통화'),
+                iconColor: text,
+                textColor: text,
+                background: card,
+                onTap: () => _itemClick('audioCall', context, conversation)),
+            const SizedBox(width: 8),
+            _buildQuickActionItem(
+                icon: Icons.videocam_rounded,
+                label: i18n.t(
+                    zhHans: '视频通话',
+                    zhHant: '視訊通話',
+                    en: 'Video Call',
+                    ja: 'ビデオ通話',
+                    ko: '영상 통화'),
+                iconColor: text,
+                textColor: text,
+                background: card,
+                onTap: () => _itemClick('videoCall', context, conversation)),
+            const SizedBox(width: 8),
+          ],
+          _buildQuickActionItem(
+              icon: Icons.chat_bubble_rounded,
+              label: i18n.t(
+                  zhHans: '发送消息',
+                  zhHant: '傳送訊息',
+                  en: 'Send Message',
+                  ja: 'メッセージ',
+                  ko: '메시지'),
+              iconColor: Colors.white,
+              textColor: Colors.white,
+              background: theme.primaryColor ?? AppTokens.accent,
+              onTap: () => _itemClick('sendMsg', context, conversation)),
+        ]));
+  }
+
+  Widget _mobileSettingsCard(TUITheme theme, List<Widget> children) {
+    final dark = ThemeData.estimateBrightnessForColor(
+            theme.conversationItemBgColor ?? Colors.white) ==
         Brightness.dark;
-    final cardColor =
-        theme.conversationItemBgColor ?? AppColors.card(dark: isDark);
-    final weakTextColor =
-        theme.weakTextColor ?? AppColors.subText(dark: isDark);
-    return ListenableBuilder(
-      listenable: StarredFriendProvider.shared,
-      builder: (context, _) {
-        final isStarred = StarredFriendProvider.shared.isStarred(widget.userID);
-        return Container(
-          width: double.infinity,
-          color: cardColor,
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  _buildQuickActionItem(
-                    icon: Icons.call,
-                    label: AppI18n.of(context).t(
-                      zhHans: '语音通话',
-                      zhHant: '語音通話',
-                      en: 'Voice Call',
-                      ja: '音声通話',
-                      ko: '음성 통화',
-                    ),
-                    iconColor: weakTextColor,
-                    textColor: weakTextColor,
-                    onTap: () => _itemClick("audioCall", context, conversation),
-                  ),
-                  _buildQuickActionItem(
-                    icon: Icons.videocam,
-                    label: AppI18n.of(context).t(
-                      zhHans: '视频通话',
-                      zhHant: '視訊通話',
-                      en: 'Video Call',
-                      ja: 'ビデオ通話',
-                      ko: '영상 통화',
-                    ),
-                    iconColor: weakTextColor,
-                    textColor: weakTextColor,
-                    onTap: () => _itemClick("videoCall", context, conversation),
-                  ),
-                  _buildQuickActionItem(
-                    icon: Icons.star,
-                    label: isStarred
-                        ? AppI18n.of(context).t(
-                            zhHans: '已设星标',
-                            zhHant: '已設星標',
-                            en: 'Starred',
-                            ja: 'スター付き',
-                            ko: '즐겨찾기됨',
-                          )
-                        : AppI18n.of(context).t(
-                            zhHans: '设为星标',
-                            zhHant: '設為星標',
-                            en: 'Star',
-                            ja: 'スターを付ける',
-                            ko: '즐겨찾기',
-                          ),
-                    iconColor: isStarred ? AppTokens.warning : weakTextColor,
-                    textColor: weakTextColor,
-                    onTap: _handleToggleStarFriend,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: ElevatedButton.icon(
-                  onPressed: () => _itemClick("sendMsg", context, conversation),
-                  icon: const Icon(Icons.chat_bubble,
-                      size: 20, color: Colors.white),
-                  label: Text(
-                    AppI18n.of(context).t(
-                      zhHans: '发送消息',
-                      zhHant: '傳送訊息',
-                      en: 'Send Message',
-                      ja: 'メッセージを送信',
-                      ko: '메시지 보내기',
-                    ),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.primaryColor ?? AppTokens.accent,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppTokens.rMd),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    final rows = <Widget>[
+      for (final child in children)
+        if (child is Column) ...child.children else child,
+    ]..removeWhere(
+        (child) => child is SizedBox && child.width == 0 && child.height == 0);
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Material(
+        color: dark ? const Color(0xFF1D2027) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          for (var index = 0; index < rows.length; index++) ...[
+            if (index > 0)
+              Divider(
+                  height: 1,
+                  thickness: .5,
+                  indent: 16,
+                  endIndent: 16,
+                  color:
+                      dark ? const Color(0xFF343842) : const Color(0xFFE9ECF1)),
+            rows[index],
+          ],
+        ]),
+      ),
     );
   }
 
@@ -1917,23 +1917,24 @@ class UserProfileState extends State<UserProfile> {
                         ),
                       if (!ProfilePageNav.isSelfUser(peerId))
                         actionTile(
-                          title: BlockLocalStore.instance.isBlocked(widget.userID)
-                              ? i18n.t(
-                                  zhHans: '移出黑名单',
-                                  zhHant: '移出黑名單',
-                                  en: 'Unblock',
-                                  ja: 'ブロック解除',
-                                  ko: '차단 해제',
-                                )
-                              : i18n.t(
-                                  zhHans: '加入黑名单',
-                                  zhHant: '加入黑名單',
-                                  en: 'Block User',
-                                  ja: 'ブロック',
-                                  ko: '차단',
-                                ),
-                          destructive:
-                              !BlockLocalStore.instance.isBlocked(widget.userID),
+                          title:
+                              BlockLocalStore.instance.isBlocked(widget.userID)
+                                  ? i18n.t(
+                                      zhHans: '移出黑名单',
+                                      zhHant: '移出黑名單',
+                                      en: 'Unblock',
+                                      ja: 'ブロック解除',
+                                      ko: '차단 해제',
+                                    )
+                                  : i18n.t(
+                                      zhHans: '加入黑名单',
+                                      zhHant: '加入黑名單',
+                                      en: 'Block User',
+                                      ja: 'ブロック',
+                                      ko: '차단',
+                                    ),
+                          destructive: !BlockLocalStore.instance
+                              .isBlocked(widget.userID),
                           showDivider: false,
                           onTap: () async {
                             Navigator.pop(sheetContext);
@@ -2846,10 +2847,15 @@ class UserProfileState extends State<UserProfile> {
       return const SizedBox.shrink();
     }
     _ledgerDisplayName = _resolveProfileDisplayName(friendInfo);
-    return UserProfileGameAdminPanel(
+    final panel = UserProfileGameAdminPanel(
       targetUserId: widget.userID.trim(),
       displayName: _ledgerDisplayName,
     );
+    if (TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop) {
+      return panel;
+    }
+    return _mobileSettingsCard(
+        Provider.of<DefaultThemeData>(context).theme, [panel]);
   }
 
   bool _shouldShowGameLedgerFloat() {
@@ -2925,7 +2931,7 @@ class UserProfileState extends State<UserProfile> {
     await SangongMyConfigService.instance.activateSession();
     final ok = await SangongGameHttp.setTenantFromMyConfig(force: true);
     if (!ok || !mounted) return;
-    setState(() {});  // 触发子组件 rebuild,使面板拿到正确 tenant
+    setState(() {}); // 触发子组件 rebuild,使面板拿到正确 tenant
   }
 
   Future<void> _loadGroupMemberJoinMeta() async {
@@ -2955,11 +2961,53 @@ class UserProfileState extends State<UserProfile> {
         !GroupMemberJoinMeta.hasAnyDisplayRow(record)) {
       return const SizedBox.shrink();
     }
-    return GroupMemberJoinMetaOperationBlock(
-      groupId: gid,
-      record: record,
-      smallCardMode: smallCardMode,
-    );
+    if (TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop) {
+      return GroupMemberJoinMetaOperationBlock(
+          groupId: gid, record: record, smallCardMode: smallCardMode);
+    }
+    final theme = Provider.of<DefaultThemeData>(context).theme;
+    final i18n = AppI18n.of(context);
+    final joined =
+        GroupMemberJoinMeta.formatJoinedAt(record.joinedAt, i18n: i18n);
+    final source = GroupMemberJoinMeta.formatJoinSource(record, i18n: i18n);
+    final tappable = GroupMemberJoinMeta.inviterTappable(record);
+    Widget row(String title, String value, {VoidCallback? onTap}) => ListTile(
+          visualDensity: const VisualDensity(vertical: -2),
+          minVerticalPadding: 6,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16),
+          title: Text(title,
+              style: TextStyle(color: theme.darkTextColor, fontSize: 16)),
+          subtitle: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(value,
+                  style: TextStyle(
+                      color: theme.weakTextColor, fontSize: 14, height: 1.4))),
+          trailing: onTap == null
+              ? null
+              : Icon(Icons.chevron_right_rounded, color: theme.weakTextColor),
+          onTap: onTap,
+        );
+    return _mobileSettingsCard(theme, [
+      if (joined != null)
+        row(
+            i18n.t(
+                zhHans: '入群时间',
+                zhHant: '入群時間',
+                en: 'Joined at',
+                ja: '参加日時',
+                ko: '가입 시간'),
+            joined),
+      if (source != null)
+        row(GroupMemberJoinMeta.joinSourceTitle(record, i18n: i18n), source,
+            onTap: tappable
+                ? () => ProfilePageNav.openUserProfileOrAddFriend(context,
+                    userID: record.invitedByUserId,
+                    nickname: record.invitedByNickname,
+                    addSource: FriendAddSource.card,
+                    groupId: gid)
+                : null),
+    ]);
   }
 
   List<Widget> _buildWideGroupJoinMetaRows(TUITheme theme) {
@@ -3279,9 +3327,8 @@ class UserProfileState extends State<UserProfile> {
         ? theme.wideBackgroundColor ??
             theme.conversationItemBgColor ??
             Colors.white
-        : theme.weakBackgroundColor ?? AppColors.background(dark: isDark);
-    final appBarBackgroundColor =
-        theme.appbarBgColor ?? AppColors.card(dark: isDark);
+        : (isDark ? const Color(0xFF111318) : const Color(0xFFF5F6F8));
+    final appBarBackgroundColor = pageBackgroundColor;
     return TencentPage(
         child: Scaffold(
           resizeToAvoidBottomInset: false,
@@ -3289,6 +3336,9 @@ class UserProfileState extends State<UserProfile> {
           appBar: isWideScreen
               ? null
               : AppBar(
+                  centerTitle: true,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
                   shadowColor: theme.weakDividerColor,
                   surfaceTintColor: Colors.transparent,
                   title: Text(
@@ -3306,11 +3356,11 @@ class UserProfileState extends State<UserProfile> {
                   ),
                   backgroundColor: appBarBackgroundColor,
                   iconTheme: IconThemeData(
-                    color: theme.primaryColor ?? AppTokens.accent,
+                    color: AppColors.text(dark: isDark),
                   ),
                   leading: IconButton(
                     icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                    color: theme.primaryColor ?? AppTokens.accent,
+                    color: AppColors.primaryBlue,
                     onPressed: () {
                       Navigator.pop(context, newUserMARK);
                     },
@@ -3342,7 +3392,7 @@ class UserProfileState extends State<UserProfile> {
                           },
                           icon: Icon(
                             Icons.more_horiz,
-                            color: theme.primaryColor ?? AppTokens.accent,
+                            color: AppColors.text(dark: isDark),
                           ),
                         );
                       },
@@ -3356,287 +3406,386 @@ class UserProfileState extends State<UserProfile> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-              Expanded(
-                child: Column(
-                mainAxisSize: MainAxisSize.max,
-                children: [
                   Expanded(
-                      child: ProfilePageKeyboard.dismissScope(
-                          child: Container(
-                    color: pageBackgroundColor,
-                    child: isWideScreen &&
-                            !inSideColumn &&
-                            _wideDetail != _WideProfileDetail.none
-                        ? _buildWideDetailPane(theme, pageBackgroundColor)
-                        : isWideScreen
-                            ? TIMUIKitProfile(
-                                lifeCycle: ProfileLifeCycle(
-                                  didGetFriendInfo:
-                                      (V2TimFriendInfo? friendInfo) async {
-                                    return _enrichFriendInfoFromBackend(
-                                        friendInfo);
-                                  },
-                                  didRemarkUpdated: (String newRemark) async {
-                                    _applyFriendRemarkLocally(newRemark);
-                                    final friendModel = serviceLocator<
-                                        TUIFriendShipViewModel>();
-                                    final conversationModel = serviceLocator<
-                                        TUIConversationViewModel>();
-                                    unawaited(
-                                      conversationModel.refreshConversationItem(
-                                        'c2c_${widget.userID}',
+                    child: Column(
+                      mainAxisSize: MainAxisSize.max,
+                      children: [
+                        Expanded(
+                            child: ProfilePageKeyboard.dismissScope(
+                                child: Container(
+                          color: pageBackgroundColor,
+                          child: isWideScreen &&
+                                  !inSideColumn &&
+                                  _wideDetail != _WideProfileDetail.none
+                              ? _buildWideDetailPane(theme, pageBackgroundColor)
+                              : isWideScreen
+                                  ? TIMUIKitProfile(
+                                      lifeCycle: ProfileLifeCycle(
+                                        didGetFriendInfo: (V2TimFriendInfo?
+                                            friendInfo) async {
+                                          return _enrichFriendInfoFromBackend(
+                                              friendInfo);
+                                        },
+                                        didRemarkUpdated:
+                                            (String newRemark) async {
+                                          _applyFriendRemarkLocally(newRemark);
+                                          final friendModel = serviceLocator<
+                                              TUIFriendShipViewModel>();
+                                          final conversationModel =
+                                              serviceLocator<
+                                                  TUIConversationViewModel>();
+                                          unawaited(
+                                            conversationModel
+                                                .refreshConversationItem(
+                                              'c2c_${widget.userID}',
+                                            ),
+                                          );
+                                          unawaited(friendModel
+                                              .loadContactListData());
+                                          ConversationRefreshBus.instance
+                                              .requestRefresh(
+                                            reason: 'friend_remark_updated',
+                                          );
+                                          return true;
+                                        },
                                       ),
-                                    );
-                                    unawaited(
-                                        friendModel.loadContactListData());
-                                    ConversationRefreshBus.instance
-                                        .requestRefresh(
-                                      reason: 'friend_remark_updated',
-                                    );
-                                    return true;
-                                  },
-                                ),
-                                userID: widget.userID,
-                                profileWidgetBuilder: ProfileWidgetBuilder(
-                                  customBuilderOne: (
-                                    bool isFriend,
-                                    V2TimFriendInfo friendInfo,
-                                    V2TimConversation conversation,
-                                  ) {
-                                    return _buildWideActionFooter(
-                                      context,
-                                      conversation,
-                                      theme,
-                                    );
-                                  },
-                                  customBuilderThree: (
-                                    bool isFriend,
-                                    V2TimFriendInfo friendInfo,
-                                    V2TimConversation conversation,
-                                  ) {
-                                    return _buildWideProfileSettings(
-                                      context,
-                                      theme,
-                                      friendInfo,
-                                      conversation,
-                                    );
-                                  },
-                                  userInfoCard: (V2TimUserFullInfo? userInfo) {
-                                    return _buildWideProfileHeader(
-                                        userInfo, theme);
-                                  },
-                                  remarkBar:
-                                      (String remark, Function()? handleTap) {
-                                    return TIMUIKitProfileWidget.remarkBar(
-                                      context,
-                                      _resolvedFriendRemark(imRemark: remark),
-                                      ({Offset? offset, String? initText}) {
-                                        _openFriendRemarkEdit(context);
-                                      },
-                                      true,
-                                    );
-                                  },
-                                  customBuilderTwo: (
-                                    bool isFriend,
-                                    V2TimFriendInfo friendInfo,
-                                    V2TimConversation conversation,
-                                  ) {
-                                    return Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _buildGroupMemberJoinMetaBlock(),
-                                        _buildCommonGroupsEntry(context),
-                                        InkWell(
-                                          onTap: () => _openChatBackgroundPage(
-                                              context, conversation),
-                                          child: _buildChatBackgroundEntry(
-                                              context, conversation),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                  customBuilderFour: (
-                                    bool isFriend,
-                                    V2TimFriendInfo friendInfo,
-                                    V2TimConversation conversation,
-                                  ) {
-                                    return _buildGameAdminPanel(friendInfo);
-                                  },
-                                  customBuilderFive: (
-                                    bool isFriend,
-                                    V2TimFriendInfo friendInfo,
-                                    V2TimConversation conversation,
-                                  ) {
-                                    final showMoments =
-                                        isFriend || _resolveInMyFriendList();
-                                    if (!showMoments) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        InkWell(
-                                          onTap: () =>
-                                              _openFriendMoments(friendInfo),
-                                          child: _buildMomentsEntry(context),
-                                        ),
-                                        if (_resolveInMyFriendList())
-                                          _buildMomentsPrivacySwitches(context),
-                                      ],
-                                    );
-                                  },
-                                ),
-                                controller: _timuiKitProfileController,
-                                profileWidgetsOrder: showPrivilegeSide
-                                    ? const [
-                                        ProfileWidgetEnum.userInfoCard,
-                                        ProfileWidgetEnum.customBuilderThree,
-                                        ProfileWidgetEnum.customBuilderOne,
-                                      ]
-                                    : const [
+                                      userID: widget.userID,
+                                      profileWidgetBuilder:
+                                          ProfileWidgetBuilder(
+                                        customBuilderOne: (
+                                          bool isFriend,
+                                          V2TimFriendInfo friendInfo,
+                                          V2TimConversation conversation,
+                                        ) {
+                                          return _buildWideActionFooter(
+                                            context,
+                                            conversation,
+                                            theme,
+                                          );
+                                        },
+                                        customBuilderThree: (
+                                          bool isFriend,
+                                          V2TimFriendInfo friendInfo,
+                                          V2TimConversation conversation,
+                                        ) {
+                                          return _buildWideProfileSettings(
+                                            context,
+                                            theme,
+                                            friendInfo,
+                                            conversation,
+                                          );
+                                        },
+                                        userInfoCard:
+                                            (V2TimUserFullInfo? userInfo) {
+                                          return _buildWideProfileHeader(
+                                              userInfo, theme);
+                                        },
+                                        remarkBar: (String remark,
+                                            Function()? handleTap) {
+                                          return TIMUIKitProfileWidget
+                                              .remarkBar(
+                                            context,
+                                            _resolvedFriendRemark(
+                                                imRemark: remark),
+                                            (
+                                                {Offset? offset,
+                                                String? initText}) {
+                                              _openFriendRemarkEdit(context);
+                                            },
+                                            true,
+                                          );
+                                        },
+                                        customBuilderTwo: (
+                                          bool isFriend,
+                                          V2TimFriendInfo friendInfo,
+                                          V2TimConversation conversation,
+                                        ) {
+                                          return Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              _buildGroupMemberJoinMetaBlock(),
+                                              _buildCommonGroupsEntry(context),
+                                              InkWell(
+                                                onTap: () =>
+                                                    _openChatBackgroundPage(
+                                                        context, conversation),
+                                                child:
+                                                    _buildChatBackgroundEntry(
+                                                        context, conversation),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                        customBuilderFour: (
+                                          bool isFriend,
+                                          V2TimFriendInfo friendInfo,
+                                          V2TimConversation conversation,
+                                        ) {
+                                          return _buildGameAdminPanel(
+                                              friendInfo);
+                                        },
+                                        customBuilderFive: (
+                                          bool isFriend,
+                                          V2TimFriendInfo friendInfo,
+                                          V2TimConversation conversation,
+                                        ) {
+                                          final showMoments = isFriend ||
+                                              _resolveInMyFriendList();
+                                          if (!showMoments) {
+                                            return const SizedBox.shrink();
+                                          }
+                                          return Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              InkWell(
+                                                onTap: () => _openFriendMoments(
+                                                    friendInfo),
+                                                child:
+                                                    _buildMomentsEntry(context),
+                                              ),
+                                              if (_resolveInMyFriendList())
+                                                _buildMomentsPrivacySwitches(
+                                                    context),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                      controller: _timuiKitProfileController,
+                                      profileWidgetsOrder: showPrivilegeSide
+                                          ? const [
+                                              ProfileWidgetEnum.userInfoCard,
+                                              ProfileWidgetEnum
+                                                  .customBuilderThree,
+                                              ProfileWidgetEnum
+                                                  .customBuilderOne,
+                                            ]
+                                          : const [
+                                              ProfileWidgetEnum.userInfoCard,
+                                              ProfileWidgetEnum
+                                                  .customBuilderFour,
+                                              ProfileWidgetEnum
+                                                  .customBuilderThree,
+                                              ProfileWidgetEnum
+                                                  .customBuilderOne,
+                                            ],
+                                    )
+                                  : TIMUIKitProfile(
+                                      lifeCycle: ProfileLifeCycle(
+                                        didGetFriendInfo: (V2TimFriendInfo?
+                                            friendInfo) async {
+                                          return _enrichFriendInfoFromBackend(
+                                              friendInfo);
+                                        },
+                                        didRemarkUpdated:
+                                            (String newRemark) async {
+                                          _applyFriendRemarkLocally(newRemark);
+                                          final friendModel = serviceLocator<
+                                              TUIFriendShipViewModel>();
+                                          final conversationModel =
+                                              serviceLocator<
+                                                  TUIConversationViewModel>();
+                                          unawaited(
+                                            conversationModel
+                                                .refreshConversationItem(
+                                              'c2c_${widget.userID}',
+                                            ),
+                                          );
+                                          unawaited(friendModel
+                                              .loadContactListData());
+                                          ConversationRefreshBus.instance
+                                              .requestRefresh(
+                                            reason: 'friend_remark_updated',
+                                          );
+                                          return true;
+                                        },
+                                      ),
+                                      userID: widget.userID,
+                                      profileWidgetBuilder:
+                                          ProfileWidgetBuilder(
+                                        customBuilderOne: (
+                                          bool isFriend,
+                                          V2TimFriendInfo friendInfo,
+                                          V2TimConversation conversation,
+                                        ) {
+                                          return _buildMobileActionArea(
+                                            context,
+                                            conversation,
+                                            theme,
+                                          );
+                                        },
+                                        customBuilderThree: (
+                                          bool isFriend,
+                                          V2TimFriendInfo friendInfo,
+                                          V2TimConversation conversation,
+                                        ) {
+                                          return const SizedBox.shrink();
+                                        },
+                                        userInfoCard:
+                                            (V2TimUserFullInfo? userInfo) {
+                                          return _buildMobileProfileHeader(
+                                              userInfo, theme);
+                                        },
+                                        remarkBar: (String remark,
+                                            Function()? handleTap) {
+                                          return TIMUIKitProfileWidget
+                                              .remarkBar(
+                                            context,
+                                            _resolvedFriendRemark(
+                                                imRemark: remark),
+                                            (
+                                                {Offset? offset,
+                                                String? initText}) {
+                                              _openFriendRemarkEdit(context);
+                                            },
+                                            false,
+                                          );
+                                        },
+                                        customBuilderTwo: (
+                                          bool isFriend,
+                                          V2TimFriendInfo friendInfo,
+                                          V2TimConversation conversation,
+                                        ) {
+                                          return Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                _buildGroupMemberJoinMetaBlock(),
+                                                _mobileSettingsCard(theme, [
+                                                  _buildCommonGroupsEntry(
+                                                      context),
+                                                  InkWell(
+                                                      onTap: () =>
+                                                          _openChatBackgroundPage(
+                                                              context,
+                                                              conversation),
+                                                      child:
+                                                          _buildChatBackgroundEntry(
+                                                              context,
+                                                              conversation)),
+                                                ]),
+                                                if (!ProfilePageNav.isSelfUser(
+                                                    widget.userID))
+                                                  _mobileSettingsCard(theme, [
+                                                    _buildBlacklistSwitch(
+                                                        context),
+                                                    ListTile(
+                                                      title: Text(
+                                                          AppI18n.of(context).t(
+                                                              zhHans: '投诉该用户',
+                                                              zhHant: '投訴該用戶',
+                                                              en: 'Report User',
+                                                              ja: 'ユーザーを通報',
+                                                              ko: '사용자 신고'),
+                                                          style: TextStyle(
+                                                              color: theme
+                                                                  .darkTextColor,
+                                                              fontSize: 16)),
+                                                      trailing: Icon(
+                                                          Icons
+                                                              .chevron_right_rounded,
+                                                          color: theme
+                                                              .weakTextColor),
+                                                      onTap: () =>
+                                                          _openC2cComplaint(
+                                                              context),
+                                                    ),
+                                                  ]),
+                                              ]);
+                                        },
+                                        customBuilderFour: (
+                                          bool isFriend,
+                                          V2TimFriendInfo friendInfo,
+                                          V2TimConversation conversation,
+                                        ) {
+                                          return _buildGameAdminPanel(
+                                              friendInfo);
+                                        },
+                                        customBuilderFive: (
+                                          bool isFriend,
+                                          V2TimFriendInfo friendInfo,
+                                          V2TimConversation conversation,
+                                        ) {
+                                          final showMoments = isFriend ||
+                                              _resolveInMyFriendList();
+                                          return _mobileSettingsCard(theme, [
+                                            ListTile(
+                                              title: Text(
+                                                  AppI18n.of(context).t(
+                                                      zhHans: '备注名',
+                                                      zhHant: '備註名',
+                                                      en: 'Remark',
+                                                      ja: '備考',
+                                                      ko: '별명'),
+                                                  style: TextStyle(
+                                                      color:
+                                                          theme.darkTextColor,
+                                                      fontSize: 16)),
+                                              trailing: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    ConstrainedBox(
+                                                        constraints: BoxConstraints(
+                                                            maxWidth: MediaQuery
+                                                                        .sizeOf(
+                                                                            context)
+                                                                    .width *
+                                                                .35),
+                                                        child: Text(
+                                                            _resolvedFriendRemark(
+                                                                imRemark:
+                                                                    friendInfo
+                                                                        .friendRemark),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            style: TextStyle(
+                                                                color: theme
+                                                                    .weakTextColor,
+                                                                fontSize: 15))),
+                                                    Icon(
+                                                        Icons
+                                                            .chevron_right_rounded,
+                                                        color: theme
+                                                            .weakTextColor),
+                                                  ]),
+                                              onTap: () =>
+                                                  _openFriendRemarkEdit(
+                                                      context),
+                                            ),
+                                            if (showMoments) ...[
+                                              InkWell(
+                                                  onTap: () =>
+                                                      _openFriendMoments(
+                                                          friendInfo),
+                                                  child: _buildMomentsEntry(
+                                                      context)),
+                                              if (_resolveInMyFriendList())
+                                                _buildMomentsPrivacySwitches(
+                                                    context),
+                                            ],
+                                          ]);
+                                        },
+                                      ),
+                                      controller: _timuiKitProfileController,
+                                      profileWidgetsOrder: const [
                                         ProfileWidgetEnum.userInfoCard,
                                         ProfileWidgetEnum.customBuilderFour,
-                                        ProfileWidgetEnum.customBuilderThree,
                                         ProfileWidgetEnum.customBuilderOne,
+                                        ProfileWidgetEnum.customBuilderFive,
+                                        ProfileWidgetEnum.customBuilderTwo,
                                       ],
-                              )
-                            : TIMUIKitProfile(
-                                lifeCycle: ProfileLifeCycle(
-                                  didGetFriendInfo:
-                                      (V2TimFriendInfo? friendInfo) async {
-                                    return _enrichFriendInfoFromBackend(
-                                        friendInfo);
-                                  },
-                                  didRemarkUpdated: (String newRemark) async {
-                                    _applyFriendRemarkLocally(newRemark);
-                                    final friendModel = serviceLocator<
-                                        TUIFriendShipViewModel>();
-                                    final conversationModel = serviceLocator<
-                                        TUIConversationViewModel>();
-                                    unawaited(
-                                      conversationModel.refreshConversationItem(
-                                        'c2c_${widget.userID}',
-                                      ),
-                                    );
-                                    unawaited(
-                                        friendModel.loadContactListData());
-                                    ConversationRefreshBus.instance
-                                        .requestRefresh(
-                                      reason: 'friend_remark_updated',
-                                    );
-                                    return true;
-                                  },
-                                ),
-                                userID: widget.userID,
-                                profileWidgetBuilder: ProfileWidgetBuilder(
-                                  customBuilderOne: (
-                                    bool isFriend,
-                                    V2TimFriendInfo friendInfo,
-                                    V2TimConversation conversation,
-                                  ) {
-                                    return _buildMobileActionArea(
-                                      context,
-                                      conversation,
-                                      theme,
-                                    );
-                                  },
-                                  customBuilderThree: (
-                                    bool isFriend,
-                                    V2TimFriendInfo friendInfo,
-                                    V2TimConversation conversation,
-                                  ) {
-                                    return const SizedBox.shrink();
-                                  },
-                                  userInfoCard: (V2TimUserFullInfo? userInfo) {
-                                    return _buildMobileProfileHeader(
-                                        userInfo, theme);
-                                  },
-                                  remarkBar:
-                                      (String remark, Function()? handleTap) {
-                                    return TIMUIKitProfileWidget.remarkBar(
-                                      context,
-                                      _resolvedFriendRemark(imRemark: remark),
-                                      ({Offset? offset, String? initText}) {
-                                        _openFriendRemarkEdit(context);
-                                      },
-                                      false,
-                                    );
-                                  },
-                                  customBuilderTwo: (
-                                    bool isFriend,
-                                    V2TimFriendInfo friendInfo,
-                                    V2TimConversation conversation,
-                                  ) {
-                                    return Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _buildGroupMemberJoinMetaBlock(),
-                                        _buildCommonGroupsEntry(context),
-                                        InkWell(
-                                          onTap: () => _openChatBackgroundPage(
-                                              context, conversation),
-                                          child: _buildChatBackgroundEntry(
-                                              context, conversation),
-                                        ),
-                                        if (!ProfilePageNav.isSelfUser(
-                                            widget.userID))
-                                          _buildBlacklistSwitch(context),
-                                      ],
-                                    );
-                                  },
-                                  customBuilderFour: (
-                                    bool isFriend,
-                                    V2TimFriendInfo friendInfo,
-                                    V2TimConversation conversation,
-                                  ) {
-                                    return _buildGameAdminPanel(friendInfo);
-                                  },
-                                  customBuilderFive: (
-                                    bool isFriend,
-                                    V2TimFriendInfo friendInfo,
-                                    V2TimConversation conversation,
-                                  ) {
-                                    final showMoments =
-                                        isFriend || _resolveInMyFriendList();
-                                    if (!showMoments) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        InkWell(
-                                          onTap: () =>
-                                              _openFriendMoments(friendInfo),
-                                          child: _buildMomentsEntry(context),
-                                        ),
-                                        if (_resolveInMyFriendList())
-                                          _buildMomentsPrivacySwitches(context),
-                                      ],
-                                    );
-                                  },
-                                ),
-                                controller: _timuiKitProfileController,
-                                profileWidgetsOrder: const [
-                                  ProfileWidgetEnum.userInfoCard,
-                                  ProfileWidgetEnum.customBuilderFour,
-                                  ProfileWidgetEnum.customBuilderOne,
-                                  ProfileWidgetEnum.operationDivider,
-                                  ProfileWidgetEnum.remarkBar,
-                                  ProfileWidgetEnum.customBuilderFive,
-                                  ProfileWidgetEnum.operationDivider,
-                                  ProfileWidgetEnum.customBuilderTwo,
-                                ],
-                              ),
-                  ))),
-                ],
-              ),
-              ),
-              if (showPrivilegeSide)
-                UserProfileGamePrivilegeSideColumn(
-                  theme: theme,
-                  targetUserId: widget.userID.trim(),
-                  displayName: _privilegeDisplayName(),
-                ),
+                                    ),
+                        ))),
+                      ],
+                    ),
+                  ),
+                  if (showPrivilegeSide)
+                    UserProfileGamePrivilegeSideColumn(
+                      theme: theme,
+                      targetUserId: widget.userID.trim(),
+                      displayName: _privilegeDisplayName(),
+                    ),
                 ],
               ),
               if (_shouldShowGameLedgerFloat() && !showPrivilegeSide)

@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
+import 'group_query_endpoint.dart';
 import 'package:flutter/foundation.dart';
 import 'package:tencent_cloud_chat_demo/src/api/agent_rebate_http.dart';
-import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
 import 'package:tencent_cloud_chat_demo/src/api/sangong_game_http.dart';
 import 'package:tencent_cloud_chat_demo/src/models/agent_rebate_models.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/agent_rebate_date_range.dart';
@@ -9,7 +9,7 @@ import 'package:tencent_cloud_chat_demo/utils/api_response_util.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 
 class AgentRebateApi {
-  AgentRebateApi({Dio? dio}) : _dio = dio ?? ApiClient.instance.dio;
+  AgentRebateApi({Dio? dio}) : _dio = dio ?? GroupQueryEndpoint.client;
 
   static final AgentRebateApi instance = AgentRebateApi();
 
@@ -441,7 +441,8 @@ class AgentRebateApi {
     final tenant = SangongGameHttp.tenantId?.trim() ?? '';
     if (tenant.isEmpty) throw StateError('三公租户未设置，无法查询上级');
     final response = await SangongGameHttp.client.get(
-      '/api/v1/me/users/${Uri.encodeComponent(id)}/parent',
+      GroupQueryEndpoint.resolve(
+          '/api/v1/me/users/${Uri.encodeComponent(id)}/parent'),
       options: Options(headers: <String, dynamic>{
         SangongGameHttp.tenantHeader: tenant,
       }),

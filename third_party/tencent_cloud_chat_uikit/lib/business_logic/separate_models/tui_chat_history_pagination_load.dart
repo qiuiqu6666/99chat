@@ -8,6 +8,12 @@ class HistoryPaginationLoadRunner {
   final TUIChatSeparateViewModel model;
   final HistoryPaginationController pagination;
 
+  // C2C timestamps have second precision and seq is not a global ordering key.
+  // Retain scanned IDs at the accepted filtered tail's timestamp so SDK older
+  // responses can traverse a same-second run without cycling through it.
+  V2TimMessage? _filteredSdkTail;
+  final Set<String> _filteredSdkSameTimeIds = <String>{};
+
   Future<bool?> _tryLoadHistoryWindowPage({
     required LoadDirection direction,
     required int count,
@@ -144,66 +150,6 @@ class HistoryPaginationLoadRunner {
   DateTime? _lastEmptyBatchLocalFallbackAt;
   static const Duration _emptyBatchLocalFallbackWindow = Duration(seconds: 5);
   static bool _coverageDiagVersionLogged = false;
-
-  /// K.7：union 拉取链（CLOUD_OLDER → LOCAL_OLDER）。
-  /// 返回 null 表示整条链都拉空；返回非空表示命中数据。
-  Future<({V2TimMessageListResult result, bool fromLocal})?> _unionOlderFetch({
-    required String? lastMsgID,
-    required int lastMsgSeq,
-    required V2TimMessage? lastMsg,
-    required int count,
-    required String? userID,
-    required String? groupID,
-  }) async {
-    // Step 1：CLOUD_OLDER
-    var r = await model.globalModel.getHistoryMessageListThroughIm06(
-      count: count,
-      getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
-      userID: userID,
-      groupID: groupID,
-      lastMsgID: lastMsgID,
-      lastMsgSeq: lastMsgSeq,
-      lastMsg: lastMsg,
-    );
-    if (r != null && r.messageList.isNotEmpty) {
-      ChatHistoryTrace.log(
-        'union_older_chain_hit',
-        conversationID: model.conversationID,
-        extras: <String, Object?>{
-          'source': 'cloud',
-          'count': r.messageList.length
-        },
-      );
-      return (result: r, fromLocal: false);
-    }
-    // Step 2：LOCAL_OLDER
-    r = await model.globalModel.getHistoryMessageListThroughIm06(
-      count: count,
-      getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
-      userID: userID,
-      groupID: groupID,
-      lastMsgID: lastMsgID,
-      lastMsgSeq: lastMsgSeq,
-      lastMsg: lastMsg,
-    );
-    if (r != null && r.messageList.isNotEmpty) {
-      ChatHistoryTrace.log(
-        'union_older_chain_hit',
-        conversationID: model.conversationID,
-        extras: <String, Object?>{
-          'source': 'local',
-          'count': r.messageList.length
-        },
-      );
-      return (result: r, fromLocal: true);
-    }
-    ChatHistoryTrace.log(
-      'union_older_chain_empty',
-      conversationID: model.conversationID,
-      extras: <String, Object?>{'count': count},
-    );
-    return null;
-  }
 
   void _markRetryableHistoryFailure({String? detail, String? errorType}) {
     pagination.haveMoreData = true;
@@ -567,7 +513,16 @@ class HistoryPaginationLoadRunner {
       V2TimMessageListResult? response;
       var actualRequestLastMsgID = lastMsgID;
       var actualRequestLastMsgSeq = lastMsgSeq;
+      var actualRequestAnchor = paginationAnchor;
+      List<V2TimMessage> withAcceptedSdkBoundary(List<V2TimMessage> window) {
+        final acceptedTail = model._sdkOlderPageTail;
+        return acceptedTail != null &&
+                identical(actualRequestAnchor, acceptedTail)
+            ? [...window, acceptedTail]
+            : window;
+      }
       var cloudResponseProvenByIm06 = false;
+      var selectedHistorySource = requestedHistorySource;
       reconciliationRequest = model.globalModel.beginHistoryReconciliation(
         conversationID: model.conversationID,
         requestedSource: requestedHistorySource,
@@ -720,6 +675,7 @@ class HistoryPaginationLoadRunner {
 
         actualRequestLastMsgID = effectiveLastMsgID;
         actualRequestLastMsgSeq = effectiveLastMsgSeq;
+        actualRequestAnchor = effectiveAnchor;
         ChatHistoryTrace.log(
           'load_chat_record_anchor_path',
           conversationID: model.conversationID,
@@ -762,7 +718,8 @@ class HistoryPaginationLoadRunner {
             inMemoryAtRequest,
           );
           final recoveryID = recoveryAnchor?.msgID?.trim() ?? '';
-          final effectiveID = effectiveLastMsgID?.trim() ?? '';
+          final effectiveID =
+              (effectiveLastMsgID ?? effectiveAnchor?.msgID)?.trim() ?? '';
           final knownIDs = inMemoryAtRequest
               .map((message) => message.msgID?.trim() ?? '')
               .where((id) => id.isNotEmpty)
@@ -774,7 +731,12 @@ class HistoryPaginationLoadRunner {
               false;
           if (recoveryID.isNotEmpty &&
               recoveryID != effectiveID &&
-              !responseHasNewID) {
+              !responseHasNewID &&
+              // A committed filtered tail can be older than every visible row.
+              // An empty cloud response must fall back from that same cursor,
+              // not rewind to the visible edge and repeat the filtered page.
+              !(identical(effectiveAnchor, model._sdkOlderPageTail) &&
+                  !knownIDs.contains(effectiveAnchor?.msgID?.trim()))) {
             ChatHistoryTrace.log(
               'load_chat_record_cursor_recovery',
               conversationID: model.conversationID,
@@ -791,6 +753,7 @@ class HistoryPaginationLoadRunner {
             effectiveAnchor = recoveryAnchor;
             actualRequestLastMsgID = effectiveLastMsgID;
             actualRequestLastMsgSeq = effectiveLastMsgSeq;
+            actualRequestAnchor = effectiveAnchor;
             peekResult =
                 await model.globalModel.getHistoryMessageListThroughIm06(
               count: count,
@@ -907,14 +870,14 @@ class HistoryPaginationLoadRunner {
         var mergedMessages = peekResult.messageList;
         var rejectedFallbackPage = false;
         var fallbackCheckedThisAttempt = false;
-        // K.2 + K.7：拉空批自动 fallback 链（CLOUD → LOCAL → ARCHIVE）。
-        // 5 秒内不重复 fallback，避免 cloud 持续返回空时抖动。
+        // Reuse the completed cloud read and check LOCAL at the same cursor.
+        // Retain the cooldown when repeated user gestures find an empty page.
         if (mergedMessages.isEmpty &&
             (_lastEmptyBatchLocalFallbackAt == null ||
                 DateTime.now().difference(_lastEmptyBatchLocalFallbackAt!) >=
                     _emptyBatchLocalFallbackWindow)) {
+          if (!windowRequestIsCurrent()) return false;
           _lastEmptyBatchLocalFallbackAt = DateTime.now();
-          fallbackCheckedThisAttempt = true;
           ChatHistoryTrace.log(
             'load_chat_record_local_fallback',
             conversationID: model.conversationID,
@@ -924,8 +887,9 @@ class HistoryPaginationLoadRunner {
               'reason': 'cloud_empty_batch',
             },
           );
-          // K.7：union 拉取链（CLOUD → LOCAL → ARCHIVE）
-          final unionResult = await _unionOlderFetch(
+          final localResult =
+              await model.globalModel.getHistoryMessageListThroughIm06(
+            getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
             lastMsgID: effectiveLastMsgID,
             lastMsgSeq: effectiveLastMsgSeq,
             lastMsg: effectiveAnchor,
@@ -933,15 +897,23 @@ class HistoryPaginationLoadRunner {
             userID: historyUserID,
             groupID: historyGroupID,
           );
-          if (unionResult != null && unionResult.result.messageList.isNotEmpty) {
+          if (!windowRequestIsCurrent()) return false;
+          if (localResult == null) {
+            // A failed local read is not a checked empty fallback, even when
+            // the earlier cloud response reports an end boundary.
+            _markRetryableHistoryFailure(detail: 'local fallback unavailable');
+            return false;
+          }
+          fallbackCheckedThisAttempt = true;
+          if (localResult.messageList.isNotEmpty) {
             var admitFallback = true;
-            if (model.conversationType == ConvType.group &&
-                unionResult.fromLocal) {
+            if (model.conversationType == ConvType.group) {
               final continuity =
                   HistoryPaginationContinuity.canAppendOlderBatch(
-                existingNewestFirst: _continuityRows(inMemoryAtRequest),
+                existingNewestFirst:
+                    _continuityRows(withAcceptedSdkBoundary(inMemoryAtRequest)),
                 incomingOlderNewestFirst:
-                    _continuityRows(unionResult.result.messageList),
+                    _continuityRows(localResult.messageList),
                 isGroup: true,
                 olderCloudBacked: false,
               );
@@ -954,7 +926,7 @@ class HistoryPaginationLoadRunner {
                   extras: <String, Object?>{
                     ...continuity.toTraceExtras(),
                     'windowCount': inMemoryAtRequest.length,
-                    'olderCount': unionResult.result.messageList.length,
+                    'olderCount': localResult.messageList.length,
                   },
                 );
                 if (continuity.hasClosedGap) {
@@ -967,20 +939,21 @@ class HistoryPaginationLoadRunner {
               }
             }
             if (admitFallback) {
-              mergedMessages = unionResult.result.messageList;
+              mergedMessages = localResult.messageList;
               // The common path below commits peekResult. Preserve the SDK
               // fallback page and its cursor/end flag instead of the empty page.
-              peekResult = unionResult.result;
-              cloudResponseProvenByIm06 = !unionResult.fromLocal;
+              peekResult = localResult;
+              selectedHistorySource = MessageReconciliationSource.local;
+              cloudResponseProvenByIm06 = false;
             }
           }
-          // DIAG: K.2 union fallback 结束 - 记录每一步命中数。
+          // Keep the fallback result visible without re-reading the cloud page.
           ChatHistoryTrace.log(
             'diag_load_record_fallback_done',
             conversationID: model.conversationID,
             extras: <String, Object?>{
               'mergedCount': mergedMessages.length,
-              'unionResultNull': unionResult == null,
+              'localCount': localResult.messageList.length,
               'fallbackTriggered': true,
               'originalPeekCount': peekResult.messageList.length,
               'originalPeekIsFinished': peekResult.isFinished,
@@ -1114,7 +1087,7 @@ class HistoryPaginationLoadRunner {
       }
       pagination.setArchiveHistoryNotice(null);
       final responseProvenance = MessageReconciliationProvenance.resolve(
-        requestedSource: requestedHistorySource,
+        requestedSource: selectedHistorySource,
         beforeRequest: networkBeforeHistoryRequest,
         afterResponse: model.globalModel.messageReconciliationNetworkState,
       );
@@ -1247,6 +1220,44 @@ class HistoryPaginationLoadRunner {
       final pageMessagesAfterFacts = await model.globalModel
           .applyHistoryWindowMutations(
               model.conversationID, response.messageList);
+      final rawTail =
+          HistoryPaginationAnchor.tailOfCloudOlderPage(response.messageList);
+      final followsFilteredTail =
+          identical(_filteredSdkTail, actualRequestAnchor);
+      bool isBeforeRequest(V2TimMessage message, {required bool strict}) {
+        final seq = int.tryParse(message.seq?.trim() ?? '') ?? 0;
+        if (model.conversationType == ConvType.group &&
+            actualRequestLastMsgSeq > 0 &&
+            seq > 0) {
+          return strict
+              ? seq < actualRequestLastMsgSeq
+              : seq <= actualRequestLastMsgSeq;
+        }
+        final anchorTime = actualRequestAnchor?.timestamp ?? 0;
+        final messageTime = message.timestamp ?? 0;
+        if (anchorTime <= 0 || messageTime <= 0) return false;
+        if (strict && messageTime == anchorTime) {
+          // The SDK OLDER response to a full native anchor orders distinct
+          // same-second C2C rows. Sender seq cannot establish that ordering.
+          return model.conversationType == ConvType.c2c &&
+              actualRequestAnchor != null &&
+              HistoryPaginationAnchor.canUseForSdkPagination(
+                  actualRequestAnchor!) &&
+              (!followsFilteredTail ||
+                  !_filteredSdkSameTimeIds.contains(message.msgID));
+        }
+        return strict ? messageTime < anchorTime : messageTime <= anchorTime;
+      }
+
+      final rawOlderCursorProgress = useOfficialOlderCursor &&
+          direction == LoadDirection.previous &&
+          rawTail != null &&
+          rawTail.msgID != actualRequestLastMsgID &&
+          rawTail.msgID != actualRequestAnchor?.msgID &&
+          isBeforeRequest(rawTail, strict: true) &&
+          response.messageList
+              .where(HistoryPaginationAnchor.canUseForSdkPagination)
+              .every((row) => isBeforeRequest(row, strict: false));
       if (!windowRequestIsCurrent()) return false;
       if (direction != LoadDirection.latest) {
         tempHaveMoreData = !effectiveIsFinished;
@@ -1317,9 +1328,13 @@ class HistoryPaginationLoadRunner {
           if (model.conversationType == ConvType.group) {
             final olderCloudBacked = cloudResponseProvenByIm06 ||
                 responseProvenance.cloudResponseProven;
+            // Accepted SDK rows still establish continuity when local facts or
+            // lifecycle filtering hide them from the visible window. Check the
+            // transport page before filtering, from its accepted SDK boundary.
             final continuity = HistoryPaginationContinuity.canAppendOlderBatch(
-              existingNewestFirst: _continuityRows(mergeBase),
-              incomingOlderNewestFirst: _continuityRows(messageList),
+              existingNewestFirst:
+                  _continuityRows(withAcceptedSdkBoundary(mergeBase)),
+              incomingOlderNewestFirst: _continuityRows(response.messageList),
               isGroup: true,
               olderCloudBacked: olderCloudBacked,
             );
@@ -1373,6 +1388,9 @@ class HistoryPaginationLoadRunner {
           final currentOldest =
               HistoryPaginationAnchor.oldestSdkPaginationAnchor(mergeBase);
           final hasStrictlyOlderMessage = currentOldest == null ||
+              (model.conversationType == ConvType.c2c &&
+                  rawOlderCursorProgress &&
+                  !mergeBase.any((row) => row.msgID == rawTail!.msgID)) ||
               messageList.any(
                 (message) =>
                     TUIChatGlobalModel.compareMessagesChronological(
@@ -1466,8 +1484,17 @@ class HistoryPaginationLoadRunner {
           direction: direction,
           existing: stableCommitBase,
           fetched: msgList,
+          validatedOlderTail: rawTail,
         );
         final commitBaseCount = stableCommitBase.length;
+        if (!windowRequestIsCurrent()) return false;
+        // A fully filtered page can advance the transport cursor without
+        // growing the visible list. Duplicates, unorderable rows and wrong-way
+        // responses do not establish progress. Publication below must still
+        // pass all fences and the normal reconciliation commit.
+        final filteredOlderPageProgress = rawOlderCursorProgress &&
+            dedupedMsgList.length <= commitBaseCount &&
+            !stableCommitBase.any((row) => row.msgID == rawTail!.msgID);
         if (isPaginatedLoad) {
           _logPreviousPaginationStage(
             model.conversationID,
@@ -1485,7 +1512,8 @@ class HistoryPaginationLoadRunner {
         }
 
         if (direction == LoadDirection.previous &&
-            dedupedMsgList.length <= commitBaseCount) {
+            dedupedMsgList.length <= commitBaseCount &&
+            !filteredOlderPageProgress) {
           ChatHistoryTrace.log(
             'load_chat_record_dedupe_no_growth',
             conversationID: model.conversationID,
@@ -1513,7 +1541,7 @@ class HistoryPaginationLoadRunner {
               ),
             },
           );
-          // A duplicate/filtered page cannot prove the requested history
+          // A page with no trustworthy transport progress cannot prove history
           // ended. Retry the same cursor on the next deliberate user drag.
           pagination.markHistoryUnknown();
           tempHaveMoreData = pagination.haveMoreData;
@@ -1544,6 +1572,7 @@ class HistoryPaginationLoadRunner {
           direction: direction,
           existing: stableLatestBeforeCommit,
           fetched: finalList,
+          validatedOlderTail: rawTail,
         );
         previousListGrew = finalList.length > stableLatestBeforeCommit.length;
         if (isPaginatedLoad) {
@@ -1682,7 +1711,7 @@ class HistoryPaginationLoadRunner {
             conversationID: model.conversationID,
             extras: <String, Object?>{
               ...ChatHistoryTrace.mergeDecision(
-                decision: 'grew',
+                decision: filteredOlderPageProgress ? 'filtered_progress' : 'grew',
                 commitBaseCount: previousListGrew
                     ? previousPaginationBaseline.length
                     : stableLatestBeforeCommit.length,
@@ -1705,12 +1734,29 @@ class HistoryPaginationLoadRunner {
             },
           );
         }
-        // 只有页面真正合并并写入权威列表后，才允许推进官方 SDK 分页游标。
-        // 在途请求被窗口替换、去重无增长或提交失败时继续沿用原游标，避免跳页。
+        // Only an accepted current-window commit may advance the SDK cursor.
+        // A filtered page retains the visible window and returns false below,
+        // so its continuation waits for another user drag rather than spinning.
         if (useOfficialOlderCursor &&
             direction == LoadDirection.previous &&
-            previousListGrew) {
+            (previousListGrew || filteredOlderPageProgress)) {
           model._rememberSdkOlderPage(response.messageList);
+          if (filteredOlderPageProgress &&
+              model.conversationType == ConvType.c2c) {
+            if (!followsFilteredTail ||
+                rawTail!.timestamp != actualRequestAnchor?.timestamp) {
+              _filteredSdkSameTimeIds.clear();
+            }
+            _filteredSdkSameTimeIds.addAll(response.messageList
+                .where((row) => row.timestamp == rawTail!.timestamp)
+                .map((row) => row.msgID?.trim() ?? '')
+                .where((id) => id.isNotEmpty));
+            if (actualRequestAnchor?.timestamp == rawTail!.timestamp &&
+                actualRequestAnchor?.msgID != null) {
+              _filteredSdkSameTimeIds.add(actualRequestAnchor!.msgID!);
+            }
+            _filteredSdkTail = model._sdkOlderPageTail;
+          }
         }
       } else {
         // 处理新获取的消息列表后回调
@@ -1972,6 +2018,7 @@ class HistoryPaginationLoadRunner {
     required LoadDirection direction,
     required List<V2TimMessage> existing,
     required List<V2TimMessage> fetched,
+    V2TimMessage? validatedOlderTail,
   }) {
     if (model.usesOfficialSdkHistory) {
       // Newer catch-up already passed canPrependNewerBatch. Applying the
@@ -1993,7 +2040,12 @@ class HistoryPaginationLoadRunner {
             .toList(growable: false);
         if (olderOnly.isNotEmpty) {
           final continuity = HistoryPaginationContinuity.canAppendOlderBatch(
-            existingNewestFirst: _continuityRows(existing),
+            // The caller has already checked this raw SDK page against the
+            // accepted boundary. Its filtered tail still proves traversal.
+            existingNewestFirst: _continuityRows([
+              ...existing,
+              if (validatedOlderTail != null) validatedOlderTail,
+            ]),
             incomingOlderNewestFirst: _continuityRows(olderOnly),
             isGroup: true,
             // A2 already enforced local zero-slack; secondary only blocks

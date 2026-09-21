@@ -75,66 +75,93 @@ class GroupLiveTopBanner extends StatelessWidget {
             height: _cardHeight,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: _ipSize,
-                    height: _cardHeight,
-                    child: OverflowBox(
-                      maxWidth: _ipSize,
-                      maxHeight: _ipSize,
-                      child: Image.asset(
-                        'assets/live/liveee.webp',
-                        width: _ipSize,
-                        height: _ipSize,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              child: LayoutBuilder(builder: (context, constraints) {
+                final compact = constraints.maxWidth < 400;
+                final logoWidth =
+                    compact ? constraints.maxWidth * .13 : _ipSize;
+                final gap = compact ? 4.0 : 8.0;
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: logoWidth,
+                      height: _cardHeight,
+                      child: OverflowBox(
+                        minHeight: 0,
+                        maxWidth: logoWidth,
+                        maxHeight: logoWidth,
+                        child: Image.asset(
+                          'assets/live/liveee.webp',
+                          width: logoWidth,
+                          height: logoWidth,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: dark ? AppColors.darkText : _titleInk,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            height: 1.2,
-                          ),
-                        ),
-                        if (subtitle.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          OverflowTextMarquee(
-                            text: subtitle,
-                            height: 15,
-                            style: TextStyle(
-                              color: dark ? AppColors.darkSubText : _subtitleInk,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              height: 1.2,
+                    SizedBox(width: gap),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            height: 24,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                title,
+                                maxLines: 1,
+                                softWrap: false,
+                                style: TextStyle(
+                                  color: dark ? AppColors.darkText : _titleInk,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.2,
+                                ),
+                              ),
                             ),
                           ),
+                          if (subtitle.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            OverflowTextMarquee(
+                              text: subtitle,
+                              height: 15,
+                              style: TextStyle(
+                                color:
+                                    dark ? AppColors.darkSubText : _subtitleInk,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                height: 1.2,
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  _AnchorLiveAvatar(
-                    userId: session.anchorUserId,
-                    groupId: session.groupId,
-                    initialFaceUrl: anchorFaceUrl,
-                  ),
-                  const SizedBox(width: 8),
-                  _EnterLiveButton(label: action),
-                ],
-              ),
+                    SizedBox(width: gap),
+                    SizedBox(
+                      width: compact ? constraints.maxWidth * .09 : 40,
+                      height: 40,
+                      child: FittedBox(
+                          child: _AnchorLiveAvatar(
+                        userId: session.anchorUserId,
+                        groupId: session.groupId,
+                        initialFaceUrl: anchorFaceUrl,
+                      )),
+                    ),
+                    SizedBox(width: gap),
+                    SizedBox(
+                      width: compact ? constraints.maxWidth * .25 : 110,
+                      height: 40,
+                      child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: _EnterLiveButton(label: action)),
+                    ),
+                  ],
+                );
+              }),
             ),
           ),
         ),

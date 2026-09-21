@@ -794,20 +794,23 @@ class _C2cChatSettingsPageState extends State<C2cChatSettingsPage> {
   }
 
   Widget _sectionGap(Color pageBg) {
-    return Container(height: 10, color: pageBg);
+    return const SizedBox(height: 12);
   }
 
   Widget _sectionCard(TUITheme theme, Color cardBg, List<Widget> children) {
-    return Container(
+    return Material(
       color: cardBg,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: List.generate(children.length * 2 - 1, (index) {
           if (index.isOdd) {
             return Divider(
-              height: 0.6,
-              thickness: 0.6,
+              height: 0.5,
+              thickness: 0.5,
               indent: 16,
-              color: theme.weakDividerColor ?? const Color(0xFFE5E5E5),
+              endIndent: 16,
+              color: theme.weakDividerColor ?? const Color(0xFFE9ECF1),
             );
           }
           return children[index ~/ 2];
@@ -819,23 +822,79 @@ class _C2cChatSettingsPageState extends State<C2cChatSettingsPage> {
   Widget _memberCard(TUITheme theme, Color cardBg) {
     final name = _displayName();
     final face = _faceUrl();
-    final weak = theme.weakTextColor ?? const Color(0xFF999999);
-    return Container(
-      width: double.infinity,
+    final i18n = AppI18n.of(context);
+    final weak = theme.weakTextColor ?? const Color(0xFF7E8798);
+    final addLabel = i18n.t(
+      zhHans: '添加成员',
+      zhHant: '新增成員',
+      en: 'Add member',
+      ja: 'メンバーを追加',
+      ko: '멤버 추가',
+    );
+    Widget memberItem(Widget avatar, String label, VoidCallback onTap) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          width: 76,
+          child: Column(
+            children: [
+              avatar,
+              const SizedBox(height: 8),
+              Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: weak)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Material(
       color: cardBg,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-      child: Wrap(
-        spacing: 18,
-        runSpacing: 12,
-        children: [
-          InkWell(
-            onTap: _openPeerProfile,
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              width: 54,
-              child: Column(
-                children: [
-                  SizedBox(
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: _openPeerProfile,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Row(children: [
+                  Expanded(
+                      child: Text(
+                          i18n.t(
+                            zhHans: '聊天成员',
+                            zhHant: '聊天成員',
+                            en: 'Chat members',
+                            ja: 'チャットメンバー',
+                            ko: '채팅 멤버',
+                          ),
+                          style: TextStyle(
+                              fontSize: 16, color: theme.darkTextColor))),
+                  Text(
+                      i18n.t(
+                        zhHans: '共 1 人',
+                        zhHant: '共 1 人',
+                        en: '1 member',
+                        ja: '1 人',
+                        ko: '1명',
+                      ),
+                      style: TextStyle(fontSize: 14, color: weak)),
+                  const SizedBox(width: 4),
+                  Icon(Icons.chevron_right_rounded, size: 22, color: weak),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Wrap(spacing: 12, runSpacing: 12, children: [
+              memberItem(
+                SizedBox(
                     width: 48,
                     height: 48,
                     child: Avatar(
@@ -843,43 +902,27 @@ class _C2cChatSettingsPageState extends State<C2cChatSettingsPage> {
                       showName: name,
                       type: 1,
                       borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: weak),
-                  ),
-                ],
+                    )),
+                name,
+                _openPeerProfile,
               ),
-            ),
-          ),
-          InkWell(
-            onTap: _openCreateGroup,
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              width: 54,
-              child: Column(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: weak.withValues(alpha: 0.45)),
-                    ),
-                    child: Icon(Icons.add, color: weak, size: 28),
+              memberItem(
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: weak.withValues(alpha: 0.04),
+                    border: Border.all(color: weak.withValues(alpha: 0.22)),
                   ),
-                  const SizedBox(height: 6),
-                  const SizedBox(height: 14),
-                ],
+                  child: Icon(Icons.add_rounded, color: weak, size: 30),
+                ),
+                addLabel,
+                _openCreateGroup,
               ),
-            ),
-          ),
-        ],
+            ]),
+          ],
+        ),
       ),
     );
   }
@@ -891,10 +934,10 @@ class _C2cChatSettingsPageState extends State<C2cChatSettingsPage> {
     required ValueChanged<bool> onChanged,
   }) {
     final titleColor = theme.darkTextColor ?? Colors.black;
-    return SizedBox(
-      height: 54,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 54),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
             Expanded(
@@ -928,10 +971,10 @@ class _C2cChatSettingsPageState extends State<C2cChatSettingsPage> {
     final weak = theme.weakTextColor ?? const Color(0xFF999999);
     return InkWell(
       onTap: onTap,
-      child: SizedBox(
-        height: 54,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 54),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
               Expanded(
@@ -1335,229 +1378,229 @@ class _C2cChatSettingsPageState extends State<C2cChatSettingsPage> {
     Widget listView = ListView(
       padding: EdgeInsets.zero,
       children: [
-          Stack(
-            children: [
-              ColoredBox(
-                color: headerBg,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: 72,
-                        height: 72,
-                        child: Avatar(
-                          faceUrl: face,
-                          showName: name,
-                          type: 1,
-                          onlineStatus: avatarStatus,
-                          borderRadius: BorderRadius.circular(36),
+        Stack(
+          children: [
+            ColoredBox(
+              color: headerBg,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: 72,
+                      height: 72,
+                      child: Avatar(
+                        faceUrl: face,
+                        showName: name,
+                        type: 1,
+                        onlineStatus: avatarStatus,
+                        borderRadius: BorderRadius.circular(36),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    NativeDesktopSelectableMessageText(
+                      child: Text(
+                        name,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: ink,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      NativeDesktopSelectableMessageText(
-                        child: Text(
-                          name,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: ink,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      if (showOnlineStatus) ...[
-                        const SizedBox(height: 2),
-                        PresenceSubtitle(
-                          label: lastSeen,
-                          loading: lastSeenLoading,
-                          imOnline: peerOnline,
-                          fontSize: 12,
-                          offlineColor: muted,
-                          onlineColor: theme.primaryColor ?? ink,
-                          skeletonColor: muted.withValues(alpha: 0.28),
-                        ),
-                      ],
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          actionChip(
-                            icon: Icons.call_outlined,
-                            label: i18n.t(
-                              zhHans: '语音通话',
-                              zhHant: '語音通話',
-                              en: 'Voice',
-                              ja: '音声',
-                              ko: '음성',
-                            ),
-                            onTap: () => unawaited(_startCall(video: false)),
-                          ),
-                          actionChip(
-                            icon: Icons.videocam_outlined,
-                            label: i18n.t(
-                              zhHans: '视频通话',
-                              zhHant: '視頻通話',
-                              en: 'Video',
-                              ja: 'ビデオ',
-                              ko: '영상',
-                            ),
-                            onTap: () => unawaited(_startCall(video: true)),
-                          ),
-                          actionChip(
-                            icon: _isMuted
-                                ? Icons.notifications_off_outlined
-                                : Icons.notifications_none_rounded,
-                            label: i18n.t(
-                              zhHans: '静音',
-                              zhHant: '靜音',
-                              en: 'Mute',
-                              ja: 'ミュート',
-                              ko: '음소거',
-                            ),
-                            onTap: () => unawaited(_setMuted(!_isMuted)),
-                          ),
-                          actionChip(
-                            icon: _isPinned
-                                ? Icons.push_pin_rounded
-                                : Icons.push_pin_outlined,
-                            label: i18n.t(
-                              zhHans: '置顶',
-                              zhHant: '置頂',
-                              en: 'Pin',
-                              ja: 'ピン留め',
-                              ko: '고정',
-                            ),
-                            onTap: () => unawaited(_setPinned(!_isPinned)),
-                          ),
-                        ],
+                    ),
+                    if (showOnlineStatus) ...[
+                      const SizedBox(height: 2),
+                      PresenceSubtitle(
+                        label: lastSeen,
+                        loading: lastSeenLoading,
+                        imOnline: peerOnline,
+                        fontSize: 12,
+                        offlineColor: muted,
+                        onlineColor: theme.primaryColor ?? ink,
+                        skeletonColor: muted.withValues(alpha: 0.28),
                       ),
                     ],
-                  ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        actionChip(
+                          icon: Icons.call_outlined,
+                          label: i18n.t(
+                            zhHans: '语音通话',
+                            zhHant: '語音通話',
+                            en: 'Voice',
+                            ja: '音声',
+                            ko: '음성',
+                          ),
+                          onTap: () => unawaited(_startCall(video: false)),
+                        ),
+                        actionChip(
+                          icon: Icons.videocam_outlined,
+                          label: i18n.t(
+                            zhHans: '视频通话',
+                            zhHant: '視頻通話',
+                            en: 'Video',
+                            ja: 'ビデオ',
+                            ko: '영상',
+                          ),
+                          onTap: () => unawaited(_startCall(video: true)),
+                        ),
+                        actionChip(
+                          icon: _isMuted
+                              ? Icons.notifications_off_outlined
+                              : Icons.notifications_none_rounded,
+                          label: i18n.t(
+                            zhHans: '静音',
+                            zhHant: '靜音',
+                            en: 'Mute',
+                            ja: 'ミュート',
+                            ko: '음소거',
+                          ),
+                          onTap: () => unawaited(_setMuted(!_isMuted)),
+                        ),
+                        actionChip(
+                          icon: _isPinned
+                              ? Icons.push_pin_rounded
+                              : Icons.push_pin_outlined,
+                          label: i18n.t(
+                            zhHans: '置顶',
+                            zhHant: '置頂',
+                            en: 'Pin',
+                            ja: 'ピン留め',
+                            ko: '고정',
+                          ),
+                          onTap: () => unawaited(_setPinned(!_isPinned)),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              Positioned(
-                top: 4,
-                right: 4,
-                child: IconButton(
-                  onPressed: widget.onClose,
-                  icon: Icon(Icons.close_rounded, color: muted),
-                ),
-              ),
-            ],
-          ),
-          if (bio.isNotEmpty)
-            infoRow(
-              title: bio,
-              subtitle: i18n.t(
-                zhHans: '个人简介',
-                zhHant: '個人簡介',
-                en: 'Bio',
-                ja: '自己紹介',
-                ko: '소개',
+            ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: IconButton(
+                onPressed: widget.onClose,
+                icon: Icon(Icons.close_rounded, color: muted),
               ),
             ),
-          if (username.isNotEmpty)
-            infoRow(
-              title: username,
-              titleColor: theme.primaryColor ?? AppColors.primaryBlue,
-              subtitle: i18n.t(
-                zhHans: '用户名',
-                zhHant: '使用者名稱',
-                en: 'Username',
-                ja: 'ユーザー名',
-                ko: '사용자 이름',
-              ),
-              onTap: _copyUsername,
-              trailing: IconButton(
-                onPressed: _copyUsername,
-                icon: Icon(Icons.copy_all_outlined, size: 20, color: muted),
-              ),
-            ),
-          Divider(height: 8, thickness: 6, color: sectionGap),
-          iconRow(
-            icon: Icons.image_outlined,
-            label: i18n.t(
-              zhHans: '$_imageCount张图片',
-              zhHant: '$_imageCount張圖片',
-              en: '$_imageCount photos',
-              ja: '写真$_imageCount件',
-              ko: '사진 $_imageCount장',
-            ),
-            onTap: _openMediaAssets,
-          ),
-          iconRow(
-            icon: Icons.videocam_outlined,
-            label: i18n.t(
-              zhHans: '$_videoCount个视频',
-              zhHant: '$_videoCount個視頻',
-              en: '$_videoCount videos',
-              ja: '動画$_videoCount件',
-              ko: '동영상 $_videoCount개',
-            ),
-            onTap: _openMediaAssets,
-          ),
-          iconRow(
-            icon: Icons.insert_drive_file_outlined,
-            label: i18n.t(
-              zhHans: '$_fileCount个文件',
-              zhHant: '$_fileCount個檔案',
-              en: '$_fileCount files',
-              ja: 'ファイル$_fileCount件',
-              ko: '파일 $_fileCount개',
-            ),
-            onTap: () => unawaited(
-              _openMediaAssets(tab: ConversationAssetTab.file),
+          ],
+        ),
+        if (bio.isNotEmpty)
+          infoRow(
+            title: bio,
+            subtitle: i18n.t(
+              zhHans: '个人简介',
+              zhHant: '個人簡介',
+              en: 'Bio',
+              ja: '自己紹介',
+              ko: '소개',
             ),
           ),
-          iconRow(
-            icon: Icons.person_outline_rounded,
-            label: i18n.t(
-              zhHans: '$_commonGroupCount个共同加入的群组',
-              zhHant: '$_commonGroupCount個共同加入的群組',
-              en: '$_commonGroupCount groups in common',
-              ja: '共通グループ$_commonGroupCount件',
-              ko: '공통 그룹 $_commonGroupCount개',
+        if (username.isNotEmpty)
+          infoRow(
+            title: username,
+            titleColor: theme.primaryColor ?? AppColors.primaryBlue,
+            subtitle: i18n.t(
+              zhHans: '用户名',
+              zhHant: '使用者名稱',
+              en: 'Username',
+              ja: 'ユーザー名',
+              ko: '사용자 이름',
             ),
-            onTap: _openCommonGroups,
-          ),
-          Divider(height: 8, thickness: 6, color: sectionGap),
-          iconRow(
-            icon: Icons.ios_share_rounded,
-            label: i18n.t(
-              zhHans: '分享联系方式',
-              zhHant: '分享聯絡方式',
-              en: 'Share Contact',
-              ja: '連絡先を共有',
-              ko: '연락처 공유',
+            onTap: _copyUsername,
+            trailing: IconButton(
+              onPressed: _copyUsername,
+              icon: Icon(Icons.copy_all_outlined, size: 20, color: muted),
             ),
-            onTap: _shareContact,
           ),
-          iconRow(
-            icon: Icons.edit_outlined,
-            label: i18n.t(
-              zhHans: '编辑联系人',
-              zhHant: '編輯聯絡人',
-              en: 'Edit Contact',
-              ja: '連絡先を編集',
-              ko: '연락처 편집',
-            ),
-            onTap: _editContact,
+        Divider(height: 8, thickness: 6, color: sectionGap),
+        iconRow(
+          icon: Icons.image_outlined,
+          label: i18n.t(
+            zhHans: '$_imageCount张图片',
+            zhHant: '$_imageCount張圖片',
+            en: '$_imageCount photos',
+            ja: '写真$_imageCount件',
+            ko: '사진 $_imageCount장',
           ),
-          iconRow(
-            icon: Icons.delete_outline_rounded,
-            label: i18n.t(
-              zhHans: '删除联系人',
-              zhHant: '刪除聯絡人',
-              en: 'Delete Contact',
-              ja: '連絡先を削除',
-              ko: '연락처 삭제',
-            ),
-            onTap: _deleteContact,
+          onTap: _openMediaAssets,
+        ),
+        iconRow(
+          icon: Icons.videocam_outlined,
+          label: i18n.t(
+            zhHans: '$_videoCount个视频',
+            zhHant: '$_videoCount個視頻',
+            en: '$_videoCount videos',
+            ja: '動画$_videoCount件',
+            ko: '동영상 $_videoCount개',
           ),
-          const SizedBox(height: 24),
-        ],
+          onTap: _openMediaAssets,
+        ),
+        iconRow(
+          icon: Icons.insert_drive_file_outlined,
+          label: i18n.t(
+            zhHans: '$_fileCount个文件',
+            zhHant: '$_fileCount個檔案',
+            en: '$_fileCount files',
+            ja: 'ファイル$_fileCount件',
+            ko: '파일 $_fileCount개',
+          ),
+          onTap: () => unawaited(
+            _openMediaAssets(tab: ConversationAssetTab.file),
+          ),
+        ),
+        iconRow(
+          icon: Icons.person_outline_rounded,
+          label: i18n.t(
+            zhHans: '$_commonGroupCount个共同加入的群组',
+            zhHant: '$_commonGroupCount個共同加入的群組',
+            en: '$_commonGroupCount groups in common',
+            ja: '共通グループ$_commonGroupCount件',
+            ko: '공통 그룹 $_commonGroupCount개',
+          ),
+          onTap: _openCommonGroups,
+        ),
+        Divider(height: 8, thickness: 6, color: sectionGap),
+        iconRow(
+          icon: Icons.ios_share_rounded,
+          label: i18n.t(
+            zhHans: '分享联系方式',
+            zhHant: '分享聯絡方式',
+            en: 'Share Contact',
+            ja: '連絡先を共有',
+            ko: '연락처 공유',
+          ),
+          onTap: _shareContact,
+        ),
+        iconRow(
+          icon: Icons.edit_outlined,
+          label: i18n.t(
+            zhHans: '编辑联系人',
+            zhHant: '編輯聯絡人',
+            en: 'Edit Contact',
+            ja: '連絡先を編集',
+            ko: '연락처 편집',
+          ),
+          onTap: _editContact,
+        ),
+        iconRow(
+          icon: Icons.delete_outline_rounded,
+          label: i18n.t(
+            zhHans: '删除联系人',
+            zhHant: '刪除聯絡人',
+            en: 'Delete Contact',
+            ja: '連絡先を削除',
+            ko: '연락처 삭제',
+          ),
+          onTap: _deleteContact,
+        ),
+        const SizedBox(height: 24),
+      ],
     );
     if (PlatformUtils().isNativeDesktop) {
       final behavior = ScrollConfiguration.of(context);
@@ -1585,19 +1628,18 @@ class _C2cChatSettingsPageState extends State<C2cChatSettingsPage> {
     // 浅色强制灰底 + 白卡片，避免 weakBackground 接近白色导致分区糊成一片。
     final pageBg = isDark
         ? (theme.weakBackgroundColor ?? AppColors.background(dark: true))
-        : const Color(0xFFF1F1F1);
+        : const Color(0xFFF5F6F8);
     final cardBg = isDark
         ? (theme.conversationItemBgColor ??
             theme.wideBackgroundColor ??
             AppColors.card(dark: true))
         : Colors.white;
-    final appBarBg = isDark
-        ? (theme.appbarBgColor ?? cardBg)
-        : (theme.appbarBgColor ?? Colors.white);
+    final appBarBg = pageBg;
     final textColor = theme.darkTextColor ?? AppColors.text(dark: isDark);
     final primary = theme.primaryColor ?? AppColors.primaryBlue;
 
     final body = ListView(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
       children: [
         _memberCard(theme, cardBg),
         _sectionGap(pageBg),
@@ -1666,7 +1708,6 @@ class _C2cChatSettingsPageState extends State<C2cChatSettingsPage> {
               ja: 'チャット履歴を削除',
               ko: '채팅 기록 삭제',
             ),
-            showArrow: false,
             onTap: _confirmAndClearHistory,
           ),
         ]),
@@ -1719,7 +1760,7 @@ class _C2cChatSettingsPageState extends State<C2cChatSettingsPage> {
           ),
         ),
       ),
-      body: body,
+      body: SafeArea(top: false, child: body),
     );
   }
 }

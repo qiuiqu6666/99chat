@@ -167,7 +167,8 @@ void main() {
         .readAsStringSync()
         .replaceAll('\r\n', '\n');
     expect(runner, isNot(contains('allowArchiveFallback')));
-    expect(runner, contains('peekResult = unionResult.result;'));
+    // Fallback cursor, source and request-count behavior is covered by
+    // history_filtered_sdk_page_regression_test; keep only lane boundaries here.
     expect(runner, isNot(contains('_usesCommunityBackendOlderHistory')));
     expect(runner, isNot(contains('_loadCommunityOlderHistory')));
     expect(runner, contains('final cached = await _tryLoadHistoryWindowPage'));

@@ -1492,7 +1492,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
     return ChatMessagePreviewImageResolver.resolvePlaceholder(message);
   }
 
-  Widget _buildLoadingPlaceholder(ImageGalleryItem item, int index, {bool? showSpinner}) {
+  Widget _buildLoadingPlaceholder(ImageGalleryItem item, int index, {bool? showSpinner, bool interactive = false}) {
     final placeholder = _placeholderForItem(item);
     final screenSize = MediaQuery.sizeOf(context);
     final display = _loadedDisplayByIndex[index] ??
@@ -1510,6 +1510,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
       ),
       alignment: display.alignment,
       showSpinner: showSpinner ?? _entranceLatch.settled,
+      interactive: interactive,
     );
   }
 
@@ -1932,7 +1933,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
             );
           case LoadState.failed:
             if (_placeholderForItem(item) != null) {
-              return _buildLoadingPlaceholder(item, index, showSpinner: false);
+              return _buildLoadingPlaceholder(item, index, showSpinner: false, interactive: true);
             }
             return Container(
               color: Colors.transparent,

@@ -21,6 +21,9 @@ class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
   static Future<void> Function()? onAuthExpired;
+  static Future<void> Function(String message)? onAccountDisabled;
+  static const _requestCredentialGeneration = 'apiCredentialGeneration';
+  bool _handlingAccountDisabled = false;
 
   /// 节点链路成功/传输失败回调（由 ApiNodeService 在 hydrate 时注入）。
   static void Function()? onTransportSuccess;
@@ -120,6 +123,7 @@ class ApiClient {
   String? _deviceId;
   String? _clientVersion;
   String? _clientPlatform;
+
   /// 缓存 PackageInfo 用于拆分 version/versionCode
   PackageInfo? _cachedPkg;
   Future<void> _tokenMutationTail = Future<void>.value();
@@ -141,7 +145,9 @@ class ApiClient {
     d.interceptors.add(AgentSessionInterceptor());
     d.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
-        if (AgentSessionInterceptor.rejectStaleRequest(options, handler)) return;
+        if (AgentSessionInterceptor.rejectStaleRequest(options, handler))
+          return;
+        options.extra[_requestCredentialGeneration] = _credentialGeneration;
         final path = _requestPath(options);
         if (_isPublicPath(path)) {
           options.headers.remove('Authorization');
@@ -177,10 +183,19 @@ class ApiClient {
         _logRequest(options);
         handler.next(options);
       },
-      onResponse: (response, handler) {
+      onResponse: (response, handler) async {
         // 有正常响应说明当前节点链路可用，清零失败计数。
         onTransportSuccess?.call();
         _logResponse(response);
+        if (accountDisabledMessage(response) != null) {
+          await _handleAccountDisabled(response);
+          handler.reject(DioError(
+            requestOptions: response.requestOptions,
+            response: response,
+            type: DioErrorType.response,
+          ));
+          return;
+        }
         handler.next(response);
       },
       onError: (error, handler) async {
@@ -193,7 +208,9 @@ class ApiClient {
             onTransportSuccess?.call();
           }
         }
-        if (_shouldNotifyAuthExpired(error)) {
+        if (accountDisabledMessage(error.response) != null) {
+          await _handleAccountDisabled(error.response!);
+        } else if (_shouldNotifyAuthExpired(error)) {
           _logAuthExpiredTrigger(error);
           await _notifyAuthExpired();
         }
@@ -201,6 +218,45 @@ class ApiClient {
       },
     ));
     return d;
+  }
+
+  /// This terminal account response must retain the server's message verbatim.
+  static String? accountDisabledMessage(Response? response) {
+    final data = response?.data;
+    if (response?.statusCode != 403 ||
+        data is! Map ||
+        data['code'] != 'ACCOUNT_DISABLED') {
+      return null;
+    }
+    final message = data['message'];
+    return message is String ? message : '该账号已禁用，请联系管理员';
+  }
+
+  Future<void> _handleAccountDisabled(Response response) async {
+    final generation =
+        response.requestOptions.extra[_requestCredentialGeneration];
+    // Public login/SMS requests also carry this fence, despite having no JWT.
+    if (generation != _credentialGeneration ||
+        _handlingAccountDisabled ||
+        _logoutInProgress) {
+      return;
+    }
+    _handlingAccountDisabled = true;
+    try {
+      await onAccountDisabled?.call(accountDisabledMessage(response)!);
+    } catch (_) {
+      // A teardown failure must not strand the Dio request or retain credentials.
+    } finally {
+      try {
+        await _serializeTokenMutation(() async {
+          if (generation == _credentialGeneration) await _clearTokenUnlocked();
+        });
+      } catch (_) {
+        // In-memory credentials are removed before persistent storage is touched.
+      } finally {
+        _handlingAccountDisabled = false;
+      }
+    }
   }
 
   /// 节点传输失败：无响应（超时/断连）或网关类 5xx。

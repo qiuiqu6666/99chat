@@ -873,14 +873,14 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     return _messageHistoryCoverageByConv[key]?.clearEpoch ?? 0;
   }
 
-  /// 窗口库（hw_clear_epochs）里该会话已记录的最高清空 epoch；不可用时 0。
-  Future<int> _persistedHistoryWindowClearEpoch(String canonicalKey) async {
+  /// 窗口库中已记录的最高清空 epoch；null 表示本次未能读取，而非版本 0。
+  Future<int?> _persistedHistoryWindowClearEpoch(String canonicalKey) async {
     final repository = HistoryWindowRepositoryProvider.repository;
     final owner =
         _messageReconciliationWriter.configuredScope?.normalizedOwnerUserID ??
             '';
     if (repository == null || owner.isEmpty || canonicalKey.isEmpty) {
-      return 0;
+      return null;
     }
     try {
       return await repository.persistedClearEpoch(
@@ -888,7 +888,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
         conversationID: canonicalKey,
       );
     } catch (_) {
-      return 0;
+      return null;
     }
   }
 
@@ -899,17 +899,24 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   ) async {
     final key = canonicalHistoryStorageKey(conversationID);
     if (key.isEmpty) return;
-    if (!_historyWindowClearEpochSyncedKeys.add(key)) return;
+    if (_historyWindowClearEpochSyncedKeys.contains(key)) return;
     final sessionGeneration = _messageHistoryCoverageSessionGeneration;
     final persisted = await _persistedHistoryWindowClearEpoch(key);
-    if (sessionGeneration != _messageHistoryCoverageSessionGeneration) return;
+    if (persisted == null ||
+        sessionGeneration != _messageHistoryCoverageSessionGeneration) return;
     final current = messageDeltaClearEpochFor(key);
-    if (persisted <= current) return;
-    await ensureMessageHistoryCoverageLoaded(key, clearEpoch: persisted);
-    final coverage = messageHistoryCoverageFor(key);
-    if (coverage != null && coverage.clearEpoch >= persisted) {
-      unawaited(persistMessageHistoryCoverage(coverage));
+    if (persisted <= current) {
+      _historyWindowClearEpochSyncedKeys.add(key);
+      return;
     }
+    await ensureMessageHistoryCoverageLoaded(key, clearEpoch: persisted);
+    if (sessionGeneration != _messageHistoryCoverageSessionGeneration) return;
+    final coverage = messageHistoryCoverageFor(key);
+    // A failed/obsolete read, or a concurrent coverage load that did not adopt
+    // the floor yet, must leave the next foreground pagination free to retry.
+    if (coverage == null || coverage.clearEpoch < persisted) return;
+    _historyWindowClearEpochSyncedKeys.add(key);
+    unawaited(persistMessageHistoryCoverage(coverage));
     ChatHistoryTrace.log(
       'history_clear_epoch_synced_from_window_store',
       conversationID: key,
@@ -4109,7 +4116,9 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     if (id.isEmpty || state.seenLiveIncomingIds.contains(id)) {
       return;
     }
-    state.remainingLiveIncomingIds.add(id);
+    if (state.remainingLiveIncomingIds.add(id)) {
+      state.liveReceiveGeneration++;
+    }
   }
 
   int unadmittedRemainingLiveCountFor(String conversationID) {
@@ -4741,7 +4750,6 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     }
     state.unreadCount++;
     state.receivedCount++;
-    state.liveReceiveGeneration++;
     state.bufferedMessages.add(mountedMessage);
     _recordBufferedLiveIncoming(state, mountedMessage);
     ChatJitterDiag.logReadingHistoryIncoming(
@@ -5384,7 +5392,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       final persisted = await _persistedHistoryWindowClearEpoch(
         canonicalHistoryStorageKey(key),
       );
-      final floor = max(clearEpoch, persisted);
+      final floor = max(clearEpoch, persisted ?? 0);
       final isGroup = loaded?.isGroup ?? _looksLikeGroupConversationKey(key);
       final normalized = loaded == null || loaded.clearEpoch < floor
           ? MessageHistoryCoverage.empty(

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'interactive_preview_fallback.dart';
 
 /// 全屏图片预览居中加载：白环 + 扇形填充，对齐 iOS 相册式加载反馈。
 class ImagePreviewCenterLoadingIndicator extends StatefulWidget {
@@ -173,6 +174,7 @@ class ImagePreviewLoadingLayer extends StatelessWidget {
     this.alignment = Alignment.center,
     this.progress,
     this.showSpinner = true,
+    this.interactive = false,
   });
 
   final ImageProvider? placeholder;
@@ -180,9 +182,13 @@ class ImagePreviewLoadingLayer extends StatelessWidget {
   final Alignment alignment;
   final double? progress;
   final bool showSpinner;
+  final bool interactive;
 
   @override
   Widget build(BuildContext context) {
+    if (interactive && placeholder != null) {
+      return InteractivePreviewFallback(image: placeholder!);
+    }
     return Stack(
       fit: StackFit.expand,
       alignment: Alignment.center,

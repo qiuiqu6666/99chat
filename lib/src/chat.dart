@@ -1,6 +1,7 @@
 // ignore_for_file: unused_field, unused_element, avoid_print, deprecated_member_use
 
 import 'dart:async';
+import 'package:tencent_cloud_chat_demo/src/widgets/lottery_chat_entry.dart';
 import 'package:tencent_cloud_chat_demo/src/models/chat_attachment.dart';
 import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/chat_attachment_upload_overlay.dart';
@@ -11590,6 +11591,12 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
                   final chatBody = ChatStableOverlayStack(
                     primary: gatedChat,
                     overlays: <Widget>[
+                      if (_getConvType() == ConvType.group)
+                        LotteryChatEntry(
+                          key: ValueKey('lottery-${_getConvID()}'),
+                          controller: _chatController,
+                          groupUid: _getConvID() ?? '',
+                        ),
                       if (groupGameFloat != null) groupGameFloat,
                       if (agentRebateFloat != null) agentRebateFloat,
                       if (sangongAgentFloat != null) sangongAgentFloat,

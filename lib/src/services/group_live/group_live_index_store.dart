@@ -44,6 +44,7 @@ class GroupLiveIndexStore extends ChangeNotifier {
         status: item.status,
         version: item.version,
         roomName: item.roomName,
+        description: item.description,
         anchorUserId: item.anchorUserId,
         scheduledStartAt: item.scheduledStartAt,
         startedAt: item.startedAt,
@@ -110,6 +111,7 @@ class GroupLiveIndexStore extends ChangeNotifier {
       status: session.status,
       version: resolvedVersion,
       roomName: session.roomName,
+      description: session.description,
       anchorUserId: session.anchorUserId,
       scheduledStartAt: session.scheduledStartAt,
       startedAt: session.startedAt,
@@ -160,6 +162,7 @@ class GroupLiveIndexStore extends ChangeNotifier {
       }
       final left = entry.value;
       if (left.liveSessionId != other.liveSessionId ||
+          left.description != other.description ||
           left.status != other.status ||
           left.version != other.version) {
         return false;

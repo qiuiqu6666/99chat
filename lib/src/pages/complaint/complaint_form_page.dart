@@ -1,19 +1,20 @@
 import 'dart:io';
+import 'complaint_form_view.dart';
+import '../settings/feedback_success_view.dart';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+
 import 'package:tencent_cloud_chat_demo/src/api/complaint_api.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/complaint/complaint_reason_page.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/cross_platform/wide_screen/desktop_side_column_scope.dart';
-import 'package:tencent_cloud_chat_demo/src/pages/profile_signature_edit_page.dart';
+
 import 'package:tencent_cloud_chat_demo/src/platform/permission_guard.dart';
-import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
-import 'package:tencent_cloud_chat_demo/src/theme/app_colors.dart';
+
 import 'package:tencent_cloud_chat_demo/utils/dio_error_message.dart';
-import 'package:tencent_cloud_chat_demo/utils/theme.dart';
+
 import 'package:tencent_cloud_chat_demo/utils/toast.dart';
 import 'package:tencent_cloud_chat_demo/src/services/system_media_picker.dart';
 
@@ -43,17 +44,15 @@ class ComplaintFormPage extends StatefulWidget {
 }
 
 class _ComplaintFormPageState extends State<ComplaintFormPage> {
-  static const int _maxContentLength = 2000;
   static const int _maxScreenshots = ComplaintApi.maxScreenshots;
 
   final TextEditingController _contentController = TextEditingController();
   final List<_ComplaintAttachment> _attachments = <_ComplaintAttachment>[];
   bool _submitting = false;
+  bool _submitted = false;
 
   bool get _isGroup =>
       widget.groupId != null && widget.groupId!.trim().isNotEmpty;
-
-  int get _contentLength => _contentController.text.length;
 
   bool get _canSubmit => !_submitting;
 
@@ -96,7 +95,7 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
     }
 
     final pickedAssets = await SystemMediaPicker.pickImages(maxAssets: remain);
-    if (pickedAssets == null || pickedAssets.isEmpty) {
+    if (pickedAssets.isEmpty) {
       return;
     }
 
@@ -127,7 +126,10 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
       return;
     }
 
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _submitting = true);
+    final minimumFeedback =
+        Future<void>.delayed(const Duration(milliseconds: 650));
     try {
       final content = _contentController.text.trim();
       final shots = _attachments
@@ -161,14 +163,9 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
       if (!mounted) {
         return;
       }
-      ToastUtils.toast(AppI18n.current.t(
-        zhHans: '投诉已提交',
-        zhHant: '投訴已提交',
-        en: 'Complaint submitted.',
-        ja: '通報を送信しました。',
-        ko: '신고가 제출되었습니다.',
-      ));
-      Navigator.of(context).pop(true);
+      await minimumFeedback;
+      if (!mounted) return;
+      setState(() => _submitted = true);
     } on DioError catch (e) {
       if (!mounted) {
         return;
@@ -326,275 +323,54 @@ class _ComplaintFormPageState extends State<ComplaintFormPage> {
     );
   }
 
-  Widget _sectionTitle(String text, Color color) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: color,
-        fontSize: 17,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Provider.of<DefaultThemeData>(context).theme;
-    final isDark = Provider.of<DefaultThemeData>(context, listen: false)
-            .currentThemeType ==
-        ThemeType.dark;
     final i18n = AppI18n.of(context);
-    final bg = AppColors.card(dark: isDark);
-    final line = theme.weakDividerColor ?? AppColors.line(dark: isDark);
-    final textColor = theme.darkTextColor ?? AppColors.text(dark: isDark);
-    final hintColor = theme.weakTextColor ?? AppColors.subText(dark: isDark);
-    // 与个性签名一致：浅色用 inputFill；深色抬高对比避免糊底。
-    final inputFill = isDark
-        ? const Color(0xFF3A3A3C)
-        : (theme.inputFillColor ?? const Color(0xFFF3F3F4));
-    final primary = theme.primaryColor ?? AppColors.primaryBlue;
-    final reportedName = (widget.reportedUserName?.trim().isNotEmpty == true)
-        ? widget.reportedUserName!.trim()
-        : widget.reportedUserId;
-
-    void dismissKeyboard() {
-      FocusManager.instance.primaryFocus?.unfocus();
-    }
-
-    final inSideColumn = DesktopSideColumnScope.maybeOf(context) != null;
-    return Scaffold(
-      backgroundColor: bg,
-      appBar: inSideColumn
-          ? null
-          : AppBar(
-        elevation: 0,
-        centerTitle: true,
-        backgroundColor: bg,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          color: primary,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(0.6),
-          child: Container(height: 0.6, color: line),
-        ),
-        title: Text(
-          i18n.t(
-            zhHans: '投诉',
-            zhHant: '投訴',
-            en: 'Complaint',
-            ja: '通報',
-            ko: '신고',
-          ),
-          style: TextStyle(
-            color: textColor,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTap: dismissKeyboard,
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-              _sectionTitle(
-                i18n.t(
-                  zhHans: _isGroup ? '投诉对象' : '被投诉人',
-                  zhHant: _isGroup ? '投訴對象' : '被投訴人',
-                  en: _isGroup ? 'Target' : 'Reported User',
-                  ja: _isGroup ? '通報対象' : '通報対象',
-                  ko: _isGroup ? '신고 대상' : '신고 대상',
-                ),
-                textColor,
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    final name = widget.reportedUserName?.trim();
+    return AnimatedSwitcher(
+      duration:
+          reduceMotion ? Duration.zero : const Duration(milliseconds: 420),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+              position: Tween<Offset>(
+                      begin: reduceMotion ? Offset.zero : const Offset(0, .025),
+                      end: Offset.zero)
+                  .animate(animation),
+              child: child)),
+      child: _submitted
+          ? FeedbackSuccessView(
+              key: const ValueKey('complaint-success'),
+              message: i18n.t(
+                  zhHans: '您的投诉已收到。\n我们会尽快核实处理，感谢您的支持。',
+                  zhHant: '您的投訴已收到。\n我們會盡快核實處理，感謝您的支持。',
+                  en: 'Your report has been received.\nWe will review it as soon as possible. Thank you.',
+                  ja: '通報を受け付けました。\n速やかに内容を確認します。ご協力ありがとうございます。',
+                  ko: '신고가 접수되었습니다.\n신속히 내용을 확인하겠습니다. 감사합니다.'),
+              onDone: () => Navigator.of(context).pop(true),
+            )
+          : IgnorePointer(
+              key: const ValueKey('complaint-form'),
+              ignoring: _submitting,
+              child: ComplaintFormView(
+                target: name != null && name.isNotEmpty
+                    ? name
+                    : widget.reportedUserId,
+                reason: complaintReasonLabel(i18n, widget.reason),
+                controller: _contentController,
+                screenshots: _attachments.map((item) => item.bytes).toList(),
+                maxScreenshots: _maxScreenshots,
+                submitting: _submitting,
+                embedded: DesktopSideColumnScope.maybeOf(context) != null,
+                onSubmit: _submit,
+                onAddImage: _pickImages,
+                onRemoveImage: (index) =>
+                    setState(() => _attachments.removeAt(index)),
               ),
-                const SizedBox(height: 12),
-                Text(
-                  reportedName,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: textColor,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 28),
-                _sectionTitle(
-                  i18n.t(
-                    zhHans: '投诉原因',
-                    zhHant: '投訴原因',
-                    en: 'Reason',
-                    ja: '通報理由',
-                    ko: '신고 사유',
-                  ),
-                  textColor,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  complaintReasonLabel(i18n, widget.reason),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: textColor,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 28),
-                _sectionTitle(
-                  i18n.t(
-                    zhHans: '补充说明',
-                    zhHant: '補充說明',
-                    en: 'Additional Details',
-                    ja: '補足説明',
-                    ko: '추가 설명',
-                  ),
-                  textColor,
-                ),
-                const SizedBox(height: 12),
-                ProfileSignatureInputField(
-                  controller: _contentController,
-                  hintText: i18n.t(
-                    zhHans: '请描述违规行为（选填）',
-                    zhHant: '請描述違規行為（選填）',
-                    en: 'Describe the violation (optional)',
-                    ja: '違反行為を記入してください（任意）',
-                    ko: '위반 행위를 작성해 주세요(선택)',
-                  ),
-                  maxLength: _maxContentLength,
-                  inputFill: inputFill,
-                  hintColor: hintColor,
-                  textColor: textColor,
-                  counterText: '$_contentLength/$_maxContentLength',
-                ),
-                const SizedBox(height: 28),
-                _sectionTitle(
-                  i18n.t(
-                    zhHans: '相关截图',
-                    zhHant: '相關截圖',
-                    en: 'Screenshots',
-                    ja: '関連スクリーンショット',
-                    ko: '관련 스크린샷',
-                  ),
-                  textColor,
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    ..._attachments.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final item = entry.value;
-                      return Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.memory(
-                              item.bytes,
-                              width: 88,
-                              height: 88,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          Positioned(
-                            top: 4,
-                            right: 4,
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _attachments.removeAt(index);
-                                });
-                              },
-                              child: Container(
-                                width: 22,
-                                height: 22,
-                                decoration: const BoxDecoration(
-                                  color: Colors.black54,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close_rounded,
-                                  size: 15,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    }),
-                    if (_attachments.length < _maxScreenshots)
-                      GestureDetector(
-                        onTap: _pickImages,
-                        child: CustomPaint(
-                          painter: _DashedRRectPainter(
-                            color: hintColor.withValues(alpha: 0.55),
-                            radius: 8,
-                          ),
-                          child: SizedBox(
-                            width: 88,
-                            height: 88,
-                            child: Icon(
-                              Icons.add_rounded,
-                              size: 36,
-                              color: textColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 48),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _canSubmit ? _submit : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primary,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: isDark
-                          ? const Color(0xFF3A3A3C)
-                          : const Color(0xFFD1D1D6),
-                      disabledForegroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: Text(
-                      _submitting
-                          ? i18n.t(
-                              zhHans: '提交中...',
-                              zhHant: '提交中...',
-                              en: 'Submitting...',
-                              ja: '送信中...',
-                              ko: '제출 중...',
-                            )
-                          : i18n.t(
-                              zhHans: '提交',
-                              zhHant: '提交',
-                              en: 'Submit',
-                              ja: '送信',
-                              ko: '제출',
-                            ),
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -607,52 +383,4 @@ class _ComplaintAttachment {
 
   final String filename;
   final Uint8List bytes;
-}
-
-/// 虚线圆角矩形，对齐设计稿「+」上传框。
-class _DashedRRectPainter extends CustomPainter {
-  _DashedRRectPainter({
-    required this.color,
-    required this.radius,
-  });
-
-  final Color color;
-  final double radius;
-  static const double _strokeWidth = 1.2;
-  static const double _dashWidth = 4;
-  static const double _dashSpace = 3;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = _strokeWidth;
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        _strokeWidth / 2,
-        _strokeWidth / 2,
-        size.width - _strokeWidth,
-        size.height - _strokeWidth,
-      ),
-      Radius.circular(radius),
-    );
-    final path = Path()..addRRect(rrect);
-    for (final metric in path.computeMetrics()) {
-      var distance = 0.0;
-      while (distance < metric.length) {
-        final next = distance + _dashWidth;
-        canvas.drawPath(
-          metric.extractPath(distance, next.clamp(0, metric.length)),
-          paint,
-        );
-        distance = next + _dashSpace;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedRRectPainter oldDelegate) {
-    return oldDelegate.color != color || oldDelegate.radius != radius;
-  }
 }

@@ -63,7 +63,6 @@ import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/widgets/t
 import 'package:tencent_cloud_chat_demo/src/pages/profile_signature_edit_page.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/widgets/tim_ui_group_profile_widget.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_detail_card.dart';
-import 'package:tencent_cloud_chat_demo/src/widgets/group_member_preview_skeleton.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/app_group_avatar.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/group_profile_type_indicators.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/avatar.dart';
@@ -726,8 +725,7 @@ class GroupProfilePage extends StatelessWidget {
   String _selfImFaceUrl(TUIGroupProfileModel model) {
     final selfInfo = serviceLocator<TUISelfInfoViewModel>().loginInfo;
     final coreInfo = TIMUIKitCore.getInstance().loginUserInfo;
-    final selfId =
-        (selfInfo?.userID ?? coreInfo?.userID ?? '').trim();
+    final selfId = (selfInfo?.userID ?? coreInfo?.userID ?? '').trim();
     final memberFace = selfId.isEmpty
         ? null
         : GroupMemberStore.instance.memberOf(model.groupID, selfId)?.faceUrl;
@@ -797,14 +795,7 @@ class GroupProfilePage extends StatelessWidget {
   }
 
   Widget _buildSectionGap(TUITheme theme) {
-    final baseColor =
-        theme.appbarBgColor ?? theme.wideBackgroundColor ?? Colors.white;
-    final isDarkBackground =
-        ThemeData.estimateBrightnessForColor(baseColor) == Brightness.dark;
-    return Container(
-      height: 18,
-      color: isDarkBackground ? baseColor : const Color(0xFFF1F1F1),
-    );
+    return const SizedBox(height: 12);
   }
 
   Widget _buildSectionCard(
@@ -814,14 +805,16 @@ class GroupProfilePage extends StatelessWidget {
     final itemBackgroundColor = theme.conversationItemBgColor ??
         theme.wideBackgroundColor ??
         Colors.white;
-    return Container(
+    return Material(
       color: itemBackgroundColor,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: List.generate(children.length * 2 - 1, (index) {
           if (index.isOdd) {
             return Divider(
-              height: 1,
-              thickness: 1,
+              height: 0.5,
+              thickness: 0.5,
               indent: 16,
               endIndent: 16,
               color: theme.weakDividerColor,
@@ -847,17 +840,17 @@ class GroupProfilePage extends StatelessWidget {
         valueColor ?? theme.weakTextColor ?? const Color(0xFF999999);
     return InkWell(
       onTap: onTap,
-      child: SizedBox(
-        height: 56,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 54),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 16,
                     color: titleColor,
                   ),
                 ),
@@ -875,7 +868,7 @@ class GroupProfilePage extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.right,
                             style: TextStyle(
-                              fontSize: 15,
+                              fontSize: 16,
                               color: trailingColor,
                             ),
                           ),
@@ -922,17 +915,17 @@ class GroupProfilePage extends StatelessWidget {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    return SizedBox(
-      height: 56,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 54),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
             Expanded(
               child: Text(
                 title,
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: 16,
                   color: theme.darkTextColor ?? Colors.black,
                 ),
               ),
@@ -1206,15 +1199,17 @@ class GroupProfilePage extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               AppI18n.of(context).t(
-                zhHans: '操作',
-                zhHant: '操作',
-                en: 'Actions',
-                ja: '操作',
-                ko: '작업',
+                zhHans: icon == Icons.add ? '添加成员' : '移除成员',
+                zhHant: icon == Icons.add ? '新增成員' : '移除成員',
+                en: icon == Icons.add ? 'Add' : 'Remove',
+                ja: icon == Icons.add ? '追加' : '削除',
+                ko: icon == Icons.add ? '추가' : '제거',
               ),
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.transparent,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: theme.weakTextColor,
               ),
             ),
           ],
@@ -1230,9 +1225,6 @@ class GroupProfilePage extends StatelessWidget {
     TUIGroupProfileModel model,
     List<V2TimGroupMemberFullInfo?> memberList,
   ) {
-    final itemBackgroundColor = theme.conversationItemBgColor ??
-        theme.wideBackgroundColor ??
-        Colors.white;
     final groupId = groupInfo.groupID.trim();
     final localRecord = groupId.isEmpty
         ? null
@@ -1266,16 +1258,10 @@ class GroupProfilePage extends StatelessWidget {
     // an explicit complete snapshot is the only exception.
     final memberCount =
         model.displayedMemberCount(cachedCount: localRecord?.memberCount);
-    const maxPreviewSlots = 10;
-    final actionSlotCount =
-        (canInviteMember ? 1 : 0) + (canKickOffMember ? 1 : 0);
-    final maxMemberSlots = maxPreviewSlots - actionSlotCount;
+    const maxMemberSlots = 6;
     final previewMembers = model.profilePreviewMembers;
     final showAvatarSkeleton = previewMembers.isEmpty &&
-        (model.isManagementMemberListLoading ||
-            model.isProfilePreviewPending);
-    final skeletonEstimate =
-        memberCount > 0 ? memberCount : (groupInfo.memberCount ?? 0);
+        (model.isManagementMemberListLoading || model.isProfilePreviewPending);
     final memberPreviewItems = _sortedMembersForPreview(previewMembers)
         .take(maxMemberSlots)
         .map(
@@ -1287,33 +1273,33 @@ class GroupProfilePage extends StatelessWidget {
           ),
         )
         .toList();
-    final previewItems = <Widget>[
-      ...memberPreviewItems,
-      if (canInviteMember)
-        _buildMemberActionItem(
-          context: context,
-          theme: theme,
-          icon: Icons.add,
-          onTap: () => unawaited(_openAddGroupMember(context, model)),
-        ),
-      if (canKickOffMember)
-        _buildMemberActionItem(
-          context: context,
-          theme: theme,
-          icon: Icons.remove,
-          onTap: () => _openDeleteGroupMember(context, model),
-        ),
-    ];
 
-    return Container(
-      color: itemBackgroundColor,
-      child: Column(
-        children: [
+    return Column(
+      children: [
+        _buildSectionCard(theme, [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: AppGroupAvatar(
+                    groupId: groupId,
+                    faceUrl: groupFaceUrl,
+                    showName: groupName,
+                    size: 56,
+                    enablePreview: true,
+                    previewFaceUrl: localRecord?.avatarPreviewUrl,
+                    previewUrlResolver: () async {
+                      final result = await MeGroupApi.instance
+                          .fetchGroupAvatarPreview(groupId);
+                      return result.previewUrl;
+                    },
+                  ),
+                ),
+                const SizedBox(width: 14),
                 Expanded(
                   child: InkWell(
                     onTap: canOpenGroupInfo
@@ -1337,6 +1323,34 @@ class GroupProfilePage extends StatelessWidget {
                               fallback: theme.darkTextColor ?? Colors.black,
                               groupType: groupInfo.groupType,
                             ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: () => _copyGroupAlias(
+                              context,
+                              localRecord?.displayAlias.trim().isNotEmpty ==
+                                      true
+                                  ? localRecord!.displayAlias.trim()
+                                  : _resolveGroupDisplayAlias(groupInfo)),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(children: [
+                              Flexible(
+                                  child: Text(
+                                localRecord?.displayAlias.trim().isNotEmpty ==
+                                        true
+                                    ? localRecord!.displayAlias.trim()
+                                    : _resolveGroupDisplayAlias(groupInfo),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 12, color: theme.weakTextColor),
+                              )),
+                              const SizedBox(width: 6),
+                              Icon(Icons.copy_outlined,
+                                  size: 16, color: theme.weakTextColor),
+                            ]),
                           ),
                         ),
                         // 超级大群 / 普通群等类型徽章放在昵称下方。
@@ -1365,24 +1379,6 @@ class GroupProfilePage extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
-                SizedBox(
-                  width: 56,
-                  height: 56,
-                  child: AppGroupAvatar(
-                    groupId: groupId,
-                    faceUrl: groupFaceUrl,
-                    showName: groupName,
-                    size: 56,
-                    enablePreview: true,
-                    previewFaceUrl: localRecord?.avatarPreviewUrl,
-                    previewUrlResolver: () async {
-                      final result = await MeGroupApi.instance
-                          .fetchGroupAvatarPreview(groupId);
-                      return result.previewUrl;
-                    },
-                  ),
-                ),
                 if (canOpenGroupInfo) ...[
                   const SizedBox(width: 8),
                   InkWell(
@@ -1401,32 +1397,19 @@ class GroupProfilePage extends StatelessWidget {
                 ],
               ],
             ),
-          ),
+          )
+        ]),
+        _buildSectionGap(theme),
+        _buildSectionCard(theme, [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (showAvatarSkeleton)
-                  GroupMemberPreviewSkeletonGrid(
-                    theme: theme,
-                    estimatedMemberCount: skeletonEstimate,
-                    actionSlotCount: actionSlotCount,
-                  )
-                else
-                  GridView.count(
-                    crossAxisCount: 5,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 4,
-                    crossAxisSpacing: 4,
-                    childAspectRatio: 0.96,
-                    children: previewItems,
-                  ),
                 InkWell(
                   onTap: () => _openGroupMemberList(context, model, memberList),
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 10, bottom: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     child: Row(
                       children: [
                         Expanded(
@@ -1467,12 +1450,75 @@ class GroupProfilePage extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 14),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (showAvatarSkeleton)
+                              for (var i = 0; i < 6; i++)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: SizedBox(
+                                    width: 54,
+                                    height: 66,
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: CircleAvatar(
+                                        radius: 20,
+                                        backgroundColor: theme.weakDividerColor,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                            else
+                              for (var i = 0;
+                                  i < memberPreviewItems.length;
+                                  i++)
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    right: i == memberPreviewItems.length - 1
+                                        ? 0
+                                        : 8,
+                                  ),
+                                  child: memberPreviewItems[i],
+                                ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (canInviteMember) ...[
+                      const SizedBox(width: 8),
+                      _buildMemberActionItem(
+                        context: context,
+                        theme: theme,
+                        icon: Icons.add,
+                        onTap: () =>
+                            unawaited(_openAddGroupMember(context, model)),
+                      ),
+                    ],
+                    if (canKickOffMember) ...[
+                      const SizedBox(width: 8),
+                      _buildMemberActionItem(
+                        context: context,
+                        theme: theme,
+                        icon: Icons.remove,
+                        onTap: () => _openDeleteGroupMember(context, model),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
-          ),
-          _buildSectionGap(theme),
-        ],
-      ),
+          )
+        ]),
+        _buildSectionGap(theme),
+      ],
     );
   }
 
@@ -1597,41 +1643,52 @@ class GroupProfilePage extends StatelessWidget {
     final sectionCards = <Widget>[
       if (basicRows.isNotEmpty) _buildSectionCard(theme, basicRows),
       if (chatRows.isNotEmpty) _buildSectionGap(theme),
-      if (chatRows.isNotEmpty) _buildSectionCard(theme, chatRows),
+      if (chatRows.isNotEmpty) _buildSectionCard(theme, [chatRows.first]),
+      if (chatRows.length > 1) _buildSectionGap(theme),
+      if (chatRows.length > 1)
+        _buildSectionCard(theme, chatRows.skip(1).toList()),
       if (manageRows.isNotEmpty) _buildSectionGap(theme),
       if (manageRows.isNotEmpty) _buildSectionCard(theme, manageRows),
     ];
 
-    return Column(
-      children: [
-        _buildMemberPreviewCard(
-          context,
-          theme,
-          groupInfo,
-          model,
-          groupMemberList,
-        ),
-        ...sectionCards,
-        _buildSectionGap(theme),
-        _buildSectionCard(
-          theme,
-          [
-            _buildArrowRow(
-              theme: theme,
-              title: AppI18n.of(context).t(
-                zhHans: '投诉',
-                zhHant: '投訴',
-                en: 'Complaint',
-                ja: '通報',
-                ko: '신고',
+    return Container(
+      color: Provider.of<DefaultThemeData>(context).currentThemeType ==
+              ThemeType.dark
+          ? const Color(0xFF111318)
+          : const Color(0xFFF5F6F8),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+      child: Column(
+        children: [
+          _buildMemberPreviewCard(
+            context,
+            theme,
+            groupInfo,
+            model,
+            groupMemberList,
+          ),
+          ...sectionCards,
+          _buildSectionGap(theme),
+          _buildSectionCard(
+            theme,
+            [
+              _buildArrowRow(
+                theme: theme,
+                title: AppI18n.of(context).t(
+                  zhHans: '投诉',
+                  zhHant: '投訴',
+                  en: 'Complaint',
+                  ja: '通報',
+                  ko: '신고',
+                ),
+                onTap: () => _openComplaint(context, model, groupInfo),
               ),
-              onTap: () => _openComplaint(context, model, groupInfo),
-            ),
-          ],
-        ),
-        _buildSectionGap(theme),
-        GroupProfileButtonArea(groupInfo.groupID, model),
-      ],
+            ],
+          ),
+          _buildSectionGap(theme),
+          _buildSectionCard(
+              theme, [GroupProfileButtonArea(groupInfo.groupID, model)]),
+        ],
+      ),
     );
   }
 
@@ -1665,9 +1722,13 @@ class GroupProfilePage extends StatelessWidget {
           builder: (context, _) {
             return Scaffold(
               backgroundColor:
-                  isDarkBackground ? appBarBaseColor : const Color(0xFFF1F1F1),
+                  isDarkBackground ? appBarBaseColor : const Color(0xFFF5F6F8),
               extendBody: true,
               appBar: AppBar(
+                  centerTitle: true,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
+                  surfaceTintColor: Colors.transparent,
                   systemOverlayStyle: overlayStyle,
                   title: Text(
                     AppI18n.of(context).t(
@@ -1693,7 +1754,9 @@ class GroupProfilePage extends StatelessWidget {
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                   shadowColor: theme.weakDividerColor,
-                  backgroundColor: theme.appbarBgColor ?? Colors.white),
+                  backgroundColor: isDarkBackground
+                      ? appBarBaseColor
+                      : const Color(0xFFF5F6F8)),
               body: SafeArea(
                 top: false,
                 child: TIMUIKitGroupProfile(

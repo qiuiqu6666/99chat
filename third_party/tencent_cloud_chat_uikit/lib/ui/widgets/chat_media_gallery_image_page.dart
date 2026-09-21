@@ -629,6 +629,7 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
                 fit: imagePreviewPaintFit(display),
                 alignment: display.alignment,
                 showSpinner: false,
+                interactive: true,
               );
             }
             return const Center(

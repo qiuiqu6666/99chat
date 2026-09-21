@@ -448,6 +448,43 @@ void main() {
     }
   });
 
+  testWidgets('an initially exhausted edge admits one reading-window probe',
+      (tester) async {
+    try {
+      model.haveMoreData = false;
+      sdk.mode = _PageMode.finishedEmpty;
+      final handler = FlutterError.onError;
+      await tester.pumpWidget(build());
+      FlutterError.onError = handler;
+      await frames(tester, 60);
+      expect(model.historyAvailability, HistoryAvailability.exhausted);
+      expect(uiOlderLoads, 0,
+          reason: 'idle layout must not probe an exhausted older boundary');
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, 1200),
+          touchSlopY: 0);
+      await waitUntil(tester, () => uiOlderLoads == 1,
+          'the first explicit edge gesture must preserve the end probe');
+      sdk.firstOlderGate.complete();
+      await waitUntil(tester,
+          () => !model.isLoadingChatHistory && sdk.activeCalls == 0,
+          'the single end probe must finish');
+      await idleBeyondProtection(tester);
+      expect(global.isMemoryWindowSuppressed(model.conversationID), isTrue,
+          reason: 'the probe must establish the same reading-window ownership');
+      final callsAtEnd = sdk.requests.length;
+      await pumpAndRebuildWithoutGesture(tester);
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, 96),
+          touchSlopY: 0);
+      await idleBeyondProtection(tester);
+      expect(uiOlderLoads, 1);
+      expect(sdk.requests.length, callsAtEnd,
+          reason: 'neither rebuild nor another drag may repeat a terminal probe');
+      expect(currentSeqs(), [for (var seq = 100; seq >= 61; seq--) seq]);
+    } finally {
+      await close(tester);
+    }
+  });
+
   testWidgets('a confirmed empty Community end does not create an SDK loop',
       (tester) async {
     try {

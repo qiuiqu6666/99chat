@@ -230,7 +230,8 @@ class GroupProfileButtonArea extends TIMUIKitStatelessWidget {
   }
 
   bool _isGroupOwner(V2TimGroupInfo? groupInfo) {
-    return model.backendSelfRole == GroupMemberRoleType.V2TIM_GROUP_MEMBER_ROLE_OWNER;
+    return model.backendSelfRole ==
+        GroupMemberRoleType.V2TIM_GROUP_MEMBER_ROLE_OWNER;
   }
 
   bool _ownerShouldDismiss(String groupType) {
@@ -671,16 +672,13 @@ class GroupProfileButtonArea extends TIMUIKitStatelessWidget {
                 child: Container(
                   width: double.infinity,
                   alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  decoration: BoxDecoration(
-                      color: itemBackgroundColor,
-                      border: Border(
-                          bottom: BorderSide(
-                              color: theme.weakDividerColor ??
-                                  CommonColor.weakDividerColor))),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 18),
+                  color: itemBackgroundColor,
                   child: Text(
                     e["label"]!,
-                    style: TextStyle(color: theme.cautionColor, fontSize: 17),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: theme.cautionColor, fontSize: 15),
                   ),
                 ),
               ))
@@ -708,11 +706,25 @@ class GroupProfileButtonArea extends TIMUIKitStatelessWidget {
       );
     }
 
-    return Column(
-      children: [
-        ..._renderGroupOperation(
-            context, theme, isOwner, groupInfo?.groupType ?? "")
-      ],
+    final operations = _renderGroupOperation(
+        context, theme, isOwner, groupInfo?.groupType ?? "");
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var index = 0; index < operations.length; index++) ...[
+            if (index > 0)
+              VerticalDivider(
+                width: 1,
+                thickness: 0.5,
+                indent: 16,
+                endIndent: 16,
+                color: theme.weakDividerColor ?? CommonColor.weakDividerColor,
+              ),
+            Expanded(child: operations[index]),
+          ],
+        ],
+      ),
     );
   }
 }

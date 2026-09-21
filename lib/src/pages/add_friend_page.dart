@@ -233,7 +233,7 @@ class _AddFriendPageState extends State<AddFriendPage> {
     await SangongMyConfigService.instance.activateSession();
     final ok = await SangongGameHttp.setTenantFromMyConfig(force: true);
     if (!ok || !mounted) return;
-    setState(() {});  // 触发子组件 rebuild,使面板拿到正确 tenant
+    setState(() {}); // 触发子组件 rebuild,使面板拿到正确 tenant
   }
 
   Future<void> _loadGroupMemberJoinMeta() async {
@@ -337,7 +337,8 @@ class _AddFriendPageState extends State<AddFriendPage> {
         _cardAddBlocked = !check.allowed;
         if (!check.allowed) {
           _showAddButton = false;
-          _addHiddenHint = UserApiErrorMessage.fromAddFriendReasonCodeOnOpenProfile(
+          _addHiddenHint =
+              UserApiErrorMessage.fromAddFriendReasonCodeOnOpenProfile(
             check.reason,
             fallback: AppI18n.current.t(
               zhHans: '对方未开放通过名片添加',
@@ -381,7 +382,8 @@ class _AddFriendPageState extends State<AddFriendPage> {
         _qrAddBlocked = !check.allowed;
         if (!check.allowed) {
           _showAddButton = false;
-          _addHiddenHint = UserApiErrorMessage.fromAddFriendReasonCodeOnOpenProfile(
+          _addHiddenHint =
+              UserApiErrorMessage.fromAddFriendReasonCodeOnOpenProfile(
             check.reason,
             fallback: _qrAddNotAllowedText(),
           );
@@ -1105,7 +1107,14 @@ class _AddFriendPageState extends State<AddFriendPage> {
               ),
             if (!_isSelfUser()) ...[
               const SizedBox(height: 12),
-              TextButton(
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: primaryColor,
+                  side: BorderSide(color: primaryColor),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
                 onPressed: _blocking ? null : _handleToggleBlock,
                 child: _blocking
                     ? const SizedBox(
@@ -1131,9 +1140,7 @@ class _AddFriendPageState extends State<AddFriendPage> {
                               ),
                         style: TextStyle(
                           fontSize: 16,
-                          color: BlockLocalStore.instance.isBlocked(widget.userID)
-                              ? primaryColor
-                              : AppColors.primaryRed,
+                          color: primaryColor,
                         ),
                       ),
               ),
@@ -1169,15 +1176,41 @@ class _AddFriendPageState extends State<AddFriendPage> {
           Expanded(
             child: SingleChildScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(12, 14, 12, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Container(
-                    color: cardBackgroundColor,
+                    decoration: BoxDecoration(
+                        color: cardBackgroundColor,
+                        borderRadius: BorderRadius.circular(14)),
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
+                        SizedBox(
+                          width: 72,
+                          height: 72,
+                          child: Avatar(
+                            faceUrl: _getSdkFaceUrl(),
+                            showName: showName,
+                            type: 1,
+                            borderRadius: BorderRadius.circular(36),
+                            isShowBigWhenClick: true,
+                            previewUrlResolver: () async {
+                              final result = await UserApi.instance
+                                  .fetchUserAvatarPreview(widget.userID);
+                              return result.previewUrl;
+                            },
+                            avatarCacheKey: avatarOwnerId.isEmpty
+                                ? null
+                                : 'avatar|user|$avatarOwnerId|$avatarVersion|thumb',
+                            previewCacheKey: avatarOwnerId.isEmpty
+                                ? null
+                                : 'avatar|user|$avatarOwnerId|$avatarVersion|preview',
+                          ),
+                        ),
+                        const SizedBox(width: 16),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1242,29 +1275,6 @@ class _AddFriendPageState extends State<AddFriendPage> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        SizedBox(
-                          width: 72,
-                          height: 72,
-                          child: Avatar(
-                            faceUrl: _getSdkFaceUrl(),
-                            showName: showName,
-                            type: 1,
-                            borderRadius: BorderRadius.circular(36),
-                            isShowBigWhenClick: true,
-                            previewUrlResolver: () async {
-                              final result = await UserApi.instance
-                                  .fetchUserAvatarPreview(widget.userID);
-                              return result.previewUrl;
-                            },
-                            avatarCacheKey: avatarOwnerId.isEmpty
-                                ? null
-                                : 'avatar|user|$avatarOwnerId|$avatarVersion|thumb',
-                            previewCacheKey: avatarOwnerId.isEmpty
-                                ? null
-                                : 'avatar|user|$avatarOwnerId|$avatarVersion|preview',
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -1273,46 +1283,60 @@ class _AddFriendPageState extends State<AddFriendPage> {
                     _buildGameAdminPanel(embedded: true),
                   ],
                   const SizedBox(height: 12),
-                  _buildInfoRow(
-                    title: i18n.t(
-                      zhHans: '性别',
-                      zhHant: '性別',
-                      en: 'Gender',
-                      ja: 'Gender',
-                      ko: 'Gender',
-                    ),
-                    value: _getGenderLabel(i18n),
-                    titleColor: titleColor,
-                    valueColor: valueColor,
-                    backgroundColor: cardBackgroundColor,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: ColoredBox(
+                        color: cardBackgroundColor,
+                        child: Column(
+                          children: [
+                            _buildInfoRow(
+                              title: i18n.t(
+                                zhHans: '性别',
+                                zhHant: '性別',
+                                en: 'Gender',
+                                ja: 'Gender',
+                                ko: 'Gender',
+                              ),
+                              value: _getGenderLabel(i18n),
+                              titleColor: titleColor,
+                              valueColor: valueColor,
+                              backgroundColor: cardBackgroundColor,
+                            ),
+                            Divider(
+                                height: 1,
+                                thickness: .5,
+                                indent: 16,
+                                endIndent: 16,
+                                color: dividerColor),
+                            _buildInfoRow(
+                              title: i18n.t(
+                                zhHans: '99号ID',
+                                zhHant: '99號ID',
+                                en: '99 ID',
+                                ja: '99 ID',
+                                ko: '99 ID',
+                              ),
+                              value: _displayUserID(),
+                              titleColor: titleColor,
+                              valueColor: primaryColor,
+                              backgroundColor: cardBackgroundColor,
+                              onTap: () => unawaited(_copyDisplayUserID()),
+                            ),
+                            if (_groupJoinMetaRecord != null &&
+                                (widget.groupId?.trim().isNotEmpty ?? false))
+                              GroupMemberJoinMetaSection(
+                                groupId: widget.groupId!.trim(),
+                                record: _groupJoinMetaRecord!,
+                                titleColor: titleColor,
+                                valueColor: valueColor,
+                                linkColor: primaryColor,
+                                backgroundColor: cardBackgroundColor,
+                                dividerColor: dividerColor,
+                                showTopDivider: true,
+                              ),
+                          ],
+                        )),
                   ),
-                  Container(height: 1, color: dividerColor),
-                  _buildInfoRow(
-                    title: i18n.t(
-                      zhHans: '99号ID',
-                      zhHant: '99號ID',
-                      en: '99 ID',
-                      ja: '99 ID',
-                      ko: '99 ID',
-                    ),
-                    value: _displayUserID(),
-                    titleColor: titleColor,
-                    valueColor: primaryColor,
-                    backgroundColor: cardBackgroundColor,
-                    onTap: () => unawaited(_copyDisplayUserID()),
-                  ),
-                  if (_groupJoinMetaRecord != null &&
-                      (widget.groupId?.trim().isNotEmpty ?? false))
-                    GroupMemberJoinMetaSection(
-                      groupId: widget.groupId!.trim(),
-                      record: _groupJoinMetaRecord!,
-                      titleColor: titleColor,
-                      valueColor: valueColor,
-                      linkColor: primaryColor,
-                      backgroundColor: cardBackgroundColor,
-                      dividerColor: dividerColor,
-                      showTopDivider: true,
-                    ),
                 ],
               ),
             ),
@@ -1328,7 +1352,7 @@ class _AddFriendPageState extends State<AddFriendPage> {
               ja: 'Add',
               ko: 'Add',
             ),
-            buttonBorderRadius: 8,
+            buttonBorderRadius: 10,
             showButtonWhenBlocked: false,
           ),
         ],
@@ -1339,7 +1363,7 @@ class _AddFriendPageState extends State<AddFriendPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<DefaultThemeData>(context).theme;
-    const lightPageBackgroundColor = AppColors.lightBackground;
+    const lightPageBackgroundColor = Color(0xFFF5F6F8);
     const lightCardBackgroundColor = AppColors.lightCard;
     const lightTitleColor = AppColors.lightText;
     const lightValueColor = AppColors.lightSubText;
@@ -1440,19 +1464,26 @@ class _AddFriendPageState extends State<AddFriendPage> {
               ),
             ),
             centerTitle: true,
-            backgroundColor: theme.appbarBgColor ?? cardBackgroundColor,
+            backgroundColor: pageBackgroundColor,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             scrolledUnderElevation: 0,
-            bottom: isDarkBackground
-                ? null
-                : PreferredSize(
-                    preferredSize: const Size.fromHeight(0.5),
-                    child: Container(
-                      height: 0.5,
-                      color: dividerColor,
-                    ),
-                  ),
+            actions: [
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_horiz_rounded, color: titleColor),
+                onSelected: (_) => unawaited(_copyDisplayUserID()),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                      value: 'copy',
+                      child: Text(i18n.t(
+                          zhHans: '复制用户ID',
+                          zhHant: '複製使用者ID',
+                          en: 'Copy user ID',
+                          ja: 'IDをコピー',
+                          ko: 'ID 복사')))
+                ],
+              ),
+            ],
           ),
           body: body,
         );

@@ -1,18 +1,15 @@
+import 'feedback_form_view.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'feedback_success_view.dart';
 import 'package:tencent_cloud_chat_demo/utils/dio_error_message.dart';
 import 'package:tencent_cloud_chat_demo/utils/toast.dart';
 import 'package:tencent_cloud_chat_demo/src/api/feedback_api.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/src/platform/permission_guard.dart';
-import 'package:tencent_cloud_chat_demo/src/pages/profile_signature_edit_page.dart';
-import 'package:tencent_cloud_chat_demo/src/pages/settings/settings_widgets.dart';
-import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
-import 'package:tencent_cloud_chat_demo/src/theme/app_colors.dart';
-import 'package:provider/provider.dart';
 import 'package:tencent_cloud_chat_demo/src/services/system_media_picker.dart';
 
 class FeedbackPage extends StatefulWidget {
@@ -26,7 +23,6 @@ class FeedbackPage extends StatefulWidget {
 }
 
 class _FeedbackPageState extends State<FeedbackPage> {
-  static const int _maxContentLength = 2000;
   static const int _maxScreenshots = 5;
 
   final TextEditingController _contentController = TextEditingController();
@@ -34,6 +30,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
   FeedbackType _selectedType = FeedbackType.suggestion;
   final List<_FeedbackAttachment> _attachments = <_FeedbackAttachment>[];
   bool _submitting = false;
+  bool _submitted = false;
 
   String _feedbackTypeLabel(FeedbackType type, AppI18n i18n) {
     switch (type) {
@@ -102,7 +99,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
     if (!allowed || !mounted) return;
 
     final pickedAssets = await SystemMediaPicker.pickImages(maxAssets: remain);
-    if (pickedAssets == null || pickedAssets.isEmpty) return;
+    if (pickedAssets.isEmpty) return;
 
     final next = <_FeedbackAttachment>[];
     for (final asset in pickedAssets.take(remain)) {
@@ -127,7 +124,11 @@ class _FeedbackPageState extends State<FeedbackPage> {
   Future<void> _submit() async {
     if (!_canSubmit) return;
 
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _submitting = true);
+    // Let the loading feedback register even when the API responds instantly.
+    final minimumFeedback =
+        Future<void>.delayed(const Duration(milliseconds: 650));
     try {
       await FeedbackApi.instance.submit(
         type: _selectedType,
@@ -141,15 +142,10 @@ class _FeedbackPageState extends State<FeedbackPage> {
             )
             .toList(),
       );
+      await minimumFeedback;
       if (!mounted) return;
-      _showMessage(AppI18n.current.t(
-        zhHans: '反馈已提交',
-        zhHant: '回饋已提交',
-        en: 'Feedback submitted.',
-        ja: 'フィードバックを送信しました。',
-        ko: '의견이 제출되었습니다.',
-      ));
-      Navigator.of(context).maybePop();
+      FocusManager.instance.primaryFocus?.unfocus();
+      setState(() => _submitted = true);
     } on DioError catch (e) {
       if (!mounted) return;
       _showMessage(_feedbackError(e));
@@ -266,278 +262,43 @@ class _FeedbackPageState extends State<FeedbackPage> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = settingsIsDark(context);
-    final helperColor = AppColors.subText(dark: dark);
-    final theme = Provider.of<DefaultThemeData>(context).theme;
-    // 与个性签名 / 投诉说明一致：浅色用 inputFill，深色抬高对比。
-    final inputFill = dark
-        ? const Color(0xFF3A3A3C)
-        : (theme.inputFillColor ?? const Color(0xFFF3F3F4));
-    final hintColor = theme.weakTextColor ?? helperColor;
-    final textColor = theme.darkTextColor ?? AppColors.text(dark: dark);
-    final i18n = AppI18n.of(context);
-    final contentLength = _contentController.text.length;
-
-    final canPop = Navigator.of(context).canPop();
-
-    return Scaffold(
-      backgroundColor: AppColors.card(dark: dark),
-      appBar: widget.embedded
-          ? null
-          : AppBar(
-              elevation: 0,
-              centerTitle: true,
-              backgroundColor: AppColors.card(dark: dark),
-              surfaceTintColor: Colors.transparent,
-              automaticallyImplyLeading: canPop,
-              leading: canPop
-                  ? IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                      color: AppColors.primaryBlue,
-                      onPressed: () => Navigator.of(context).pop(),
-                    )
-                  : null,
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(0.6),
-                child: Container(
-                  height: 0.6,
-                  color: AppColors.line(dark: dark),
-                ),
-              ),
-              title: Text(
-                i18n.t(
-                  zhHans: '意见反馈',
-                  zhHant: '意見回饋',
-                  en: 'Feedback',
-                  ja: 'フィードバック',
-                  ko: '의견 보내기',
-                ),
-                style: TextStyle(
-                  color: AppColors.text(dark: dark),
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                i18n.t(
-                  zhHans: '反馈类型',
-                  zhHant: '回饋類型',
-                  en: 'Feedback Type',
-                  ja: 'フィードバック種別',
-                  ko: '의견 유형',
-                ),
-                style: TextStyle(
-                  color: AppColors.text(dark: dark),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: FeedbackType.values.map((type) {
-                  final selected = type == _selectedType;
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedType = type;
-                      });
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      width: 92,
-                      height: 42,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? AppColors.primaryBlue
-                            : (dark
-                                ? const Color(0xFF2A2D33)
-                                : const Color(0xFFF2F4F7)),
-                        borderRadius: BorderRadius.circular(21),
-                      ),
-                      child: Text(
-                        _feedbackTypeLabel(type, i18n),
-                        style: TextStyle(
-                          color: selected
-                              ? Colors.white
-                              : AppColors.text(dark: dark),
-                          fontSize: 16,
-                          fontWeight:
-                              selected ? FontWeight.w600 : FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 34),
-              Text(
-                i18n.t(
-                  zhHans: '反馈内容',
-                  zhHant: '回饋內容',
-                  en: 'Feedback Details',
-                  ja: 'フィードバック内容',
-                  ko: '의견 내용',
-                ),
-                style: TextStyle(
-                  color: AppColors.text(dark: dark),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 14),
-              ProfileSignatureInputField(
-                controller: _contentController,
-                hintText: i18n.t(
-                  zhHans: '请尽量详细描述你要反馈的问题，以便我们尽快为你解决',
-                  zhHant: '請盡量詳細描述你要回饋的問題，以便我們盡快協助處理',
-                  en: 'Please describe the issue in as much detail as possible so we can help you faster.',
-                  ja: 'できるだけ詳しく問題をご記入ください。より早く対応するための参考になります。',
-                  ko: '더 빠르게 도와드릴 수 있도록 문제를 가능한 한 자세히 작성해 주세요.',
-                ),
-                maxLength: _maxContentLength,
-                inputFill: inputFill,
-                hintColor: hintColor,
-                textColor: textColor,
-                counterText: '$contentLength/$_maxContentLength',
-              ),
-              const SizedBox(height: 26),
-              Text(
-                i18n.t(
-                  zhHans: '相关截图',
-                  zhHant: '相關截圖',
-                  en: 'Screenshots',
-                  ja: '関連スクリーンショット',
-                  ko: '관련 스크린샷',
-                ),
-                style: TextStyle(
-                  color: AppColors.text(dark: dark),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  ..._attachments.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final item = entry.value;
-                    return Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.memory(
-                            item.bytes,
-                            width: 92,
-                            height: 92,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _attachments.removeAt(index);
-                              });
-                            },
-                            child: Container(
-                              width: 22,
-                              height: 22,
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close_rounded,
-                                size: 15,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
-                  if (_attachments.length < _maxScreenshots)
-                    GestureDetector(
-                      onTap: _pickImages,
-                      child: Container(
-                        width: 92,
-                        height: 92,
-                        decoration: BoxDecoration(
-                          color: AppColors.card(dark: dark),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: AppColors.line(dark: dark),
-                            width: 1,
-                            strokeAlign: BorderSide.strokeAlignInside,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.add_rounded,
-                          size: 38,
-                          color: AppColors.text(dark: dark),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 42),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _canSubmit ? _submit : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: AppColors.line(dark: dark),
-                    disabledForegroundColor: helperColor,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    _submitting
-                        ? i18n.t(
-                            zhHans: '提交中...',
-                            zhHant: '提交中...',
-                            en: 'Submitting...',
-                            ja: '送信中...',
-                            ko: '제출 중...',
-                          )
-                        : i18n.t(
-                            zhHans: '提交',
-                            zhHant: '提交',
-                            en: 'Submit',
-                            ja: '送信',
-                            ko: '제출',
-                          ),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+    final form = FeedbackFormView(
+      controller: _contentController,
+      attachments: _attachments.map((item) => item.bytes).toList(),
+      maxScreenshots: _maxScreenshots,
+      submitting: _submitting,
+      canSubmit: _canSubmit,
+      embedded: widget.embedded,
+      selectedType: _selectedType,
+      typeLabel: (type) => _feedbackTypeLabel(type, AppI18n.of(context)),
+      onTypeChanged: (type) => setState(() => _selectedType = type),
+      onSubmit: _submit,
+      onAddImage: _pickImages,
+      onRemoveImage: (index) => setState(() => _attachments.removeAt(index)),
+    );
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    return AnimatedSwitcher(
+      duration:
+          reduceMotion ? Duration.zero : const Duration(milliseconds: 420),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: reduceMotion ? Offset.zero : const Offset(0, .025),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
         ),
       ),
+      child: _submitted
+          ? const FeedbackSuccessView(key: ValueKey('feedback-success'))
+          : IgnorePointer(
+              key: const ValueKey('feedback-form'),
+              ignoring: _submitting,
+              child: form,
+            ),
     );
   }
 }
@@ -551,3 +312,4 @@ class _FeedbackAttachment {
   final String filename;
   final Uint8List bytes;
 }
+

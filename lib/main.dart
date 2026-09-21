@@ -342,6 +342,8 @@ void _startApp(List<String> args) {
       .then((_) async {
     StartupPerfLog.mark('orientation_ready');
     ApiClient.onAuthExpired = SessionExpiryService.instance.handleExpired;
+    ApiClient.onAccountDisabled =
+        SessionExpiryService.instance.handleAccountDisabled;
     SessionManager.instance.onSessionInvalidated =
         SessionExpiryService.instance.handleImSessionInvalidated;
     // 节点选择须在首次 Dio 请求前恢复，否则会打到编译期默认域名。

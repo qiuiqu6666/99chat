@@ -43,6 +43,8 @@ class DioErrorMessage {
   }
 
   static String fromAuth(DioError e, AuthLocalizations strings) {
+    final disabledMessage = ApiClient.accountDisabledMessage(e.response);
+    if (disabledMessage != null) return disabledMessage;
     final status = e.response?.statusCode;
     final data = e.response?.data;
     if (data is Map) {

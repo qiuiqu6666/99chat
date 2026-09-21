@@ -1,5 +1,88 @@
 import 'dart:async';
 
+enum ChatPreviousLoadDecision { ready, wait, needsGesture, discard }
+
+/// One pending older-page intent. Waiting for a lock owns no viewport/trim lock.
+/// Updating an intent keeps its first deadline; a completion never queues a page.
+class ChatPreviousLoadQueue {
+  static const retryDelay =
+      Duration(milliseconds: ChatListPaginationUiGate.loadPreviousDebounceMs);
+  Timer? _timer;
+  ({
+    ChatPreviousLoadDecision Function() evaluate,
+    Future<void> Function() load,
+    void Function(ChatPreviousLoadDecision) onDecision,
+    bool userGesture,
+  })? _pending;
+  bool _admitted = false;
+  bool _disposed = false;
+
+  bool get isPending => _pending != null;
+  bool get isAdmitted => _pending != null && _admitted;
+
+  void request({
+    required ChatPreviousLoadDecision Function() evaluate,
+    required Future<void> Function() load,
+    required void Function(ChatPreviousLoadDecision) onDecision,
+    required bool userGesture,
+  }) {
+    if (_disposed) return;
+    final previousDecision = _pending?.evaluate();
+    if (previousDecision == ChatPreviousLoadDecision.discard ||
+        previousDecision == ChatPreviousLoadDecision.needsGesture) {
+      cancel();
+    }
+    // Automatic fill/prefetch cannot downgrade a deliberate waiting gesture.
+    if (_pending?.userGesture == true && !userGesture) return;
+    final decision = evaluate();
+    if (decision == ChatPreviousLoadDecision.discard ||
+        decision == ChatPreviousLoadDecision.needsGesture) {
+      onDecision(decision);
+      return;
+    }
+    _pending = (
+      evaluate: evaluate,
+      load: load,
+      onDecision: onDecision,
+      userGesture: userGesture,
+    );
+    _admitted = decision == ChatPreviousLoadDecision.ready;
+    onDecision(decision);
+    _timer ??= Timer(retryDelay, _attempt);
+  }
+
+  void _attempt() {
+    _timer = null;
+    final pending = _pending;
+    if (_disposed || pending == null) return;
+    final decision = pending.evaluate();
+    if (decision == ChatPreviousLoadDecision.wait) {
+      _admitted = false;
+      pending.onDecision(decision);
+      _timer = Timer(retryDelay, _attempt);
+      return;
+    }
+    _pending = null;
+    _admitted = false;
+    pending.onDecision(decision);
+    if (decision == ChatPreviousLoadDecision.ready) {
+      unawaited(pending.load());
+    }
+  }
+
+  void cancel() {
+    _timer?.cancel();
+    _timer = null;
+    _pending = null;
+    _admitted = false;
+  }
+
+  void dispose() {
+    _disposed = true;
+    cancel();
+  }
+}
+
 /// Transient UI locks for top/bottom history pagination on the message list.
 class ChatListPaginationUiGate {
   static const loadLatestCooldownMs = 300;
@@ -16,7 +99,6 @@ class ChatListPaginationUiGate {
   static const minTopHistoryLoadingVisibleMs = 280;
 
   bool isLoadingPrevious = false;
-  bool pendingLoadPrevious = false;
   bool silentTopHistoryLoading = false;
   bool triedPreviousAfterNoMore = false;
   int lastLoadPreviousCompletedAtMs = 0;
@@ -31,8 +113,6 @@ class ChatListPaginationUiGate {
   bool isLoadingLatest = false;
   int lastLoadLatestCompletedAtMs = 0;
   int topHistoryLoadingShownAtMs = 0;
-  Timer? loadPreviousDebounce;
-  Timer? previousGestureRetry;
   int previousUserGestureSequence = 0;
   int previousLoadGestureSequence = -1;
   Timer? loadLatestDebounce;
@@ -103,7 +183,6 @@ class ChatListPaginationUiGate {
 
   void markTopReachConsumedForPreviousLoad(String anchorKey) {
     previousLoadGestureSequence = previousUserGestureSequence;
-    cancelPreviousGestureRetry();
     previousLoadConsumedThisTopReach = true;
     lastTopReachConsumedAnchorKey = anchorKey;
   }
@@ -153,7 +232,6 @@ class ChatListPaginationUiGate {
 
   void onUserDragStart() {
     previousUserGestureSequence++;
-    cancelPreviousGestureRetry();
     if (!previousRetryNeedsUserGesture ||
         isLoadingPrevious ||
         loadPreviousTask != null) {
@@ -184,18 +262,6 @@ class ChatListPaginationUiGate {
     return now - lastLoadLatestCompletedAtMs >= loadLatestCooldownMs;
   }
 
-  /// Debounce previous-load scheduling. Returns true if a timer was (re)armed.
-  bool armLoadPreviousDebounce({
-    required Duration delay,
-    required void Function() onFire,
-  }) {
-    if (loadPreviousDebounce?.isActive ?? false) {
-      return false;
-    }
-    loadPreviousDebounce = Timer(delay, onFire);
-    return true;
-  }
-
   void armLoadLatestDebounce({
     required Duration delay,
     required void Function() onFire,
@@ -205,17 +271,10 @@ class ChatListPaginationUiGate {
   }
 
   void disposeTimers() {
-    cancelPreviousGestureRetry();
-    loadPreviousDebounce?.cancel();
-    loadPreviousDebounce = null;
     loadLatestDebounce?.cancel();
     loadLatestDebounce = null;
     loadingIndicatorTimer?.cancel();
     loadingIndicatorTimer = null;
   }
 
-  void cancelPreviousGestureRetry() {
-    previousGestureRetry?.cancel();
-    previousGestureRetry = null;
-  }
 }

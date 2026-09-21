@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/directory_list_style.dart';
 import 'dart:async';
 import 'dart:math';
+import 'package:dio/dio.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,11 @@ import 'package:tencent_chat_i18n_tool/language_json/strings.g.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_demo/utils/navigation_routes.dart';
 import 'package:tencent_cloud_chat_demo/src/api/me_group_api.dart';
+import 'package:tencent_cloud_chat_demo/src/services/group_local/group_member_local_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/group_local/muted_member_profile_resolver.dart';
+import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/muted_member_profiles.dart';
 import 'package:tencent_cloud_chat_demo/src/constants/group_governance_limits.dart';
 import 'package:tencent_cloud_chat_demo/utils/group_admin_role_message.dart';
 import 'package:tencent_cloud_chat_sdk/enum/group_member_role.dart';
@@ -49,10 +55,40 @@ Color _groupManageSurfaceColor(TUITheme theme) {
 }
 
 Color _groupManagePageBackground(TUITheme theme) {
-  return theme.chatBgColor ??
-      theme.weakBackgroundColor ??
-      theme.wideBackgroundColor ??
-      Colors.white;
+  final surface = _groupManageSurfaceColor(theme);
+  return ThemeData.estimateBrightnessForColor(surface) == Brightness.dark
+      ? const Color(0xFF111318)
+      : const Color(0xFFF5F6F8);
+}
+
+Widget _manageCard(
+    BuildContext context, TUITheme theme, List<Widget> children) {
+  final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
+  if (TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop)
+    return content;
+  return Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    child: Material(
+      color: _groupManageSurfaceColor(theme),
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: content,
+    ),
+  );
+}
+
+Widget _manageAddRow(TUITheme theme, String title) {
+  final color = theme.primaryColor ?? const Color(0xFF1E90FF);
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    child: Row(children: [
+      Icon(Icons.add_circle_outline, color: color, size: 22),
+      const SizedBox(width: 12),
+      Expanded(
+          child: Text(title, style: TextStyle(fontSize: 15, color: color))),
+    ]),
+  );
 }
 
 /// 群管理危险操作确认：缩放淡入动画 + 震动，降低误触。
@@ -232,6 +268,8 @@ class GroupProfileGroupManageState
 /// 管理员设置页面
 class GroupProfileGroupManagePage extends StatefulWidget {
   final TUIGroupProfileModel model;
+  final MutedMemberProfileResolver? mutedProfileResolver;
+  final Future<int?> Function()? serverTimeLoader;
 
   /// 插在群管理项上方的自定义区块（如加群方式、群隐私保护）。
   final List<Widget>? headerWidgets;
@@ -248,6 +286,8 @@ class GroupProfileGroupManagePage extends StatefulWidget {
   const GroupProfileGroupManagePage({
     Key? key,
     required this.model,
+    this.mutedProfileResolver,
+    this.serverTimeLoader,
     this.headerWidgets,
     this.appBarTitle,
     this.presenceLabelBuilder,
@@ -265,20 +305,84 @@ class _GroupProfileGroupManagePageState
     extends TIMUIKitState<GroupProfileGroupManagePage> {
   int? serverTime;
   List<V2TimGroupMemberFullInfo> _mutedMembers = const [];
+  int _mutedRefreshGeneration = 0;
+  late final MutedMemberProfileResolver _profileResolver =
+      widget.mutedProfileResolver ?? MutedMemberProfileResolver();
+  bool _profilesLoading = false;
+  bool _profilesFailed = false;
+  bool _profilesForbidden = false;
+  SessionIdentity? _displayIdentity;
+  String? _displayGroupId;
+
+  bool get _canManage =>
+      widget.model.hasLoadedManagementMembers &&
+      GroupRolePolicy.isManagerRole(widget.model.backendSelfRole);
+
+  @override
+  void didUpdateWidget(covariant GroupProfileGroupManagePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.model != widget.model) {
+      oldWidget.model.removeListener(_onManagementChanged);
+      widget.model.addListener(_onManagementChanged);
+      _mutedRefreshGeneration++;
+      _profileResolver.invalidate();
+      _mutedMembers = const [];
+      _displayIdentity = null;
+      _displayGroupId = null;
+      _profilesLoading = false;
+      _profilesFailed = false;
+      _profilesForbidden = false;
+      unawaited(_bootstrapManagePage());
+    }
+  }
+
+  void _onManagementChanged() {
+    if (_displayIdentity != null &&
+        (!_canManage ||
+            widget.model.groupID != _displayGroupId ||
+            !SessionIdentityService.instance.isCurrent(_displayIdentity!))) {
+      _mutedRefreshGeneration++;
+      _profileResolver.invalidate();
+      if (mounted)
+        setState(() {
+          _mutedMembers = const [];
+          _profilesLoading = false;
+          _profilesFailed = false;
+          _profilesForbidden = false;
+          _displayIdentity = null;
+        });
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.model.removeListener(_onManagementChanged);
+    _profileResolver.invalidate();
+    super.dispose();
+  }
 
   Future<bool> _muteSelectedMembers(
     BuildContext context,
     List<V2TimGroupMemberFullInfo?> selectedMembers,
   ) async {
     final succeeded = <V2TimGroupMemberFullInfo>[];
-    final members = selectedMembers.whereType<V2TimGroupMemberFullInfo>().toList();
+    final identity = SessionIdentityService.instance.capture();
+    final groupId = widget.model.groupID;
+    final members =
+        selectedMembers.whereType<V2TimGroupMemberFullInfo>().toList();
     for (final member in members) {
-      if (!mounted) return false;
-      final result = await widget.model
-          .muteGroupMember(member.userID, true, serverTime);
+      if (!mounted ||
+          !_canManage ||
+          widget.model.groupID != groupId ||
+          !SessionIdentityService.instance.isCurrent(identity)) return false;
+      final result =
+          await widget.model.muteGroupMember(member.userID, true, serverTime);
       if (result.code == 0) succeeded.add(member);
     }
-    if (!mounted) return false;
+    if (!mounted ||
+        !_canManage ||
+        widget.model.groupID != groupId ||
+        !SessionIdentityService.instance.isCurrent(identity)) return false;
     // Failed requests must not appear in the local muted list.
     _upsertMutedMembersFromSelection(succeeded);
     final failed = members.length - succeeded.length;
@@ -293,9 +397,15 @@ class _GroupProfileGroupManagePageState
   }
 
   Future<bool> _unmuteMember(V2TimGroupMemberFullInfo member) async {
-    final result = await widget.model
-        .muteGroupMember(member.userID, false, serverTime);
-    if (!mounted) return false;
+    final identity = SessionIdentityService.instance.capture();
+    final groupId = widget.model.groupID;
+    if (!_canManage) return false;
+    final result =
+        await widget.model.muteGroupMember(member.userID, false, serverTime);
+    if (!mounted ||
+        !_canManage ||
+        widget.model.groupID != groupId ||
+        !SessionIdentityService.instance.isCurrent(identity)) return false;
     if (result.code != 0) {
       GroupMemberFeedbackBridge.show(TIM_t('解除禁言失败，请重试'));
       return false;
@@ -308,29 +418,44 @@ class _GroupProfileGroupManagePageState
   @override
   void initState() {
     super.initState();
-    unawaited(Future<void>.microtask(widget.model.loadManagementMembers));
+    widget.model.addListener(_onManagementChanged);
     unawaited(_bootstrapManagePage());
   }
 
   Future<void> _bootstrapManagePage() async {
-    await _refreshServerTime();
+    unawaited(_refreshServerTime());
+    final identity = SessionIdentityService.instance.capture();
     final groupId = widget.model.groupID.trim();
     if (groupId.isEmpty) {
       return;
     }
     await widget.model.loadGroupInfo(groupId);
+    if (!mounted ||
+        widget.model.groupID.trim() != groupId ||
+        !SessionIdentityService.instance.isCurrent(identity)) return;
+    await widget.model.loadManagementMembers();
+    if (!mounted ||
+        widget.model.groupID.trim() != groupId ||
+        !SessionIdentityService.instance.isCurrent(identity)) return;
     // Ordinary candidates are requested only when the mute picker opens.
     await _refreshMutedMembers();
   }
 
   Future<void> _refreshServerTime() async {
-    final res = await TencentImSDKPlugin.v2TIMManager.getServerTime();
-    if (!mounted) {
-      return;
+    try {
+      final time = widget.serverTimeLoader != null
+          ? await widget.serverTimeLoader!()
+          : (await TencentImSDKPlugin.v2TIMManager
+                  .getServerTime()
+                  .timeout(const Duration(seconds: 8)))
+              .data;
+      if (mounted)
+        setState(() {
+          serverTime = time;
+        });
+    } catch (_) {
+      // Clock availability must not block profile display; local time is the fallback.
     }
-    setState(() {
-      serverTime = res.data;
-    });
   }
 
   int get _currentCompareTime =>
@@ -367,40 +492,158 @@ class _GroupProfileGroupManagePageState
     if (next.isEmpty) {
       return;
     }
+    _mutedRefreshGeneration++;
+    _profileResolver.invalidate();
     setState(() {
+      _profilesLoading = false;
       _mutedMembers = _mergeMutedMembers(_mutedMembers, next);
     });
   }
 
   void _removeMutedMemberLocally(String userId) {
-    final id = userId.trim();
+    final id = ChatIdFormat.rawUserUid(userId);
     if (id.isEmpty) {
       return;
     }
+    _mutedRefreshGeneration++;
+    _profileResolver.invalidate();
     setState(() {
-      _mutedMembers =
-          _mutedMembers.where((member) => member.userID.trim() != id).toList();
+      _profilesLoading = false;
+      _mutedMembers = _mutedMembers
+          .where((member) => ChatIdFormat.rawUserUid(member.userID) != id)
+          .toList();
     });
   }
 
-  Future<void> _refreshMutedMembers({bool keepExistingOnEmpty = false}) async {
+  Future<void> _refreshMutedMembers() async {
+    if (!mounted || !_canManage) return;
+    final generation = ++_mutedRefreshGeneration;
+    _profileResolver.invalidate();
+    final identity = SessionIdentityService.instance.capture();
     final groupId = widget.model.groupID.trim();
     if (groupId.isEmpty) {
       return;
     }
-    final res = await MeGroupApi.instance.fetchMutedMembers(groupId);
-    if (!mounted || res == null) {
+    bool isCurrent() =>
+        mounted &&
+        _canManage &&
+        generation == _mutedRefreshGeneration &&
+        widget.model.groupID.trim() == groupId &&
+        SessionIdentityService.instance.isCurrent(identity);
+    setState(() {
+      _profilesLoading = true;
+      _profilesFailed = false;
+      _profilesForbidden = false;
+      _displayIdentity = identity;
+      _displayGroupId = groupId;
+    });
+    final GroupMutedMembersResponse? fetched;
+    try {
+      fetched = await MeGroupApi.instance
+          .fetchMutedMembers(groupId, rethrowErrors: true);
+    } catch (error) {
+      if (!isCurrent()) return;
+      final denied = error is DioError &&
+          (error.response?.statusCode == 401 ||
+              error.response?.statusCode == 403);
+      setState(() {
+        _profilesLoading = false;
+        _profilesForbidden = denied;
+        _profilesFailed = !denied;
+        if (denied) _mutedMembers = const [];
+      });
       return;
     }
+    if (!isCurrent()) return;
+    final res = fetched;
+    if (res == null) {
+      setState(() {
+        _profilesLoading = false;
+        _profilesFailed = true;
+      });
+      return;
+    }
+    final names = {
+      for (final r in res.members)
+        if (r.nickname != null) r.userId
+    };
+    final avatars = {
+      for (final r in res.members)
+        if (r.avatarUrl != null) r.userId
+    };
     setState(() {
       widget.model.groupInfo?.isAllMuted = res.isAllMuted;
       final next =
           res.members.map(_mutedRecordToMemberInfo).toList(growable: false);
-      if (next.isEmpty && keepExistingOnEmpty && _mutedMembers.isNotEmpty) {
-        return;
-      }
       _mutedMembers = next;
     });
+    final ids = _mutedMembers.map((member) => member.userID).toList();
+    final missing = ids
+        .where((id) => !names.contains(id) || !avatars.contains(id))
+        .toList();
+    if (missing.isEmpty) {
+      setState(() {
+        _profilesLoading = false;
+      });
+      return;
+    }
+    try {
+      try {
+        final cached = await GroupMemberLocalStore.instance.readByUserIds(
+            groupId: groupId,
+            userIds: missing,
+            ownerUserId: identity.ownerUserId);
+        if (!isCurrent()) return;
+        setState(() {
+          _mutedMembers = mergeMutedMemberProfiles(_mutedMembers, cached,
+              authoritativeNames: names, authoritativeAvatars: avatars);
+        });
+      } catch (_) {/* Cache failures do not block fresh lookup. */}
+      if (!isCurrent()) return;
+      final profiles = await _profileResolver.resolve(
+          groupId: groupId,
+          userIds: missing,
+          identity: identity,
+          isCurrent: isCurrent);
+      if (!isCurrent()) return;
+      setState(() {
+        _profilesLoading = false;
+        _profilesForbidden = profiles.values
+            .any((p) => p.status == MutedProfileStatus.forbidden);
+        _profilesFailed = profiles.length != missing.length ||
+            profiles.values.any((p) => p.canRetry);
+        if (_profilesForbidden) {
+          // Drop cached display values; only this authorized business response remains.
+          _mutedMembers = res.members
+              .map((r) => V2TimGroupMemberFullInfo(
+                  userID: r.userId,
+                  muteUntil: r.muteUntilSec,
+                  nickName: r.nickname,
+                  faceUrl: r.avatarUrl,
+                  nameCard: r.nameCard,
+                  role: _roleFromApi(r.imRole)))
+              .toList();
+        } else {
+          _mutedMembers = mergeMutedMemberProfiles(
+              _mutedMembers,
+              profiles.entries
+                  .map((e) => V2TimGroupMemberFullInfo(
+                      userID: e.key,
+                      nickName: e.value.nickname,
+                      faceUrl: e.value.avatarUrl))
+                  .toList(),
+              authoritativeNames: names,
+              authoritativeAvatars: avatars,
+              acceptEmpty: true);
+        }
+      });
+    } catch (_) {
+      if (isCurrent())
+        setState(() {
+          _profilesLoading = false;
+          _profilesFailed = true;
+        });
+    }
   }
 
   V2TimGroupMemberFullInfo _mutedRecordToMemberInfo(
@@ -408,7 +651,7 @@ class _GroupProfileGroupManagePageState
   ) {
     V2TimGroupMemberFullInfo? localMember;
     for (final member in widget.model.groupMemberList) {
-      if (member?.userID.trim() == record.userId) {
+      if (ChatIdFormat.rawUserUid(member?.userID) == record.userId) {
         localMember = member;
         break;
       }
@@ -418,9 +661,9 @@ class _GroupProfileGroupManagePageState
       muteUntil: record.muteUntilSec,
       nameCard:
           record.nameCard.isNotEmpty ? record.nameCard : localMember?.nameCard,
-      nickName: localMember?.nickName,
+      nickName: record.nickname ?? localMember?.nickName,
       friendRemark: localMember?.friendRemark,
-      faceUrl: localMember?.faceUrl,
+      faceUrl: record.avatarUrl ?? localMember?.faceUrl,
       role: _roleFromApi(record.imRole, fallback: localMember?.role),
     );
   }
@@ -458,10 +701,12 @@ class _GroupProfileGroupManagePageState
               TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
           Widget managePage() {
             if (!model.hasLoadedManagementMembers) {
-              return Center(child: model.hasManagementMemberListError
-                  ? TextButton(onPressed: model.loadManagementMembers,
-                      child: Text(TIM_t('群管理权限加载失败，点击重试')))
-                  : const CircularProgressIndicator());
+              return Center(
+                  child: model.hasManagementMemberListError
+                      ? TextButton(
+                          onPressed: model.loadManagementMembers,
+                          child: Text(TIM_t('群管理权限加载失败，点击重试')))
+                      : const CircularProgressIndicator());
             }
             if (!GroupRolePolicy.isManagerRole(model.backendSelfRole)) {
               return Center(child: Text(TIM_t('只有群主或管理员可以管理群')));
@@ -470,44 +715,42 @@ class _GroupProfileGroupManagePageState
               children: [
                 if (widget.headerWidgets != null &&
                     widget.headerWidgets!.isNotEmpty) ...[
-                  ...widget.headerWidgets!,
-                  if (!isDesktopScreen)
-                    Container(
-                      height: 8,
-                      color: _groupManagePageBackground(theme),
-                    ),
+                  for (final header in widget.headerWidgets!)
+                    _manageCard(context, theme, [header]),
                 ],
                 if (isAllowSetManager) ...[
-                  GroupSettingsTile(
-                    theme: theme,
-                    title: isDesktopScreen ? tr.k_15i9w72 : tr.k_0k5wyiy,
-                    trailing: isDesktopScreen
-                        ? null
-                        : Icon(Icons.keyboard_arrow_right,
-                            color: theme.weakTextColor, size: 20),
-                    onTap: isDesktopScreen
-                        ? null
-                        : () {
-                            Navigator.push(
-                                context,
-                                NavigationRoutes.push(
-                                  builder: (context) =>
-                                      GroupProfileSetManagerPage(
-                                    model: widget.model,
-                                    presenceLabelBuilder:
-                                        widget.presenceLabelBuilder,
-                                    presenceLoadingChecker:
-                                        widget.presenceLoadingChecker,
-                                    presenceOnlineResolver:
-                                        widget.presenceOnlineResolver,
-                                    presenceListenable:
-                                        widget.presenceListenable,
-                                    onMemberPresenceRequested:
-                                        widget.onMemberPresenceRequested,
-                                  ),
-                                ));
-                          },
-                  ),
+                  _manageCard(context, theme, [
+                    GroupSettingsTile(
+                      theme: theme,
+                      title: isDesktopScreen ? tr.k_15i9w72 : tr.k_0k5wyiy,
+                      trailing: isDesktopScreen
+                          ? null
+                          : Icon(Icons.keyboard_arrow_right,
+                              color: theme.weakTextColor, size: 20),
+                      onTap: isDesktopScreen
+                          ? null
+                          : () {
+                              Navigator.push(
+                                  context,
+                                  NavigationRoutes.push(
+                                    builder: (context) =>
+                                        GroupProfileSetManagerPage(
+                                      model: widget.model,
+                                      presenceLabelBuilder:
+                                          widget.presenceLabelBuilder,
+                                      presenceLoadingChecker:
+                                          widget.presenceLoadingChecker,
+                                      presenceOnlineResolver:
+                                          widget.presenceOnlineResolver,
+                                      presenceListenable:
+                                          widget.presenceListenable,
+                                      onMemberPresenceRequested:
+                                          widget.onMemberPresenceRequested,
+                                    ),
+                                  ));
+                            },
+                    )
+                  ]),
                   if (isDesktopScreen)
                     GroupProfileSetManagerPage(
                       model: widget.model,
@@ -520,29 +763,33 @@ class _GroupProfileGroupManagePageState
                     ),
                 ],
                 if (!isDesktopScreen)
-                  GroupSettingsTile(
-                    theme: theme,
-                    title: TIM_t("全员禁言"),
-                    trailing: GroupSettingsSwitch(
-                        value: isAllMuted,
-                        onChanged: (value) async {
-                          if (value) {
-                            final confirmed =
-                                await _confirmEnableMuteAll(context);
-                            if (!confirmed) {
-                              return;
+                  _manageCard(context, theme, [
+                    GroupSettingsTile(
+                      theme: theme,
+                      title: TIM_t("全员禁言"),
+                      subtitle: tr.k_1g889xx,
+                      showDivider: false,
+                      trailing: GroupSettingsSwitch(
+                          value: isAllMuted,
+                          onChanged: (value) async {
+                            if (value) {
+                              final confirmed =
+                                  await _confirmEnableMuteAll(context);
+                              if (!confirmed) {
+                                return;
+                              }
+                            } else {
+                              final confirmed =
+                                  await _confirmDisableMuteAll(context);
+                              if (!confirmed) {
+                                return;
+                              }
                             }
-                          } else {
-                            final confirmed =
-                                await _confirmDisableMuteAll(context);
-                            if (!confirmed) {
-                              return;
-                            }
-                          }
-                          await widget.model.setMuteAll(value);
-                        },
-                        activeColor: theme.primaryColor),
-                  ),
+                            await widget.model.setMuteAll(value);
+                          },
+                          activeColor: theme.primaryColor),
+                    )
+                  ]),
                 if (isDesktopScreen)
                   GroupSettingsTile(
                     theme: theme,
@@ -569,156 +816,169 @@ class _GroupProfileGroupManagePageState
                       },
                     ),
                   ),
-                if (!isDesktopScreen)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 16),
-                    color: theme.weakBackgroundColor ??
-                        theme.conversationItemPinedBgColor,
-                    alignment: Alignment.topLeft,
-                    child: Text(
-                      tr.k_1g889xx,
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 13,
-                          height: 1.25,
-                          color: theme.weakTextColor),
-                    ),
-                  ),
-                if (!isAllMuted && isAllowMuteMember)
-                  InkWell(
-                    child: GroupSettingsTile(
-                        theme: theme,
-                        title: tr.k_0wlrefq,
-                        leading: Icon(Icons.add_circle_outline,
-                            color: theme.primaryColor, size: 20)),
-                    onTap: () async {
-                      Widget muteMember() {
-                        List<V2TimGroupMemberFullInfo?> availableMembers() {
-                          return widget.model.groupMemberList.where((element) {
-                            final userId = element?.userID.trim() ?? '';
-                            final isMute = _mutedMembers.any(
-                                (member) => member.userID.trim() == userId);
-                            return !isMute &&
-                                widget.model.canMuteMember(userId);
-                          }).toList();
-                        }
-
-                        return GroupProfileAddAdmin(
-                          key: groupProfileAddAdminKey,
-                          groupID: widget.model.groupID,
-                          candidateFilter: (members) {
-                            return members.where((element) {
+                _manageCard(context, theme, [
+                  if (!isAllMuted && isAllowMuteMember)
+                    _groupManageSectionHeader(theme, TIM_t('需要禁言的群成员')),
+                  if (!isAllMuted && isAllowMuteMember)
+                    InkWell(
+                      child: _manageAddRow(theme, tr.k_0wlrefq),
+                      onTap: () async {
+                        Widget muteMember() {
+                          List<V2TimGroupMemberFullInfo?> availableMembers() {
+                            return widget.model.groupMemberList
+                                .where((element) {
                               final userId = element?.userID.trim() ?? '';
                               final isMute = _mutedMembers.any(
                                   (member) => member.userID.trim() == userId);
                               return !isMute &&
                                   widget.model.canMuteMember(userId);
                             }).toList();
-                          },
-                          appbarTitle: tr.k_0goox5g,
-                          presenceLabelBuilder: widget.presenceLabelBuilder,
-                          presenceLoadingChecker: widget.presenceLoadingChecker,
-                          presenceOnlineResolver: widget.presenceOnlineResolver,
-                          presenceListenable: widget.presenceListenable,
-                          onMemberPresenceRequested:
-                              widget.onMemberPresenceRequested,
-                          memberList: availableMembers(),
-                          memberListProvider: availableMembers,
-                          memberListListenable: widget.model,
-                          loadMembersOnEntry:
-                              widget.model.loadMemberPageOnEntry,
-                          onReachBottom: () =>
-                              widget.model.loadMoreGroupMembers(),
-                          selectCompletedHandler: _muteSelectedMembers,
-                        );
-                      }
+                          }
 
-                      if (isDesktopScreen) {
-                        final popupSize = WidePopupLayout.large(context);
-                        TUIKitWidePopup.showPopupWindow(
-                            operationKey: TUIKitWideModalOperationKey.setMute,
-                            context: context,
-                            title: TIM_t("设置禁言"),
-                            width: popupSize.width,
-                            height: popupSize.height,
-                            child: (onClose) => Column(children: [
-                                  Expanded(child: muteMember()),
-                                  Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        TextButton(onPressed: onClose,
-                                            child: Text(TIM_t('取消'))),
-                                        const SizedBox(width: 8),
-                                        FilledButton(
-                                          onPressed: () async {
-                                            final picker = groupProfileAddAdminKey.currentState;
-                                            final success = await picker?.onSubmit();
-                                            if (success == true && mounted &&
-                                                picker?.mounted == true) onClose();
-                                          },
-                                          child: Text(TIM_t('完成')),
-                                        ),
-                                      ],
+                          return GroupProfileAddAdmin(
+                            key: groupProfileAddAdminKey,
+                            groupID: widget.model.groupID,
+                            candidateFilter: (members) {
+                              return members.where((element) {
+                                final userId = element?.userID.trim() ?? '';
+                                final isMute = _mutedMembers.any(
+                                    (member) => member.userID.trim() == userId);
+                                return !isMute &&
+                                    widget.model.canMuteMember(userId);
+                              }).toList();
+                            },
+                            appbarTitle: tr.k_0goox5g,
+                            presenceLabelBuilder: widget.presenceLabelBuilder,
+                            presenceLoadingChecker:
+                                widget.presenceLoadingChecker,
+                            presenceOnlineResolver:
+                                widget.presenceOnlineResolver,
+                            presenceListenable: widget.presenceListenable,
+                            onMemberPresenceRequested:
+                                widget.onMemberPresenceRequested,
+                            memberList: availableMembers(),
+                            memberListProvider: availableMembers,
+                            memberListListenable: widget.model,
+                            loadMembersOnEntry:
+                                widget.model.loadMemberPageOnEntry,
+                            onReachBottom: () =>
+                                widget.model.loadMoreGroupMembers(),
+                            selectCompletedHandler: _muteSelectedMembers,
+                          );
+                        }
+
+                        if (isDesktopScreen) {
+                          final popupSize = WidePopupLayout.large(context);
+                          TUIKitWidePopup.showPopupWindow(
+                              operationKey: TUIKitWideModalOperationKey.setMute,
+                              context: context,
+                              title: TIM_t("设置禁言"),
+                              width: popupSize.width,
+                              height: popupSize.height,
+                              child: (onClose) => Column(children: [
+                                    Expanded(child: muteMember()),
+                                    Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          TextButton(
+                                              onPressed: onClose,
+                                              child: Text(TIM_t('取消'))),
+                                          const SizedBox(width: 8),
+                                          FilledButton(
+                                            onPressed: () async {
+                                              final picker =
+                                                  groupProfileAddAdminKey
+                                                      .currentState;
+                                              final success =
+                                                  await picker?.onSubmit();
+                                              if (success == true &&
+                                                  mounted &&
+                                                  picker?.mounted == true) {
+                                                onClose();
+                                                unawaited(
+                                                    _refreshMutedMembers());
+                                              }
+                                            },
+                                            child: Text(TIM_t('完成')),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ]));
-                      } else {
-                        await Navigator.push(
-                            context,
-                            NavigationRoutes.push(
-                                builder: (context) => muteMember()));
-                        await _refreshMutedMembers(keepExistingOnEmpty: true);
-                      }
-                    },
-                  ),
-                if (!isAllMuted && isAllowMuteMember)
-                  ..._mutedMembers
-                      .map((e) => Container(
-                            padding: EdgeInsets.zero,
-                            child: GestureDetector(
-                              onSecondaryTapDown: (details) {
-                                TUIKitWidePopup.showPopupWindow(
-                                    operationKey:
-                                        TUIKitWideModalOperationKey.setUnmute,
-                                    isDarkBackground: false,
-                                    borderRadius: const BorderRadius.all(
-                                        Radius.circular(4)),
-                                    context: context,
-                                    offset: Offset(
-                                        min(
-                                            details.globalPosition.dx,
-                                            MediaQuery.of(context).size.width -
-                                                80),
-                                        details.globalPosition.dy),
-                                    child: (onClose) => TUIKitColumnMenu(data: [
-                                          ColumnMenuItem(
-                                              label: TIM_t("解除禁言"),
-                                              icon: const Icon(
-                                                  Icons.remove_circle_outline,
-                                                  size: 16),
-                                              onClick: () async {
-                                                if (await _unmuteMember(e)) {
-                                                  onClose();
-                                                }
-                                              }),
-                                        ]));
-                              },
-                              child: _buildListItem(
-                                context,
-                                e,
-                                removeText: TIM_t("解除禁言"),
-                                onRemove: () async {
-                                  await _unmuteMember(e);
+                                  ]));
+                        } else {
+                          await Navigator.push(
+                              context,
+                              NavigationRoutes.push(
+                                  builder: (context) => muteMember()));
+                          await _refreshMutedMembers();
+                        }
+                      },
+                    ),
+                  if (!isAllMuted && isAllowMuteMember && _profilesLoading)
+                    const Padding(
+                        padding: EdgeInsets.all(12), child: Text('资料加载中…')),
+                  if (!isAllMuted && isAllowMuteMember && _profilesForbidden)
+                    const Padding(
+                        padding: EdgeInsets.all(12), child: Text('部分成员资料无权查看')),
+                  if (!isAllMuted &&
+                      isAllowMuteMember &&
+                      _profilesFailed &&
+                      !_profilesLoading)
+                    TextButton(
+                        onPressed: _refreshMutedMembers,
+                        child: const Text('成员资料加载失败，点击重试')),
+                  if (!isAllMuted && isAllowMuteMember)
+                    ..._mutedMembers
+                        .map((e) => Container(
+                              key: ValueKey(
+                                  'muted-${ChatIdFormat.rawUserUid(e.userID)}'),
+                              padding: EdgeInsets.zero,
+                              child: GestureDetector(
+                                onSecondaryTapDown: (details) {
+                                  TUIKitWidePopup.showPopupWindow(
+                                      operationKey:
+                                          TUIKitWideModalOperationKey.setUnmute,
+                                      isDarkBackground: false,
+                                      borderRadius: const BorderRadius.all(
+                                          Radius.circular(4)),
+                                      context: context,
+                                      offset: Offset(
+                                          min(
+                                              details.globalPosition.dx,
+                                              MediaQuery.of(context)
+                                                      .size
+                                                      .width -
+                                                  80),
+                                          details.globalPosition.dy),
+                                      child: (onClose) =>
+                                          TUIKitColumnMenu(data: [
+                                            ColumnMenuItem(
+                                                label: TIM_t("解除禁言"),
+                                                icon: const Icon(
+                                                    Icons.remove_circle_outline,
+                                                    size: 16),
+                                                onClick: () async {
+                                                  if (await _unmuteMember(e)) {
+                                                    onClose();
+                                                  }
+                                                }),
+                                          ]));
                                 },
+                                child: _buildListItem(
+                                  context,
+                                  e,
+                                  removeText: TIM_t("解除禁言"),
+                                  onRemove: () async {
+                                    await _unmuteMember(e);
+                                  },
+                                ),
                               ),
-                            ),
-                          ))
-                      .toList()
+                            ))
+                        .toList(),
+                ]),
               ],
             );
           }
@@ -729,6 +989,7 @@ class _GroupProfileGroupManagePageState
               defaultWidget: Scaffold(
                 backgroundColor: _groupManagePageBackground(theme),
                 appBar: AppBar(
+                  centerTitle: true,
                   title: Text(
                     widget.appBarTitle ?? tr.k_038lh6u,
                     style: TextStyle(
@@ -737,8 +998,7 @@ class _GroupProfileGroupManagePageState
                       fontSize: 17,
                     ),
                   ),
-                  backgroundColor:
-                      theme.chatHeaderBgColor ?? theme.appbarBgColor,
+                  backgroundColor: _groupManagePageBackground(theme),
                   surfaceTintColor: Colors.transparent,
                   elevation: 0,
                   scrolledUnderElevation: 0,
@@ -750,9 +1010,12 @@ class _GroupProfileGroupManagePageState
                     color: theme.primaryColor ?? const Color(0xFF1E90FF),
                   ),
                 ),
-                body: SingleChildScrollView(
-                  child: managePage(),
-                ),
+                body: SafeArea(
+                    top: false,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+                      child: managePage(),
+                    )),
               ));
         });
   }
@@ -774,8 +1037,8 @@ _getShowName(V2TimGroupMemberFullInfo? item) {
 
 Widget _groupManageSectionHeader(TUITheme theme, String title) => Container(
       alignment: Alignment.centerLeft,
-      color: theme.weakBackgroundColor ?? theme.wideBackgroundColor,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: _groupManageSurfaceColor(theme),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(title,
           maxLines: 1,
           softWrap: false,
@@ -798,64 +1061,83 @@ Widget _buildListItem(
       TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
   final removeColor = theme.cautionColor ?? CommonColor.cautionColor;
 
+  final isMutedRow = removeText == TIM_t("解除禁言");
+  final surface = _groupManageSurfaceColor(theme);
+  final mutedSurface =
+      ThemeData.estimateBrightnessForColor(surface) == Brightness.dark
+          ? const Color(0xFF272B33)
+          : const Color(0xFFF5F7FA);
+  final rowColor = isMutedRow ? mutedSurface : surface;
   return Container(
-    color: _groupManageSurfaceColor(theme),
-    child: Column(children: [
-      ListTile(
-        tileColor: _groupManageSurfaceColor(theme),
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 0,
-        ),
-        minTileHeight:
-            DirectoryListStyle.rowHeight(context, desktop: isDesktopScreen),
-        horizontalTitleGap: 12,
-        leading: SizedBox(
-          width: DirectoryListStyle.avatarSize(isDesktopScreen),
-          height: DirectoryListStyle.avatarSize(isDesktopScreen),
-          child: Avatar(
-            faceUrl: memberInfo.faceUrl ?? "",
-            showName: _getShowName(memberInfo),
-            type: 1,
-            borderRadius: BorderRadius.circular(999),
+    margin:
+        isMutedRow ? const EdgeInsets.fromLTRB(12, 4, 12, 12) : EdgeInsets.zero,
+    child: Material(
+      color: rowColor,
+      borderRadius: BorderRadius.circular(isMutedRow ? 10 : 0),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: [
+        ListTile(
+          tileColor: rowColor,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: isMutedRow ? 10 : 16,
+            vertical: isMutedRow ? 6 : 0,
           ),
-        ),
-        title: Text(
-          _getShowName(memberInfo),
-          maxLines: 1,
-          softWrap: false,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 16,
-            height: 1.25,
-            fontWeight: FontWeight.w500,
-            color: theme.darkTextColor,
+          minTileHeight:
+              DirectoryListStyle.rowHeight(context, desktop: isDesktopScreen),
+          horizontalTitleGap: 12,
+          leading: SizedBox(
+            width: DirectoryListStyle.avatarSize(isDesktopScreen),
+            height: DirectoryListStyle.avatarSize(isDesktopScreen),
+            child: Avatar(
+              faceUrl: memberInfo.faceUrl ?? "",
+              showName: _getShowName(memberInfo),
+              type: 1,
+              borderRadius: BorderRadius.circular(999),
+            ),
           ),
+          title: Text(
+            _getShowName(memberInfo),
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.25,
+              fontWeight: FontWeight.w500,
+              color: theme.darkTextColor,
+            ),
+          ),
+          subtitle: isMutedRow
+              ? Text(TIM_t('已禁言'),
+                  style: TextStyle(
+                      fontSize: 12, height: 1.4, color: theme.weakTextColor))
+              : null,
+          trailing: onRemove == null
+              ? null
+              : TextButton(
+                  onPressed: onRemove,
+                  style: TextButton.styleFrom(
+                    foregroundColor: removeColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    removeText ?? TIM_t("删除"),
+                    style: TextStyle(fontSize: isDesktopScreen ? 13 : 14),
+                  ),
+                ),
+          onTap: () {},
         ),
-        trailing: onRemove == null
-            ? null
-            : TextButton(
-                onPressed: onRemove,
-                style: TextButton.styleFrom(
-                  foregroundColor: removeColor,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  removeText ?? TIM_t("删除"),
-                  style: TextStyle(fontSize: isDesktopScreen ? 13 : 14),
-                ),
-              ),
-        onTap: () {},
-      ),
-      Divider(
-          thickness: .6,
-          indent: 28 + DirectoryListStyle.avatarSize(isDesktopScreen),
-          endIndent: onRemove == null ? 0 : 16,
-          color: DirectoryListStyle.dividerColor(context),
-          height: 0)
-    ]),
+        if (!isMutedRow)
+          Divider(
+              thickness: .6,
+              indent: 28 + DirectoryListStyle.avatarSize(isDesktopScreen),
+              endIndent: onRemove == null ? 0 : 16,
+              color: DirectoryListStyle.dividerColor(context),
+              height: 0)
+      ]),
+    ),
   );
 }
 
@@ -1071,153 +1353,167 @@ class _GroupProfileSetManagerPageState
             return Center(child: Text(TIM_t('只有群主或管理员可以管理群')));
           }
           return SingleChildScrollView(
+              padding: isDesktopScreen
+                  ? EdgeInsets.zero
+                  : const EdgeInsets.fromLTRB(12, 12, 12, 24),
               child: Column(
-            children: [
-              if (model.hasManagementMemberListError) retryMessage(),
-              _groupManageSectionHeader(theme, TIM_t("群主")),
-              ...ownerList
-                  .map(
-                    (e) => Container(
-                      padding: EdgeInsets.zero,
-                      child: _buildListItem(context, e!),
-                    ),
-                  )
-                  .toList(),
-              _groupManageSectionHeader(
-                  theme,
-                  TIM_t_para("管理员 ({{option2}}/{{option1}})",
-                          "管理员 ($option2/$adminLimit)")(
-                      option2: option2, option1: adminLimit)),
-              InkWell(
-                child: GroupSettingsTile(
-                    theme: theme,
-                    title: TIM_t("添加管理员"),
-                    leading: Icon(Icons.add_circle_outline,
-                        color: theme.primaryColor, size: 20)),
-                onTap: () async {
-                  if (remainingAdminSlots <= 0) {
-                    GroupMemberFeedbackBridge.show(
-                      GroupAdminRoleMessage.adminLimitReached(),
-                    );
-                    return;
-                  }
-                  final addAdminKey = GlobalKey<_GroupProfileAddAdminState>();
-                  if (isDesktopScreen) {
-                    final popupSize = WidePopupLayout.large(context);
-                    TUIKitWidePopup.showPopupWindow(
-                        operationKey: TUIKitWideModalOperationKey.setAdmins,
-                        context: context,
-                        title: TIM_t("设置管理员"),
-                        width: popupSize.width,
-                        height: popupSize.height,
-                        onCancel: () {},
-                        onConfirm: () {
-                          addAdminKey.currentState?.onSubmit();
-                        },
-                        confirmText: TIM_t("完成"),
-                        child: (onClose) => GroupProfileAddAdmin(
-                              key: addAdminKey,
-                              groupID: widget.model.groupID,
-                              candidateFilter: _memberCandidatesForAdmin,
-                              memberList: _memberCandidatesForAdmin(memberList),
-                              memberListProvider: () =>
-                                  _memberCandidatesForAdmin(
-                                      widget.model.groupMemberList),
-                              memberListListenable: widget.model,
-                              loadMembersOnEntry:
-                                  widget.model.loadMemberPageOnEntry,
-                              maxSelectNum: remainingAdminSlots,
-                              appbarTitle: TIM_t("设置管理员"),
-                              presenceLabelBuilder: widget.presenceLabelBuilder,
-                              presenceLoadingChecker:
-                                  widget.presenceLoadingChecker,
-                              presenceOnlineResolver:
-                                  widget.presenceOnlineResolver,
-                              presenceListenable: widget.presenceListenable,
-                              onMemberPresenceRequested:
-                                  widget.onMemberPresenceRequested,
-                              onReachBottom: () =>
-                                  widget.model.loadMoreGroupMembers(),
-                              selectCompletedHandler:
-                                  (context, selectedMember) async {
-                                return _grantAdministrators(selectedMember);
-                              },
-                            ));
-                  } else {
-                    await Navigator.push(
-                        context,
-                        NavigationRoutes.push(
-                            builder: (context) => GroupProfileAddAdmin(
-                                  key: addAdminKey,
-                                  groupID: widget.model.groupID,
-                                  candidateFilter: _memberCandidatesForAdmin,
-                                  memberList:
-                                      _memberCandidatesForAdmin(memberList),
-                                  memberListProvider: () =>
-                                      _memberCandidatesForAdmin(
-                                          widget.model.groupMemberList),
-                                  memberListListenable: widget.model,
-                                  loadMembersOnEntry:
-                                      widget.model.loadMemberPageOnEntry,
-                                  maxSelectNum: remainingAdminSlots,
-                                  appbarTitle: TIM_t("设置管理员"),
-                                  presenceLabelBuilder:
-                                      widget.presenceLabelBuilder,
-                                  presenceLoadingChecker:
-                                      widget.presenceLoadingChecker,
-                                  presenceOnlineResolver:
-                                      widget.presenceOnlineResolver,
-                                  presenceListenable: widget.presenceListenable,
-                                  onMemberPresenceRequested:
-                                      widget.onMemberPresenceRequested,
-                                  onReachBottom: () =>
-                                      widget.model.loadMoreGroupMembers(),
-                                  selectCompletedHandler:
-                                      (context, selectedMember) async {
-                                    return _grantAdministrators(selectedMember);
-                                  },
-                                )));
-                  }
-                },
-              ),
-              ...adminList
-                  .map((e) => GestureDetector(
-                        onSecondaryTapDown: (details) {
+                children: [
+                  if (model.hasManagementMemberListError) retryMessage(),
+                  _manageCard(context, theme, [
+                    _groupManageSectionHeader(theme, TIM_t("群主")),
+                    ...ownerList
+                        .map(
+                          (e) => Container(
+                            padding: EdgeInsets.zero,
+                            child: _buildListItem(context, e!),
+                          ),
+                        )
+                        .toList(),
+                  ]),
+                  _manageCard(context, theme, [
+                    _groupManageSectionHeader(
+                        theme,
+                        TIM_t_para("管理员 ({{option2}}/{{option1}})",
+                                "管理员 ($option2/$adminLimit)")(
+                            option2: option2, option1: adminLimit)),
+                    InkWell(
+                      child: _manageAddRow(theme, TIM_t("添加管理员")),
+                      onTap: () async {
+                        if (remainingAdminSlots <= 0) {
+                          GroupMemberFeedbackBridge.show(
+                            GroupAdminRoleMessage.adminLimitReached(),
+                          );
+                          return;
+                        }
+                        final addAdminKey =
+                            GlobalKey<_GroupProfileAddAdminState>();
+                        if (isDesktopScreen) {
+                          final popupSize = WidePopupLayout.large(context);
                           TUIKitWidePopup.showPopupWindow(
                               operationKey:
-                                  TUIKitWideModalOperationKey.deleteAdmin,
-                              isDarkBackground: false,
-                              borderRadius:
-                                  const BorderRadius.all(Radius.circular(4)),
+                                  TUIKitWideModalOperationKey.setAdmins,
                               context: context,
-                              offset: Offset(
-                                  min(details.globalPosition.dx,
-                                      MediaQuery.of(context).size.width - 80),
-                                  details.globalPosition.dy),
-                              child: (onClose) => TUIKitColumnMenu(data: [
-                                    ColumnMenuItem(
-                                        label: TIM_t("删除"),
-                                        icon: const Icon(
-                                            Icons.remove_circle_outline,
-                                            size: 16),
-                                        onClick: () {
-                                          _removeAdmin(context, e);
-                                          onClose();
-                                        }),
-                                  ]));
-                        },
-                        child: Container(
-                          padding: EdgeInsets.zero,
-                          child: _buildListItem(
-                            context,
-                            e!,
-                            onRemove: () => _removeAdmin(context, e),
-                          ),
-                        ),
-                      ))
-                  .toList(),
-            ],
-          ));
+                              title: TIM_t("设置管理员"),
+                              width: popupSize.width,
+                              height: popupSize.height,
+                              onCancel: () {},
+                              onConfirm: () {
+                                addAdminKey.currentState?.onSubmit();
+                              },
+                              confirmText: TIM_t("完成"),
+                              child: (onClose) => GroupProfileAddAdmin(
+                                    key: addAdminKey,
+                                    groupID: widget.model.groupID,
+                                    candidateFilter: _memberCandidatesForAdmin,
+                                    memberList:
+                                        _memberCandidatesForAdmin(memberList),
+                                    memberListProvider: () =>
+                                        _memberCandidatesForAdmin(
+                                            widget.model.groupMemberList),
+                                    memberListListenable: widget.model,
+                                    loadMembersOnEntry:
+                                        widget.model.loadMemberPageOnEntry,
+                                    maxSelectNum: remainingAdminSlots,
+                                    appbarTitle: TIM_t("设置管理员"),
+                                    presenceLabelBuilder:
+                                        widget.presenceLabelBuilder,
+                                    presenceLoadingChecker:
+                                        widget.presenceLoadingChecker,
+                                    presenceOnlineResolver:
+                                        widget.presenceOnlineResolver,
+                                    presenceListenable:
+                                        widget.presenceListenable,
+                                    onMemberPresenceRequested:
+                                        widget.onMemberPresenceRequested,
+                                    onReachBottom: () =>
+                                        widget.model.loadMoreGroupMembers(),
+                                    selectCompletedHandler:
+                                        (context, selectedMember) async {
+                                      return _grantAdministrators(
+                                          selectedMember);
+                                    },
+                                  ));
+                        } else {
+                          await Navigator.push(
+                              context,
+                              NavigationRoutes.push(
+                                  builder: (context) => GroupProfileAddAdmin(
+                                        key: addAdminKey,
+                                        groupID: widget.model.groupID,
+                                        candidateFilter:
+                                            _memberCandidatesForAdmin,
+                                        memberList: _memberCandidatesForAdmin(
+                                            memberList),
+                                        memberListProvider: () =>
+                                            _memberCandidatesForAdmin(
+                                                widget.model.groupMemberList),
+                                        memberListListenable: widget.model,
+                                        loadMembersOnEntry:
+                                            widget.model.loadMemberPageOnEntry,
+                                        maxSelectNum: remainingAdminSlots,
+                                        appbarTitle: TIM_t("设置管理员"),
+                                        presenceLabelBuilder:
+                                            widget.presenceLabelBuilder,
+                                        presenceLoadingChecker:
+                                            widget.presenceLoadingChecker,
+                                        presenceOnlineResolver:
+                                            widget.presenceOnlineResolver,
+                                        presenceListenable:
+                                            widget.presenceListenable,
+                                        onMemberPresenceRequested:
+                                            widget.onMemberPresenceRequested,
+                                        onReachBottom: () =>
+                                            widget.model.loadMoreGroupMembers(),
+                                        selectCompletedHandler:
+                                            (context, selectedMember) async {
+                                          return _grantAdministrators(
+                                              selectedMember);
+                                        },
+                                      )));
+                        }
+                      },
+                    ),
+                    ...adminList
+                        .map((e) => GestureDetector(
+                              onSecondaryTapDown: (details) {
+                                TUIKitWidePopup.showPopupWindow(
+                                    operationKey:
+                                        TUIKitWideModalOperationKey.deleteAdmin,
+                                    isDarkBackground: false,
+                                    borderRadius: const BorderRadius.all(
+                                        Radius.circular(4)),
+                                    context: context,
+                                    offset: Offset(
+                                        min(
+                                            details.globalPosition.dx,
+                                            MediaQuery.of(context).size.width -
+                                                80),
+                                        details.globalPosition.dy),
+                                    child: (onClose) => TUIKitColumnMenu(data: [
+                                          ColumnMenuItem(
+                                              label: TIM_t("删除"),
+                                              icon: const Icon(
+                                                  Icons.remove_circle_outline,
+                                                  size: 16),
+                                              onClick: () {
+                                                _removeAdmin(context, e);
+                                                onClose();
+                                              }),
+                                        ]));
+                              },
+                              child: Container(
+                                padding: EdgeInsets.zero,
+                                child: _buildListItem(
+                                  context,
+                                  e!,
+                                  onRemove: () => _removeAdmin(context, e),
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ]),
+                ],
+              ));
         }
 
         return TUIKitScreenUtils.getDeviceWidget(
@@ -1226,6 +1522,7 @@ class _GroupProfileSetManagerPageState
             defaultWidget: Scaffold(
               backgroundColor: _groupManagePageBackground(theme),
               appBar: AppBar(
+                centerTitle: true,
                 title: Text(
                   TIM_t("设置管理员"),
                   style: TextStyle(
@@ -1235,7 +1532,7 @@ class _GroupProfileSetManagerPageState
                   ),
                 ),
                 shadowColor: theme.weakDividerColor,
-                backgroundColor: theme.chatHeaderBgColor ?? theme.appbarBgColor,
+                backgroundColor: _groupManagePageBackground(theme),
                 surfaceTintColor: Colors.transparent,
                 elevation: 0,
                 scrolledUnderElevation: 0,
@@ -1246,7 +1543,7 @@ class _GroupProfileSetManagerPageState
                   color: theme.primaryColor ?? const Color(0xFF1E90FF),
                 ),
               ),
-              body: adminPage(),
+              body: SafeArea(top: false, child: adminPage()),
             ));
       },
     );
@@ -1494,6 +1791,7 @@ class _GroupProfileAddAdminState extends TIMUIKitState<GroupProfileAddAdmin> {
         defaultWidget: Scaffold(
             backgroundColor: _groupManagePageBackground(theme),
             appBar: AppBar(
+              centerTitle: true,
               title: Text(
                 widget.appbarTitle,
                 style: TextStyle(
@@ -1503,7 +1801,7 @@ class _GroupProfileAddAdminState extends TIMUIKitState<GroupProfileAddAdmin> {
                 ),
               ),
               shadowColor: theme.weakDividerColor,
-              backgroundColor: theme.chatHeaderBgColor ?? theme.appbarBgColor,
+              backgroundColor: _groupManagePageBackground(theme),
               surfaceTintColor: Colors.transparent,
               elevation: 0,
               scrolledUnderElevation: 0,

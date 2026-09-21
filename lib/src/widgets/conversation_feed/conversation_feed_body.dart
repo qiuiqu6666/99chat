@@ -95,6 +95,9 @@ class ConversationFeedBody extends StatefulWidget {
     this.scopeHydrationFinished = true,
     this.folderFilterActive = false,
     this.folderEmptyMessage,
+    this.folderLoading = false,
+    this.folderLoadFailed = false,
+    this.onRetryFolderLoad,
     this.feedBottomExhausted = false,
   });
 
@@ -131,6 +134,9 @@ class ConversationFeedBody extends StatefulWidget {
   /// 选中具体分组时隐藏归档/群通知入口行。
   final bool folderFilterActive;
   final String? folderEmptyMessage;
+  final bool folderLoading;
+  final bool folderLoadFailed;
+  final VoidCallback? onRetryFolderLoad;
 
   /// 触底已确认无更多（本地+SDK）。
   final bool feedBottomExhausted;
@@ -902,19 +908,40 @@ class _ConversationFeedBodyState extends State<ConversationFeedBody> {
       );
     }
 
-    final built = rows.isEmpty
-        ? ConversationFeedEmptyState(
-            isGroupTab: widget.isGroupTab,
-            businessEmptyBuilder: (context) => AppEmptyState(
-              padding: const EdgeInsets.only(top: 80),
-              message: emptyMessage,
-            ),
-          )
-        : _buildFeedListView(
-            rows: rows,
-            rowIndexByConversationId: rowIndexByConversationId,
-            settings: settings,
-          );
+    final Widget built;
+    if (rows.isNotEmpty) {
+      built = _buildFeedListView(
+        rows: rows,
+        rowIndexByConversationId: rowIndexByConversationId,
+        settings: settings,
+      );
+    } else if (widget.folderFilterActive && widget.folderLoading) {
+      built = const Center(child: CircularProgressIndicator());
+    } else if (widget.folderFilterActive && widget.folderLoadFailed) {
+      built = AppEmptyState(
+        padding: const EdgeInsets.only(top: 80),
+        message: AppI18n.of(context).t(
+          zhHans: '分组会话暂未加载完整，请重试',
+          zhHant: '分組會話暫未載入完整，請重試',
+          en: 'Chats in this folder have not fully loaded. Please retry.',
+          ja: 'フォルダの会話を読み込めませんでした。再試行してください',
+          ko: '폴더의 대화를 불러오지 못했습니다. 다시 시도하세요',
+        ),
+        onRetry: widget.onRetryFolderLoad == null
+            ? null
+            : () async {
+                widget.onRetryFolderLoad!();
+              },
+      );
+    } else {
+      built = ConversationFeedEmptyState(
+        isGroupTab: widget.isGroupTab,
+        businessEmptyBuilder: (context) => AppEmptyState(
+          padding: const EdgeInsets.only(top: 80),
+          message: emptyMessage,
+        ),
+      );
+    }
     _inactiveTabCachedChild = built;
     _inactiveTabCachedTheme = widget.theme;
     _inactiveTabCachedContentRevision = contentRevision;

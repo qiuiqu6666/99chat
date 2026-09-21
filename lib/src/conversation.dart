@@ -73,6 +73,7 @@ import 'package:tencent_cloud_chat_demo/src/widgets/conversation_feed/conversati
 import 'package:tencent_cloud_chat_demo/src/widgets/conversation_feed/rebase_banner.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/conversation_feed/conversation_feed_ui.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/conversation_feed/conversation_folder_chip_bar.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/conversation_feed/conversation_folder_swipe_region.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/conversation_feed/conversation_desktop_context_menu.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/conversation_feed/conversation_slidable.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/conversation_feed/lazy_conversation_slidable.dart';
@@ -608,6 +609,11 @@ class _ConversationState extends State<Conversation> {
   bool _feedBottomExhausted = false;
   bool _viewportFillPendingAfterSync = false;
   bool _wasFeedSyncing = false;
+  bool _folderSyncWasPending =
+      ConversationListSyncNotifier.instance.isSyncing ||
+      ConversationListSyncNotifier.instance.isAwaitingServerSync ||
+      !ConversationListSyncNotifier.instance.hasSyncedOnce;
+  int _folderSyncReadyRevision = 0;
 
   /// 会话行估算高度：仅用于挑选锚点 index，不作裁顶跳距。
   static const double _feedRowEstimateHeight = 72;
@@ -651,6 +657,7 @@ class _ConversationState extends State<Conversation> {
   bool _folderSdkLookupRetryable = false;
   SessionIdentity? _folderSdkIdentity;
   int _folderHydrateGeneration = 0;
+  int? _folderHydratingGeneration;
   bool _wasRouteVisibleForDesktopBanner = false;
   final Map<String, int> _folderUnreadById = <String, int>{};
   bool _folderUnreadRefreshInFlight = false;
@@ -844,19 +851,41 @@ class _ConversationState extends State<Conversation> {
   }
 
   void _selectFolder(String? folderId) {
-    final normalized = folderId?.trim();
+    final trimmed = folderId?.trim();
+    final normalized = trimmed?.isEmpty == true ? null : trimmed;
+    if (normalized == _selectedFolderId) {
+      if (normalized != null &&
+          _folderSdkLookupRetryable &&
+          _folderHydratingGeneration != _folderHydrateGeneration) {
+        setState(() => _hydrateFolderRows(normalized));
+      }
+      return;
+    }
     _folderHydrateGeneration++;
     setState(() {
       _invalidateVisibleConversationsCache();
-      _selectedFolderId = normalized?.isEmpty == true ? null : normalized;
+      _selectedFolderId = normalized;
       _folderSdkRows.clear();
       _folderSdkDeletedIds.clear();
       _folderSdkMemberIds = const <String>{};
       _folderSdkIdentity = null;
+      _folderSdkLookupRetryable = false;
     });
     final selected = _selectedFolderId;
     if (selected == null) return;
     _hydrateFolderRows(selected);
+  }
+
+  void _selectAdjacentFolderFromSwipe(int direction) {
+    if (_folderReorderEditing || _isEditing) return;
+    final folders = ConversationFolderStore.instance.folders;
+    final selection = conversationFolderAfterSwipe(
+      folderIds:
+          folders.map((folder) => folder.folderId).toList(growable: false),
+      selectedFolderId: _selectedFolderId,
+      direction: direction,
+    );
+    if (selection.changed) _selectFolder(selection.folderId);
   }
 
   void _hydrateFolderRows(String selected) {
@@ -900,6 +929,9 @@ class _ConversationState extends State<Conversation> {
             !_folderSdkRows.containsKey(id))
         .map((id) => sdkIdsByKey[id]!)
         .toList(growable: false);
+    if (missingIds.isEmpty) return;
+    _folderHydratingGeneration = generation;
+    final syncReadyRevision = _folderSyncReadyRevision;
     bool isCurrent() =>
         mounted &&
         generation == _folderHydrateGeneration &&
@@ -925,6 +957,16 @@ class _ConversationState extends State<Conversation> {
               if (_folderSdkDeletedIds.contains(key)) continue;
               _folderSdkRows[key] = row;
             }
+            // A successful SDK call may still be incomplete during roaming.
+            // Missing members are unresolved, not proof of an empty folder.
+            if (missingIds.sublist(offset, end).any((id) =>
+                !_folderSdkDeletedIds
+                    .contains(ConversationIdCanonical.forStorage(id)) &&
+                !_folderSdkRows
+                    .containsKey(ConversationIdCanonical.forStorage(id)) &&
+                store.conversationForId(id) == null)) {
+              _folderSdkLookupRetryable = true;
+            }
             _invalidateVisibleConversationsCache();
           });
         } catch (error) {
@@ -933,6 +975,18 @@ class _ConversationState extends State<Conversation> {
           debugPrint('Folder SDK lookup failed: $error');
         }
       }
+      // Only this folder visit can finish its loading state. An old response
+      // must not dismiss the next folder's placeholder (including A -> B -> A).
+      if (!isCurrent()) return;
+      setState(() {
+        _folderHydratingGeneration = null;
+        // Sync may finish while this request is still in flight. Consume that
+        // readiness change once, without polling or overlapping SDK batches.
+        if (_folderSdkLookupRetryable &&
+            syncReadyRevision != _folderSyncReadyRevision) {
+          _hydrateFolderRows(selected);
+        }
+      });
     }());
   }
 
@@ -1344,8 +1398,18 @@ class _ConversationState extends State<Conversation> {
     final selected = _selectedFolderId;
     final selectedMissing = selected != null &&
         ConversationFolderStore.instance.folderById(selected) == null;
+    final selectedMembers = selected == null
+        ? const <String>{}
+        : {
+            for (final id in ConversationFolderStore.instance
+                    .folderById(selected)?.members.keys ?? const <String>[])
+              ConversationIdCanonical.forStorage(id),
+          };
+    final membershipChanged = selected != null &&
+        (selectedMembers.length != _folderSdkMemberIds.length ||
+            !selectedMembers.every(_folderSdkMemberIds.contains));
 
-    if (!identityChanged && !selectedMissing) {
+    if (!identityChanged && !selectedMissing && !membershipChanged) {
       // 仅 sortOrder/顺序变化：胶囊条由 ValueListenableBuilder 更新，勿整页 setState。
       return;
     }
@@ -2606,7 +2670,22 @@ class _ConversationState extends State<Conversation> {
   }
 
   void _onFeedSyncStateChanged() {
-    final syncing = ConversationListSyncNotifier.instance.isSyncing;
+    final sync = ConversationListSyncNotifier.instance;
+    final syncing = sync.isSyncing;
+    final folderSyncPending =
+        syncing || sync.isAwaitingServerSync || !sync.hasSyncedOnce;
+    final folderSyncReady = _folderSyncWasPending && !folderSyncPending;
+    _folderSyncWasPending = folderSyncPending;
+    if (folderSyncReady) {
+      _folderSyncReadyRevision++;
+      final selected = _selectedFolderId;
+      if (mounted &&
+          selected != null &&
+          _folderSdkLookupRetryable &&
+          _folderHydratingGeneration != _folderHydrateGeneration) {
+        setState(() => _hydrateFolderRows(selected));
+      }
+    }
     final ended = _wasFeedSyncing && !syncing;
     _wasFeedSyncing = syncing;
     if (!ended || !mounted) {
@@ -3962,11 +4041,25 @@ class _ConversationState extends State<Conversation> {
         ? null
         : ConversationFolderStore.instance.folderById(folderId);
     final folderFilterActive = folderId != null;
+    final folderMembers = <String>{
+      if (folder != null)
+        for (final id in folder.members.keys)
+          if (ConversationFolder.folderConversationIdentity(id)
+              case final String key)
+            key,
+    };
     bool isVisible(V2TimConversation conversation) {
       // Scope is cheap and stable. Do not resolve archive aliases and group
       // membership for every row belonging to the other ordinary tab.
       if (!folderFilterActive &&
           !conversationMatchesScope(conversation, widget.listScope)) {
+        return false;
+      }
+      // Resolve membership once per projection, rather than scanning every
+      // folder member for each row in a several-thousand-conversation feed.
+      if (folderFilterActive &&
+          !folderMembers.contains(ConversationFolder.folderConversationIdentity(
+              conversation.conversationID))) {
         return false;
       }
       if (conversation.userID == '10000' ||
@@ -3979,10 +4072,7 @@ class _ConversationState extends State<Conversation> {
           !membership.shouldShowConversation(conversation)) {
         return false;
       }
-      return folderFilterActive
-          ? folder != null &&
-              folder.containsConversationId(conversation.conversationID)
-          : true;
+      return true;
     }
 
     bool isEmptyOfficial(V2TimConversation row) =>
@@ -4783,6 +4873,16 @@ class _ConversationState extends State<Conversation> {
       scopeHydrationFinished: _scopeHydrationFinished,
       folderFilterActive: _selectedFolderId != null,
       folderEmptyMessage: _folderEmptyMessage(),
+      folderLoading: _folderHydratingGeneration == _folderHydrateGeneration &&
+          _folderSdkIdentity != null &&
+          SessionIdentityService.instance.isCurrent(_folderSdkIdentity!),
+      folderLoadFailed: _folderSdkLookupRetryable &&
+          _folderSdkIdentity != null &&
+          SessionIdentityService.instance.isCurrent(_folderSdkIdentity!),
+      onRetryFolderLoad: () {
+        final folderId = _selectedFolderId;
+        if (folderId != null) setState(() => _hydrateFolderRows(folderId));
+      },
       feedBottomExhausted: _feedBottomExhausted,
     );
   }
@@ -5701,12 +5801,18 @@ class _ConversationState extends State<Conversation> {
               },
             ),
             Expanded(
-              child: ConversationFeedSyncGate(
-                workEnabled: _conversationWorkEnabled,
-                theme: theme,
-                feedScrollController: _feedScrollController,
-                cachedFeedBuilder: _buildConversationFeedOrLoading,
-                feedBuilder: _buildActiveConversationFeedForGate,
+              child: ConversationFolderSwipeRegion(
+                enabled: ConversationFolderStore.instance.folders.isNotEmpty &&
+                    !_folderReorderEditing &&
+                    !_isEditing,
+                onSwipe: _selectAdjacentFolderFromSwipe,
+                child: ConversationFeedSyncGate(
+                  workEnabled: _conversationWorkEnabled,
+                  theme: theme,
+                  feedScrollController: _feedScrollController,
+                  cachedFeedBuilder: _buildConversationFeedOrLoading,
+                  feedBuilder: _buildActiveConversationFeedForGate,
+                ),
               ),
             ),
           ],

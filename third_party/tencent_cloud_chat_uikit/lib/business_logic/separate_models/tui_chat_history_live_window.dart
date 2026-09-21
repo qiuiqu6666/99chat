@@ -203,17 +203,14 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
     return true;
   }
 
-  /// 只 ADMIT 揭示，不 COMMIT。数据就绪且无未接入 live 时也不在这里 FOLLOW。
+  /// Compatibility for callers that previously treated admission as restore.
+  /// This API has never committed FOLLOW or returned true.
+  @Deprecated('Only reveals rows; use revealBufferedIncomingTowardLatest.')
   bool restoreTowardLatestFromUserScroll({int? revealLimit}) {
-    if (globalModel.isAttachingBufferedTowardLatest) {
-      return false;
-    }
-    if (!isLiveRestoreDataReady) {
-      return false;
-    }
-    if (globalModel.deferredIncomingBufferedCount(conversationID) > 0) {
+    if (!globalModel.isAttachingBufferedTowardLatest &&
+        isLiveRestoreDataReady &&
+        globalModel.deferredIncomingBufferedCount(conversationID) > 0) {
       revealBufferedIncomingTowardLatest(limit: revealLimit);
-      return false;
     }
     return false;
   }
@@ -223,7 +220,8 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
     required int visit,
     required int restoreOpId,
     required int liveReceiveGeneration,
-    required String targetTipId,
+    @Deprecated('Unused; visible coverage is represented by coveredIds.')
+    String? targetTipId,
     required Set<String> coveredIds,
   }) {
     final conv = conversationID;
@@ -303,15 +301,10 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
     }
   }
 
-  String _confirmedTipId() {
-    final newest = _newestHistoryRow(
-      globalModel.rawMessageList(conversationID) ?? const <V2TimMessage>[],
-    );
-    if (newest == null) {
-      return '';
-    }
-    return TUIChatGlobalModel.liveIncomingIdentity(newest);
-  }
+  /// The caller has confirmed the latest rendered edge. Keep the unread visit,
+  /// receive generation and restore operation snapshot together in the model.
+  bool commitFollowAfterVisibleLatestConfirm() =>
+      _commitFollowAfterVisibleLatestConfirm(conversationID);
 
   bool _commitFollowAfterVisibleLatestConfirm(String conv) {
     if (conv.isEmpty || !isLiveRestoreDataReady) {
@@ -328,7 +321,6 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
       visit: visit,
       restoreOpId: op,
       liveReceiveGeneration: receiveGen,
-      targetTipId: _confirmedTipId(),
       coveredIds: globalModel.remainingLiveIncomingIdsFor(conv),
     );
   }

@@ -810,7 +810,9 @@ Im06CoverageRange _rangeFromLegacy(
           ? range.endSeq
           : null,
     ),
-    closed: range.closed,
+    // Legacy storage has no complete request cursor/account/domain proof.
+    // Keep its bounds, but do not let metadata close a new history session.
+    closed: false,
     requestGeneration: range.generation,
   );
 }

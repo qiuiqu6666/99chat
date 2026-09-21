@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_demo/src/pages/wallet/wallet_share_service.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
 
@@ -27,6 +28,7 @@ import 'package:tencent_cloud_chat_sdk/manager/v2_tim_manager.dart';
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/app_user_avatar.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/app_dialog.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/avatar.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/conversation_share_picker_page.dart';
@@ -72,6 +74,7 @@ class _QRCodePageState extends State<QRCodePage> {
   String? _localDisplayName;
   String? _localUserId;
   int? _localGender;
+  int? _groupMemberCount;
   bool _joinOptionsLoaded = false;
   bool _allowJoinByQrCode = true;
   bool _landingUrlResolved = false;
@@ -99,6 +102,32 @@ class _QRCodePageState extends State<QRCodePage> {
       }
     } else {
       unawaited(_loadGroupJoinOptions());
+      unawaited(_loadGroupMemberCount());
+    }
+  }
+
+  Future<void> _loadGroupMemberCount() async {
+    final groupId = _resolveQrPayloadId();
+    if (groupId.isEmpty) return;
+    try {
+      final response = await _sdkInstance
+          .getGroupManager()
+          .getGroupsInfo(groupIDList: [groupId]);
+      if (!mounted || response.code != 0) return;
+      for (final item in response.data ?? []) {
+        final info = item.groupInfo;
+        if ((item.resultCode ?? 0) == 0 &&
+            info != null &&
+            ChatIdFormat.groupIdsEquivalent(info.groupID, groupId)) {
+          final count = info.memberCount;
+          if (count != null && count >= 0) {
+            setState(() => _groupMemberCount = count);
+          }
+          return;
+        }
+      }
+    } catch (_) {
+      // Keep unknown counts hidden rather than showing a misleading zero.
     }
   }
 
@@ -234,8 +263,28 @@ class _QRCodePageState extends State<QRCodePage> {
         return null;
       }
       final image = await renderObject.toImage(pixelRatio: 3);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      return byteData?.buffer.asUint8List();
+      try {
+        // Gallery encoders may discard alpha; flatten rounded corners first.
+        final recorder = ui.PictureRecorder();
+        final canvas = Canvas(recorder);
+        canvas.drawColor(Colors.white, BlendMode.src);
+        canvas.drawImage(image, Offset.zero, Paint());
+        final picture = recorder.endRecording();
+        try {
+          final opaqueImage = await picture.toImage(image.width, image.height);
+          try {
+            final byteData =
+                await opaqueImage.toByteData(format: ui.ImageByteFormat.png);
+            return byteData?.buffer.asUint8List();
+          } finally {
+            opaqueImage.dispose();
+          }
+        } finally {
+          picture.dispose();
+        }
+      } finally {
+        image.dispose();
+      }
     } catch (_) {
       return null;
     }
@@ -360,61 +409,23 @@ class _QRCodePageState extends State<QRCodePage> {
   }
 
   Widget _buildIdentityAvatar(double size, _QrPagePalette palette) {
-    final badgeSize = size * 0.34;
     return SizedBox(
       width: size,
       height: size,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(
-            child: ClipOval(
-              child: widget.type == QRCodePageType.group
-                  ? Avatar(
-                      faceUrl: widget.faceUrl,
-                      showName: _effectiveDisplayName,
-                      type: 2,
-                      borderRadius: BorderRadius.zero,
-                    )
-                  : AppUserAvatar(
-                      faceUrl: widget.faceUrl,
-                      showName: _effectiveDisplayName,
-                      size: size,
-                      borderRadius: BorderRadius.zero,
-                    ),
-            ),
-          ),
-          Positioned(
-            right: -1,
-            bottom: -1,
-            child: Container(
-              width: badgeSize,
-              height: badgeSize,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: palette.primary,
-                shape: BoxShape.circle,
-                border: Border.all(color: palette.badgeBorder, width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: palette.primary.withValues(alpha: 0.28),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
+      child: ClipOval(
+        child: widget.type == QRCodePageType.group
+            ? Avatar(
+                faceUrl: widget.faceUrl,
+                showName: _effectiveDisplayName,
+                type: 2,
+                borderRadius: BorderRadius.zero,
+              )
+            : AppUserAvatar(
+                faceUrl: widget.faceUrl,
+                showName: _effectiveDisplayName,
+                size: size,
+                borderRadius: BorderRadius.zero,
               ),
-              child: Text(
-                '99',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: badgeSize * 0.42,
-                  fontWeight: FontWeight.w800,
-                  height: 1,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -658,18 +669,20 @@ class _QRCodePageState extends State<QRCodePage> {
     required _QrPagePalette palette,
   }) {
     final compact = widget.embedded;
-    final cardWidth =
-        maxWidth.clamp(compact ? 240.0 : 280.0, compact ? 300.0 : 360.0).toDouble();
-    final avatarSize = compact ? 48.0 : 62.0;
-    final qrSize = (cardWidth * (compact ? 0.52 : 0.62))
-        .clamp(compact ? 148.0 : 188.0, compact ? 172.0 : 236.0)
+    final cardWidth = maxWidth
+        .clamp(compact ? 240.0 : 280.0, compact ? 300.0 : 360.0)
         .toDouble();
-    final qrLogoSize =
-        (qrSize * 0.18).clamp(compact ? 28.0 : 34.0, compact ? 36.0 : 44.0).toDouble();
+    final avatarSize = compact ? 48.0 : 62.0;
+    final qrSize = (cardWidth * (compact ? 0.52 : 0.56))
+        .clamp(compact ? 148.0 : 188.0, compact ? 172.0 : 216.0)
+        .toDouble();
+    final qrLogoSize = (qrSize * 0.18)
+        .clamp(compact ? 28.0 : 34.0, compact ? 36.0 : 44.0)
+        .toDouble();
     final brandLogoSize = compact ? 22.0 : 28.0;
     // 个人码的身份图标按性别显示：男蓝、女粉、未知不显示（与资料页一致）。
     final Widget? identityIcon = widget.type == QRCodePageType.group
-        ? Icon(Icons.group_rounded, color: palette.primary, size: 20)
+        ? null
         : switch (_localGender) {
             1 => const Icon(
                 Icons.male_rounded,
@@ -694,7 +707,7 @@ class _QRCodePageState extends State<QRCodePage> {
           decoration: BoxDecoration(
             color: palette.cardBg,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: palette.cardBorder, width: 1.2),
+            border: Border.all(color: palette.cardBg, width: 1.2),
             boxShadow: [
               BoxShadow(
                 color: palette.cardShadow,
@@ -719,7 +732,7 @@ class _QRCodePageState extends State<QRCodePage> {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                height: compact ? 64 : 88,
+                height: compact ? 48 : 60,
                 child: CustomPaint(
                   painter: _CardWavePainter(color: palette.primary),
                 ),
@@ -745,9 +758,9 @@ class _QRCodePageState extends State<QRCodePage> {
               Padding(
                 padding: EdgeInsets.fromLTRB(
                   compact ? 16 : 22,
-                  compact ? 16 : 26,
+                  compact ? 12 : 16,
                   compact ? 16 : 22,
-                  compact ? 16 : 24,
+                  compact ? 10 : 12,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -793,12 +806,47 @@ class _QRCodePageState extends State<QRCodePage> {
                                   fontWeight: FontWeight.w400,
                                 ),
                               ),
+                              if (_isGroupQr && _groupMemberCount != null) ...[
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: palette.isDark
+                                        ? const Color(0xFF29313C)
+                                        : const Color(0xFFF4F5F7),
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                  child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.people_outline_rounded,
+                                            size: 17, color: palette.secondary),
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                            child: Text(
+                                                AppI18n.of(context).t(
+                                                    zhHans:
+                                                        '$_groupMemberCount 人',
+                                                    zhHant:
+                                                        '$_groupMemberCount 人',
+                                                    en:
+                                                        '$_groupMemberCount members',
+                                                    ja: '$_groupMemberCount 人',
+                                                    ko: '$_groupMemberCount명'),
+                                                style: TextStyle(
+                                                    color: palette.secondary,
+                                                    fontSize:
+                                                        compact ? 12 : 13))),
+                                      ]),
+                                ),
+                              ],
                             ],
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: compact ? 14 : 22),
+                    SizedBox(height: compact ? 10 : 12),
                     if (loadingQrOptions)
                       SizedBox(
                         width: qrSize + 28,
@@ -822,16 +870,10 @@ class _QRCodePageState extends State<QRCodePage> {
                         palette: palette,
                       ),
                     if (showQrCode) ...[
-                      SizedBox(height: compact ? 10 : 16),
+                      const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.qr_code_scanner_rounded,
-                            size: compact ? 14 : 16,
-                            color: palette.primary.withValues(alpha: 0.85),
-                          ),
-                          const SizedBox(width: 6),
                           Flexible(
                             child: Text(
                               hintText,
@@ -847,7 +889,16 @@ class _QRCodePageState extends State<QRCodePage> {
                           ),
                         ],
                       ),
-                      SizedBox(height: compact ? 12 : 18),
+                      const SizedBox(height: 3),
+                      Text(TIM_t('分享二维码，连接更多朋友'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: palette.secondary,
+                              fontSize: 12,
+                              height: 1.5)),
+                      const SizedBox(height: 8),
+                      Divider(
+                          color: palette.cardBorder, height: 12, thickness: .5),
                       _buildBrandMark(brandLogoSize, palette),
                     ],
                   ],
@@ -901,14 +952,15 @@ class _QRCodePageState extends State<QRCodePage> {
                   color: filled ? Colors.white : palette.primary,
                 ),
                 const SizedBox(width: 8),
-                Text(
+                Flexible(
+                    child: Text(
                   label,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: filled ? Colors.white : palette.title,
+                    color: filled ? Colors.white : palette.primary,
                   ),
-                ),
+                )),
               ],
             ),
           ),
@@ -929,8 +981,8 @@ class _QRCodePageState extends State<QRCodePage> {
         children: [
           _buildBottomActionItem(
             icon: Icons.download_rounded,
-            label: TIM_t("\u4fdd\u5b58"),
-            filled: true,
+            label: TIM_t('保存图片'),
+            filled: false,
             palette: palette,
             onTap: _saveImage,
           ),
@@ -939,13 +991,125 @@ class _QRCodePageState extends State<QRCodePage> {
             _buildBottomActionItem(
               icon: Icons.qr_code_scanner_rounded,
               label: TIM_t("\u626b\u4e00\u626b"),
-              filled: false,
+              filled: true,
               palette: palette,
               onTap: _openScanner,
             ),
           ],
         ],
       ),
+    );
+  }
+
+  Future<void> _shareInvitation(String target) async {
+    final payload = _buildQrData();
+    final uri = Uri.tryParse(payload);
+    if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
+      ToastUtils.toast(TIM_t('邀请链接暂不可用，请保存二维码分享'));
+      return;
+    }
+    final i18n = AppI18n.of(context);
+    final name = _effectiveDisplayName.trim();
+    final invitation = _isGroupQr
+        ? i18n.t(
+            zhHans: '邀请你加入「$name」\n一起交流，分享精彩。\n在 99Chat 与我们相聚：',
+            zhHant: '邀請你加入「$name」\n一起交流，分享精彩。\n在 99Chat 與我們相聚：',
+            en: 'You’re invited to "$name"!\nShare ideas and moments with us on 99Chat:',
+            ja: '「$name」に招待します！\n99Chatで一緒に交流しましょう：',
+            ko: '「$name」에 초대합니다!\n99Chat에서 함께 이야기해요:',
+          )
+        : i18n.t(
+            zhHans: '你好，我是$name\n邀请你在 99Chat 添加我为好友，随时聊聊、分享日常。\n我的好友邀请：',
+            zhHant: '你好，我是$name\n邀請你在 99Chat 加我為好友，隨時聊聊、分享日常。\n我的好友邀請：',
+            en: 'Hi, I’m $name!\nAdd me on 99Chat to stay in touch and share everyday moments.\nMy friend invitation:',
+            ja: 'こんにちは、$nameです！\n99Chatで友だちになって、日々の出来事を共有しましょう。\n友だちへの招待：',
+            ko: '안녕하세요, $name입니다!\n99Chat에서 친구가 되어 일상을 나눠요.\n친구 초대:',
+          );
+    final shareText = '$invitation\n$payload';
+    final service = WalletShareService();
+    if (target == 'more') {
+      final result = await service.shareSystemText(shareText);
+      if (!mounted) return;
+      if (result != WalletSystemShareResult.success) {
+        ToastUtils.toast(TIM_t('系统分享暂不可用，请复制链接或保存图片'));
+      }
+      return;
+    }
+    final copied = await service.copyAddr(shareText);
+    if (!mounted) return;
+    if (copied != WalletCopyResult.success) {
+      ToastUtils.toast(TIM_t('复制失败，请重试'));
+      return;
+    }
+    if (target == 'copy') {
+      ToastUtils.toast(TIM_t('邀请链接已复制'));
+      return;
+    }
+    final result = target == 'wechat'
+        ? await service.launchWechat()
+        : await service.launchQQ();
+    if (!mounted) return;
+    ToastUtils.toast(result == WalletLaunchAppResult.success
+        ? TIM_t('邀请链接已复制，请粘贴发送给好友')
+        : TIM_t('邀请链接已复制，未能打开应用，请手动粘贴分享'));
+  }
+
+  Widget _buildShareActions(_QrPagePalette palette) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+          color: palette.cardBg.withValues(alpha: .72),
+          borderRadius: BorderRadius.circular(20)),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final columns = MediaQuery.textScalerOf(context).scale(14) > 20 ? 2 : 4;
+        const spacing = 14.0;
+        final width =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+        final targets = [
+          (
+            'wechat',
+            '分享微信',
+            'assets/images/vx .png',
+            Icons.chat_bubble_outline
+          ),
+          ('qq', '分享QQ', 'assets/images/qq.png', Icons.chat_bubble_outline),
+          ('copy', '复制链接', '', Icons.link_rounded),
+          ('more', '更多分享', '', Icons.more_horiz_rounded),
+        ];
+        return Wrap(
+            spacing: spacing,
+            runSpacing: 8,
+            children: targets
+                .map((item) => SizedBox(
+                      width: width,
+                      child: Material(
+                          color: palette.cardBg,
+                          borderRadius: BorderRadius.circular(16),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () => _shareInvitation(item.$1),
+                            child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 4, vertical: 9),
+                                child: Column(children: [
+                                  if (item.$3.isNotEmpty)
+                                    Image.asset(item.$3,
+                                        width: 28,
+                                        height: 28,
+                                        excludeFromSemantics: true)
+                                  else
+                                    Icon(item.$4,
+                                        color: palette.primary, size: 28),
+                                  const SizedBox(height: 9),
+                                  Text(TIM_t(item.$2),
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                          color: palette.title, fontSize: 12)),
+                                ])),
+                          )),
+                    ))
+                .toList());
+      }),
     );
   }
 
@@ -959,124 +1123,176 @@ class _QRCodePageState extends State<QRCodePage> {
     final showQrCode = _canShowGroupQr && _landingUrlResolved;
 
     Widget buildScaffold() => Scaffold(
-      backgroundColor: palette.pageBgTop,
-      appBar: widget.embedded
-          ? null
-          : AppBar(
-              title: Text(
-                widget.title,
-                style: TextStyle(
-                  color: palette.title,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
+          extendBodyBehindAppBar: !widget.embedded,
+          backgroundColor: palette.pageBgTop,
+          appBar: widget.embedded
+              ? null
+              : AppBar(
+                  centerTitle: true,
+                  leading: Navigator.of(context).canPop()
+                      ? AppBackButton(color: palette.primary)
+                      : null,
+                  title: Text(
+                    widget.title,
+                    style: TextStyle(
+                      color: palette.title,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
+                  surfaceTintColor: Colors.transparent,
+                  iconTheme: IconThemeData(color: palette.primary),
+                  actions: [
+                    if (showQrCode)
+                      SizedBox(
+                        width: kToolbarHeight,
+                        height: kToolbarHeight,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          onPressed: () => _showQrActionSheet(theme),
+                          icon: Icon(
+                            Icons.more_horiz_rounded,
+                            color: palette.primary,
+                            size: 26,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/ivnbg.webp',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  excludeFromSemantics: true,
+                  color: themeModel.currentThemeType == ThemeType.dark
+                      ? const Color(0x99000000)
+                      : null,
+                  colorBlendMode: BlendMode.darken,
                 ),
               ),
-              backgroundColor: palette.pageBgTop,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              surfaceTintColor: Colors.transparent,
-              iconTheme: IconThemeData(color: palette.primary),
-              actions: [
-                if (showQrCode)
-                  SizedBox(
-                    width: kToolbarHeight,
-                    height: kToolbarHeight,
-                    child: IconButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () => _showQrActionSheet(theme),
-                      icon: Icon(
-                        Icons.more_horiz_rounded,
-                        color: palette.primary,
-                        size: 26,
+              Column(
+                children: [
+                  if (!widget.embedded)
+                    SizedBox(
+                        height:
+                            MediaQuery.paddingOf(context).top + kToolbarHeight),
+                  Expanded(
+                    child: SafeArea(
+                      top: widget.embedded,
+                      bottom: false,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final card = RepaintBoundary(
+                            key: _captureKey,
+                            child: LayoutBuilder(
+                              builder: (context, innerConstraints) {
+                                final fallbackWidth =
+                                    MediaQuery.sizeOf(context).width - 64;
+                                final maxWidth =
+                                    innerConstraints.maxWidth.isFinite
+                                        ? innerConstraints.maxWidth
+                                        : fallbackWidth;
+                                return _buildShareCard(
+                                  qrData: qrData,
+                                  maxWidth: maxWidth,
+                                  showQrCode: showQrCode,
+                                  loadingQrOptions: loadingQrOptions,
+                                  palette: palette,
+                                );
+                              },
+                            ),
+                          );
+                          final padding = EdgeInsets.fromLTRB(
+                            widget.embedded ? 16 : 20,
+                            widget.embedded ? 8 : 12,
+                            widget.embedded ? 16 : 20,
+                            widget.embedded ? 4 : 12,
+                          );
+                          // Fit the complete composition into the available viewport.
+                          // A fixed child width lets text wrap before height scaling.
+                          final contentWidth =
+                              (constraints.maxWidth - padding.horizontal)
+                                  .clamp(1.0, 420.0)
+                                  .toDouble();
+                          if (widget.embedded) {
+                            return Padding(
+                              padding: padding,
+                              child: Center(
+                                  child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child:
+                                    SizedBox(width: contentWidth, child: card),
+                              )),
+                            );
+                          }
+                          return Padding(
+                            padding: padding.copyWith(
+                                bottom:
+                                    MediaQuery.paddingOf(context).bottom + 8),
+                            child: Center(
+                                child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.topCenter,
+                              child: SizedBox(
+                                width: contentWidth,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                          4, 10, 4, 20),
+                                      child: Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                  TIM_t(_isGroupQr
+                                                      ? '邀请好友加入群聊'
+                                                      : '扫一扫，添加我为好友'),
+                                                  style: TextStyle(
+                                                      color: palette.title,
+                                                      fontSize: 23,
+                                                      fontWeight:
+                                                          FontWeight.w700)),
+                                              const SizedBox(height: 7),
+                                              Text(
+                                                  TIM_t('一起交流 · 分享精彩 · 连接更多朋友'),
+                                                  style: TextStyle(
+                                                      color: palette.secondary,
+                                                      fontSize: 14,
+                                                      height: 1.5)),
+                                            ],
+                                          )),
+                                    ),
+                                    card,
+                                    if (showQrCode && !widget.embedded) ...[
+                                      const SizedBox(height: 14),
+                                      _buildShareActions(palette),
+                                      const SizedBox(height: 12),
+                                      _buildBottomActions(palette),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            )),
+                          );
+                        },
                       ),
                     ),
                   ),
-              ],
-            ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [palette.pageBgTop, palette.pageBgBottom],
-                ),
+                ],
               ),
-            ),
-          ),
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _PageWavePainter(color: palette.primary),
-            ),
-          ),
-          Column(
-            children: [
-              Expanded(
-                child: SafeArea(
-                  bottom: false,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final card = RepaintBoundary(
-                        key: _captureKey,
-                        child: LayoutBuilder(
-                          builder: (context, innerConstraints) {
-                            final fallbackWidth =
-                                MediaQuery.sizeOf(context).width - 64;
-                            final maxWidth = innerConstraints.maxWidth.isFinite
-                                ? innerConstraints.maxWidth
-                                : fallbackWidth;
-                            return _buildShareCard(
-                              qrData: qrData,
-                              maxWidth: maxWidth,
-                              showQrCode: showQrCode,
-                              loadingQrOptions: loadingQrOptions,
-                              palette: palette,
-                            );
-                          },
-                        ),
-                      );
-                      final padding = EdgeInsets.fromLTRB(
-                        widget.embedded ? 16 : 20,
-                        widget.embedded ? 8 : 12,
-                        widget.embedded ? 16 : 20,
-                        widget.embedded ? 4 : 12,
-                      );
-                      // 弹窗内优先垂直居中整卡，避免大块留白 + 再滚动。
-                      if (widget.embedded) {
-                        return SingleChildScrollView(
-                          padding: padding,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight:
-                                  (constraints.maxHeight - padding.vertical)
-                                      .clamp(0, double.infinity),
-                            ),
-                            child: Center(child: card),
-                          ),
-                        );
-                      }
-                      return SingleChildScrollView(
-                        padding: padding,
-                        child: Column(
-                          children: [card],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              if (showQrCode && !widget.embedded)
-                SafeArea(
-                  top: false,
-                  child: _buildBottomActions(palette),
-                ),
             ],
           ),
-        ],
-      ),
-    );
+        );
 
     if (!widget.embedded) {
       return buildScaffold();
@@ -1209,20 +1425,27 @@ class _QrCornerFramePainter extends CustomPainter {
     final right = size.width - inset;
     final bottom = size.height - inset;
 
-    // Top-left
-    canvas.drawLine(Offset(left, top), Offset(left + length, top), paint);
-    canvas.drawLine(Offset(left, top), Offset(left, top + length), paint);
-    // Top-right
-    canvas.drawLine(Offset(right, top), Offset(right - length, top), paint);
-    canvas.drawLine(Offset(right, top), Offset(right, top + length), paint);
-    // Bottom-left
-    canvas.drawLine(Offset(left, bottom), Offset(left + length, bottom), paint);
-    canvas.drawLine(Offset(left, bottom), Offset(left, bottom - length), paint);
-    // Bottom-right
-    canvas.drawLine(
-        Offset(right, bottom), Offset(right - length, bottom), paint);
-    canvas.drawLine(
-        Offset(right, bottom), Offset(right, bottom - length), paint);
+    final radius = (length * .4).clamp(0.0, 12.0);
+    final corners = Path()
+      ..moveTo(left, top + length)
+      ..lineTo(left, top + radius)
+      ..arcToPoint(Offset(left + radius, top), radius: Radius.circular(radius))
+      ..lineTo(left + length, top)
+      ..moveTo(right - length, top)
+      ..lineTo(right - radius, top)
+      ..arcToPoint(Offset(right, top + radius), radius: Radius.circular(radius))
+      ..lineTo(right, top + length)
+      ..moveTo(right, bottom - length)
+      ..lineTo(right, bottom - radius)
+      ..arcToPoint(Offset(right - radius, bottom),
+          radius: Radius.circular(radius))
+      ..lineTo(right - length, bottom)
+      ..moveTo(left + length, bottom)
+      ..lineTo(left + radius, bottom)
+      ..arcToPoint(Offset(left, bottom - radius),
+          radius: Radius.circular(radius))
+      ..lineTo(left, bottom - length);
+    canvas.drawPath(corners, paint);
   }
 
   @override
@@ -1298,82 +1521,6 @@ class _CardWavePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _CardWavePainter oldDelegate) {
-    return oldDelegate.color != color;
-  }
-}
-
-class _PageWavePainter extends CustomPainter {
-  const _PageWavePainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final topPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          color.withValues(alpha: 0.16),
-          color.withValues(alpha: 0.04),
-          color.withValues(alpha: 0),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.45));
-
-    final topPath = Path()
-      ..moveTo(0, size.height * 0.08)
-      ..quadraticBezierTo(
-        size.width * 0.28,
-        size.height * 0.02,
-        size.width * 0.52,
-        size.height * 0.12,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.78,
-        size.height * 0.22,
-        size.width,
-        size.height * 0.1,
-      )
-      ..lineTo(size.width, 0)
-      ..lineTo(0, 0)
-      ..close();
-    canvas.drawPath(topPath, topPaint);
-
-    final bottomPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.bottomRight,
-        end: Alignment.topLeft,
-        colors: [
-          color.withValues(alpha: 0.14),
-          color.withValues(alpha: 0.03),
-          color.withValues(alpha: 0),
-        ],
-      ).createShader(
-        Rect.fromLTWH(0, size.height * 0.55, size.width, size.height * 0.45),
-      );
-
-    final bottomPath = Path()
-      ..moveTo(0, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.3,
-        size.height * 0.68,
-        size.width * 0.55,
-        size.height * 0.82,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.8,
-        size.height * 0.94,
-        size.width,
-        size.height * 0.76,
-      )
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(bottomPath, bottomPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _PageWavePainter oldDelegate) {
     return oldDelegate.color != color;
   }
 }

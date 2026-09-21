@@ -73,15 +73,31 @@ class MutedGroupMemberRecord {
     required this.muteUntilSec,
     required this.nameCard,
     required this.imRole,
+    this.nickname,
+    this.avatarUrl,
   });
 
   final String userId;
   final int muteUntilSec;
   final String nameCard;
   final String imRole;
+  /// Null means omitted; an explicit empty string means no public value.
+  final String? nickname;
+  final String? avatarUrl;
 
   factory MutedGroupMemberRecord.fromJson(Map<String, dynamic> json) {
+    String? profileField(List<String> keys) {
+      for (final key in keys) {
+        if (!json.containsKey(key)) continue;
+        final value = json[key];
+        if (value == null) return '';
+        if (value is String) return value.trim();
+      }
+      return null;
+    }
     return MutedGroupMemberRecord(
+      nickname: profileField(const ['nickname', 'nickName']),
+      avatarUrl: profileField(const ['avatarUrl', 'avatar_url', 'faceUrl']),
       userId: ChatIdFormat.rawUserUid(
         json['userId']?.toString() ?? json['user_id']?.toString() ?? '',
       ),
@@ -1398,7 +1414,8 @@ class MeGroupApi {
     }
   }
 
-  Future<GroupMutedMembersResponse?> fetchMutedMembers(String groupId) async {
+  Future<GroupMutedMembersResponse?> fetchMutedMembers(String groupId,
+      {bool rethrowErrors = false}) async {
     final id = groupId.trim();
     if (id.isEmpty) {
       return null;
@@ -1428,6 +1445,7 @@ class MeGroupApi {
       );
     } catch (e) {
       debugPrint('[MeGroupApi] fetchMutedMembers error: $e');
+      if (rethrowErrors) rethrow;
       return null;
     }
   }

@@ -141,8 +141,8 @@ class _GroupLivePushInfoPageState extends State<GroupLivePushInfoPage> {
           _refreshing = false;
           _error = blocked;
           _errorSubtitle = GroupLiveErrorMessage.sessionTimingSubtitle(session);
-          _errorReschedulable = canManage &&
-              GroupLiveErrorMessage.canRescheduleAfterEnd(session);
+          _errorReschedulable =
+              canManage && GroupLiveErrorMessage.canRescheduleAfterEnd(session);
         });
         return;
       }
@@ -193,7 +193,8 @@ class _GroupLivePushInfoPageState extends State<GroupLivePushInfoPage> {
             _error = GroupLiveErrorMessage.from(
               GroupLiveApiException('LIVE_SESSION_EXPIRED', ''),
             );
-            _errorSubtitle = GroupLiveErrorMessage.sessionTimingSubtitle(session);
+            _errorSubtitle =
+                GroupLiveErrorMessage.sessionTimingSubtitle(session);
             _errorReschedulable = canManage;
           });
           return;
@@ -492,6 +493,8 @@ class _GroupLivePushInfoPageState extends State<GroupLivePushInfoPage> {
                 : (_error ?? ''),
             scheduledStartAt: session.scheduledStartAt,
             expireAt: session.expireAt,
+            roomName: session.roomName,
+            description: session.description,
           ),
         ],
       );
@@ -1001,11 +1004,15 @@ class _PushInfoSettingsCard extends StatelessWidget {
 class _ExpiredScheduleCard extends StatelessWidget {
   const _ExpiredScheduleCard({
     required this.title,
+    required this.roomName,
+    required this.description,
     this.scheduledStartAt,
     this.expireAt,
   });
 
   final String title;
+  final String roomName;
+  final String description;
   final DateTime? scheduledStartAt;
   final DateTime? expireAt;
 
@@ -1113,6 +1120,42 @@ class _ExpiredScheduleCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
+          _timeRow(
+            Icons.live_tv_rounded,
+            i18n.t(
+                zhHans: '直播间昵称',
+                zhHant: '直播間暱稱',
+                en: 'Room name',
+                ja: '配信名',
+                ko: '방송 이름'),
+            roomName.trim().isNotEmpty
+                ? roomName.trim()
+                : i18n.t(
+                    zhHans: '未设置',
+                    zhHant: '未設定',
+                    en: 'Not set',
+                    ja: '未設定',
+                    ko: '미설정'),
+          ),
+          const SizedBox(height: 8),
+          _timeRow(
+            Icons.notes_rounded,
+            i18n.t(
+                zhHans: '直播描述',
+                zhHant: '直播描述',
+                en: 'Description',
+                ja: '配信の説明',
+                ko: '방송 설명'),
+            description.trim().isNotEmpty
+                ? description.trim()
+                : i18n.t(
+                    zhHans: '未设置',
+                    zhHant: '未設定',
+                    en: 'Not set',
+                    ja: '未設定',
+                    ko: '미설정'),
+          ),
+          const SizedBox(height: 8),
           _timeRow(
             Icons.play_arrow_rounded,
             i18n.t(

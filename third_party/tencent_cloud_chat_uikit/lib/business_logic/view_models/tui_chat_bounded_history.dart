@@ -637,6 +637,10 @@ extension BoundedChatHistory on TUIChatGlobalModel {
     final state = _inboundUnreadStateFor(conversationID);
     final generation = ++state.unreadVisitGeneration;
     state.revealedUnreadMessageIDs.clear();
+    // Old arrivals belong to the entry baseline, not this visit's live capsule.
+    // Retain their identities for duplicate suppression without acknowledging SQL.
+    state.seenLiveIncomingIds.addAll(state.remainingLiveIncomingIds);
+    state.remainingLiveIncomingIds.clear();
     // The previous page's reading hold is presentation state, not an ACK.
     // A new page may load a fresh latest window while its old durable backlog
     // is still awaiting coverage. Keep all records/counters below intact.
@@ -744,10 +748,11 @@ extension BoundedChatHistory on TUIChatGlobalModel {
         state.revealedUnreadMessageIDs.length;
   }
 
-  /// An accepted deletion retires local-only unread identities. Optimistic
+  /// An accepted deletion retires unread identities. Optimistic
   /// removal and memory-window trimming must never call this.
   void retireDeletedLocalIncoming(String conversationID, Iterable<String> ids) {
     final state = _inboundUnreadStateFor(conversationID, create: false);
+    markLiveIncomingSeen(conversationID: conversationID, ids: ids);
     final removed = ids.where(state.revealedUnreadMessageIDs.contains).toSet();
     if (removed.isEmpty) return;
     state.revealedUnreadMessageIDs.removeAll(removed);
@@ -925,6 +930,19 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       final id = (message.msgID?.trim().isNotEmpty ?? false)
           ? message.msgID!.trim() : message.id?.trim() ?? '';
       state.revealedUnreadMessageIDs.remove(id);
+      // SQL admission and the in-memory path share one per-identity ledger.
+      // A queued delivery from an older visit is part of the next SQL baseline;
+      // it must not resurrect that visit's live reminder or invalidate its restore.
+      if (receipt.inserted &&
+          visitGeneration == state.unreadVisitGeneration) {
+        _recordBufferedLiveIncoming(state, message);
+      } else if (visitGeneration != state.unreadVisitGeneration &&
+          id.isNotEmpty) {
+        // Formal SQL ACK can remove the row and retain only a source watermark.
+        // Remember this baseline identity too, so replay with a new ingress
+        // event cannot become a live arrival in the new visit after that ACK.
+        state.seenLiveIncomingIds.add(id);
+      }
       _publishHistoryDeferredState(conversation, state, receipt.state);
       // Cache eviction may release the bodies while SQL is completing. Exact
       // scalar state still belongs to this owner; do not revive evicted bodies.

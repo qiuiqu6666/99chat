@@ -319,6 +319,12 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         haveMoreData = true;
         return;
       }
+      // Persisted group exhaustion is not proof for this page's oldest
+      // cursor. Keep the session state: unknown/available permits a probe,
+      // while a live request's exhausted state still prevents empty loops.
+      if (conversationType == ConvType.group) {
+        return;
+      }
       // An absent optimistic flag is not an SDK exhaustion proof. Preserve
       // one explicit user-triggered probe instead of permanently closing history.
       if (coverage?.olderExhausted != true || coverage!.hasOpenHoles) {

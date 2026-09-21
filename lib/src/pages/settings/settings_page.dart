@@ -10,7 +10,6 @@ import 'package:tencent_cloud_chat_demo/src/pages/settings/moments_permission_pa
 import 'package:tencent_cloud_chat_demo/src/pages/settings/node_switch_page.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/settings/settings_widgets.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/settings/storage_page.dart';
-import 'package:tencent_cloud_chat_demo/src/pages/settings/test_page.dart';
 import 'package:tencent_cloud_chat_demo/src/services/app_update_service.dart';
 import 'package:tencent_cloud_chat_demo/src/theme/app_colors.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/app_dialog.dart';
@@ -235,16 +234,6 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         SettingsGroup(
           children: [
-            SettingsCell(
-              title: i18n.t(
-                zhHans: '测试页面',
-                zhHant: '測試頁面',
-                en: 'Test Page',
-                ja: 'テストページ',
-                ko: '테스트 페이지',
-              ),
-              onTap: () => _open(const TestPage()),
-            ),
             SettingsCell(
               title: i18n.t(
                 zhHans: '关于我们',

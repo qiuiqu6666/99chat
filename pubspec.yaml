@@ -108,6 +108,7 @@ dependencies:
   media_kit_libs_video: ^1.0.7
   awesome_video_player:
     path: third_party/awesome_video_player
+  timezone: 0.10.1
 
 dependency_overrides:
   geolocator_android: ^4.6.2
@@ -177,6 +178,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    - assets/lhc/
     - assets/profile_icons/
     - assets/wallet/
     - assets/chat_more/
