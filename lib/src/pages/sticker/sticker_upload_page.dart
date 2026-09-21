@@ -9,6 +9,7 @@ import 'package:tencent_cloud_chat_demo/src/models/sticker_models.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/user_sticker_provider.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/sticker/sticker_image.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/sticker/sticker_organize_grid.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/app_dialog.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_compress_util.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_constants.dart';
@@ -51,6 +52,30 @@ class _StickerUploadPageState extends State<StickerUploadPage> {
 
   bool _uploading = false;
   bool _organizing = false;
+  bool _savingOrder = false;
+
+  Future<void> _moveSticker(String from, String to) async {
+    if (!_organizing || _savingOrder) return;
+    final ids = _allStickerEntries().map((entry) => entry.item.stickerId).toList();
+    final oldIndex = ids.indexOf(from);
+    final newIndex = ids.indexOf(to);
+    if (oldIndex < 0 || newIndex < 0 || oldIndex == newIndex) return;
+    ids.insert(newIndex, ids.removeAt(oldIndex));
+    _savingOrder = true;
+    try {
+      await UserStickerProvider.shared.updateStickerOrder(ids);
+    } catch (_) {
+      ToastUtils.toast(AppI18n.current.t(
+        zhHans: '排序保存失败，请重试',
+        zhHant: '排序儲存失敗，請重試',
+        en: 'Unable to save order. Please try again.',
+        ja: '並び順を保存できませんでした。再試行してください。',
+        ko: '순서를 저장하지 못했습니다. 다시 시도해 주세요.',
+      ));
+    } finally {
+      _savingOrder = false;
+    }
+  }
 
   @override
   void initState() {
@@ -533,25 +558,18 @@ class _StickerUploadPageState extends State<StickerUploadPage> {
       ),
       body: Stack(
         children: [
-          GridView.builder(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              childAspectRatio: 1,
+          StickerOrganizeGrid(
+            ids: entries.map((entry) => entry.item.stickerId).toList(),
+            organizing: _organizing,
+            onMove: _moveSticker,
+            addTile: _AddTile(
+              onTap: _pickAndUpload,
+              enabled: !_uploading && !_organizing,
+              tileBackground: colors.tileBackground,
+              addIconColor: colors.addIconColor,
             ),
-            itemCount: count + 1,
             itemBuilder: (context, index) {
-              if (index == 0) {
-                return _AddTile(
-                  onTap: _pickAndUpload,
-                  enabled: !_uploading && !_organizing,
-                  tileBackground: colors.tileBackground,
-                  addIconColor: colors.addIconColor,
-                );
-              }
-              final entry = entries[index - 1];
+              final entry = entries[index];
               return _StickerTile(
                 item: entry.item,
                 organizing: _organizing,

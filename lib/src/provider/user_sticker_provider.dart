@@ -7,6 +7,7 @@ import 'package:tencent_cloud_chat_demo/utils/constant.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_constants.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_favorite_store.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_recent_store.dart';
+import 'package:tencent_cloud_chat_demo/utils/sticker_order_store.dart';
 import 'package:tim_ui_kit_sticker_plugin/utils/tim_ui_kit_sticker_data.dart';
 
 /// [favorite] 的返回结果，用于区分「新收藏」与「已在收藏中」。
@@ -52,6 +53,7 @@ class UserStickerProvider extends ChangeNotifier {
   }
 
   Future<void> refresh({bool force = false}) async {
+    await StickerOrderStore.instance.load(StickerOrderStore.instance.currentOwner);
     if (_loaded && !force) {
       return;
     }
@@ -237,6 +239,13 @@ class UserStickerProvider extends ChangeNotifier {
   Future<void> updatePackOrder(List<String> packIds) async {
     await StickerApi.instance.updatePackOrder(packIds);
     await refresh(force: true);
+  }
+
+  Future<void> updateStickerOrder(List<String> stickerIds) async {
+    final store = StickerOrderStore.instance;
+    final owner = store.currentOwner;
+    await store.save(owner, stickerIds);
+    if (owner == store.currentOwner) notifyListeners();
   }
 
   void clear() {

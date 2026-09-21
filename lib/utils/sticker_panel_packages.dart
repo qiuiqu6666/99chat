@@ -1,5 +1,6 @@
 import 'package:tencent_cloud_chat_demo/src/models/sticker_models.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_constants.dart';
+import 'package:tencent_cloud_chat_demo/utils/sticker_order_store.dart';
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 import 'package:tim_ui_kit_sticker_plugin/utils/tim_ui_kit_sticker_data.dart';
 
@@ -107,7 +108,7 @@ List<StickerItem> mergeFavoritesAndUploadStickers({
     seen.add(id);
     out.add(item);
   }
-  return out;
+  return StickerOrderStore.instance.apply(out);
 }
 
 CustomStickerPackage _packageFromEmojiFaceData(CustomEmojiFaceData data) {
@@ -133,8 +134,10 @@ CustomStickerPackage _networkStickerPackage({
   required List<StickerItem> items,
   String menuIconUrl = '',
 }) {
-  final sorted = List<StickerItem>.from(items)
-    ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  final sorted = List<StickerItem>.from(items);
+  if (packId != StickerConstants.virtualPackFavorites) {
+    sorted.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  }
   final firstThumb =
       sorted.isNotEmpty ? sorted.first.displayUrl(preferAnimated: false) : '';
   final tabIcon = menuIconUrl.isNotEmpty ? menuIconUrl : firstThumb;
