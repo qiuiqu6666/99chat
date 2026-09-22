@@ -400,7 +400,11 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
     if (added.isEmpty) {
       return;
     }
-    final current = (_cachedShowList ?? const <ISuspensionBeanImpl>[]).toList();
+    // _cachedShowList also contains the fixed top entries. They are composed
+    // again below, so they must not participate in the friend insertion scan.
+    final current = (_cachedShowList ?? const <ISuspensionBeanImpl>[])
+        .where((row) => row.memberInfo is! TopListItem)
+        .toList();
     final starred = StarredFriendProvider.shared;
     for (final item in added) {
       if (widget.filterItem != null && !widget.filterItem!(item)) {
@@ -424,9 +428,24 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
           i++;
         }
         while (i < current.length) {
-          final other = current[i].memberInfo;
-          if (other is! V2TimFriendInfo) {
-            break;
+          final otherBean = current[i];
+          final other = otherBean.memberInfo;
+          if (other is! V2TimFriendInfo) break;
+          final otherTag = otherBean.tagIndex;
+          if (otherTag == '★') {
+            i++;
+            continue;
+          }
+          // The visible tag is the primary sort key. The directory sort key
+          // can differ when a local display name overrides the SDK name.
+          if (bean.tagIndex != otherTag) {
+            if (otherTag == '#' ||
+                (bean.tagIndex != '#' &&
+                    bean.tagIndex.compareTo(otherTag) < 0)) {
+              break;
+            }
+            i++;
+            continue;
           }
           final otherEntry =
               ImSdkRelationshipDirectory.instance.friend(other.userID);
