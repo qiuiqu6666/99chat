@@ -4,13 +4,13 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/image_preview_resolution_utils
 
 void main() {
   group('imagePreviewDecodeRoute', () {
-    test('1182x45234 benchmark is tiled and banned from BIG/ORIGINAL prefetch',
+    test('1182x45234 uses a whole bitmap and skips oversized prefetch',
         () {
       const width = 1182;
       const height = 45234;
       expect(
         imagePreviewDecodeRoute(width: width, height: height),
-        ImagePreviewDecodeRoute.tiled,
+        ImagePreviewDecodeRoute.controlledDownsample,
       );
       expect(
         imageExceedsListPrefetchBan(width: width, height: height),
@@ -18,17 +18,17 @@ void main() {
       );
       expect(
         imagePreviewRequiresTileRenderer(width: width, height: height),
-        isTrue,
+        isFalse,
       );
     });
 
-    test('2496x30492 benchmark is tiled and banned from BIG/ORIGINAL prefetch',
+    test('2496x30492 uses a whole bitmap and skips oversized prefetch',
         () {
       const width = 2496;
       const height = 30492;
       expect(
         imagePreviewDecodeRoute(width: width, height: height),
-        ImagePreviewDecodeRoute.tiled,
+        ImagePreviewDecodeRoute.controlledDownsample,
       );
       expect(
         imageExceedsListPrefetchBan(width: width, height: height),
@@ -73,6 +73,20 @@ void main() {
       );
     });
   });
+
+  for (final size in [(1182, 45234), (2496, 30492), (100, 100000)]) {
+    test('extra-tall $size whole-image decode is bounded and proportional', () {
+      final target = imagePreviewDecodeTarget(
+        screenWidth: 390, screenHeight: 844, devicePixelRatio: 3,
+        imageWidth: size.$1, imageHeight: size.$2,
+      );
+      expect(imagePreviewRequiresTileRenderer(width: size.$1, height: size.$2), isFalse);
+      expect(target.shouldResize, isTrue);
+      expect(target.height!, lessThanOrEqualTo(kImageForceTileLongestSidePx));
+      expect(target.width! * target.height!, lessThanOrEqualTo(kImageDecodedPixelsControlledMax));
+      expect(target.width!, closeTo(size.$1 * target.height! / size.$2, 1));
+    });
+  }
 
   test('1080x12000 controlled downsample keeps height near original', () {
     final target = imagePreviewDecodeTarget(

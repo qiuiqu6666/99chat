@@ -48,7 +48,7 @@ enum ImagePreviewDisplayMode {
 const double imagePreviewTallAspectRatio = 2.2;
 
 /// 超长图：高宽比下限（聊天长截图，FitWidth）。
-const double imagePreviewExtraTallAspectRatio = 3.5;
+const double imagePreviewExtraTallAspectRatio = kImagePreviewExtraTallAspectRatio;
 
 /// 横图：宽高比下限（width ≥ height × 1.6）。
 const double imagePreviewWideAspectRatio = 1.6;
@@ -1022,6 +1022,15 @@ ImagePreviewDecodeTarget _tallFitWidthDecodeTarget({
       final hard = math.sqrt(kImageDecodedPixelsControlledMax / pixels);
       outW = math.max(1, (outW * hard).round());
       outH = math.max(1, (outH * hard).round());
+      outStaged = true;
+    }
+    // A full bitmap also needs a bounded texture dimension, even when a
+    // narrow screenshot is below the total decoded-pixel budget.
+    final longest = math.max(outW, outH);
+    if (longest > kImageForceTileLongestSidePx) {
+      final scale = kImageForceTileLongestSidePx / math.max(imageWidth, imageHeight);
+      outW = math.max(1, (imageWidth * scale).floor());
+      outH = math.max(1, (imageHeight * scale).floor());
       outStaged = true;
     }
   } else if (route != ImagePreviewDecodeRoute.tiled) {

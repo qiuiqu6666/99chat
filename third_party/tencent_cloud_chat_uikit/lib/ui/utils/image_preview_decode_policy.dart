@@ -12,6 +12,9 @@ const int kImageDecodedPixelsControlledMax =
 /// 任一边超过此值强制走 Tile Renderer。
 const int kImageForceTileLongestSidePx = 16384;
 
+/// Extra-tall images use one proportionally downsampled bitmap, never tiles.
+const double kImagePreviewExtraTallAspectRatio = 3.5;
+
 enum ImagePreviewDecodeRoute {
   normal,
   controlledDownsample,
@@ -40,6 +43,7 @@ bool imagePreviewRequiresTileRenderer({
   if (width <= 0 || height <= 0) {
     return false;
   }
+  if (height / width >= kImagePreviewExtraTallAspectRatio) return false;
   return math.max(width, height) > kImageForceTileLongestSidePx ||
       imageDecodedPixelCount(width, height) > kImageDecodedPixelsControlledMax;
 }
@@ -62,7 +66,8 @@ ImagePreviewDecodeRoute imagePreviewDecodeRoute({
   if (imagePreviewRequiresTileRenderer(width: width, height: height)) {
     return ImagePreviewDecodeRoute.tiled;
   }
-  if (imageExceedsListPrefetchBan(width: width, height: height)) {
+  if (imageExceedsListPrefetchBan(width: width, height: height) ||
+      math.max(width, height) > kImageForceTileLongestSidePx) {
     return ImagePreviewDecodeRoute.controlledDownsample;
   }
   return ImagePreviewDecodeRoute.normal;
