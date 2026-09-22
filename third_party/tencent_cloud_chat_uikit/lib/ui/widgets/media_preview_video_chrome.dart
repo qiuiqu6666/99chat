@@ -208,7 +208,7 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                 bottom: 0,
                 height: insets.bottom +
                     (compact ? 88 : 126) +
-                    (hasActions ? 52 : 0),
+                    (hasActions ? 56 : 0),
                 child: const IgnorePointer(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -225,7 +225,7 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                 left: insets.left + 8,
                 right: insets.right + 20,
                 bottom:
-                    insets.bottom + (compact ? 8 : 18) + (hasActions ? 52 : 0),
+                    insets.bottom + (compact ? 8 : 18) + (hasActions ? 56 : 0),
                 child: Row(
                   children: [
                     _VideoButton(
@@ -253,19 +253,32 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                 Positioned(
                   left: insets.left + 20,
                   right: insets.right + 20,
-                  bottom: insets.bottom + 4,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  bottom: insets.bottom + 8,
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
                     children: [
                       if (widget.onForward != null)
-                        _actionButton(Icons.ios_share_rounded, TIM_t('转发'),
-                            widget.onForward!),
+                        _actionButton(
+                          id: 'forward',
+                          icon: CupertinoIcons.arrowshape_turn_up_right_fill,
+                          label: TIM_t('转发'),
+                          action: widget.onForward!,
+                        ),
                       if (widget.onSave != null)
-                        _actionButton(Icons.download_outlined, TIM_t('保存'),
-                            widget.onSave!),
+                        _actionButton(
+                          id: 'save',
+                          icon: CupertinoIcons.square_arrow_down_fill,
+                          label: TIM_t('保存'),
+                          action: widget.onSave!,
+                        ),
                       if (widget.onDelete != null)
-                        _actionButton(Icons.delete_outline_rounded, TIM_t('删除'),
-                            widget.onDelete!),
+                        _actionButton(
+                          id: 'delete',
+                          icon: Icons.delete_outline_rounded,
+                          label: TIM_t('删除'),
+                          action: widget.onDelete!,
+                        ),
                     ],
                   ),
                 ),
@@ -276,16 +289,25 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
     );
   }
 
-  Widget _actionButton(
-      IconData icon, String label, Future<void> Function() action) {
-    return TextButton.icon(
-      onPressed: () => _runAction(action),
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.white,
-        minimumSize: const Size(80, 48),
+  Widget _actionButton({
+    required String id,
+    required IconData icon,
+    required String label,
+    required Future<void> Function() action,
+  }) {
+    return Material(
+      color: const Color(0xFF383838),
+      shape: const CircleBorder(),
+      child: IconButton(
+        key: ValueKey('video-inline-$id'),
+        tooltip: label,
+        onPressed: () => _runAction(action),
+        color: Colors.white,
+        iconSize: 23,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+        icon: Icon(icon),
       ),
-      icon: Icon(icon, size: 23),
-      label: Text(label),
     );
   }
 }

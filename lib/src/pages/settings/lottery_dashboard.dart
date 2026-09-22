@@ -169,11 +169,18 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
     if (tab != 0 || !_scrollController.hasClients || !_predictionPageArmed) {
       return;
     }
-    final total = widget.live?.predictions.length ?? _results.length + 1;
-    if (_visiblePredictions >= total ||
-        _scrollController.position.extentAfter > 120) {
+    if (_scrollController.position.extentAfter > 120) {
       return;
     }
+    final live = widget.live;
+    if (live != null) {
+      if (!live.predictionHasMore || live.predictionLoadingMore) return;
+      _predictionPageArmed = false;
+      unawaited(live.loadMorePredictions());
+      return;
+    }
+    final total = _results.length + 1;
+    if (_visiblePredictions >= total) return;
     final next = _visiblePredictions + 20;
     _predictionPageArmed = false;
     setState(() => _visiblePredictions = next > total ? total : next);
@@ -816,7 +823,8 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
               : rawValue;
       return Expanded(
         child: Container(
-          margin: const EdgeInsets.all(2),
+          key: ValueKey('opened-cell-$field-$rawValue'),
+          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
             color:
@@ -828,7 +836,9 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
           ),
           child: Row(children: [
             Expanded(
+              flex: 4,
               child: Container(
+                key: ValueKey('opened-label-$field-$rawValue'),
                 height: 28,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
@@ -866,9 +876,11 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
                 ),
               ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 8),
             Expanded(
+              flex: 5,
               child: Container(
+                key: ValueKey('opened-count-cell-$field-$rawValue'),
                 height: 28,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
@@ -927,10 +939,13 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
                   Expanded(
                       child: Row(children: [
                     Expanded(
+                        flex: 4,
                         child: Text('类型',
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 11, color: secondary))),
+                    const SizedBox(width: 8),
                     Expanded(
+                        flex: 5,
                         child: Text('已开次数',
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 11, color: secondary))),
@@ -1777,7 +1792,7 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (live.predictionMode == 'backtest') const Text('回测结果，并非开奖前已发布预测'),
-      for (final row in live.predictions.take(_visiblePredictions))
+      for (final row in live.predictions)
         Builder(builder: (context) {
           final issue = '${row['issue']}';
           final draw = live.draws.firstWhere(
@@ -1926,6 +1941,15 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
             ]),
           );
         }),
+      if (live.predictionLoadingMore)
+        const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      if (live.predictionPageError != null)
+        Center(
+          child: TextButton(
+            onPressed: live.loadMorePredictions,
+            child: Text(live.predictionPageError!),
+          ),
+        ),
     ]);
   }
 

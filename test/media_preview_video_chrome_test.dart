@@ -93,6 +93,9 @@ void main() {
     bool ready = true,
     VoidCallback? onToggle,
     Future<void> Function()? onMore,
+    Future<void> Function()? onForward,
+    Future<void> Function()? onSave,
+    Future<void> Function()? onDelete,
     EdgeInsets insets = EdgeInsets.zero,
     double textScale = 1,
     Brightness brightness = Brightness.light,
@@ -150,6 +153,9 @@ void main() {
                         onBack: () {},
                         onTogglePlayback: onToggle ?? () {},
                         onMore: onMore ?? () async {},
+                        onForward: onForward,
+                        onSave: onSave,
+                        onDelete: onDelete,
                       ),
                     ),
                   ],
@@ -295,6 +301,52 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('inline video actions use round buttons and keep their callbacks',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final called = <String>[];
+    await mount(
+      tester,
+      playerKey: GlobalKey<TIMUIKitVideoPlayerState>(),
+      chromeKey: GlobalKey<MediaPreviewVideoChromeState>(),
+      playing: false,
+      insets: const EdgeInsets.only(top: 47, bottom: 34),
+      onForward: () async => called.add('forward'),
+      onSave: () async => called.add('save'),
+      onDelete: () async => called.add('delete'),
+    );
+
+    for (final action in ['forward', 'save', 'delete']) {
+      final button = find.byKey(ValueKey('video-inline-$action'));
+      expect(button, findsOneWidget);
+      final iconButton = tester.widget<IconButton>(button);
+      expect(iconButton.tooltip, isNotEmpty);
+      final material = tester.widget<Material>(
+          find.ancestor(of: button, matching: find.byType(Material)).first);
+      expect(material.shape, isA<CircleBorder>());
+      expect(material.color, const Color(0xFF383838));
+      expect(tester.getSize(button), const Size(48, 48));
+      expect(tester.getRect(button).bottom, lessThanOrEqualTo(810));
+      await tester.tap(button);
+      await tester.pump();
+    }
+    final forwardCenter =
+        tester.getCenter(find.byKey(const ValueKey('video-inline-forward')));
+    final saveCenter =
+        tester.getCenter(find.byKey(const ValueKey('video-inline-save')));
+    final deleteCenter =
+        tester.getCenter(find.byKey(const ValueKey('video-inline-delete')));
+    expect(saveCenter.dx - forwardCenter.dx, closeTo(60, 1));
+    expect(deleteCenter.dx - saveCenter.dx, closeTo(60, 1));
+    expect(saveCenter.dx, closeTo(195, 1));
+    expect(called, ['forward', 'save', 'delete']);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets(
       'video menu retains save forward speed and confirmed-delete callbacks',
       (tester) async {
@@ -409,7 +461,6 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       var openedMedia = 0;
-      var enteredPip = 0;
       await mount(
         tester,
         playerKey: GlobalKey<TIMUIKitVideoPlayerState>(),
@@ -429,12 +480,9 @@ void main() {
           onOpenMedia: () {
             openedMedia++;
           },
-          onPictureInPicture: () async {
-            enteredPip++;
-          },
         ),
       );
-      for (final action in ['media', 'pip']) {
+      for (final action in ['media']) {
         await tester.tap(find.byIcon(Icons.more_horiz_rounded));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
@@ -463,7 +511,6 @@ void main() {
         await tester.pumpAndSettle();
       }
       expect(openedMedia, 1);
-      expect(enteredPip, 1);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     });

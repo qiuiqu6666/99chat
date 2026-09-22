@@ -27,6 +27,19 @@ void main() {
     expect(find.text('数据统计'), findsWidgets);
     expect(find.byKey(const ValueKey('opened-单双-单')), findsOneWidget);
     expect(find.byKey(const ValueKey('opened-单双-双')), findsOneWidget);
+    final typeRect =
+        tester.getRect(find.byKey(const ValueKey('opened-label-单双-单')));
+    final countRect =
+        tester.getRect(find.byKey(const ValueKey('opened-count-cell-单双-单')));
+    expect(typeRect.width, lessThan(countRect.width));
+    expect(countRect.left - typeRect.right, greaterThanOrEqualTo(8));
+    for (final value in ['单', '双']) {
+      expect(
+          tester
+              .widget<Container>(find.byKey(ValueKey('opened-cell-单双-$value')))
+              .margin,
+          const EdgeInsets.symmetric(horizontal: 4, vertical: 2));
+    }
     expect(tester.takeException(), isNull);
   });
 
