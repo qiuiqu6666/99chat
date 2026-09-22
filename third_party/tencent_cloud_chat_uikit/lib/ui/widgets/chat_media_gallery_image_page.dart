@@ -613,6 +613,7 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
                   slidePageKey: widget.slidePageKey,
                   slideMetrics: widget.slideMetrics,
                   displayMode: resolved.mode,
+                  sourcePixelSize: Size(resolved.imageWidth.toDouble(), resolved.imageHeight.toDouble()),
                   inPageView: widget.inPageView,
                   galleryScrollGate: widget.galleryScrollGate,
                   onTap: widget.onTap,

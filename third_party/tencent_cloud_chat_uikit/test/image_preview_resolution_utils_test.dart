@@ -32,14 +32,14 @@ void main() {
         imageHeight: 100,
         screenWidth: screenWidth,
         screenHeight: screenHeight,
-        fit: BoxFit.contain,
+        fit: BoxFit.scaleDown,
       );
       final initial = imagePreviewInitialDisplaySize(
         imageWidth: 100,
         imageHeight: 100,
         screenWidth: screenWidth,
         screenHeight: screenHeight,
-        fit: BoxFit.contain,
+        fit: BoxFit.scaleDown,
       );
       expect(initial.width, 100);
       expect(initial.height, 100);
@@ -152,7 +152,7 @@ void main() {
         screenHeight: 844,
       );
       expect(config.mode, ImagePreviewDisplayMode.normal);
-      expect(config.fit, BoxFit.scaleDown);
+      expect(config.fit, BoxFit.contain);
       expect(config.alignment, Alignment.center);
     });
 
@@ -174,9 +174,9 @@ void main() {
         screenWidth: 390,
         screenHeight: 844,
       );
-      expect(config.mode, ImagePreviewDisplayMode.panorama);
-      expect(config.fit, BoxFit.scaleDown);
-      expect(config.isPanorama, isTrue);
+      expect(config.mode, ImagePreviewDisplayMode.wide);
+      expect(config.fit, BoxFit.contain);
+      expect(config.isWideImage, isTrue);
     });
 
     test('ultra-wide settlement sheet shows full image without height-crop', () {
@@ -188,8 +188,8 @@ void main() {
         screenWidth: screenWidth,
         screenHeight: screenHeight,
       );
-      expect(config.mode, ImagePreviewDisplayMode.panorama);
-      expect(config.fit, BoxFit.scaleDown);
+      expect(config.mode, ImagePreviewDisplayMode.wide);
+      expect(config.fit, BoxFit.contain);
       final display = imagePreviewInitialDisplaySize(
         imageWidth: 1024,
         imageHeight: 295,
@@ -357,7 +357,7 @@ void main() {
       expect(doubleTap, greaterThanOrEqualTo(1.0));
     });
 
-    test('normal image double tap around 2.75x', () {
+    test('normal image double tap around 2x', () {
       final doubleTap = imagePreviewDoubleTapScale(
         imageWidth: 3000,
         imageHeight: 2000,
@@ -370,7 +370,7 @@ void main() {
           screenHeight: 844,
         ),
       );
-      expect(doubleTap, closeTo(2.75, 0.01));
+      expect(doubleTap, closeTo(2.0, 0.01));
     });
 
     test('wide/panorama on portrait phone double-tap fills height for reading', () {
@@ -402,12 +402,12 @@ void main() {
           screenHeight: screenHeight,
           display: display,
         );
-        expect(doubleTap, closeTo(screenHeight / initial.height, 0.05));
+        expect(doubleTap, closeTo((screenHeight / initial.height).clamp(1.0, 3.0), 0.05));
         expect(doubleTap, greaterThan(2.0));
       }
     });
 
-    test('small images double tap around 3.5x', () {
+    test('small images double tap around 2x', () {
       final doubleTap = imagePreviewDoubleTapScale(
         imageWidth: 120,
         imageHeight: 120,
@@ -420,7 +420,7 @@ void main() {
           screenHeight: 844,
         ),
       );
-      expect(doubleTap, closeTo(3.5, 0.01));
+      expect(doubleTap, closeTo(2.0, 0.01));
     });
   });
 
@@ -615,11 +615,11 @@ void main() {
           photo,
           fitTallImagesToScreenWidth: false,
         ),
-        BoxFit.scaleDown,
+        BoxFit.contain,
       );
     });
 
-    test('chat ordinary photos still fill the letterboxed gesture box', () {
+    test('chat ordinary photos preserve aspect in the fullscreen gesture canvas', () {
       final photo = imagePreviewDisplayConfig(
         imageWidth: 3000,
         imageHeight: 2000,
@@ -627,7 +627,7 @@ void main() {
         screenHeight: 844,
       );
       expect(photo.verticallyScrollable, isFalse);
-      expect(imagePreviewPaintFit(photo), BoxFit.fill);
+      expect(imagePreviewPaintFit(photo), BoxFit.contain);
     });
 
     test('unknown size uses contain instead of fill', () {

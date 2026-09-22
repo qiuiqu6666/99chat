@@ -1,18 +1,20 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
-import 'interactive_preview_fallback.dart';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:extended_image/extended_image.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_message_preview_image_resolver.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/image_preview_resolution_utils.dart';
-import 'package:tencent_cloud_chat_uikit/ui/utils/image_preview_tile_geometry.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/image_preview_region_grid.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/image_region_decode_hook.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/tall_image_gallery_scroll_gate.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/tall_image_scroll_preview.dart';
+import 'interactive_preview_fallback.dart';
 
 class TiledImagePreview extends StatefulWidget {
   const TiledImagePreview({
@@ -25,6 +27,7 @@ class TiledImagePreview extends StatefulWidget {
     this.inPageView = false,
     this.galleryScrollGate,
     this.onSlideDismiss,
+    this.fitTallImagesToScreenWidth = true,
   });
 
   final int imageWidth;
@@ -35,57 +38,80 @@ class TiledImagePreview extends StatefulWidget {
   final bool inPageView;
   final ValueNotifier<TallImageGalleryScrollGate>? galleryScrollGate;
   final TallImageSlideDismissCallback? onSlideDismiss;
+  final bool fitTallImagesToScreenWidth;
 
   @override
   State<TiledImagePreview> createState() => _TiledImagePreviewState();
 }
 
 class _TiledImagePreviewState extends State<TiledImagePreview> {
-  final ScrollController _scrollController = ScrollController();
-  final Map<int, ui.Image> _tiles = <int, ui.Image>{};
-  final Map<int, int> _generation = <int, int>{};
+  final TransformationController _controller = TransformationController();
+  final Map<int, ui.Image> _tiles = {};
+  final Set<(int, int)> _inFlight = {};
+  ImagePreviewRegionGrid? _grid;
+  List<int> _wanted = [];
   String? _localPath;
   bool _resolvingOriginal = false;
   bool _unsupported = false;
-  double _scale = 1.0;
-  double _scaleBase = 1.0;
-  int _decodeGeneration = 0;
-  Timer? _settleTimer;
+  int _epoch = 0;
+  bool _pumpScheduled = false;
+  Size _viewport = Size.zero;
+  Size _display = Size.zero;
+  bool _topAligned = true;
+  Offset _doubleTap = Offset.zero;
   Offset _pointerDelta = Offset.zero;
-  TallImageGestureAxis _axis = TallImageGestureAxis.undecided;
+  bool _dismissPending = false;
+  final Set<int> _pointers = {};
+  ExtendedImageGesturePageViewState? _pageView;
+  Matrix4? _pageFrozen;
+  VelocityTracker? _velocity;
+  bool _routingPage = false;
+  bool _startedAtLeft = true;
+  bool _startedAtRight = true;
 
   bool get _desktop => PlatformUtils().isWinMacDesktop;
+  int get _tileLimit => _desktop ? 96 : 48;
+  double get _scale => _controller.value.getMaxScaleOnAxis();
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
     _ensureLocalOriginal();
   }
 
   @override
+  void didUpdateWidget(covariant TiledImagePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.message != widget.message ||
+        oldWidget.imageWidth != widget.imageWidth ||
+        oldWidget.imageHeight != widget.imageHeight) {
+      _epoch++;
+      for (final image in _tiles.values) {
+        image.dispose();
+      }
+      _tiles.clear();
+      _wanted = [];
+      _grid = null;
+      _localPath = null;
+      _unsupported = false;
+      _resolvingOriginal = false;
+      _viewport = Size.zero;
+      _display = Size.zero;
+      _controller.value = Matrix4.identity();
+      _ensureLocalOriginal();
+    }
+  }
+
+  @override
   void dispose() {
-    _settleTimer?.cancel();
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    _decodeGeneration++;
+    if (_routingPage) _pageView?.onDragCancel();
+    _epoch++;
+    _controller.dispose();
     for (final image in _tiles.values) {
       image.dispose();
     }
     _tiles.clear();
     super.dispose();
-  }
-
-  ImagePreviewTileGeometry _geometryOf(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    return ImagePreviewTileGeometry.from(
-      imageWidth: widget.imageWidth,
-      imageHeight: widget.imageHeight,
-      screenWidth: mq.size.width,
-      screenHeight: mq.size.height,
-      devicePixelRatio: mq.devicePixelRatio,
-      scale: _scale,
-    );
   }
 
   Future<void> _ensureLocalOriginal() async {
@@ -112,7 +138,7 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
     try {
       final refreshed =
           await ChatMessagePreviewImageResolver.refreshOriginal(message);
-      if (!mounted) {
+      if (!mounted || message != widget.message) {
         return;
       }
       final path = ChatMessagePreviewImageResolver.localOriginalFilePath(
@@ -130,245 +156,339 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
         setState(() => _unsupported = true);
       }
     } catch (_) {
-      if (mounted) setState(() => _unsupported = true);
+      if (mounted && message == widget.message) {
+        setState(() => _unsupported = true);
+      }
     } finally {
-      _resolvingOriginal = false;
+      if (message == widget.message) _resolvingOriginal = false;
     }
   }
 
-  void _onScroll() {
-    widget.galleryScrollGate?.value = TallImageGalleryScrollGate(
-      scale: _scale,
-      atLeftEdge: true,
-      atRightEdge: true,
-      hasHorizontalScroll: false,
-    );
-    _requestVisibleTiles(settled: false);
-    _settleTimer?.cancel();
-    _settleTimer = Timer(const Duration(milliseconds: 120), () {
-      if (mounted) {
-        _requestVisibleTiles(settled: true);
-      }
+  // Original resolution becomes available asynchronously. Rendering schedules
+  // work after layout, so notifications never call setState during a build.
+  Future<void> _requestVisibleTiles({required bool settled}) async {
+    if (mounted) setState(() {});
+  }
+
+  void _scheduleDecode() {
+    if (_pumpScheduled) return;
+    _pumpScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pumpScheduled = false;
+      if (mounted) _drain();
     });
   }
 
-  int _budgetPixels() => _desktop ? 24 * 1000 * 1000 : 12 * 1000 * 1000;
-
-  Future<void> _requestVisibleTiles({required bool settled}) async {
-    final path = _localPath;
+  void _drain() {
+    final grid = _grid;
     final decode = ImageRegionDecodeHook.decode;
-    if (path == null || decode == null || !mounted) {
-      if (decode == null && path != null && mounted) {
-        setState(() => _unsupported = true);
-      }
+    final path = _localPath;
+    if (grid == null || path == null || _unsupported) return;
+    if (decode == null) {
+      setState(() => _unsupported = true);
       return;
     }
-    final geometry = _geometryOf(context);
-    final center = geometry.visibleTileIndex(_scrollController.hasClients
-        ? _scrollController.offset
-        : 0);
-    final radius = settled
-        ? geometry.prefetchRadius(desktop: _desktop)
-        : 0;
-    final wanted = <int>{};
-    for (var i = center - radius; i <= center + radius; i++) {
-      if (i >= 0 && i < geometry.tileCount) {
-        wanted.add(i);
-      }
-    }
-    _evictFarTiles(center, geometry);
-    for (final index in wanted) {
-      unawaited(_decodeTile(index, geometry, decode, path));
+    // Two requests globally per viewer, including stale requests. Each output
+    // is <=512x512, and only the bounded current visible set is retained.
+    for (final index in _wanted) {
+      if (_inFlight.length >= 2) break;
+      final ticket = (_epoch, index);
+      if (_tiles.containsKey(index) || _inFlight.contains(ticket)) continue;
+      _inFlight.add(ticket);
+      unawaited(_decodeRegion(ticket, grid, decode, path));
     }
   }
 
-  void _evictFarTiles(int center, ImagePreviewTileGeometry geometry) {
-    final maxTiles = geometry.maxCachedTiles(desktop: _desktop);
-    final keep = geometry.prefetchRadius(desktop: _desktop);
-    final stale = _tiles.keys
-        .where((index) => (index - center).abs() > keep)
-        .toList()
-      ..sort(
-        (a, b) => (b - center).abs().compareTo((a - center).abs()),
-      );
-    var pixels = 0;
-    for (final image in _tiles.values) {
-      pixels += image.width * image.height;
-    }
-    while ((_tiles.length > maxTiles || pixels > _budgetPixels()) &&
-        stale.isNotEmpty) {
-      final index = stale.removeLast();
-      final image = _tiles.remove(index);
-      if (image != null) {
-        pixels -= image.width * image.height;
-        image.dispose();
-      }
-    }
-  }
-
-  Future<void> _decodeTile(
-    int index,
-    ImagePreviewTileGeometry geometry,
-    ImageRegionDecodeFn decode,
-    String path,
-  ) async {
-    if (_tiles.containsKey(index)) {
-      return;
-    }
-    final generation = ++_decodeGeneration;
-    _generation[index] = generation;
-    final src = geometry.srcRectFor(index);
-    final request = ImageRegionDecodeRequest(
-      path: path,
-      srcLeft: src.left.round(),
-      srcTop: src.top.round(),
-      srcWidth: src.width.round(),
-      srcHeight: src.height.round(),
-      dstWidth: geometry.dstWidth,
-      dstHeight: geometry.dstHeightFor(index),
-    );
+  Future<void> _decodeRegion((int, int) ticket, ImagePreviewRegionGrid grid,
+      ImageRegionDecodeFn decode, String path) async {
+    final src = grid.sourceRect(ticket.$2);
+    final dst = grid.decodeSize(ticket.$2);
+    ui.Image? result;
     try {
-      final image = await decode(request);
-      if (!mounted || _generation[index] != generation) {
-        image?.dispose();
-        return;
-      }
-      if (image == null) {
+      result = await decode(ImageRegionDecodeRequest(
+          path: path,
+          srcLeft: src.left.toInt(),
+          srcTop: src.top.toInt(),
+          srcWidth: src.width.toInt(),
+          srcHeight: src.height.toInt(),
+          dstWidth: dst.width.toInt(),
+          dstHeight: dst.height.toInt()));
+      if (!mounted || ticket.$1 != _epoch || !_wanted.contains(ticket.$2)) {
+        result?.dispose();
+      } else if (result == null) {
         setState(() => _unsupported = true);
-        return;
+      } else if (result.width * result.height >
+          ImagePreviewRegionGrid.tileSide * ImagePreviewRegionGrid.tileSide) {
+        result.dispose();
+        setState(() => _unsupported = true);
+      } else {
+        final image = result;
+        setState(() {
+          _tiles.remove(ticket.$2)?.dispose();
+          _tiles[ticket.$2] = image;
+        });
       }
-      setState(() => _tiles[index] = image);
     } catch (_) {
-      if (mounted) {
+      if (mounted && ticket.$1 == _epoch) {
         setState(() => _unsupported = true);
       }
+    } finally {
+      _inFlight.remove(ticket);
+      if (mounted) _drain();
     }
+  }
+
+  void _setTransform(double scale, Offset translation) {
+    double clampAxis(double value, double content, double viewport, bool top) {
+      final extent = content * scale;
+      if (extent <= viewport) return top ? 0 : (viewport - extent) / 2;
+      return value.clamp(viewport - extent, 0.0);
+    }
+
+    _controller.value = Matrix4.identity()
+      ..translateByDouble(
+          clampAxis(translation.dx, _display.width, _viewport.width, false),
+          clampAxis(
+              translation.dy, _display.height, _viewport.height, _topAligned),
+          0,
+          1)
+      ..scaleByDouble(scale, scale, 1, 1);
+  }
+
+  void _syncLayout(Size viewport, Size display, bool topAligned) {
+    if (viewport == _viewport &&
+        display == _display &&
+        topAligned == _topAligned) {
+      return;
+    }
+    final oldDisplay = _display;
+    final scale = _scale;
+    final oldCenter =
+        _controller.toScene(Offset(_viewport.width / 2, _viewport.height / 2));
+    final wasAtTop = _controller.value.getTranslation().y >= -0.5;
+    _viewport = viewport;
+    _display = display;
+    _topAligned = topAligned;
+    final center = oldDisplay.isEmpty
+        ? Offset(display.width / 2, viewport.height / 2)
+        : Offset(oldCenter.dx / oldDisplay.width * display.width,
+            oldCenter.dy / oldDisplay.height * display.height);
+    _setTransform(
+        scale,
+        Offset(
+            viewport.width / 2 - center.dx * scale,
+            wasAtTop && topAligned
+                ? 0
+                : viewport.height / 2 - center.dy * scale));
+  }
+
+  void _updateGate() {
+    final tx = _controller.value.getTranslation().x;
+    final width = _display.width * _scale;
+    widget.galleryScrollGate?.value = TallImageGalleryScrollGate(
+        scale: _scale,
+        atLeftEdge: tx <= math.min(0.0, _viewport.width - width) + 1,
+        atRightEdge: tx >= -1,
+        hasHorizontalScroll: width > _viewport.width + 1);
   }
 
   void _handlePointer(PointerEvent event) {
     if (event is PointerDownEvent) {
+      _pointers.add(event.pointer);
       _pointerDelta = Offset.zero;
-      _axis = TallImageGestureAxis.undecided;
-      return;
-    }
-    if (event is! PointerMoveEvent) {
-      return;
-    }
-    _pointerDelta += event.delta;
-    _axis = resolveTallImageScrollAxis(totalDelta: _pointerDelta);
-    final gate = widget.galleryScrollGate;
-    if (gate != null) {
-      final horizontal = widget.inPageView &&
-          tallImageShouldRouteGalleryPage(
-            totalDelta: _pointerDelta,
-            atHorizontalEdge: true,
-            zoomed: _scale > 1.05,
-          );
-      gate.value = TallImageGalleryScrollGate(
-        scale: _scale,
-        atLeftEdge: horizontal && _pointerDelta.dx > 0,
-        atRightEdge: horizontal && _pointerDelta.dx < 0,
-        hasHorizontalScroll: horizontal,
-      );
-    }
-    final atEdge = !_scrollController.hasClients
-        ? true
-        : (_scrollController.offset <= 0 && event.delta.dy > 0);
-    if (atEdge &&
-        _axis == TallImageGestureAxis.vertical &&
-        _pointerDelta.dy > 24 &&
-        _scale <= 1.05) {
-      widget.onSlideDismiss?.call(_pointerDelta);
+      _dismissPending = false;
+      if (_pointers.length > 1 && _routingPage) {
+        _pageView?.onDragCancel();
+        setState(() => _routingPage = false);
+      }
+      if (_pointers.length == 1) {
+        _pageFrozen = null;
+        _velocity = VelocityTracker.withKind(event.kind);
+        _updateGate();
+        final tx = _controller.value.getTranslation().x;
+        _startedAtLeft =
+            tx <= math.min(0.0, _viewport.width - _display.width * _scale) + 1;
+        _startedAtRight = tx >= -1;
+      }
+    } else if (event is PointerMoveEvent && _pointers.length == 1) {
+      _pointerDelta += event.delta;
+      _velocity?.addPosition(event.timeStamp, event.position);
+      if (widget.inPageView &&
+          !_routingPage &&
+          _pointerDelta.dx.abs() > 20 &&
+          _pointerDelta.dx.abs() > _pointerDelta.dy.abs() * 1.5 &&
+          (_pointerDelta.dx < 0 ? _startedAtLeft : _startedAtRight)) {
+        _pageView = context
+            .findAncestorStateOfType<ExtendedImageGesturePageViewState>();
+        if (_pageView != null) {
+          _pageFrozen = Matrix4.copy(_controller.value);
+          setState(() => _routingPage = true);
+          _pageView!
+              .onDragDown(DragDownDetails(globalPosition: event.position));
+          _pageView!
+              .onDragStart(DragStartDetails(globalPosition: event.position));
+        }
+      }
+      if (_routingPage) {
+        _controller.value = _pageFrozen!;
+        _pageView!.onDragUpdate(DragUpdateDetails(
+            globalPosition: event.position,
+            delta: Offset(event.delta.dx, 0),
+            primaryDelta: event.delta.dx));
+        return;
+      }
+      _dismissPending = _scale <= 1.05 &&
+          _controller.value.getTranslation().y >= -0.5 &&
+          _pointerDelta.dy > 60 &&
+          _pointerDelta.dy > _pointerDelta.dx.abs() * 1.5;
+    } else if (event is PointerUpEvent || event is PointerCancelEvent) {
+      _pointers.remove(event.pointer);
+      if (_routingPage) {
+        if (event is PointerCancelEvent) {
+          _pageView?.onDragCancel();
+        } else {
+          final velocity = _velocity?.getVelocity() ?? Velocity.zero;
+          _pageView?.onDragEnd(DragEndDetails(
+              velocity: velocity,
+              primaryVelocity: velocity.pixelsPerSecond.dx));
+        }
+        setState(() => _routingPage = false);
+        _dismissPending = false;
+        return;
+      }
+      if (event is PointerUpEvent && _pointers.isEmpty && _dismissPending) {
+        widget.onSlideDismiss?.call(_pointerDelta);
+      }
+      _dismissPending = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final geometry = _geometryOf(context);
-    final screen = MediaQuery.sizeOf(context);
-    Widget body;
     if (_unsupported) {
-      body = widget.placeholder == null
-          ? const Center(child: Icon(Icons.broken_image, color: Colors.white54))
-          : InteractivePreviewFallback(
-              image: widget.placeholder!, onTap: widget.onTap);
-    } else {
-      body = Listener(
-        onPointerDown: _handlePointer,
-        onPointerMove: _handlePointer,
-        child: GestureDetector(
-          onTap: widget.onTap,
-          onScaleStart: (_) => _scaleBase = _scale,
-          onScaleUpdate: (details) {
-            if (details.pointerCount < 2) {
-              return;
-            }
-            final maxScale = imagePreviewMaxScale(
-              imageWidth: widget.imageWidth,
-              imageHeight: widget.imageHeight,
-              screenWidth: screen.width,
-              screenHeight: screen.height,
-            );
-            final next = (_scaleBase * details.scale).clamp(1.0, maxScale);
-            if ((next - _scale).abs() < 0.01) {
-              return;
-            }
-            for (final image in _tiles.values) {
-              image.dispose();
-            }
-            _tiles.clear();
-            setState(() => _scale = next);
-            _requestVisibleTiles(settled: true);
-          },
-          child: SizedBox(
-            width: screen.width,
-            height: screen.height,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                _placeholderLayer(screen),
-                ListView.builder(
-                  controller: _scrollController,
-                  physics: const ClampingScrollPhysics(),
-                  itemCount: geometry.tileCount,
-                  itemBuilder: (context, index) {
-                    final tile = _tiles[index];
-                    final height = geometry.tileLogicalHeight(index);
-                    if (tile == null) {
-                      return SizedBox(
-                        width: screen.width,
-                        height: height,
-                      );
+      return ColoredBox(
+          color: Colors.black,
+          child: widget.placeholder == null
+              ? const Center(
+                  child: Icon(Icons.broken_image, color: Colors.white54))
+              : InteractivePreviewFallback(
+                  image: widget.placeholder!, onTap: widget.onTap,
+                  sourcePixelSize: Size(widget.imageWidth.toDouble(), widget.imageHeight.toDouble()),
+                  fitTallImagesToScreenWidth: widget.fitTallImagesToScreenWidth));
+    }
+    return LayoutBuilder(builder: (context, bounds) {
+      final viewport = bounds.biggest;
+      final config = imagePreviewDisplayConfig(
+          imageWidth: widget.imageWidth,
+          imageHeight: widget.imageHeight,
+          screenWidth: viewport.width,
+          screenHeight: viewport.height,
+          fitTallImagesToScreenWidth: widget.fitTallImagesToScreenWidth);
+      final display = imagePreviewInitialDisplaySize(
+          imageWidth: widget.imageWidth,
+          imageHeight: widget.imageHeight,
+          screenWidth: viewport.width,
+          screenHeight: viewport.height,
+          fit: config.fit);
+      _syncLayout(viewport, display, config.verticallyScrollable);
+      return ColoredBox(
+          color: Colors.black,
+          child: Listener(
+            onPointerDown: _handlePointer,
+            onPointerMove: _handlePointer,
+            onPointerUp: _handlePointer,
+            onPointerCancel: _handlePointer,
+            child: GestureDetector(
+              onTap: widget.onTap,
+              onDoubleTapDown: (d) => _doubleTap = d.localPosition,
+              onDoubleTap: () {
+                final next = _scale > 1.05
+                    ? 1.0
+                    : imagePreviewDoubleTapScale(
+                        imageWidth: widget.imageWidth,
+                        imageHeight: widget.imageHeight,
+                        screenWidth: viewport.width,
+                        screenHeight: viewport.height,
+                        display: config);
+                final point = _controller.toScene(_doubleTap);
+                _setTransform(next, _doubleTap - point * next);
+                _updateGate();
+              },
+              child: InteractiveViewer.builder(
+                transformationController: _controller,
+                alignment: Alignment.topLeft,
+                boundaryMargin: EdgeInsets.zero,
+                panEnabled: !_routingPage,
+                scaleEnabled: !_routingPage,
+                minScale: 1,
+                maxScale: imagePreviewMaxScale(
+                    imageWidth: widget.imageWidth,
+                    imageHeight: widget.imageHeight,
+                    screenWidth: viewport.width,
+                    screenHeight: viewport.height,
+                    fit: config.fit),
+                onInteractionUpdate: (_) {
+                  if (_routingPage && _pageFrozen != null) {
+                    _controller.value = _pageFrozen!;
+                  }
+                  _updateGate();
+                },
+                onInteractionEnd: (_) => _updateGate(),
+                builder: (context, quad) {
+                  final grid = ImagePreviewRegionGrid(
+                      source: Size(widget.imageWidth.toDouble(),
+                          widget.imageHeight.toDouble()),
+                      display: display,
+                      pixelRatio: MediaQuery.devicePixelRatioOf(context),
+                      zoom: _scale);
+                  if (grid.signature != _grid?.signature) {
+                    _epoch++;
+                    for (final image in _tiles.values) {
+                      image.dispose();
                     }
-                    return RawImage(
-                      image: tile,
-                      width: screen.width,
-                      height: height,
-                      fit: BoxFit.fill,
-                      filterQuality: FilterQuality.low,
-                    );
-                  },
-                ),
-              ],
+                    _tiles.clear();
+                  }
+                  _grid = grid;
+                  final points = [
+                    quad.point0,
+                    quad.point1,
+                    quad.point2,
+                    quad.point3
+                  ];
+                  final visible = Rect.fromLTRB(
+                      points.map((p) => p.x).reduce(math.min),
+                      points.map((p) => p.y).reduce(math.min),
+                      points.map((p) => p.x).reduce(math.max),
+                      points.map((p) => p.y).reduce(math.max));
+                  _wanted = grid.visible(visible, limit: _tileLimit);
+                  for (final index in _tiles.keys.toList()) {
+                    if (!_wanted.contains(index)) {
+                      _tiles.remove(index)?.dispose();
+                    }
+                  }
+                  _scheduleDecode();
+                  return SizedBox(
+                      width: display.width,
+                      height: display.height,
+                      child: Stack(children: [
+                        if (widget.placeholder != null)
+                          Positioned.fill(
+                              child: Image(
+                                  image: widget.placeholder!,
+                                  fit: BoxFit.fill)),
+                        for (final index in _wanted)
+                          if (_tiles[index] case final ui.Image image)
+                            Positioned.fromRect(
+                                rect: grid.displayRect(index),
+                                child: RawImage(
+                                    image: image,
+                                    fit: BoxFit.fill,
+                                    filterQuality: FilterQuality.low)),
+                      ]));
+                },
+              ),
             ),
-          ),
-        ),
-      );
-    }
-    return ColoredBox(color: Colors.black, child: body);
-  }
-
-  Widget _placeholderLayer(Size screen) {
-    if (widget.placeholder != null) {
-      return Image(
-        image: widget.placeholder!,
-        width: screen.width,
-        height: screen.height,
-        fit: BoxFit.fitWidth,
-        alignment: Alignment.topCenter,
-        filterQuality: FilterQuality.low,
-      );
-    }
-    return const ColoredBox(color: Colors.black);
+          ));
+    });
   }
 }

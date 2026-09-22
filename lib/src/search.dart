@@ -37,6 +37,14 @@ import 'package:tencent_cloud_chat_uikit/data_services/conversation/conversation
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/search_chat_entry.dart';
 
+@visibleForTesting
+bool shouldShowSearchTopNavigation({
+  required bool isWideScreen,
+  required bool isConversation,
+}) {
+  return !isWideScreen && !isConversation;
+}
+
 Widget _buildSearchEmptyState(
   BuildContext context, {
   required bool hasKeyword,
@@ -380,9 +388,11 @@ class _SearchState extends State<Search> {
       child: TencentPage(
           child: Scaffold(
             backgroundColor: pageBackground,
-            appBar: isWideScreen
-                ? null
-                : AppBar(
+            appBar: shouldShowSearchTopNavigation(
+              isWideScreen: isWideScreen,
+              isConversation: isConversation,
+            )
+                ? AppBar(
                     iconTheme: IconThemeData(color: appBarIconColor),
                     leading: AppBackButton(color: appBarIconColor),
                     elevation: 0,
@@ -414,25 +424,32 @@ class _SearchState extends State<Search> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
+                  )
+                : null,
             body: isConversation
-                ? TIMUIKitSearchMsgDetail(
-                    isAutoFocus: widget.isAutoFocus,
-                    currentConversation: widget.conversation!,
-                    onTapConversation: handleTapConversation,
-                    keyword: widget.initKeyword ?? "",
-                    searchBarBuilder: searchBar(),
-                    emptyStateBuilder: _buildSearchEmptyState,
-                    pickSearchDate: showChatHistoryDatePicker,
-                    messageAbstractBuilder: buildReplyAbstractMessage,
-                    memberPresenceLabelBuilder: (userId, imOnline) =>
-                        _searchMemberPresenceLabel(context, userId, imOnline),
-                    memberPresenceLoadingChecker: (userId, imOnline) =>
-                        _searchMemberPresenceLoading(context, userId, imOnline),
-                    onMemberListLoaded: (userIds) =>
-                        _onSearchMemberListLoaded(context, userIds),
-                    memberPresenceListenable:
-                        Provider.of<PresenceProvider>(context, listen: false),
+                ? SafeArea(
+                    top: !isWideScreen,
+                    left: false,
+                    right: false,
+                    bottom: false,
+                    child: TIMUIKitSearchMsgDetail(
+                      isAutoFocus: widget.isAutoFocus,
+                      currentConversation: widget.conversation!,
+                      onTapConversation: handleTapConversation,
+                      keyword: widget.initKeyword ?? "",
+                      searchBarBuilder: searchBar(),
+                      emptyStateBuilder: _buildSearchEmptyState,
+                      pickSearchDate: showChatHistoryDatePicker,
+                      messageAbstractBuilder: buildReplyAbstractMessage,
+                      memberPresenceLabelBuilder: (userId, imOnline) =>
+                          _searchMemberPresenceLabel(context, userId, imOnline),
+                      memberPresenceLoadingChecker: (userId, imOnline) =>
+                          _searchMemberPresenceLoading(context, userId, imOnline),
+                      onMemberListLoaded: (userIds) =>
+                          _onSearchMemberListLoaded(context, userIds),
+                      memberPresenceListenable:
+                          Provider.of<PresenceProvider>(context, listen: false),
+                    ),
                   )
                 : TIMUIKitSearch(
                     onBack: widget.onBack,

@@ -310,7 +310,8 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
     for (final row in result) {
       if (row['issue'] is! String ||
           row['sequence'] is! int ||
-          !['open', 'closed', 'drawn'].contains(row['status'])) {
+          !['waiting_open', 'open', 'closed', 'drawn']
+              .contains(row['status'])) {
         throw const FormatException('开奖期次格式错误');
       }
       for (final key in [
@@ -406,25 +407,57 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
     _channel = null;
     connected = false;
     notifyListeners();
+    var stage = 'http_initialization';
+    final elapsed = Stopwatch()..start();
+    void trace(String event, [String detail = '']) {
+      if (!kDebugMode) return;
+      debugPrint('[LotteryInit] epoch=$epoch stage=$stage event=$event '
+          'elapsedMs=${elapsed.elapsedMilliseconds} window=$window $detail');
+    }
+
+    String shape(dynamic value) {
+      if (value is Map) {
+        return value.entries
+            .take(24)
+            .map((e) => '${e.key}:${e.value.runtimeType}')
+            .join(',');
+      }
+      return '${value.runtimeType}';
+    }
+
+    trace('start');
     try {
       final responses = await Future.wait([
         api.get('config', machine),
         api.get('draws', machine),
         api.get('predictions', machine, window: window),
       ]);
+      trace('http_complete');
       if (epoch != _epoch || !active) return;
+      stage = 'instance_validation';
+      trace('start');
       final group = responses.first['groupUid'] as String;
       if (responses.any((r) => r['groupUid'] != group)) {
         throw const FormatException('接口返回的实例不一致');
       }
+      stage = 'config_parse';
+      trace('start', 'dataShape={${shape(responses[0]['data'])}}');
       final newConfig = Map<String, dynamic>.from(responses[0]['data'] as Map);
       final newMappings = _parseConfig(newConfig);
+      trace('success');
+      stage = 'draws_parse';
+      trace('start', 'dataShape={${shape(responses[1]['data'])}}');
       final newDraws = _parseDraws(responses[1]['data']);
+      trace('success', 'count=${newDraws.length}');
+      stage = 'predictions_parse';
+      trace('start', 'dataShape={${shape(responses[2]['data'])}}');
       final predictionData = responses[2]['data'] as Map;
       if (predictionData['window'] != window) {
         throw const FormatException('预测窗口不一致');
       }
       final newPredictions = _parsePredictions(predictionData);
+      trace('success', 'count=${newPredictions.length}');
+      stage = 'apply_state';
       config = newConfig;
       mappings = newMappings;
       draws = newDraws;
@@ -432,12 +465,29 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
       predictionMode = '${predictionData['mode']}';
       groupUid = group;
       error = null;
+      stage = 'clock_sync';
       _syncClock(responses.last);
+      stage = 'websocket_connect';
       _connect(epoch);
       if (_statisticsAttribute != null) {
         unawaited(loadStatistics(_statisticsAttribute!, force: true));
       }
-    } catch (e) {
+      trace('initialization_success');
+    } catch (e, stack) {
+      if (kDebugMode) {
+        final reason = (e is DioError
+                ? 'type=${e.type} status=${e.response?.statusCode}'
+                : e.toString())
+            .replaceAll(RegExp(r'Bearer\s+\S+', caseSensitive: false),
+                'Bearer [redacted]')
+            .replaceAll(
+                RegExp(r'eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+'),
+                '[JWT redacted]')
+            .replaceAll(RegExp(r'[\r\n]'), ' ');
+        trace('failed',
+            'errorType=${e.runtimeType} reason=${reason.length > 800 ? reason.substring(0, 800) : reason} stale=${epoch != _epoch || !active}');
+        debugPrint('[LotteryInit] stack=$stack');
+      }
       if (epoch != _epoch || !active) return;
       error = '开奖数据加载失败，请重试';
       if (e is DioError && [401, 403, 404].contains(e.response?.statusCode)) {

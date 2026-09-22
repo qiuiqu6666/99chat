@@ -287,20 +287,11 @@ class _StoragePageState extends State<StoragePage> {
       ),
       children: [
         Container(
-          margin: const EdgeInsets.only(top: 12),
+          margin: const EdgeInsets.only(top: 12, bottom: 12),
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: AppColors.card(dark: dark),
-            border: Border(
-              top: BorderSide(
-                color: AppColors.line(dark: dark),
-                width: 0.6,
-              ),
-              bottom: BorderSide(
-                color: AppColors.line(dark: dark),
-                width: 0.6,
-              ),
-            ),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
             children: [

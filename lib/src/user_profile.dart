@@ -26,6 +26,7 @@ import 'package:tencent_cloud_chat_demo/src/theme/app_colors.dart';
 import 'package:tencent_cloud_chat_demo/src/ui/app_tokens.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/profile_nickname_edit_page.dart';
 import 'package:tencent_cloud_chat_demo/utils/custom_message/contact_card_message.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/contact_card_send_confirm_dialog.dart';
 import 'package:tencent_cloud_chat_demo/utils/custom_message/friend_became_friends_message.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_demo/utils/friend_display_name.dart';
@@ -857,12 +858,9 @@ class UserProfileState extends State<UserProfile> {
       );
       return;
     }
-    final messageData = jsonEncode(card.toJson());
-    final createMessageRes = await sdkInstance
-        .getMessageManager()
-        .createCustomMessage(data: messageData);
-    final messageID = createMessageRes.data?.id;
-    if (createMessageRes.code != 0 || messageID == null || messageID.isEmpty) {
+    final receiver = target.userID.trim();
+    final groupID = target.groupID.trim();
+    if (receiver.isEmpty && groupID.isEmpty) {
       ToastUtils.toast(AppI18n.of(context).t(
         zhHans: '分享失败',
         zhHant: '分享失敗',
@@ -872,9 +870,50 @@ class UserProfileState extends State<UserProfile> {
       ));
       return;
     }
-    final receiver = target.userID;
-    final groupID = target.groupID;
-    if (receiver.isEmpty && groupID.isEmpty) {
+
+    var conversationName = receiver.isNotEmpty ? receiver : groupID;
+    var conversationFaceUrl = '';
+    try {
+      final conversationID = receiver.isNotEmpty
+          ? (receiver.startsWith('c2c_') ? receiver : 'c2c_$receiver')
+          : (groupID.startsWith('group_') ? groupID : 'group_$groupID');
+      final conversationRes = await sdkInstance
+          .getConversationManager()
+          .getConversation(conversationID: conversationID);
+      final conversation = conversationRes.data;
+      final resolvedName = conversation?.showName?.trim() ?? '';
+      if (resolvedName.isNotEmpty) {
+        conversationName = resolvedName;
+      }
+      conversationFaceUrl = ConversationFaceUrl.resolve(
+        userId: receiver,
+        conversationFaceUrl: conversation?.faceUrl,
+        isGroup: groupID.isNotEmpty,
+        groupId: groupID,
+      );
+    } catch (_) {
+      // The target ID still provides a stable fallback for the confirmation.
+    }
+    if (!context.mounted) {
+      return;
+    }
+    final confirmed = await showContactCardSendConfirm(
+      context: context,
+      theme: theme,
+      card: card,
+      conversationName: conversationName,
+      conversationFaceUrl: conversationFaceUrl,
+    );
+    if (!confirmed || !context.mounted) {
+      return;
+    }
+
+    final messageData = jsonEncode(card.toJson());
+    final createMessageRes = await sdkInstance
+        .getMessageManager()
+        .createCustomMessage(data: messageData);
+    final messageID = createMessageRes.data?.id;
+    if (createMessageRes.code != 0 || messageID == null || messageID.isEmpty) {
       ToastUtils.toast(AppI18n.of(context).t(
         zhHans: '分享失败',
         zhHant: '分享失敗',

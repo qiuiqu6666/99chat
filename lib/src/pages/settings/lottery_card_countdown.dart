@@ -27,6 +27,7 @@ class _LotteryCardCountdownState extends State<_LotteryCardCountdown> {
     final status = widget.round['status'];
     final closeAt = widget.round['closeAt'];
     String label = switch (status) {
+      'waiting_open' => '等待开盘',
       'open' => '开盘中',
       'closed' => '已封盘',
       'drawn' => '已开奖',

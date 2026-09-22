@@ -1,10 +1,15 @@
 import 'package:tencent_cloud_chat_demo/utils/navigation_routes.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_hud.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_dialog.dart';
+import 'package:tencent_cloud_chat_demo/utils/toast.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/narrow.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
+    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_statelesswidget.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_separate_view_model.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
@@ -14,9 +19,69 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/wide_popup_layout.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/forward_message_screen.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/wide_popup.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
-import 'package:tencent_cloud_chat_uikit/base_widgets/tim_callback.dart';
 import 'package:tencent_cloud_chat_uikit/theme/color.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
+
+enum MultiSelectForwardBlockReason {
+  noSelection,
+  sendFailed,
+  vote,
+  walletCard,
+  contactCard,
+}
+
+@visibleForTesting
+MultiSelectForwardBlockReason? resolveMultiSelectForwardBlockReason({
+  required Iterable<V2TimMessage> messages,
+  required bool Function(V2TimMessage message) isVoteMessage,
+  required bool Function(V2TimMessage message) isWalletCardMessage,
+  required bool Function(V2TimMessage message) isContactCardMessage,
+}) {
+  final selected = messages.toList(growable: false);
+  if (selected.isEmpty) {
+    return MultiSelectForwardBlockReason.noSelection;
+  }
+  for (final message in selected) {
+    if (message.status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL) {
+      return MultiSelectForwardBlockReason.sendFailed;
+    }
+    if (isVoteMessage(message)) {
+      return MultiSelectForwardBlockReason.vote;
+    }
+    if (isWalletCardMessage(message)) {
+      return MultiSelectForwardBlockReason.walletCard;
+    }
+    if (isContactCardMessage(message)) {
+      return MultiSelectForwardBlockReason.contactCard;
+    }
+  }
+  return null;
+}
+
+Future<void> showMultiSelectForwardBlockedDialog(
+  BuildContext context,
+  MultiSelectForwardBlockReason reason,
+) async {
+  if (AppHud.isActive || AppDialog.isNoticeVisible) return;
+  final text = switch (reason) {
+    MultiSelectForwardBlockReason.noSelection => TIM_t("请选择要操作的消息！"),
+    MultiSelectForwardBlockReason.sendFailed => TIM_t("发送失败消息不支持转发！"),
+    MultiSelectForwardBlockReason.vote => TIM_t("投票消息不支持转发！"),
+    MultiSelectForwardBlockReason.walletCard => TIM_t("红包、转账消息不支持转发，请取消勾选后重试。"),
+    MultiSelectForwardBlockReason.contactCard => TIM_t("个人名片不支持转发，请取消勾选后重试。"),
+  };
+  final hud = AppHud.begin(showDelay: Duration.zero);
+  try {
+    // Give the shared loading indicator time to appear before the notice.
+    await Future<void>.delayed(AppHud.defaultMinVisible);
+    await hud.end();
+    if (context.mounted) {
+      ToastUtils.toast(text, context: context);
+    }
+  } finally {
+    await hud.end();
+  }
+}
 
 class MultiSelectPanel extends TIMUIKitStatelessWidget {
   final int forwardMsgNumLimit = 30;
@@ -26,47 +91,25 @@ class MultiSelectPanel extends TIMUIKitStatelessWidget {
   MultiSelectPanel({Key? key, required this.conversationType})
       : super(key: key);
 
+  bool _validateForwardSelection(
+      BuildContext context, TUIChatSeparateViewModel model) {
+    if (AppHud.isActive || AppDialog.isNoticeVisible) return false;
+    final reason = resolveMultiSelectForwardBlockReason(
+      messages: model.getSelectedMessageList(),
+      isVoteMessage: model.isVoteMessage,
+      isWalletCardMessage: model.isWalletCardMessage,
+      isContactCardMessage: model.isContactCardMessage,
+    );
+    if (reason == null) {
+      return true;
+    }
+    showMultiSelectForwardBlockedDialog(context, reason);
+    return false;
+  }
+
   _handleForwardMessage(BuildContext context, bool isMergerForward,
       TUIChatSeparateViewModel model) {
-    // 是否有选中消息
-    if (model.getSelectedMessageList().isEmpty) {
-      onTIMCallback(TIMCallback(
-          type: TIMCallbackType.INFO, infoRecommendText: TIM_t("请选择要操作的消息！")));
-      return;
-    }
-
-    for (var v2TimMessage in model.getSelectedMessageList()) {
-      // 失败消息不支持转发
-      if (v2TimMessage.status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL) {
-        onTIMCallback(TIMCallback(
-            type: TIMCallbackType.INFO,
-            infoRecommendText: TIM_t("发送失败消息不支持转发！")));
-        return;
-      }
-
-      // 投票消息不支持转发
-      if (model.isVoteMessage(v2TimMessage)) {
-        onTIMCallback(TIMCallback(
-            type: TIMCallbackType.INFO,
-            infoRecommendText: TIM_t("投票消息不支持转发！")));
-        return;
-      }
-
-      // 红包/转账消息不支持转发
-      if (model.isWalletCardMessage(v2TimMessage)) {
-        onTIMCallback(TIMCallback(
-            type: TIMCallbackType.INFO, infoRecommendText: TIM_t("钱包消息不可转发")));
-        return;
-      }
-
-      // 个人名片不支持转发
-      if (model.isContactCardMessage(v2TimMessage)) {
-        onTIMCallback(TIMCallback(
-            type: TIMCallbackType.INFO,
-            infoRecommendText: TIM_t("个人名片不支持转发！")));
-        return;
-      }
-    }
+    if (!_validateForwardSelection(context, model)) return;
 
     // 逐条转发限制在 30 条以内
     if (!isMergerForward &&
@@ -121,6 +164,12 @@ class MultiSelectPanel extends TIMUIKitStatelessWidget {
 
   _handleForwardMessageWide(BuildContext context, bool isMergerForward,
       TUIChatSeparateViewModel model) {
+    if (!_validateForwardSelection(context, model)) return;
+    if (!isMergerForward &&
+        model.getSelectedMessageList().length > forwardMsgNumLimit) {
+      _showForwardLimitDialog(context);
+      return;
+    }
     final popupSize = WidePopupLayout.large(context);
     TUIKitWidePopup.showPopupWindow(
         operationKey: TUIKitWideModalOperationKey.forward,

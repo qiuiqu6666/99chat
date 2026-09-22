@@ -377,6 +377,7 @@ class AppDialog {
   }
 
   static OverlayEntry? _noticeEntry;
+  static bool get isNoticeVisible => _noticeEntry != null;
   static Timer? _noticeTimer;
 
   static bool showNotice({

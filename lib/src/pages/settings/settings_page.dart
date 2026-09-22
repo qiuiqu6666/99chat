@@ -289,36 +289,28 @@ class _SettingsPageState extends State<SettingsPage> {
         if (!widget.embedded)
           Container(
             margin: const EdgeInsets.only(top: 12, bottom: 24),
-            decoration: BoxDecoration(
+            child: Material(
               color: AppColors.card(dark: dark),
-              border: Border(
-                top: BorderSide(
-                  color: AppColors.line(dark: dark),
-                  width: 0.6,
-                ),
-                bottom: BorderSide(
-                  color: AppColors.line(dark: dark),
-                  width: 0.6,
-                ),
-              ),
-            ),
-            child: InkWell(
-              onTap: _confirmLogout,
-              child: SizedBox(
-                height: 56,
-                child: Center(
-                  child: Text(
-                    i18n.t(
-                      zhHans: '退出登录',
-                      zhHant: '登出',
-                      en: 'Log Out',
-                      ja: 'ログアウト',
-                      ko: '로그아웃',
-                    ),
-                    style: TextStyle(
-                      color: AppColors.primaryRed,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+              borderRadius: BorderRadius.circular(14),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: _confirmLogout,
+                child: SizedBox(
+                  height: 56,
+                  child: Center(
+                    child: Text(
+                      i18n.t(
+                        zhHans: '退出登录',
+                        zhHant: '登出',
+                        en: 'Log Out',
+                        ja: 'ログアウト',
+                        ko: '로그아웃',
+                      ),
+                      style: TextStyle(
+                        color: AppColors.primaryRed,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),

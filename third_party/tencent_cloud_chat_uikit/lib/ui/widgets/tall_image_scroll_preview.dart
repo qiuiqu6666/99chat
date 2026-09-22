@@ -129,6 +129,7 @@ class TallImageScrollPreview extends StatefulWidget {
     required this.slidePageKey,
     required this.slideMetrics,
     required this.displayMode,
+    this.sourcePixelSize,
     this.inPageView = false,
     this.onTap,
     this.onSlideDismiss,
@@ -143,6 +144,7 @@ class TallImageScrollPreview extends StatefulWidget {
   final GlobalKey<ExtendedImageSlidePageState> slidePageKey;
   final MediaPreviewSlideMetrics slideMetrics;
   final ImagePreviewDisplayMode displayMode;
+  final Size? sourcePixelSize;
   final bool inPageView;
   final VoidCallback? onTap;
   /// 达关闭阈值时回调；为 null 则只回弹不关闭。
@@ -190,6 +192,7 @@ class _TallImageScrollPreviewState extends State<TallImageScrollPreview>
   VelocityTracker? _velocityTracker;
   ExtendedImageGesturePageViewState? _pageViewState;
   Size _childDisplaySize = Size.zero;
+  Size _layoutViewport = Size.zero;
   ImagePreviewPanMomentumRunner? _panMomentumRunner;
   ImagePreviewSpringReboundRunner? _springReboundRunner;
   ImagePreviewPanAxisLock _zoomedPanAxisLock = ImagePreviewPanAxisLock.undecided;
@@ -1458,8 +1461,8 @@ class _TallImageScrollPreviewState extends State<TallImageScrollPreview>
     }
 
     final imageWidget = widget.extendedImageState.imageWidget;
-    final imgW = image.width.toDouble();
-    final imgH = image.height.toDouble();
+    final imgW = widget.sourcePixelSize?.width ?? image.width.toDouble();
+    final imgH = widget.sourcePixelSize?.height ?? image.height.toDouble();
     final fit = widget.displayMode == ImagePreviewDisplayMode.extraTall ||
             widget.displayMode == ImagePreviewDisplayMode.tall
         ? BoxFit.fitWidth
@@ -1473,6 +1476,25 @@ class _TallImageScrollPreviewState extends State<TallImageScrollPreview>
     );
     final displayW = displaySize.width;
     final displayH = displaySize.height;
+    if (_childDisplaySize != displaySize || _layoutViewport != screenSize) {
+      final oldSize = _childDisplaySize;
+      final scale = _controller.value.getMaxScaleOnAxis();
+      final oldCenter = _controller.toScene(
+          Offset(_layoutViewport.width / 2, _layoutViewport.height / 2));
+      final atTop = _currentTranslation().dy >= -0.5;
+      final center = oldSize.isEmpty
+          ? Offset(displayW / 2, screenSize.height / 2)
+          : Offset(oldCenter.dx / oldSize.width * displayW,
+              oldCenter.dy / oldSize.height * displayH);
+      _childDisplaySize = displaySize;
+      _layoutViewport = screenSize;
+      final translation = _matrixPanBounds(scale: scale).clamp(Offset(
+          screenSize.width / 2 - center.dx * scale,
+          atTop ? 0 : screenSize.height / 2 - center.dy * scale));
+      _controller.value = Matrix4.identity()
+        ..translateByDouble(translation.dx, translation.dy, 0, 1)
+        ..scaleByDouble(scale, scale, 1, 1);
+    }
     _childDisplaySize = displaySize;
     if (!_mountLogged) {
       _mountLogged = true;

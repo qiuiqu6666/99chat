@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/image_preview_resolution_utils.dart';
 
 /// A decoded thumbnail remains usable when the full-resolution path fails.
 /// Its natural height is laid out outside the viewport, rather than cropped
 /// inside a screen-sized Image before gesture handling is attached.
 class InteractivePreviewFallback extends StatefulWidget {
   const InteractivePreviewFallback(
-      {super.key, required this.image, this.onTap});
+      {super.key, required this.image, this.onTap, this.sourcePixelSize,
+      this.fitTallImagesToScreenWidth = true});
 
   final ImageProvider image;
   final VoidCallback? onTap;
+  final Size? sourcePixelSize;
+  final bool fitTallImagesToScreenWidth;
 
   @override
   State<InteractivePreviewFallback> createState() =>
@@ -29,6 +33,15 @@ class _InteractivePreviewFallbackState
   @override
   Widget build(BuildContext context) =>
       LayoutBuilder(builder: (context, bounds) {
+        final source = widget.sourcePixelSize;
+        final config = source == null ? null : imagePreviewDisplayConfig(
+            imageWidth: source.width.round(), imageHeight: source.height.round(),
+            screenWidth: bounds.maxWidth, screenHeight: bounds.maxHeight,
+            fitTallImagesToScreenWidth: widget.fitTallImagesToScreenWidth);
+        final display = source == null ? null : imagePreviewInitialDisplaySize(
+            imageWidth: source.width.round(), imageHeight: source.height.round(),
+            screenWidth: bounds.maxWidth, screenHeight: bounds.maxHeight,
+            fit: config!.fit);
         return GestureDetector(
           onTap: widget.onTap,
           onDoubleTapDown: (details) =>
@@ -60,8 +73,9 @@ class _InteractivePreviewFallbackState
                   children: [
                     Image(
                       image: widget.image,
-                      width: bounds.maxWidth,
-                      fit: BoxFit.fitWidth,
+                      width: display?.width ?? bounds.maxWidth,
+                      height: display?.height,
+                      fit: display == null ? BoxFit.fitWidth : BoxFit.contain,
                       errorBuilder: (_, __, ___) => const Icon(
                           Icons.broken_image,
                           color: Colors.white54,

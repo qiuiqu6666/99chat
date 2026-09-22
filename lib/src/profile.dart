@@ -44,6 +44,7 @@ import 'package:tencent_cloud_chat_demo/src/ui/app_tokens.dart';
 import 'package:adaptive_action_sheet/adaptive_action_sheet.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/home_tab_activity.dart';
+
 const String _profileEcoGameAsset = 'assets/img/ai.webp';
 const String _profileEcoShopAsset = 'assets/img/shop.webp';
 const String _profileEcoWalletAsset = 'assets/img/wallet.webp';
@@ -356,17 +357,21 @@ class _ProfileState extends State<MyProfile> {
   Future<void> _refreshSelfSignature() async {
     final owner = _currentProfileOwner();
     if (!SessionManager.instance.state.isReady || owner.isEmpty) return;
-    final identity = SessionIdentityService.instance.capture(ownerUserId: owner);
+    final identity =
+        SessionIdentityService.instance.capture(ownerUserId: owner);
     final requestKey = '$owner:${identity.generation}';
     if (_signatureRequestOwner == requestKey) return;
     _signatureRequestOwner = requestKey;
     final signatureAtStart = Provider.of<LoginUserInfo>(context, listen: false)
-        .loginUserInfo.selfSignature;
+        .loginUserInfo
+        .selfSignature;
     try {
-      final response = await TIMUIKitCore.getSDKInstance()
-          .getUsersInfo(userIDList: [owner]).timeout(const Duration(seconds: 10));
-      if (!mounted || !SessionIdentityService.instance.isCurrent(identity,
-          currentOwnerUserId: _currentProfileOwner()) || response.code != 0) return;
+      final response = await TIMUIKitCore.getSDKInstance().getUsersInfo(
+          userIDList: [owner]).timeout(const Duration(seconds: 10));
+      if (!mounted ||
+          !SessionIdentityService.instance.isCurrent(identity,
+              currentOwnerUserId: _currentProfileOwner()) ||
+          response.code != 0) return;
       final users = response.data;
       if (users == null) return;
       final matches = users.where((user) => user.userID?.trim() == owner);
@@ -393,7 +398,6 @@ class _ProfileState extends State<MyProfile> {
       if (_signatureRequestOwner == requestKey) _signatureRequestOwner = null;
     }
   }
-
 
   @override
   void initState() {
@@ -497,7 +501,8 @@ class _ProfileState extends State<MyProfile> {
       login.setLoginUserInfo(
         V2TimUserFullInfo(
           selfSignature: previous.userID?.trim() == me.userId.trim()
-              ? previous.selfSignature : null,
+              ? previous.selfSignature
+              : null,
           userID: me.userId,
           nickName: me.nickname,
           faceUrl: me.avatarUrl,
@@ -553,8 +558,9 @@ class _ProfileState extends State<MyProfile> {
     V2TimUserFullInfo loginUserInfo,
   ) {
     // An explicit empty signature means cleared, not a cache miss.
-    final signature = (userProfile?.selfSignature ??
-        loginUserInfo.selfSignature)?.trim() ?? '';
+    final signature =
+        (userProfile?.selfSignature ?? loginUserInfo.selfSignature)?.trim() ??
+            '';
     if (signature.isNotEmpty) return signature;
     return AppI18n.of(context).t(
       zhHans: '暂无',
@@ -799,9 +805,13 @@ class _ProfileState extends State<MyProfile> {
     required List<Widget> children,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      color: cardColor.withValues(alpha: isDark ? 0.94 : 0.72),
-      child: Column(children: children),
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+      child: Material(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: Column(children: children),
+      ),
     );
   }
 
@@ -1612,6 +1622,7 @@ class _ProfileState extends State<MyProfile> {
                                   primaryTextColor: primaryTextColor,
                                   secondaryTextColor: secondaryTextColor,
                                   arrowColor: arrowColor,
+                                  showDivider: false,
                                   iconAsset: ProfileMenuIcons.favorites,
                                   title: AppI18n.of(context).t(
                                     zhHans: '收藏',
@@ -1630,6 +1641,12 @@ class _ProfileState extends State<MyProfile> {
                                     );
                                   },
                                 ),
+                              ],
+                            ),
+                            _buildSectionCard(
+                              cardColor: cardColor,
+                              isDark: isDarkBackground,
+                              children: [
                                 _buildPlainCell(
                                   dividerColor: profileListDividerColor,
                                   primaryTextColor: primaryTextColor,
@@ -1658,6 +1675,7 @@ class _ProfileState extends State<MyProfile> {
                                   primaryTextColor: primaryTextColor,
                                   secondaryTextColor: secondaryTextColor,
                                   arrowColor: arrowColor,
+                                  showDivider: false,
                                   iconAsset: ProfileMenuIcons.notification,
                                   title: AppI18n.of(context).t(
                                     zhHans: '消息通知',
@@ -1676,6 +1694,12 @@ class _ProfileState extends State<MyProfile> {
                                     );
                                   },
                                 ),
+                              ],
+                            ),
+                            _buildSectionCard(
+                              cardColor: cardColor,
+                              isDark: isDarkBackground,
+                              children: [
                                 _buildPlainCell(
                                   dividerColor: profileListDividerColor,
                                   primaryTextColor: primaryTextColor,
@@ -1689,20 +1713,14 @@ class _ProfileState extends State<MyProfile> {
                                     ja: 'アプリを共有',
                                     ko: '앱 공유',
                                   ),
-                                  showDivider: false,
                                   onTap: () => ShareAppSheet.show(context),
                                 ),
-                              ],
-                            ),
-                            _buildSectionCard(
-                              cardColor: cardColor,
-                              isDark: isDarkBackground,
-                              children: [
                                 _buildPlainCell(
                                   dividerColor: profileListDividerColor,
                                   primaryTextColor: primaryTextColor,
                                   secondaryTextColor: secondaryTextColor,
                                   arrowColor: arrowColor,
+                                  showDivider: false,
                                   iconAsset: ProfileMenuIcons.settings,
                                   title: AppI18n.of(context).t(
                                     zhHans: '设置',
@@ -1711,7 +1729,6 @@ class _ProfileState extends State<MyProfile> {
                                     ja: '設定',
                                     ko: '설정',
                                   ),
-                                  showDivider: false,
                                   onTap: () {
                                     Navigator.push(
                                       context,

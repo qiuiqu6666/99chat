@@ -156,6 +156,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
   // Hero started from. Freeze the box size on first build so entrance and
   // dismiss use the same geometry.
   final Map<int, Size> _heroLockedBoxSizeByIndex = <int, Size>{};
+  Size _heroViewportSize = Size.zero;
   final Map<int, ValueNotifier<TallImageGalleryScrollGate>>
       _tallImageGalleryGateByIndex =
       <int, ValueNotifier<TallImageGalleryScrollGate>>{};
@@ -1749,6 +1750,19 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
         onActivePage &&
         _allowPreviewHeroForIndex(index);
     final screenSize = MediaQuery.sizeOf(context);
+    if (_heroViewportSize != screenSize) {
+      _heroViewportSize = screenSize;
+      _heroLockedBoxSizeByIndex.clear();
+      for (final entry in _loadedDisplayByIndex.entries.toList()) {
+        _loadedDisplayByIndex[entry.key] = imagePreviewDisplayConfig(
+          imageWidth: entry.value.imageWidth,
+          imageHeight: entry.value.imageHeight,
+          screenWidth: screenSize.width,
+          screenHeight: screenSize.height,
+          fitTallImagesToScreenWidth: widget.fitTallImagesToScreenWidth,
+        );
+      }
+    }
     final message = item.sourceMessage ?? widget.sourceMessage;
     final display = _loadedDisplayByIndex[index] ??
         imagePreviewDisplayConfigResolved(
@@ -1763,6 +1777,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
       return TiledImagePreview(
         imageWidth: display.imageWidth,
         imageHeight: display.imageHeight,
+        fitTallImagesToScreenWidth: widget.fitTallImagesToScreenWidth,
         message: message,
         placeholder: _placeholderForItem(item),
         onTap: _toggleChromeVisibility,
@@ -1914,6 +1929,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
                     slidePageKey: slidePageKey,
                     slideMetrics: _slideMetrics,
                     displayMode: display.mode,
+                    sourcePixelSize: Size(display.imageWidth.toDouble(), display.imageHeight.toDouble()),
                     inPageView: inPageView,
                     galleryScrollGate: _tallImageGalleryGateFor(index),
                     onTap: _toggleChromeVisibility,

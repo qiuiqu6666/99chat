@@ -191,13 +191,7 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
   Widget build(BuildContext context) {
     if (widget.live != null) window = widget.live!.window;
     if (_results.isEmpty && widget.previewOnly) {
-      return Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text(widget.live?.draws.isNotEmpty == true ? '本期尚未开奖' : '暂无开奖记录'),
-        TextButton(onPressed: widget.live?.refresh, child: const Text('刷新')),
-        if (!widget.previewOnly && widget.live != null)
-          Flexible(child: SingleChildScrollView(child: _livePredictions())),
-      ]));
+      return Center(child: _pendingLatestCard());
     }
     final sample = _results.take(window).toList();
     final counts = {
@@ -215,7 +209,7 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
     final latest = _results.isEmpty ? null : _results.first;
     final reveal = lotteryRevealState(widget.mappings?.machineCode ?? 'demo');
     final latestCard = latest == null
-        ? _panel(const Text('暂无已完成开奖'))
+        ? _pendingLatestCard()
         : ListenableBuilder(
             listenable: reveal,
             builder: (context, _) => _panel(Column(
@@ -474,6 +468,24 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
             const SizedBox(height: 24),
           ]),
     );
+  }
+
+  Widget _pendingLatestCard() {
+    final live = widget.live;
+    final round =
+        live != null && live.draws.isNotEmpty ? live.draws.first : null;
+    return _panel(Column(mainAxisSize: MainAxisSize.min, children: [
+      if (round != null) ...[
+        Text(
+            '第 ${round['status'] == 'waiting_open' ? '0' : round['issueLabel'] ?? round['issue']} 期',
+            style: const TextStyle(color: _red, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        _LotteryCardCountdown(round: round, now: live!.now),
+        const SizedBox(height: 8),
+      ],
+      Text(round == null ? '暂无已完成开奖' : '本期尚未开奖'),
+      TextButton(onPressed: live?.refresh, child: const Text('刷新')),
+    ]));
   }
 
   List<Widget> _openedStatistics() {

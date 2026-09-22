@@ -1,81 +1,44 @@
 import 'dart:ui';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tencent_cloud_chat_uikit/ui/utils/image_preview_tile_geometry.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/image_preview_region_grid.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/image_region_decode_hook.dart';
 
 void main() {
-  test('middle scroll never requests the full 45234-tall source', () {
-    final geometry = ImagePreviewTileGeometry.from(
-      imageWidth: 1182,
-      imageHeight: 45234,
-      screenWidth: 390,
-      screenHeight: 844,
-      devicePixelRatio: 3,
-    );
-    final requests = <ImageRegionDecodeRequest>[];
-    final center = geometry.visibleTileIndex(geometry.contentHeight / 2);
-    final radius = geometry.prefetchRadius(desktop: false);
-    for (var i = center - radius; i <= center + radius; i++) {
-      if (i < 0 || i >= geometry.tileCount) {
-        continue;
+  for (final size in [const Size(1182, 45234), const Size(2496, 30492)]) {
+    test(
+        'visible regions of ${size.width}x${size.height} stay bounded at native hook',
+        () async {
+      final grid = ImagePreviewRegionGrid(
+          source: size,
+          display: Size(390, 390 * size.height / size.width),
+          pixelRatio: 3,
+          zoom: 4);
+      final requests = <ImageRegionDecodeRequest>[];
+      ImageRegionDecodeHook.decode = (request) async {
+        requests.add(request);
+        return null;
+      };
+      addTearDown(ImageRegionDecodeHook.resetForTest);
+      for (final index in grid
+          .visible(Rect.fromLTWH(0, grid.display.height / 2, 390, 844))) {
+        final src = grid.sourceRect(index), dst = grid.decodeSize(index);
+        await ImageRegionDecodeHook.decode!(ImageRegionDecodeRequest(
+            path: 'mem',
+            srcLeft: src.left.toInt(),
+            srcTop: src.top.toInt(),
+            srcWidth: src.width.toInt(),
+            srcHeight: src.height.toInt(),
+            dstWidth: dst.width.toInt(),
+            dstHeight: dst.height.toInt()));
       }
-      final src = geometry.srcRectFor(i);
-      requests.add(
-        ImageRegionDecodeRequest(
-          path: 'mem',
-          srcLeft: src.left.round(),
-          srcTop: src.top.round(),
-          srcWidth: src.width.round(),
-          srcHeight: src.height.round(),
-          dstWidth: geometry.dstWidth,
-          dstHeight: geometry.dstHeightFor(i),
-        ),
-      );
-    }
-    expect(requests, isNotEmpty);
-    expect(
-      requests.any(
-        (request) => request.srcTop == 0 && request.srcHeight == 45234,
-      ),
-      isFalse,
-    );
-    final oneScreen = 1182 * geometry.srcTileHeight;
-    for (final request in requests) {
-      expect(request.srcPixels, lessThanOrEqualTo((oneScreen * 1.5).round()));
-    }
-    expect(requests.length, lessThanOrEqualTo(geometry.maxCachedTiles(desktop: false)));
-  });
-
-  test('hook can record decode requests without decoding the full bitmap',
-      () async {
-    final recorded = <ImageRegionDecodeRequest>[];
-    ImageRegionDecodeHook.decode = (request) async {
-      recorded.add(request);
-      return null;
-    };
-    addTearDown(ImageRegionDecodeHook.resetForTest);
-    final geometry = ImagePreviewTileGeometry.from(
-      imageWidth: 2496,
-      imageHeight: 30492,
-      screenWidth: 390,
-      screenHeight: 844,
-      devicePixelRatio: 3,
-    );
-    final src = geometry.srcRectFor(0);
-    await ImageRegionDecodeHook.decode!(
-      ImageRegionDecodeRequest(
-        path: 'mem',
-        srcLeft: src.left.round(),
-        srcTop: src.top.round(),
-        srcWidth: src.width.round(),
-        srcHeight: src.height.round(),
-        dstWidth: geometry.dstWidth,
-        dstHeight: geometry.dstHeightFor(0),
-      ),
-    );
-    expect(recorded, hasLength(1));
-    expect(recorded.single.srcHeight, isNot(30492));
-    expect(recorded.single.srcTop, 0);
-  });
+      expect(requests, isNotEmpty);
+      expect(requests.length, lessThanOrEqualTo(48));
+      for (final request in requests) {
+        expect(request.srcHeight, lessThan(size.height));
+        expect(
+            request.dstWidth * request.dstHeight, lessThanOrEqualTo(512 * 512));
+        expect(request.srcTop, greaterThan(0));
+      }
+    });
+  }
 }

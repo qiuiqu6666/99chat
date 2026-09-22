@@ -117,7 +117,10 @@ class _AboutUsPageState extends State<AboutUsPage> {
       children: [
         Container(
           width: double.infinity,
-          color: AppColors.card(dark: dark),
+          decoration: BoxDecoration(
+            color: AppColors.card(dark: dark),
+            borderRadius: BorderRadius.circular(14),
+          ),
           padding: const EdgeInsets.fromLTRB(16, 34, 16, 34),
           child: Column(
             children: [

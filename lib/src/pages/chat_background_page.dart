@@ -414,7 +414,9 @@ class _ChatBackgroundPageState extends State<ChatBackgroundPage> {
           Row(
             children: [
               Icon(
-                isAll ? Icons.public_rounded : Icons.chat_bubble_outline_rounded,
+                isAll
+                    ? Icons.public_rounded
+                    : Icons.chat_bubble_outline_rounded,
                 size: 18,
                 color: AppColors.primaryBlue,
               ),
@@ -717,7 +719,10 @@ class _ChatBackgroundPageState extends State<ChatBackgroundPage> {
       if (_colorsExpanded)
         Container(
           width: double.infinity,
-          color: AppColors.card(dark: dark),
+          decoration: BoxDecoration(
+            color: AppColors.card(dark: dark),
+            borderRadius: BorderRadius.circular(14),
+          ),
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
           child: GridView.builder(
             shrinkWrap: true,
@@ -767,7 +772,10 @@ class _ChatBackgroundPageState extends State<ChatBackgroundPage> {
       if (_recommendedExpanded)
         Container(
           width: double.infinity,
-          color: AppColors.card(dark: dark),
+          decoration: BoxDecoration(
+            color: AppColors.card(dark: dark),
+            borderRadius: BorderRadius.circular(14),
+          ),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
           child: GridView.builder(
             shrinkWrap: true,

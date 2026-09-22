@@ -271,11 +271,11 @@ class _ChatPreviewNavBar extends StatelessWidget {
         theme.appbarBgColor ??
         theme.chatBgColor ??
         Colors.white;
-    final titleColor = theme.chatHeaderTitleTextColor ??
-        theme.appbarTextColor ??
-        Colors.black;
-    final backColor =
-        theme.chatHeaderBackTextColor ?? theme.primaryColor ?? const Color(0xFF1E90FF);
+    final titleColor =
+        theme.chatHeaderTitleTextColor ?? theme.appbarTextColor ?? Colors.black;
+    final backColor = theme.chatHeaderBackTextColor ??
+        theme.primaryColor ??
+        const Color(0xFF1E90FF);
     final weakTextColor = theme.weakTextColor ?? const Color(0xFF8E8E93);
     final actionColor = theme.primaryColor ?? const Color(0xFF1E90FF);
 
@@ -351,11 +351,13 @@ class _ChatPreviewNavBar extends StatelessWidget {
               ),
               IconButton(
                 onPressed: () {},
-                icon: Icon(Icons.videocam_outlined, color: actionColor, size: 24),
+                icon:
+                    Icon(Icons.videocam_outlined, color: actionColor, size: 24),
               ),
               IconButton(
                 onPressed: () {},
-                icon: Icon(Icons.more_horiz_rounded, color: actionColor, size: 24),
+                icon: Icon(Icons.more_horiz_rounded,
+                    color: actionColor, size: 24),
               ),
             ],
           ),
@@ -392,12 +394,11 @@ class _FontSizeSliderPanel extends StatelessWidget {
     final primaryColor = theme.primaryColor ?? const Color(0xFF1E90FF);
 
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 10, 16, 10 + bottom),
+      margin: EdgeInsets.fromLTRB(12, 12, 12, 12 + bottom),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: panelBg,
-        border: Border(
-          top: BorderSide(color: dividerColor, width: 1),
-        ),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

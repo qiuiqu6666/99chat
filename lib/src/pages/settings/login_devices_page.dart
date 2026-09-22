@@ -216,9 +216,8 @@ class _LoginDevicesPageState extends State<LoginDevicesPage> {
       await DeviceApi.instance.kickDevice(device.deviceId);
       if (!mounted) return;
       setState(() {
-        _devices = _devices
-            .where((item) => item.deviceId != device.deviceId)
-            .toList();
+        _devices =
+            _devices.where((item) => item.deviceId != device.deviceId).toList();
       });
       ToastUtils.toast(i18n.t(
         zhHans: '已移除该设备',
@@ -452,7 +451,7 @@ class _LoginDevicesPageState extends State<LoginDevicesPage> {
       onRefresh: () => _loadDevices(refresh: true),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 24),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -616,26 +615,20 @@ class _LoginDevicesPageState extends State<LoginDevicesPage> {
   Widget build(BuildContext context) {
     final i18n = AppI18n.of(context);
     final dark = settingsIsDark(context);
-    final dividerColor = AppColors.line(dark: dark);
+    final pageColor =
+        dark ? AppColors.background(dark: true) : const Color(0xFFF5F6F8);
 
     return Scaffold(
-      backgroundColor: AppColors.background(dark: dark),
+      backgroundColor: pageColor,
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
-        backgroundColor: AppColors.card(dark: dark),
+        backgroundColor: pageColor,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           color: AppColors.primaryBlue,
           onPressed: () => Navigator.of(context).pop(),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(0.6),
-          child: Container(
-            height: 0.6,
-            color: dividerColor,
-          ),
         ),
         title: Text(
           i18n.t(
@@ -655,8 +648,7 @@ class _LoginDevicesPageState extends State<LoginDevicesPage> {
       body: SafeArea(
         child: Column(
           children: [
-            if (_refreshing)
-              const LinearProgressIndicator(minHeight: 2),
+            if (_refreshing) const LinearProgressIndicator(minHeight: 2),
             Expanded(child: _buildBody(i18n)),
             if (_hasOtherDevices && !_loading && _error == null)
               Padding(

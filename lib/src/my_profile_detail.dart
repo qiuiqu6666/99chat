@@ -1741,11 +1741,16 @@ class MyProfileDetailState extends State<MyProfileDetail> {
       ),
     ];
 
-    final listCard = Container(
-      color: surfaces.listBackground,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: rows,
+    final listCard = Padding(
+      padding: const EdgeInsets.all(12),
+      child: Material(
+        color: surfaces.listBackground,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: rows,
+        ),
       ),
     );
 

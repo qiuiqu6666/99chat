@@ -77,6 +77,9 @@ void main() {
       await tester.tapAt(const Offset(200, 400));
       await tester.pumpAndSettle();
       expect(viewer.transformationController!.value.getMaxScaleOnAxis(), 2);
+      tester.view.physicalSize = const Size(1920,1080);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Image>(find.byType(Image)).width,720);
       expect(tester.takeException(), isNull);
     });
   }

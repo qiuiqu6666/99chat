@@ -245,69 +245,71 @@ class _SetupTradePasswordPageState extends State<SetupTradePasswordPage> {
         ),
       ),
       children: [
-        SizedBox(height: (28 * u).h),
-        _PlatformLogo(
-          asset: widget.logoAsset,
-          scale: u,
-        ),
-        SizedBox(height: (32 * u).h),
-        Text(
-          _stepHint,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: (15 * u).sp,
-            fontWeight: FontWeight.w400,
-            color: AppColors.subText(dark: dark),
-            height: 1.3,
+        SettingsGroup(children: [
+          SizedBox(height: (28 * u).h),
+          _PlatformLogo(
+            asset: widget.logoAsset,
+            scale: u,
           ),
-        ),
-        SizedBox(height: (48 * u).h),
-        TradePasswordPinDots(
-          length: _input.length,
-          hasError: _error.isNotEmpty,
-          dotSize: (14 * u).w,
-          spacing: (20 * u).w,
-        ),
-        SizedBox(height: (20 * u).h),
-        SizedBox(
-          height: (22 * u).h,
-          child: Center(
-            child: Text(
-              statusText,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: (13 * u).sp,
-                color: statusColor,
+          SizedBox(height: (32 * u).h),
+          Text(
+            _stepHint,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: (15 * u).sp,
+              fontWeight: FontWeight.w400,
+              color: AppColors.subText(dark: dark),
+              height: 1.3,
+            ),
+          ),
+          SizedBox(height: (48 * u).h),
+          TradePasswordPinDots(
+            length: _input.length,
+            hasError: _error.isNotEmpty,
+            dotSize: (14 * u).w,
+            spacing: (20 * u).w,
+          ),
+          SizedBox(height: (20 * u).h),
+          SizedBox(
+            height: (22 * u).h,
+            child: Center(
+              child: Text(
+                statusText,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: (13 * u).sp,
+                  color: statusColor,
+                ),
               ),
             ),
           ),
-        ),
-        if (_step == _SetupStep.confirm)
-          TextButton(
-            onPressed: _submitting
-                ? null
-                : () {
-                    setState(() {
-                      _step = _SetupStep.create;
-                      _input = '';
-                      _firstPin = null;
-                      _error = '';
-                    });
-                  },
-            child: Text(
-              i18n.t(
-                zhHans: '重新设置密码',
-                zhHant: '重新設定密碼',
-                en: 'Reset Password',
-                ja: 'パスワードを再設定',
-                ko: '비밀번호 다시 설정',
-              ),
-              style: TextStyle(
-                fontSize: (14 * u).sp,
-                color: AppColors.primaryBlue,
+          if (_step == _SetupStep.confirm)
+            TextButton(
+              onPressed: _submitting
+                  ? null
+                  : () {
+                      setState(() {
+                        _step = _SetupStep.create;
+                        _input = '';
+                        _firstPin = null;
+                        _error = '';
+                      });
+                    },
+              child: Text(
+                i18n.t(
+                  zhHans: '重新设置密码',
+                  zhHant: '重新設定密碼',
+                  en: 'Reset Password',
+                  ja: 'パスワードを再設定',
+                  ko: '비밀번호 다시 설정',
+                ),
+                style: TextStyle(
+                  fontSize: (14 * u).sp,
+                  color: AppColors.primaryBlue,
+                ),
               ),
             ),
-          ),
+        ]),
       ],
     );
   }

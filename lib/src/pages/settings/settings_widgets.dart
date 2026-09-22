@@ -44,9 +44,10 @@ class SettingsScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var dark = settingsIsDark(context);
-    final dividerColor = AppColors.line(dark: dark);
+    final pageColor =
+        dark ? AppColors.background(dark: true) : const Color(0xFFF5F6F8);
     final overlayStyle = immersiveOverlayForColors(
-      statusBarBackground: AppColors.card(dark: dark),
+      statusBarBackground: pageColor,
       navigationBarBackground: AppColors.background(dark: dark),
     );
 
@@ -56,14 +57,15 @@ class SettingsScaffold extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlayStyle,
       child: Scaffold(
-        backgroundColor: AppColors.background(dark: dark),
+        backgroundColor: pageColor,
         extendBody: true,
         appBar: embedded
             ? null
             : AppBar(
                 elevation: 0,
+                scrolledUnderElevation: 0,
                 centerTitle: true,
-                backgroundColor: AppColors.card(dark: dark),
+                backgroundColor: pageColor,
                 surfaceTintColor: Colors.transparent,
                 systemOverlayStyle: overlayStyle,
                 automaticallyImplyLeading: canShowLeading,
@@ -75,13 +77,6 @@ class SettingsScaffold extends StatelessWidget {
                             () => Navigator.of(context).pop(),
                       )
                     : null,
-                bottom: PreferredSize(
-                  preferredSize: const Size.fromHeight(0.6),
-                  child: Container(
-                    height: 0.6,
-                    color: dividerColor,
-                  ),
-                ),
                 title: Text(
                   title,
                   maxLines: 1,
@@ -114,7 +109,7 @@ class SettingsScaffold extends StatelessWidget {
       keyboardDismissBehavior: dismissKeyboardOnOutsideTap
           ? ScrollViewKeyboardDismissBehavior.onDrag
           : ScrollViewKeyboardDismissBehavior.manual,
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
       children: children,
     );
     if (!dismissKeyboardOnOutsideTap) {
@@ -143,20 +138,12 @@ class SettingsGroup extends StatelessWidget {
 
     return Container(
       margin: margin,
-      decoration: BoxDecoration(
+      child: Material(
         color: AppColors.card(dark: dark),
-        border: Border(
-          top: BorderSide(
-            color: AppColors.line(dark: dark),
-            width: 0.6,
-          ),
-          bottom: BorderSide(
-            color: AppColors.line(dark: dark),
-            width: 0.6,
-          ),
-        ),
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: Column(children: children),
       ),
-      child: Column(children: children),
     );
   }
 }
@@ -228,16 +215,18 @@ class SettingsCell extends StatelessWidget {
             const SizedBox(width: 12),
           ],
           Expanded(
-            child: titleWidget ?? Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: titleStyle ?? TextStyle(
-                color: AppColors.text(dark: dark),
-                fontSize: 16,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
+            child: titleWidget ??
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: titleStyle ??
+                      TextStyle(
+                        color: AppColors.text(dark: dark),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                      ),
+                ),
           ),
           if (value != null) ...[
             const SizedBox(width: 8),

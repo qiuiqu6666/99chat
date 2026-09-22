@@ -195,6 +195,10 @@ ImagePreviewDisplayMode imagePreviewResolveDisplayMode({
   final aspect = imageHeight / imageWidth;
   final inverseAspect = imageWidth / imageHeight;
 
+  if (imageWidth <= screenWidth && imageHeight <= screenHeight) {
+    return ImagePreviewDisplayMode.small;
+  }
+
   if (aspect >= imagePreviewExtraTallAspectRatio) {
     return ImagePreviewDisplayMode.extraTall;
   }
@@ -267,7 +271,7 @@ ImagePreviewDisplayConfig imagePreviewDisplayConfig({
     case ImagePreviewDisplayMode.tall:
     case ImagePreviewDisplayMode.extraTall:
       if (fitTallImagesToScreenWidth) {
-        // 聊天长图：按屏宽铺满，窄长截图也放大贴宽，避免两侧（或单侧）黑边。
+        // 聊天长图：使用自适应阅读列，顶部开始浏览。
         fit = BoxFit.fitWidth;
         alignment = Alignment.topCenter;
         initialAlignment = InitialAlignment.topCenter;
@@ -279,11 +283,14 @@ ImagePreviewDisplayConfig imagePreviewDisplayConfig({
       }
       break;
     case ImagePreviewDisplayMode.wide:
-    case ImagePreviewDisplayMode.small:
     case ImagePreviewDisplayMode.normal:
-      // contain: 大图等比缩入屏内（长边贴边、短边留黑）；小图不放大。
-      // 之前用 scaleDown 导致竖图按高度缩后两侧露出全屏黑底，观感差。
+      // 大图完整入画；小图由独立分支禁止初始放大。
       fit = BoxFit.contain;
+      alignment = Alignment.center;
+      initialAlignment = InitialAlignment.center;
+      break;
+    case ImagePreviewDisplayMode.small:
+      fit = BoxFit.scaleDown;
       alignment = Alignment.center;
       initialAlignment = InitialAlignment.center;
       break;
@@ -631,9 +638,9 @@ bool isImagePreviewResolutionTooLow({
 
 /// 预览初始贴屏尺寸（与 [BoxFit] 一致，用于手势倍数与 Hero 落点）。
 ///
-/// - [BoxFit.fitWidth] / [BoxFit.fitHeight]：按对应边铺满视口（允许放大），
-///   供长图贴宽、避免窄长截图两侧黑边。
-/// - [BoxFit.contain]：大图等比缩入屏内（短边贴边、长边不超），小图不放大。
+/// - [BoxFit.fitWidth]：自适应长图阅读列，窄图初始最多放大 2 倍。
+/// - [BoxFit.fitHeight]：按高度铺满视口。
+/// - [BoxFit.contain]：完整入画；小图请显式使用 scaleDown。
 /// - [BoxFit.scaleDown]：仅缩小不放大，小图保持原比例居中。
 Size imagePreviewInitialDisplaySize({
   required int imageWidth,
@@ -655,7 +662,10 @@ Size imagePreviewInitialDisplaySize({
     return Size.zero;
   }
   if (fit == BoxFit.fitWidth) {
-    final scale = screenWidth / imageWidth;
+    // Stable reading column across rotation; narrow sources get at most 2x
+    // initial enlargement. Users can still zoom to inspect details.
+    final readingWidth = math.min(math.min(screenWidth, screenHeight), 720.0);
+    final scale = math.min(readingWidth / imageWidth, 2.0);
     return Size(imageWidth * scale, imageHeight * scale);
   }
   if (fit == BoxFit.fitHeight) {
