@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_videoplayer.dart';
@@ -275,90 +276,64 @@ Future<void> showMediaPreviewVideoActions({
   Future<void> Function()? onPictureInPicture,
   VoidCallback? onOpenMedia,
 }) async {
-  const foreground = Color(0xFFEDEDED);
-  final action = await showModalBottomSheet<String>(
+  const speeds = [1.0, 1.5, 2.0];
+  final action = await showCupertinoModalPopup<String>(
     context: context,
-    backgroundColor: const Color(0xFF202020),
-    barrierColor: Colors.black54,
-    showDragHandle: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
+    semanticsDismissible: true,
     builder: (sheetContext) {
-      Widget item(String action, IconData icon, String label,
-              {bool destructive = false}) =>
-          ListTile(
-            minTileHeight: 52,
-            leading: Icon(icon,
-                color: destructive ? const Color(0xFFFF6B6B) : foreground),
-            title: Text(label,
-                style: TextStyle(
-                  color: destructive ? const Color(0xFFFF6B6B) : foreground,
-                  fontSize: 16,
-                )),
-            onTap: () => Navigator.pop(sheetContext, action),
+      Widget item(String action, String label, {bool destructive = false}) =>
+          CupertinoActionSheetAction(
+            key: ValueKey('video-action-$action'),
+            isDestructiveAction: destructive,
+            onPressed: () => Navigator.pop(sheetContext, action),
+            child: Text(label),
           );
-      return SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: Row(
-                  children: [
-                    Text(TIM_t('播放速度'),
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 13)),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Wrap(
-                        alignment: WrapAlignment.end,
-                        spacing: 8,
-                        children: [
-                          for (final speed in [1.0, 1.5, 2.0])
-                            ChoiceChip(
-                              label: Text('${speed == 1 ? '1.0' : speed}×'),
-                              selected: playbackSpeed == speed,
-                              showCheckmark: false,
-                              backgroundColor: const Color(0xFF303030),
-                              selectedColor: Colors.white,
-                              side: BorderSide.none,
-                              labelStyle: TextStyle(
-                                  color: playbackSpeed == speed
-                                      ? Colors.black
-                                      : foreground),
-                              onSelected: (_) =>
-                                  Navigator.pop(sheetContext, 'speed_$speed'),
-                            ),
-                        ],
-                      ),
+      return CupertinoTheme(
+        data: CupertinoTheme.of(sheetContext).copyWith(
+          primaryColor: CupertinoColors.activeBlue,
+        ),
+        child: CupertinoActionSheet(
+          title: Text(TIM_t('播放速度')),
+          message: SizedBox(
+            width: double.infinity,
+            child: CupertinoSlidingSegmentedControl<double>(
+              groupValue: speeds.contains(playbackSpeed) ? playbackSpeed : null,
+              children: {
+                for (final speed in speeds)
+                  speed: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    child: Text(
+                      '${speed.toStringAsFixed(1)}×',
+                      maxLines: 1,
+                      style: CupertinoTheme.of(sheetContext)
+                          .textTheme
+                          .textStyle
+                          .copyWith(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
                     ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1, color: Colors.white12),
-              item('save', Icons.download_outlined, TIM_t('保存视频')),
-              if (onForward != null)
-                item('forward', Icons.reply_outlined, TIM_t('转发')),
-              if (onOpenMedia != null)
-                item('media', Icons.grid_view_outlined, TIM_t('查看全部媒体')),
-              if (onPictureInPicture != null)
-                item('pip', Icons.picture_in_picture_outlined, TIM_t('画中画')),
-              if (onDelete != null)
-                item('delete', Icons.delete_outline_rounded, TIM_t('删除'),
-                    destructive: true),
-              const Divider(height: 1, color: Colors.white12),
-              TextButton(
-                onPressed: () => Navigator.pop(sheetContext),
-                style: TextButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    foregroundColor: foreground),
-                child: Text(TIM_t('取消')),
-              ),
-            ],
+                  ),
+              },
+              onValueChanged: (speed) {
+                if (speed != null) Navigator.pop(sheetContext, 'speed_$speed');
+              },
+            ),
+          ),
+          actions: [
+            item('save', TIM_t('保存视频')),
+            if (onForward != null) item('forward', TIM_t('转发')),
+            if (onOpenMedia != null) item('media', TIM_t('查看全部媒体')),
+            if (onPictureInPicture != null) item('pip', TIM_t('画中画')),
+            if (onDelete != null)
+              item('delete', TIM_t('删除'), destructive: true),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            key: const ValueKey('video-action-cancel'),
+            isDefaultAction: true,
+            onPressed: () => Navigator.pop(sheetContext),
+            child: Text(TIM_t('取消')),
           ),
         ),
       );
