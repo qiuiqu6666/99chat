@@ -5884,10 +5884,11 @@ class _TIMUIKitHistoryMessageListState
         _visibleIncomingProgressSignature = null;
         _pendingVisibleIncomingProgress.clear();
       }
-      // 0.5px 行可见只服务 durable 账本，不得把 tongue N 逐条减掉。
-      // 非真跟随（在看历史）时不走这条消费路径。
-      if (!global.isFollowingLatest(conv) ||
-          global.isGeometryViewportTransitionActive(conv) ||
+      // Reading a connected history row is valid evidence independently of
+      // FOLLOW. Requiring FOLLOW here deadlocks with latest restoration, which
+      // itself waits for durable unread to be acknowledged. Exact painted IDs
+      // below advance only the durable ledger, not the live capsule ledger.
+      if (global.isGeometryViewportTransitionActive(conv) ||
           global.receivedNewMessageCountFor(conv) <= 0 ||
           ModalRoute.of(context)?.isCurrent == false ||
           _initialSearchJumpPending ||
@@ -6061,7 +6062,9 @@ class _TIMUIKitHistoryMessageListState
       }
       final tag = _autoScrollController.tagMap[-index];
       final rowContext = tag?.context;
-      if (rowContext == null) {
+      if (rowContext == null ||
+          tag?.widget.key !=
+              ValueKey<String>(_stableMessageListKey(message, index))) {
         continue;
       }
       final row = rowContext.findRenderObject();
@@ -6070,12 +6073,16 @@ class _TIMUIKitHistoryMessageListState
           viewport == null ||
           !row.attached ||
           !row.hasSize ||
-          row.size.height <= 0) {
+          row.size.height <= 0 ||
+          _renderObjectNeedsLayout(row)) {
         continue;
       }
       final top = row.localToGlobal(Offset.zero, ancestor: viewport).dy;
       final bottom = top + row.size.height;
-      if (top < effectiveHeight && bottom > 0) {
+      // A prefetched/recycled row or a sliver peeking through the edge does
+      // not prove reading. Tall rows count only once their bottom is visible.
+      if (bottom > 0 && bottom <= effectiveHeight + 0.5 &&
+          (top >= -0.5 || row.size.height > effectiveHeight)) {
         seen.add(id);
       }
     }

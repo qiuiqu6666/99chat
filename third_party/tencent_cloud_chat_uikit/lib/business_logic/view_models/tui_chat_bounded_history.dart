@@ -735,13 +735,10 @@ extension BoundedChatHistory on TUIChatGlobalModel {
         max(0, counts.receivedCount - state.unreadVisitBaselineReceived) +
             state.pendingLegacyMessages.length +
             state.revealedUnreadMessageIDs.length;
-    // 看历史时 tongue N 不因滑过已画行 / SQL ACK 而减少；真跟随下以进消息路径为准。
-    if (isFollowingLatest(conversationID) &&
-        !isReadingHistory(conversationID)) {
-      state.receivedCount = publishedReceived;
-    } else {
-      state.receivedCount = max(state.receivedCount, publishedReceived);
-    }
+    // Publish the outstanding durable/hot receipts, including decreases.
+    // Capsule N has its own remainingLiveIncomingIds ledger; keeping this
+    // counter monotonic leaves acknowledged rows pending until another arrival.
+    state.receivedCount = publishedReceived;
     state.unreadCount = state.lockedEntryUnreadCount +
         state.durableUnreadCount +
         state.pendingLegacyMessages.length +
@@ -799,6 +796,7 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       final visibleHot = ids.where(state.revealedUnreadMessageIDs.contains).toSet();
       if (visibleHot.isEmpty) return;
       consumedHot = true;
+      state.receivedCount = max(0, state.receivedCount - visibleHot.length);
       state.revealedUnreadMessageIDs.removeAll(visibleHot);
       state.bufferedMessages.removeWhere((message) => visibleHot.contains(
           (message.msgID?.trim().isNotEmpty ?? false)

@@ -243,6 +243,9 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
     if (globalModel.unadmittedRemainingLiveCountFor(conv) > 0) {
       return false;
     }
+    if (!coveredIds.containsAll(globalModel.remainingLiveIncomingIdsFor(conv))) {
+      return false;
+    }
     _clearHistoryReadingWindow();
     globalModel.setMemoryWindowSuppressed(conv, false);
     globalModel.clearMemoryWindowAnchor(conv);
@@ -346,8 +349,6 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
         // reveal. Their captured prefix is cleared only after visible coverage
         // succeeds below; blocking on them here would also block their ACK.
         (globalModel.deferredIncomingBufferedCount(conversationID) > 0 &&
-            !globalModel.hasDurableHistoryDeferred(conversationID)) ||
-        (globalModel.receivedNewMessageCountFor(conversationID) > 0 &&
             !globalModel.hasDurableHistoryDeferred(conversationID)) ||
         _historyKnownTipMissing ||
         globalModel.isAttachingBufferedTowardLatest ||

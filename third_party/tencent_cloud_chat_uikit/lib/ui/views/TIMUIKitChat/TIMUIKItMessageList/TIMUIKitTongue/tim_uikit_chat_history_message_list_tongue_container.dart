@@ -202,7 +202,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
 
   bool _atTrueLatestEndNow() {
     final conv = widget.model.conversationID;
-    if (globalModel.deferredIncomingBufferedCount(conv) > 0 ||
+    if (globalModel.hasDurableHistoryDeferred(conv) ||
+        globalModel.deferredIncomingBufferedCount(conv) > 0 ||
         globalModel.unadmittedRemainingLiveCountFor(conv) > 0) {
       return false;
     }
@@ -268,7 +269,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
   }
 
   void _settleLiveUnreadAtTrueLatestEnd() {
-    _commitOverallFollowIfReady();
+    if (!_commitOverallFollowIfReady()) return;
     _userLeftBottomIntentionally = false;
     if (mounted) {
       setState(() {
@@ -278,7 +279,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
   }
 
   void _settleAtTrueLatestEnd() {
-    _commitOverallFollowIfReady();
+    if (!_commitOverallFollowIfReady()) return;
     _userLeftBottomIntentionally = false;
     widget.model.markMessageAsRead(force: true);
     if (mounted) {
@@ -938,6 +939,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
     return BackToBottomCapsulePolicy.shouldShow(
       atTrueLatestEnd: false,
       hasMissingNewer: false,
+      liveUnreadCount: globalModel.remainingLiveIncomingCountFor(
+          widget.model.conversationID),
       distanceFromLatestEdge: _distanceFromBottom(position),
       viewportDimension: position.viewportDimension,
       capsuleCurrentlyVisible: _showScrollToBottomCapsule,
@@ -1442,11 +1445,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
         final atListEnd = TrueLatestEnd.atListEndFromPosition(livePosition);
         final latestRowMaterialized = _latestRowMaterialized;
         final missingNewer = _hasMissingNewer;
-        final atTrueLatestEnd = TrueLatestEnd.atTrueLatestEnd(
-          atListEnd: atListEnd,
-          latestRowMaterialized: latestRowMaterialized,
-          hasMissingNewer: missingNewer,
-        );
+        // Visibility and settlement must use the same pending-row gate.
+        final atTrueLatestEnd = _atTrueLatestEndNow();
         if (atTrueLatestEnd) {
           _userLeftBottomIntentionally = false;
           if (liveUnreadCount > 0 ||
@@ -1475,6 +1475,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
             BackToBottomCapsulePolicy.shouldShow(
               atTrueLatestEnd: atTrueLatestEnd,
               hasMissingNewer: missingNewer,
+              liveUnreadCount: liveUnreadCount,
               distanceFromLatestEdge: livePosition == null
                   ? 0
                   : (livePosition.pixels - livePosition.minScrollExtent),

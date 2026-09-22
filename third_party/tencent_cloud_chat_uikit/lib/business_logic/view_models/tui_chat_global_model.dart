@@ -4153,6 +4153,20 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
         state.seenLiveIncomingIds.add(id);
       }
     }
+    // This is the synchronous commit of a proven latest window, not a
+    // per-row visibility ACK. Preserve visit/dedup identities while retiring
+    // the legacy counter that otherwise survives after FOLLOW is restored.
+    if (state.remainingLiveIncomingIds.isEmpty &&
+        state.bufferedMessages.isEmpty &&
+        !state.durableDeferred &&
+        state.durableOperationCount == 0 &&
+        !state.unreadVisitBaselinePending) {
+      state.receivedCount = 0;
+      state.unreadCount = state.lockedEntryUnreadCount;
+      state.revealedUnreadMessageIDs.clear();
+      state.pendingLegacyMessages.clear();
+      state.trueLatestEndAbsorbed = true;
+    }
   }
 
   bool isFollowingLatest(String? conversationID) {

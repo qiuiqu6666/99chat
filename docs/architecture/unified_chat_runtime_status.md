@@ -92,3 +92,7 @@ dart analyze --fatal-infos --fatal-warnings third_party/tencent_cloud_chat_uikit
 本次将索引上限设为 1024 KB，并在 .gitnexusignore 中仅排除四份已确认的压缩 Web SDK 分发包。手写 Web 桥接代码保留。两个超大业务文件 tui_chat_global_model.dart 和 tim_uikit_chat_history_message_list.dart 已在图中定位到真实类与调用者，原有大小过滤缺口已补齐。后续刷新仍须设置 GITNEXUS_MAX_FILE_SIZE=1024，防止默认 512 KB 再次漏掉它们。
 
 全局流程枚举仍存在截断，接口/动态调用也不能完全静态追踪。影响分析必须查询具体目标，并核对实际调用点；不能用全局流程中的缺席或 UNKNOWN 作为零影响证据。新调度内核和持久提交适配器目前仅由测试使用，增量 schema 已接入 MessageCoreStore 的现有启动流程。
+
+## 手动回底与回弹消息修复（第三批）
+
+已修改生产列表、胶囊策略、可见已读计数发布和跟随恢复提交。原有八套件基线有 32 项失败，最终扩大到十套件后为 126 项通过、12 项既有失败，无新增失败；六个专项页面回归全部通过。详见 [修复与验证记录](chat_bottom_settlement_fix.md)。上述早期“13 项均未修复”为第一、二批时点记录，本批已修复其中部分场景。统一运行时生产入口迁移仍未完成。

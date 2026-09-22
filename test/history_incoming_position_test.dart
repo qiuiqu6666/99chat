@@ -698,20 +698,21 @@ void main() {
       await pump(tester);
       await pump(tester);
       expect(global.deferredIncomingBufferedCount(conv), 3 - step);
-      expect(global.receivedNewMessageCountFor(conv), 3);
+      expect(global.receivedNewMessageCountFor(conv), 4 - step);
       expect(model.isLiveRestoreDataReady, isTrue);
       // Neither a generic cleanup nor an equivalent raw publication is a read.
       global.clearReceivedNewMessageCount(conversationID: conv);
       global.clearReceivedUnreadState(conversationID: conv);
       global.unlockEntryUnreadForTongue(conversationID: conv);
       global.setMessageList(conv, global.rawMessageList(conv)!);
-      expect(global.receivedNewMessageCountFor(conv), 3);
+      expect(global.receivedNewMessageCountFor(conv), 4 - step);
       final remainingBeforeAck = global.remainingLiveIncomingCountFor(conv);
       expect(await global.acknowledgeVisibleHistoryMessages(
           conv, [message(1 + step)], isCurrent: () => false), isFalse);
       expect(global.remainingLiveIncomingCountFor(conv), remainingBeforeAck);
       expect(await global.acknowledgeVisibleHistoryMessages(
           conv, [message(1 + step)], isCurrent: () => true), isTrue);
+      expect(global.receivedNewMessageCountFor(conv), 3 - step);
       expect(global.remainingLiveIncomingCountFor(conv), remainingBeforeAck);
       expect(await global.acknowledgeVisibleHistoryMessages(
           conv, [message(1 + step)], isCurrent: () => true), isFalse);
