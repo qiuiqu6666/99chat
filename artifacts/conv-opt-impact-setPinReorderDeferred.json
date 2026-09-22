@@ -1,0 +1,82 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.setPinReorderDeferred#1",
+    "name": "setPinReorderDeferred",
+    "type": "Method",
+    "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 4,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 2,
+    "processes_affected": 0,
+    "modules_affected": 1
+  },
+  "byDepthCounts": {
+    "1": 2,
+    "2": 1,
+    "3": 1
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Chat_session",
+      "hits": 4,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._applyPinnedWithDeferredReorderFromController#6",
+        "name": "_applyPinnedWithDeferredReorderFromController",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._flushDeferredPinReorder#0",
+        "name": "_flushDeferredPinReorder",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.applyPinnedWithDeferredReorder#6",
+        "name": "applyPinnedWithDeferredReorder",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._applyCommittedPinProjectionFromController#4",
+        "name": "_applyCommittedPinProjectionFromController",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}
+

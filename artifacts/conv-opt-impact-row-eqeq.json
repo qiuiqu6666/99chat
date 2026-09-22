@@ -1,0 +1,12 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "error": "Target '==' not found",
+  "target": {
+    "name": "=="
+  },
+  "direction": "upstream",
+  "impactedCount": null,
+  "risk": "UNKNOWN"
+}
+

@@ -2,6 +2,7 @@ import 'dart:async';
 import '../../api/lottery_number_mappings.dart';
 import '../../api/lottery_live_api.dart';
 import 'lottery_reveal_state.dart';
+import 'lottery_back_gesture.dart';
 import 'lottery_scratch_cover.dart';
 
 import 'package:flutter/material.dart';
@@ -210,7 +211,8 @@ class TestPage extends StatelessWidget {
   final String? gameId;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => LotteryBackGesture(
+          child: Scaffold(
         backgroundColor: lotteryThemeColor(
             context, const Color(0xFFF2F5F9), AppTokens.backgroundDark),
         appBar: AppBar(
@@ -239,7 +241,7 @@ class TestPage extends StatelessWidget {
               ? const _LotteryDashboard()
               : _ConfiguredLottery(key: ValueKey(gameId), machineCode: gameId!),
         ),
-      );
+      ));
 }
 
 class _Brand extends StatelessWidget {

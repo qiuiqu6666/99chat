@@ -450,6 +450,7 @@ class ChatMessagePreviewImageResolver {
           try {
             await _messageService.downloadMessage(
               msgID: msgID,
+              message: message,
               messageType: 3,
               imageType:
                   HistoryMessageDartConstant.V2_TIM_IMAGE_TYPES['ORIGINAL']!,

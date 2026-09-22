@@ -1,0 +1,275 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatListPaginationUiGate",
+    "name": "ChatListPaginationUiGate",
+    "type": "Class",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 194,
+  "risk": "HIGH",
+  "riskSharedAxes": "HIGH",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 5,
+    "processes_affected": 0,
+    "modules_affected": 1
+  },
+  "byDepthCounts": {
+    "1": 5,
+    "2": 52,
+    "3": 137
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Controllers",
+      "hits": 1,
+      "impact": "direct"
+    }
+  ],
+  "pagination": {
+    "limit": 10,
+    "offset": 0,
+    "truncated": true
+  },
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState",
+        "name": "_TIMUIKitHistoryMessageListState",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "File:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+        "name": "_audit_history_short_viewport_probe_test.dart",
+        "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "File:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "name": "tui_chat_separate_view_model.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "File:third_party/tencent_cloud_chat_uikit/lib/ui/utils/history_previous_prefetch_policy.dart",
+        "name": "history_previous_prefetch_policy.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/history_previous_prefetch_policy.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "File:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "name": "tim_uikit_chat_history_message_list.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "File:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+        "name": "_audit_history_probe_test.dart",
+        "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+        "name": "_audit_unread_probe_test.dart",
+        "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/chat.dart",
+        "name": "chat.dart",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/chatv2.dart",
+        "name": "chatv2.dart",
+        "filePath": "lib/src/chatv2.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/widgets/chat_attachment_message_card_io.dart",
+        "name": "chat_attachment_message_card_io.dart",
+        "filePath": "lib/src/widgets/chat_attachment_message_card_io.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/widgets/chat_attachment_message_card_stub.dart",
+        "name": "chat_attachment_message_card_stub.dart",
+        "filePath": "lib/src/widgets/chat_attachment_message_card_stub.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/widgets/conversation_peek/conversation_peek_message_item.dart",
+        "name": "conversation_peek_message_item.dart",
+        "filePath": "lib/src/widgets/conversation_peek/conversation_peek_message_item.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/widgets/conversation_peek/conversation_peek_overlay.dart",
+        "name": "conversation_peek_overlay.dart",
+        "filePath": "lib/src/widgets/conversation_peek/conversation_peek_overlay.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/widgets/conversation_peek/conversation_peek_sound_bubble.dart",
+        "name": "conversation_peek_sound_bubble.dart",
+        "filePath": "lib/src/widgets/conversation_peek/conversation_peek_sound_bubble.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/widgets/in_app_message_notification_banner.dart",
+        "name": "in_app_message_notification_banner.dart",
+        "filePath": "lib/src/widgets/in_app_message_notification_banner.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "File:lib/main.dart",
+        "name": "main.dart",
+        "filePath": "lib/main.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/about.dart",
+        "name": "about.dart",
+        "filePath": "lib/src/about.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/add_friend.dart",
+        "name": "add_friend.dart",
+        "filePath": "lib/src/add_friend.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/api/me_friend_api.dart",
+        "name": "me_friend_api.dart",
+        "filePath": "lib/src/api/me_friend_api.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/avatar_select_page.dart",
+        "name": "avatar_select_page.dart",
+        "filePath": "lib/src/avatar_select_page.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/cancel_account.dart",
+        "name": "cancel_account.dart",
+        "filePath": "lib/src/cancel_account.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/conversation.dart",
+        "name": "conversation.dart",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/create_group.dart",
+        "name": "create_group.dart",
+        "filePath": "lib/src/create_group.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/friend_application_audit_page.dart",
+        "name": "friend_application_audit_page.dart",
+        "filePath": "lib/src/friend_application_audit_page.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/friend_application_helper.dart",
+        "name": "friend_application_helper.dart",
+        "filePath": "lib/src/friend_application_helper.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      }
+    ]
+  }
+}

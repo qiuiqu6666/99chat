@@ -1,0 +1,294 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._flushPendingTabStoreProjection#0",
+    "name": "_flushPendingTabStoreProjection",
+    "type": "Method",
+    "filePath": "lib/src/chat_session/chat_session_controller.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 27,
+  "risk": "MEDIUM",
+  "riskSharedAxes": "MEDIUM",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 10,
+    "processes_affected": 0,
+    "modules_affected": 2
+  },
+  "byDepthCounts": {
+    "1": 10,
+    "2": 8,
+    "3": 9
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Chat_session",
+      "hits": 23,
+      "impact": "direct"
+    },
+    {
+      "name": "Services",
+      "hits": 1,
+      "impact": "indirect"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Class:lib/src/chat_session/chat_session_controller.dart:ChatSessionController",
+        "name": "ChatSessionController",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._onTabStoreChanged#0",
+        "name": "_onTabStoreChanged",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._windowConversationAtTypeIndex#2",
+        "name": "_windowConversationAtTypeIndex",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._windowTotalCountForType#1",
+        "name": "_windowTotalCountForType",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._windowTypeIndexOfConversationId#2",
+        "name": "_windowTypeIndexOfConversationId",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.hydratedEndOffsetForType#1",
+        "name": "hydratedEndOffsetForType",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.hydratedLengthForType#1",
+        "name": "hydratedLengthForType",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.hydratedStartOffsetForType#1",
+        "name": "hydratedStartOffsetForType",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.isTypeIndexLiveHydrated#2",
+        "name": "isTypeIndexLiveHydrated",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.notifyListeners#0",
+        "name": "notifyListeners",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._flushPendingUiNotifyAfterChatLeave#2",
+        "name": "_flushPendingUiNotifyAfterChatLeave",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._notifyControllerProjection#2",
+        "name": "_notifyControllerProjection",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.clearSessionProjection#1",
+        "name": "clearSessionProjection",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.conversationAtTypeIndex#2",
+        "name": "conversationAtTypeIndex",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.flushDeferredListUiBeforeChatLeave#2",
+        "name": "flushDeferredListUiBeforeChatLeave",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.flushDeferredUiNotifyIfNeeded#1",
+        "name": "flushDeferredUiNotifyIfNeeded",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.totalCountForType#1",
+        "name": "totalCountForType",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.typeIndexOfConversationId#2",
+        "name": "typeIndexOfConversationId",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._armActiveChatUiNotifyMaxDefer#0",
+        "name": "_armActiveChatUiNotifyMaxDefer",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._armScrollUiNotifyMaxDefer#0",
+        "name": "_armScrollUiNotifyMaxDefer",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._flushDeferredPinReorder#0",
+        "name": "_flushDeferredPinReorder",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._scheduleCoalescedNotify#1",
+        "name": "_scheduleCoalescedNotify",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._scheduleTabStoreNotify#0",
+        "name": "_scheduleTabStoreNotify",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.endSuppressNotify#0",
+        "name": "endSuppressNotify",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.notifyIfAllowedForTest#1",
+        "name": "notifyIfAllowedForTest",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.patchConversationAfterChatLeave#2",
+        "name": "patchConversationAfterChatLeave",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.replaceProjectionForTest#1",
+        "name": "replaceProjectionForTest",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}
+

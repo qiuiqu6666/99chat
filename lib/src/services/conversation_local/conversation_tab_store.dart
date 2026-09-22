@@ -161,6 +161,82 @@ class ConversationTabStore extends ChangeNotifier {
 
   static final ConversationTabStore instance = ConversationTabStore._();
 
+  // Only the SDK callback entry buffers work. User mutations and synchronous
+  // reads drain it first, so older callbacks cannot overwrite later actions.
+  final Map<String, V2TimConversation> _pendingRealtimeRows = {};
+  Timer? _realtimeBatchTimer;
+  bool _realtimePreserveOrder = false;
+  bool _flushingRealtimeBatch = false;
+
+  void enqueueRealtimePatches(
+    List<V2TimConversation> incoming, {
+    required String reason,
+    bool preserveOrder = false,
+  }) {
+    if (incoming.isEmpty) return;
+    if (!ConversationPerfFlags.tabStoreNotifyCoalesceEnabled) {
+      applyPatches(incoming,
+          reason: reason,
+          explicitUnreadIds: incoming.map((row) => row.conversationID).toSet(),
+          preserveOrder: preserveOrder);
+      return;
+    }
+    if (_pendingRealtimeRows.isNotEmpty &&
+        _realtimePreserveOrder != preserveOrder) {
+      flushRealtimePatches();
+    }
+    _realtimePreserveOrder = preserveOrder;
+    for (final raw in incoming) {
+      final key =
+          _deferredProjectionKey(raw.conversationID, convType: _typeOf(raw));
+      if (raw.conversationID.trim().isEmpty) continue;
+      final previous = _pendingRealtimeRows[key];
+      final row = previous == null
+          ? mergePatchRow(
+              existing: raw,
+              incoming: raw,
+              useIncomingUnread: true,
+              useIncomingDraft: true,
+              useIncomingLastMessage: true,
+            )
+          : mergePatchRow(
+              existing: previous,
+              incoming: raw,
+              useIncomingUnread: true,
+            );
+      _pendingRealtimeRows[key] = row;
+      // ByIDs restores may finish before the publication timer fires.
+      _recordRestorePatch(row, draft: false, last: false);
+    }
+    if (_pendingRealtimeRows.isEmpty || _realtimeBatchTimer != null) return;
+    final generation = _sessionGeneration;
+    // A fixed deadline, not a trailing debounce: a busy stream must publish.
+    _realtimeBatchTimer = Timer(
+      ConversationPerfFlags.tabStoreNotifyCoalesceDelay,
+      () {
+        if (generation == _sessionGeneration) flushRealtimePatches();
+      },
+    );
+  }
+
+  void flushRealtimePatches() {
+    if (_flushingRealtimeBatch || _pendingRealtimeRows.isEmpty) return;
+    _realtimeBatchTimer?.cancel();
+    _realtimeBatchTimer = null;
+    final rows = _pendingRealtimeRows.values.toList(growable: false);
+    final preserveOrder = _realtimePreserveOrder;
+    _pendingRealtimeRows.clear();
+    _flushingRealtimeBatch = true;
+    try {
+      applyPatches(rows,
+          reason: 'sdk_realtime_batch',
+          explicitUnreadIds: rows.map((row) => row.conversationID).toSet(),
+          preserveOrder: preserveOrder);
+    } finally {
+      _flushingRealtimeBatch = false;
+    }
+  }
+
   // The typed SDK windows are the only mutable conversation collections.
   // The combined feed is a cached, read-only projection owned here as well.
   List<V2TimConversation> _displayRows = const [];
@@ -259,6 +335,7 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   void notifyDisplayFields(Iterable<String> ids, {required String reason}) {
+    flushRealtimePatches();
     _lastApplyPatchesReason = reason;
     _lastNotificationStructureChanged = false;
     _lastNotificationChangedIds = ids.toSet();
@@ -266,6 +343,7 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   void _resolveDisplayRows() {
+    flushRealtimePatches();
     if (!_displayDirty) return;
     List<V2TimConversation>? next;
     if (!_displayStructureDirty && _displayChangedIds.isNotEmpty) {
@@ -297,6 +375,7 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   void setPinReorderDeferred(bool deferred) {
+    flushRealtimePatches();
     if (_pinSortDeferred == deferred) return;
     _pinSortDeferred = deferred;
     if (deferred) return;
@@ -317,7 +396,7 @@ class ConversationTabStore extends ChangeNotifier {
   static const int defaultPageSize = 50;
 
   /// 冷启动首屏窗：拉到 30 个就够，覆盖第一屏 + 缓存几屏。
-  /// 比 defaultPageSize=50 省 40% SQL decode 耗时。
+  /// 比 defaultPageSize=50 少处理 40% 的 SDK 会话行。
   static const int coldStartFirstPageSize = 30;
 
   final Map<int, List<V2TimConversation>> _items =
@@ -356,9 +435,8 @@ class ConversationTabStore extends ChangeNotifier {
     ConversationType.V2TIM_C2C: null,
     ConversationType.V2TIM_GROUP: null,
   };
-  // SQL rows consumed by pagination. This is separate from _items.length:
-  // realtime patches may enter the UI window without advancing the page
-  // frontier.
+  // SDK pagination completion is independent of the in-memory window length.
+  // Realtime patches can add rows without advancing the SDK cursor.
   final Map<int, bool> _finished = <int, bool>{
     ConversationType.V2TIM_C2C: false,
     ConversationType.V2TIM_GROUP: false,
@@ -492,6 +570,7 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   V2TimConversation? conversationForId(String conversationID) {
+    flushRealtimePatches();
     final id = conversationID.trim();
     if (id.isEmpty) return null;
     for (final type in const <int>[
@@ -509,6 +588,7 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   ConversationRowView? rowViewOf(String conversationID) {
+    flushRealtimePatches();
     final id = conversationID.trim();
     if (id.isEmpty) return null;
     return _rowViews[id];
@@ -517,6 +597,8 @@ class ConversationTabStore extends ChangeNotifier {
   /// Per-row channel. Created only when a mounted row subscribes.
   ValueListenable<ConversationRowView?> rowViewListenable(
       String conversationID) {
+    // Subscription setup/teardown must not publish buffered SDK work. Account
+    // reset removes listeners before discarding the previous owner's queue.
     final id = conversationID.trim();
     return _rowViewNotifiers.putIfAbsent(id, () {
       return _ScopedRowViewNotifier(
@@ -537,6 +619,7 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   List<String> structureIdsForType(int convType) {
+    flushRealtimePatches();
     return List<String>.unmodifiable(
       _items[_normalizeType(convType)]!
           .map((row) => row.conversationID.trim())
@@ -601,6 +684,7 @@ class ConversationTabStore extends ChangeNotifier {
   bool get isSortFrozenByScroll => _sortFrozenByScroll;
 
   void setSortFrozenByScroll(bool frozen) {
+    flushRealtimePatches();
     if (_sortFrozenByScroll == frozen) return;
     _sortFrozenByScroll = frozen;
     BackgroundMediaGate.instance.setBusy(this, frozen);
@@ -782,6 +866,7 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   List<V2TimConversation> itemsForType(int convType) {
+    flushRealtimePatches();
     final type = _normalizeType(convType);
     for (final row in _items[type] ?? const <V2TimConversation>[]) {
       _rememberPatchRowState(row);
@@ -790,8 +875,11 @@ class ConversationTabStore extends ChangeNotifier {
     return _readViews[rows] ??= UnmodifiableListView(rows);
   }
 
-  int countForType(int convType) =>
-      (_items[_normalizeType(convType)] ?? const <V2TimConversation>[]).length;
+  int countForType(int convType) {
+    flushRealtimePatches();
+    return (_items[_normalizeType(convType)] ?? const <V2TimConversation>[])
+        .length;
+  }
 
   bool finishedForType(int convType) =>
       _finished[_normalizeType(convType)] ?? false;
@@ -863,6 +951,7 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   V2TimConversation? atTypeIndex(int convType, int index) {
+    flushRealtimePatches();
     final list = _items[_normalizeType(convType)];
     if (list == null || index < 0 || index >= list.length) {
       return null;
@@ -872,6 +961,7 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   int? typeIndexOf(int convType, String conversationId) {
+    flushRealtimePatches();
     final id = conversationId.trim();
     if (id.isEmpty) {
       return null;
@@ -1019,6 +1109,7 @@ class ConversationTabStore extends ChangeNotifier {
     required int convType,
     int? count,
   }) async {
+    flushRealtimePatches();
     final type = _normalizeType(convType);
     final head = _detachedHeadIds[type]!;
     if (head.isEmpty) {
@@ -1068,6 +1159,7 @@ class ConversationTabStore extends ChangeNotifier {
     required int convType,
     int? count,
   }) async {
+    flushRealtimePatches();
     final type = _normalizeType(convType);
     final tail = _detachedTailIds[type]!;
     if (tail.isEmpty) {
@@ -1127,6 +1219,7 @@ class ConversationTabStore extends ChangeNotifier {
     String? ownerScope,
     int? expectedSessionGeneration,
   }) {
+    flushRealtimePatches();
     ConversationPerfGateLog.log(
       'patch_enter',
       extras: <String, Object?>{
@@ -1691,6 +1784,7 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   void applyDeleted(List<String> ids, {bool notify = true}) {
+    flushRealtimePatches();
     if (ids.isEmpty) {
       return;
     }
@@ -1768,15 +1862,15 @@ class ConversationTabStore extends ChangeNotifier {
     }
   }
 
-  /// Applies one committed database view result. This is the sole UI entry
-  /// point for a committed batch in SQLite-primary mode: row patches, deletes,
-  /// cursor invalidation and unread aggregation are coalesced into one notify.
+  /// Applies committed local business changes alongside SDK-owned pages and
+  /// callbacks, coalescing row patches, deletes and cursor invalidation.
   void applyCommittedViewBatch(
     ConversationUiSnapshotBatch<V2TimConversation> batch, {
     Set<String> forceAdmitIds = const <String>{},
     Set<String> explicitDraftIds = const <String>{},
     Set<String> explicitLastMessageIds = const <String>{},
   }) {
+    flushRealtimePatches();
     if (batch.isEmpty && batch.unreadDeltas.isEmpty) return;
     final committedDraftIds = <String>{...explicitDraftIds};
     final committedLastMessageIds = <String>{...explicitLastMessageIds};
@@ -2044,6 +2138,7 @@ class ConversationTabStore extends ChangeNotifier {
   /// The final row per conversation is applied once, so a burst of SDK events
   /// cannot trigger one list copy/sort per callback.
   void flushDeferredCommittedProjection({String reason = 'chat_leave'}) {
+    flushRealtimePatches();
     if (_deferredCommittedUpserts.isEmpty &&
         _deferredCommittedDeletes.isEmpty &&
         _deferredCommittedMoves.isEmpty) {
@@ -2257,6 +2352,7 @@ class ConversationTabStore extends ChangeNotifier {
   /// 批量已读的即时 UI 投影。SDK primary 模式下列表行来自本 Store，
   /// 不能只更新 UI 兼容镜像。
   void zeroUnreadLocallyMany(Iterable<String> conversationIds) {
+    flushRealtimePatches();
     final ids = conversationIds
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty)
@@ -2395,6 +2491,7 @@ class ConversationTabStore extends ChangeNotifier {
 
   /// Phase3：按本地归档 id 集合从已加载窗 purge（主列表不得双显）。
   void purgeArchived({bool notify = true}) {
+    flushRealtimePatches();
     if (!ConversationPerfFlags.virtualListExcludeArchivedEnabled) {
       return;
     }
@@ -2463,6 +2560,10 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   void clear() {
+    _realtimeBatchTimer?.cancel();
+    _realtimeBatchTimer = null;
+    _pendingRealtimeRows.clear();
+    _realtimePreserveOrder = false;
     _clearRowViewScope();
     _displayRows = const [];
     _displayPositions.clear();
@@ -2508,6 +2609,7 @@ class ConversationTabStore extends ChangeNotifier {
     String nextSeq = '0',
     bool finished = false,
   }) {
+    flushRealtimePatches();
     final type = _normalizeType(convType);
     _primedTypes.add(type);
     _items[type] = List<V2TimConversation>.from(items);
@@ -2612,6 +2714,7 @@ class ConversationTabStore extends ChangeNotifier {
     required int generation,
     String? viewportAnchorId,
   }) async {
+    flushRealtimePatches();
     final pageCount = count > 0 ? count : defaultPageSize;
     final seq = reset ? '0' : (_nextSeq[type] ?? '0');
     if (!reset && (_finished[type] == true)) {
@@ -2636,6 +2739,9 @@ class ConversationTabStore extends ChangeNotifier {
         nextSeq: seq,
         count: pageCount,
       );
+      // Commit pending callbacks while this page's change journal is live.
+      // Otherwise a fast SDK response could install an older snapshot first.
+      flushRealtimePatches();
     } finally {
       if (identical(_pageChanges[type], changes)) _pageChanges.remove(type);
     }

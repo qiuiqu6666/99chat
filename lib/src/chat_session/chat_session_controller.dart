@@ -809,19 +809,14 @@ class ChatSessionController extends ChangeNotifier {
     if (conversations.isEmpty) return;
 
     _ensureTabStoreBridgeAttached();
-    // 项 7：仅在冷启动期（_coldStartWindowActive=true）让 SDK push 直塞路径
-    // 不重排，避免冷启动期间 SDK 大量推送导致双路并发 sort。
-    // 稳态期保持 false，确保新消息立刻跳顶（用户感知不变）。
+    // Cold-start callbacks preserve the first window; steady-state callbacks
+    // merge by conversation before one bounded sort/projection publication.
     final effectivePreserveOrder =
         preserveOrder || ConversationTabStore.instance.isColdStartWindowActive;
     ConversationUnreadAggregate.instance.applySdkConversations(conversations);
-    ConversationTabStore.instance.applyPatches(
+    ConversationTabStore.instance.enqueueRealtimePatches(
       conversations,
       reason: reason,
-      explicitUnreadIds: conversations
-          .map((conversation) => conversation.conversationID)
-          .toSet(),
-      allowNew: true,
       preserveOrder: effectivePreserveOrder,
     );
   }
@@ -1381,6 +1376,7 @@ class ChatSessionController extends ChangeNotifier {
   }
 
   void flushDeferredUiNotifyIfNeeded({String reason = 'scroll_end'}) {
+    _tabStore.flushRealtimePatches();
     final isChatLeave = reason.startsWith('chat_leave');
     if (isChatLeave && ConversationPerfFlags.chatLeavePatchLeftOnlyEnabled) {
       deferredState.activeChatUiNotifyMaxDeferTimer?.cancel();
@@ -1427,6 +1423,7 @@ class ChatSessionController extends ChangeNotifier {
     final leftId = conversationId.trim();
     _ensureTabStoreBridgeAttached();
     final tabStore = ConversationTabStore.instance;
+    tabStore.flushRealtimePatches();
     final hadDeferredProjection = tabStore.hasDeferredCommittedProjection;
     if (hadDeferredProjection) {
       tabStore.flushDeferredCommittedProjection(reason: reason);
@@ -1979,6 +1976,7 @@ class ChatSessionController extends ChangeNotifier {
       _pendingSdkFullDiff |= _tabStore.lastNotificationStructureChanged;
     }
     if (ConversationPerfFlags.tabStoreNotifyCoalesceEnabled &&
+        reason != 'sdk_realtime_batch' &&
         reason.startsWith('sdk_realtime')) {
       _scheduleTabStoreNotify();
       return;
@@ -1994,6 +1992,7 @@ class ChatSessionController extends ChangeNotifier {
   /// Coalesce the actual projection work, while synchronous row/window reads
   /// can demand the latest committed SDK view before its notification timer.
   void _flushPendingTabStoreProjection() {
+    _tabStore.flushRealtimePatches();
     if (!_tabStoreProjectionDirty) return;
     final structureChanged = _pendingTabStoreStructureChanged;
     final ids = Set<String>.of(_pendingTabStoreChangedIds);

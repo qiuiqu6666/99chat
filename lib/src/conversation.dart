@@ -86,6 +86,7 @@ import 'package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.
 import 'package:tencent_cloud_chat_demo/src/utils/message_conversation_id.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/archive_conversation_lookup.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/conversation_preview_history_sync.dart';
+import 'package:tencent_cloud_chat_demo/src/utils/conversation_preview_fingerprint.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/group_notice_selection.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/desktop_login_sessions_page.dart';
 import 'package:tencent_cloud_chat_demo/src/services/desktop_login_session_service.dart';
@@ -707,11 +708,7 @@ class _ConversationState extends State<Conversation> {
       revisionKey,
       globalModel.messageListRevisionFor(revisionKey),
       globalModel.messageProjectionRevisionFor(revisionKey),
-      identityHashCode(lastMessage),
-      lastMessage?.msgID,
-      lastMessage?.id,
-      lastMessage?.timestamp,
-      lastMessage?.status,
+      conversationPreviewFingerprint(lastMessage),
     ]);
   }
 
@@ -797,11 +794,10 @@ class _ConversationState extends State<Conversation> {
       // On the first projection pass the row may currently be showing
       // `conversation.lastMessage`. Compare against that fallback as well so
       // the asynchronously precomputed result is painted when it differs.
-      final paintedMessage = previous?.message ?? conversation.lastMessage;
-      final changed = paintedMessage?.msgID != resolved?.msgID ||
-          paintedMessage?.id != resolved?.id ||
-          paintedMessage?.timestamp != resolved?.timestamp ||
-          paintedMessage?.status != resolved?.status;
+      final paintedFingerprint = previous?.messageFingerprint ??
+          conversationPreviewFingerprint(conversation.lastMessage);
+      final changed = paintedFingerprint !=
+          _previewProjectionByConversation[id]!.messageFingerprint;
       if (changed) {
         final notifier = _previewProjectionRowRevisions[id];
         if (notifier != null) notifier.value++;
@@ -2155,12 +2151,6 @@ class _ConversationState extends State<Conversation> {
     );
     if (_feedScrollController.hasClients) {
       final position = _feedScrollController.position;
-      _requestVirtualHydrateForFeedScroll(
-        pixels: position.pixels,
-        viewportDimension: position.viewportDimension,
-        scrollDirection: 0,
-        force: true,
-      );
       if (position.pixels <= _feedRowEstimateHeight) {
         _restoreTrimmedFeedHeadIfNeeded();
       }
@@ -2179,27 +2169,6 @@ class _ConversationState extends State<Conversation> {
         _scheduleFolderUnreadAfterScrollSettle();
       }
       _scheduleViewportWarmAfterSettle(reason: 'scroll_end');
-    }
-  }
-
-  void _requestVirtualHydrateForFeedScroll({
-    required double pixels,
-    required double viewportDimension,
-    required int scrollDirection,
-    required bool force,
-  }) {
-    {
-      return;
-    }
-  }
-
-  /// 返回聊天列表时，旧滚动位置可能已经超出当前水合窗。
-  /// 只在这个返回场景允许一次定点跳窗，避免视口先落成整片 skeleton。
-  void _scheduleVirtualFeedHydrateAfterChatReturn(
-    V2TimConversation opened,
-  ) {
-    {
-      return;
     }
   }
 
@@ -3535,7 +3504,6 @@ class _ConversationState extends State<Conversation> {
         if (!mounted) {
           return;
         }
-        _scheduleVirtualFeedHydrateAfterChatReturn(selectedConv);
         // 从聊天返回：预热当前会话头像，降低列表行闪动。
         unawaited(
           AvatarImageWarm.warmSources(
@@ -5832,13 +5800,14 @@ class _ConversationState extends State<Conversation> {
 }
 
 class _ConversationPreviewProjectionEntry {
-  const _ConversationPreviewProjectionEntry({
+  _ConversationPreviewProjectionEntry({
     required this.token,
     required this.message,
-  });
+  }) : messageFingerprint = conversationPreviewFingerprint(message);
 
   final int token;
   final V2TimMessage? message;
+  final String messageFingerprint;
 }
 
 class ArchivedConversationPage extends StatefulWidget {

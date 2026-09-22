@@ -1,0 +1,1352 @@
+{
+  "summary": {
+    "changed_count": 188,
+    "affected_count": 2,
+    "changed_files": 42,
+    "risk_level": "medium"
+  },
+  "changed_symbols": [
+    {
+      "id": "Class:lib/src/api/agent_rebate_api.dart:AgentRebateApi",
+      "name": "AgentRebateApi",
+      "type": "Class",
+      "filePath": "lib/src/api/agent_rebate_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/agent_rebate_api.dart:AgentRebateApi.AgentRebateApi#1",
+      "name": "AgentRebateApi",
+      "type": "Constructor",
+      "filePath": "lib/src/api/agent_rebate_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/api_client.dart:ApiClient",
+      "name": "ApiClient",
+      "type": "Class",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/api_client.dart:ApiClient._requestCredentialGeneration",
+      "name": "_requestCredentialGeneration",
+      "type": "Property",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/api_client.dart:ApiClient._handlingAccountDisabled",
+      "name": "_handlingAccountDisabled",
+      "type": "Property",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/api_client.dart:ApiClient.accountDisabledMessage#1",
+      "name": "accountDisabledMessage",
+      "type": "Method",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/api_client.dart:ApiClient._handleAccountDisabled#1",
+      "name": "_handleAccountDisabled",
+      "type": "Method",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/me_group_api.dart:MutedGroupMemberRecord",
+      "name": "MutedGroupMemberRecord",
+      "type": "Class",
+      "filePath": "lib/src/api/me_group_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/me_group_api.dart:MutedGroupMemberRecord.nickname",
+      "name": "nickname",
+      "type": "Property",
+      "filePath": "lib/src/api/me_group_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/me_group_api.dart:MutedGroupMemberRecord.avatarUrl",
+      "name": "avatarUrl",
+      "type": "Property",
+      "filePath": "lib/src/api/me_group_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/me_group_api.dart:MeGroupApi",
+      "name": "MeGroupApi",
+      "type": "Class",
+      "filePath": "lib/src/api/me_group_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/me_group_api.dart:MeGroupApi.fetchMutedMembers#2",
+      "name": "fetchMutedMembers",
+      "type": "Method",
+      "filePath": "lib/src/api/me_group_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/chat.dart:_ChatState",
+      "name": "_ChatState",
+      "type": "Class",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/group_profile.dart:GroupProfilePage",
+      "name": "GroupProfilePage",
+      "type": "Class",
+      "filePath": "lib/src/group_profile.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/group_profile.dart:GroupProfilePage._buildMemberPreviewCard#5",
+      "name": "_buildMemberPreviewCard",
+      "type": "Method",
+      "filePath": "lib/src/group_profile.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/add_friend_page.dart:_AddFriendPageState",
+      "name": "_AddFriendPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/add_friend_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/c2c_chat_settings_page.dart:_C2cChatSettingsPageState",
+      "name": "_C2cChatSettingsPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/c2c_chat_settings_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/common_group_chats_page.dart:_CommonGroupChatsPageState",
+      "name": "_CommonGroupChatsPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/common_group_chats_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/complaint/complaint_form_page.dart:_ComplaintFormPageState",
+      "name": "_ComplaintFormPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/complaint/complaint_form_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/complaint/complaint_form_page.dart:_ComplaintFormPageState._submitted",
+      "name": "_submitted",
+      "type": "Property",
+      "filePath": "lib/src/pages/complaint/complaint_form_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/complaint/complaint_form_page.dart:_ComplaintFormPageState.build#1",
+      "name": "build",
+      "type": "Method",
+      "filePath": "lib/src/pages/complaint/complaint_form_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/complaint/complaint_form_page.dart:_ComplaintAttachment",
+      "name": "_ComplaintAttachment",
+      "type": "Class",
+      "filePath": "lib/src/pages/complaint/complaint_form_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/group_live/group_live_push_info_page.dart:_GroupLivePushInfoPageState",
+      "name": "_GroupLivePushInfoPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/group_live/group_live_push_info_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/group_live/group_live_push_info_page.dart:_ExpiredScheduleCard",
+      "name": "_ExpiredScheduleCard",
+      "type": "Class",
+      "filePath": "lib/src/pages/group_live/group_live_push_info_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/group_live/group_live_push_info_page.dart:_ExpiredScheduleCard.roomName",
+      "name": "roomName",
+      "type": "Property",
+      "filePath": "lib/src/pages/group_live/group_live_push_info_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/group_live/group_live_push_info_page.dart:_ExpiredScheduleCard.description",
+      "name": "description",
+      "type": "Property",
+      "filePath": "lib/src/pages/group_live/group_live_push_info_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/feedback_page.dart:_FeedbackPageState",
+      "name": "_FeedbackPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/feedback_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/feedback_page.dart:_FeedbackPageState._submitted",
+      "name": "_submitted",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/feedback_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/settings_page.dart:_SettingsPageState",
+      "name": "_SettingsPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/settings_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Variable:lib/src/pages/settings/test_page.dart:_red",
+      "name": "_red",
+      "type": "Variable",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Variable:lib/src/pages/settings/test_page.dart:_blue",
+      "name": "_blue",
+      "type": "Variable",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Variable:lib/src/pages/settings/test_page.dart:_green",
+      "name": "_green",
+      "type": "Variable",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Enum:lib/src/pages/settings/test_page.dart:_WaveColor",
+      "name": "_WaveColor",
+      "type": "Enum",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/pages/settings/test_page.dart:_numberWave",
+      "name": "_numberWave",
+      "type": "Function",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/test_page.dart:_NumberBall",
+      "name": "_NumberBall",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_NumberBall.number",
+      "name": "number",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_NumberBall.wave",
+      "name": "wave",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_NumberBall.size",
+      "name": "size",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/settings/test_page.dart:_NumberBall.build#1",
+      "name": "build",
+      "type": "Method",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/test_page.dart:_MarkSixResult",
+      "name": "_MarkSixResult",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_MarkSixResult.time",
+      "name": "time",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_MarkSixResult.zodiac",
+      "name": "zodiac",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_MarkSixResult.waveColor",
+      "name": "waveColor",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_MarkSixResult.attributes",
+      "name": "attributes",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_MarkSixResult.fullIssue",
+      "name": "fullIssue",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_MarkSixResult.parity",
+      "name": "parity",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_MarkSixResult.size",
+      "name": "size",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_MarkSixResult.head",
+      "name": "head",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_MarkSixResult.tail",
+      "name": "tail",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_MarkSixResult.sumParity",
+      "name": "sumParity",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Variable:lib/src/pages/settings/test_page.dart:_results",
+      "name": "_results",
+      "type": "Variable",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/test_page.dart:LotteryLatestPreview",
+      "name": "LotteryLatestPreview",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:LotteryLatestPreview.gameId",
+      "name": "gameId",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/settings/test_page.dart:LotteryLatestPreview.build#1",
+      "name": "build",
+      "type": "Method",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/test_page.dart:TestPage",
+      "name": "TestPage",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:TestPage.groupUid",
+      "name": "groupUid",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:TestPage.gameId",
+      "name": "gameId",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/settings/test_page.dart:TestPage.build#1",
+      "name": "build",
+      "type": "Method",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/test_page.dart:_Brand",
+      "name": "_Brand",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/settings/test_page.dart:_Brand.build#1",
+      "name": "build",
+      "type": "Method",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/test_page.dart:_ResultTable",
+      "name": "_ResultTable",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_ResultTable.results",
+      "name": "results",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_ResultTable._widths",
+      "name": "_widths",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/test_page.dart:_TableRow",
+      "name": "_TableRow",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_TableRow.values",
+      "name": "values",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_TableRow.header",
+      "name": "header",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/test_page.dart:_ResultRow",
+      "name": "_ResultRow",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_ResultRow.result",
+      "name": "result",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/test_page.dart:_TableCell",
+      "name": "_TableCell",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_TableCell.width",
+      "name": "width",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_TableCell.text",
+      "name": "text",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_TableCell.header",
+      "name": "header",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_TableCell.background",
+      "name": "background",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/test_page.dart:_TableCell.bold",
+      "name": "bold",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart:LuckyRedPacketDetailData",
+      "name": "LuckyRedPacketDetailData",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart:LuckyRedPacketDetailPage",
+      "name": "LuckyRedPacketDetailPage",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart:_LuckyDetailBody",
+      "name": "_LuckyDetailBody",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart:_ClaimRow",
+      "name": "_ClaimRow",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart:_ClaimRow.amount",
+      "name": "amount",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart:_ClaimRow.avatarUrl",
+      "name": "avatarUrl",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart:_ClaimRow.bestLuckLabel",
+      "name": "bestLuckLabel",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart:_ClaimRow.name",
+      "name": "name",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart:_ClaimRow.time",
+      "name": "time",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart:_LuckyHeaderPainter",
+      "name": "_LuckyHeaderPainter",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/qr_code_page.dart:_QRCodePageState",
+      "name": "_QRCodePageState",
+      "type": "Class",
+      "filePath": "lib/src/qr_code_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/qr_code_page.dart:_QRCodePageState._groupMemberCount",
+      "name": "_groupMemberCount",
+      "type": "Property",
+      "filePath": "lib/src/qr_code_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/qr_code_page.dart:_QRCodePageState._loadGroupMemberCount#0",
+      "name": "_loadGroupMemberCount",
+      "type": "Method",
+      "filePath": "lib/src/qr_code_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/qr_code_page.dart:_QRCodePageState._buildIdentityAvatar#2",
+      "name": "_buildIdentityAvatar",
+      "type": "Method",
+      "filePath": "lib/src/qr_code_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/qr_code_page.dart:_QRCodePageState._shareInvitation#1",
+      "name": "_shareInvitation",
+      "type": "Method",
+      "filePath": "lib/src/qr_code_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/qr_code_page.dart:_QRCodePageState._buildShareActions#1",
+      "name": "_buildShareActions",
+      "type": "Method",
+      "filePath": "lib/src/qr_code_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/qr_code_page.dart:_QrCornerFramePainter",
+      "name": "_QrCornerFramePainter",
+      "type": "Class",
+      "filePath": "lib/src/qr_code_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/qr_code_page.dart:_CardWavePainter",
+      "name": "_CardWavePainter",
+      "type": "Class",
+      "filePath": "lib/src/qr_code_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/group_live/group_live_index_store.dart:GroupLiveIndexStore",
+      "name": "GroupLiveIndexStore",
+      "type": "Class",
+      "filePath": "lib/src/services/group_live/group_live_index_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/session_expiry_service.dart:SessionExpiryService",
+      "name": "SessionExpiryService",
+      "type": "Class",
+      "filePath": "lib/src/services/session_expiry_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/session_expiry_service.dart:SessionExpiryService.handleAccountDisabled#1",
+      "name": "handleAccountDisabled",
+      "type": "Method",
+      "filePath": "lib/src/services/session_expiry_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/session_expiry_service.dart:SessionExpiryService._handle#3",
+      "name": "_handle",
+      "type": "Method",
+      "filePath": "lib/src/services/session_expiry_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/user_profile.dart:UserProfileState",
+      "name": "UserProfileState",
+      "type": "Class",
+      "filePath": "lib/src/user_profile.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/user_profile.dart:UserProfileState._buildQuickActionItem#6",
+      "name": "_buildQuickActionItem",
+      "type": "Method",
+      "filePath": "lib/src/user_profile.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/user_profile.dart:UserProfileState._buildMobileActionArea#3",
+      "name": "_buildMobileActionArea",
+      "type": "Method",
+      "filePath": "lib/src/user_profile.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/user_profile.dart:UserProfileState._mobileSettingsCard#2",
+      "name": "_mobileSettingsCard",
+      "type": "Method",
+      "filePath": "lib/src/user_profile.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/group_live/group_live_top_banner.dart:GroupLiveTopBanner",
+      "name": "GroupLiveTopBanner",
+      "type": "Class",
+      "filePath": "lib/src/widgets/group_live/group_live_top_banner.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/sticker/sticker_organize_grid.dart:StickerOrganizeGrid",
+      "name": "StickerOrganizeGrid",
+      "type": "Class",
+      "filePath": "lib/src/widgets/sticker/sticker_organize_grid.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/sticker/sticker_organize_grid.dart:_StickerOrganizeGridState",
+      "name": "_StickerOrganizeGridState",
+      "type": "Class",
+      "filePath": "lib/src/widgets/sticker/sticker_organize_grid.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/sticker/sticker_organize_grid.dart:_StickerOrganizeGridState._previewIds",
+      "name": "_previewIds",
+      "type": "Property",
+      "filePath": "lib/src/widgets/sticker/sticker_organize_grid.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/sticker/sticker_organize_grid.dart:_StickerOrganizeGridState._committing",
+      "name": "_committing",
+      "type": "Property",
+      "filePath": "lib/src/widgets/sticker/sticker_organize_grid.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/widgets/sticker/sticker_organize_grid.dart:_StickerOrganizeGridState._pointerIndex#0",
+      "name": "_pointerIndex",
+      "type": "Method",
+      "filePath": "lib/src/widgets/sticker/sticker_organize_grid.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/widgets/sticker/sticker_organize_grid.dart:_StickerOrganizeGridState._previewMove#0",
+      "name": "_previewMove",
+      "type": "Method",
+      "filePath": "lib/src/widgets/sticker/sticker_organize_grid.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/widgets/sticker/sticker_organize_grid.dart:_StickerOrganizeGridState._finishDrag#0",
+      "name": "_finishDrag",
+      "type": "Method",
+      "filePath": "lib/src/widgets/sticker/sticker_organize_grid.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/utils/dio_error_message.dart:DioErrorMessage",
+      "name": "DioErrorMessage",
+      "type": "Class",
+      "filePath": "lib/utils/dio_error_message.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart:HistoryLiveWindow",
+      "name": "HistoryLiveWindow",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart:HistoryLiveWindow.commitLiveFollowRestore#5",
+      "name": "commitLiveFollowRestore",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart:HistoryLiveWindow.commitFollowAfterVisibleLatestConfirm#0",
+      "name": "commitFollowAfterVisibleLatestConfirm",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart:HistoryPaginationLoadRunner",
+      "name": "HistoryPaginationLoadRunner",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart:HistoryPaginationLoadRunner._filteredSdkTail",
+      "name": "_filteredSdkTail",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart:HistoryPaginationLoadRunner._filteredSdkSameTimeIds",
+      "name": "_filteredSdkSameTimeIds",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart:HistoryPaginationLoadRunner._mergeHistoryPage#4",
+      "name": "_mergeHistoryPage",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel",
+      "name": "TUIChatSeparateViewModel",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:BoundedChatHistory",
+      "name": "BoundedChatHistory",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel",
+      "name": "TUIChatGlobalModel",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel._persistedHistoryWindowClearEpoch#1",
+      "name": "_persistedHistoryWindowClearEpoch",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Enum:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadDecision",
+      "name": "ChatPreviousLoadDecision",
+      "type": "Enum",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadQueue",
+      "name": "ChatPreviousLoadQueue",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadQueue.retryDelay",
+      "name": "retryDelay",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadQueue._timer",
+      "name": "_timer",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadQueue._pending",
+      "name": "_pending",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadQueue._admitted",
+      "name": "_admitted",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadQueue._disposed",
+      "name": "_disposed",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadQueue.isPending",
+      "name": "isPending",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadQueue.isAdmitted",
+      "name": "isAdmitted",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadQueue.request#4",
+      "name": "request",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadQueue._attempt#0",
+      "name": "_attempt",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadQueue.cancel#0",
+      "name": "cancel",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatPreviousLoadQueue.dispose#0",
+      "name": "dispose",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatListPaginationUiGate",
+      "name": "ChatListPaginationUiGate",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatListPaginationUiGate.isLoadingPrevious",
+      "name": "isLoadingPrevious",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatListPaginationUiGate.topHistoryLoadingShownAtMs",
+      "name": "topHistoryLoadingShownAtMs",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatListPaginationUiGate.disposeTimers#0",
+      "name": "disposeTimers",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:_TongueUnreadSelectorData",
+      "name": "_TongueUnreadSelectorData",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:_TongueUnreadSelectorData.messageListPosition",
+      "name": "messageListPosition",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:TIMUIKitHistoryMessageListTongueContainerState",
+      "name": "TIMUIKitHistoryMessageListTongueContainerState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:TIMUIKitHistoryMessageListTongueContainerState._commitOverallFollowIfReady#0",
+      "name": "_commitOverallFollowIfReady",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:TIMUIKitHistoryMessageListTongueContainerState._resolveDisplayUnreadCount#2",
+      "name": "_resolveDisplayUnreadCount",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:TIMUIKitHistoryMessageListTongueContainerState._getTongueValueType#5",
+      "name": "_getTongueValueType",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState",
+      "name": "_TIMUIKitHistoryMessageListState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._previousLoadQueue",
+      "name": "_previousLoadQueue",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._shortViewportPreviousPointer",
+      "name": "_shortViewportPreviousPointer",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._shortViewportPreviousPointerStart",
+      "name": "_shortViewportPreviousPointerStart",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._shortViewportPreviousGestureRecorded",
+      "name": "_shortViewportPreviousGestureRecorded",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._shortViewportPreviousGestureCancelled",
+      "name": "_shortViewportPreviousGestureCancelled",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._loadLatestCooldownMs",
+      "name": "_loadLatestCooldownMs",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._clearTopHistoryLoading#1",
+      "name": "_clearTopHistoryLoading",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._markTopHistoryLoadingScheduled#1",
+      "name": "_markTopHistoryLoadingScheduled",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._shouldTriggerLoadPreviousFromScroll#2",
+      "name": "_shouldTriggerLoadPreviousFromScroll",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._historyPhysicsAllowsUserScrolling#1",
+      "name": "_historyPhysicsAllowsUserScrolling",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._rememberPreviousEdgeGesture#2",
+      "name": "_rememberPreviousEdgeGesture",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._anchorForPreviousIntent#1",
+      "name": "_anchorForPreviousIntent",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._evaluatePreviousLoadIntent#1",
+      "name": "_evaluatePreviousLoadIntent",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._queuePreviousLoad#3",
+      "name": "_queuePreviousLoad",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._scheduleLoadPrevious#3",
+      "name": "_scheduleLoadPrevious",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._loadPrevious#1",
+      "name": "_loadPrevious",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Enum:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_PreviousLoadSource",
+      "name": "_PreviousLoadSource",
+      "type": "Enum",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "TypeAlias:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_PreviousLoadIntent",
+      "name": "_PreviousLoadIntent",
+      "type": "TypeAlias",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_button_area.dart:GroupProfileButtonArea",
+      "name": "GroupProfileButtonArea",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_button_area.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_manageCard",
+      "name": "_manageCard",
+      "type": "Function",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_manageAddRow",
+      "name": "_manageAddRow",
+      "type": "Function",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:GroupProfileGroupManagePage",
+      "name": "GroupProfileGroupManagePage",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:GroupProfileGroupManagePage.mutedProfileResolver",
+      "name": "mutedProfileResolver",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState",
+      "name": "_GroupProfileGroupManagePageState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState._mutedRefreshGeneration",
+      "name": "_mutedRefreshGeneration",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState._profileResolver",
+      "name": "_profileResolver",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState._profilesLoading",
+      "name": "_profilesLoading",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState._profilesFailed",
+      "name": "_profilesFailed",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState._profilesForbidden",
+      "name": "_profilesForbidden",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState._displayIdentity",
+      "name": "_displayIdentity",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState._displayGroupId",
+      "name": "_displayGroupId",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState._canManage",
+      "name": "_canManage",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState.didUpdateWidget#1",
+      "name": "didUpdateWidget",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState._onManagementChanged#0",
+      "name": "_onManagementChanged",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState.dispose#0",
+      "name": "dispose",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileGroupManagePageState._refreshMutedMembers#0",
+      "name": "_refreshMutedMembers",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileSetManagerPageState",
+      "name": "_GroupProfileSetManagerPageState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart:_GroupProfileAddAdminState",
+      "name": "_GroupProfileAddAdminState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_media_gallery_image_page.dart:_ChatMediaGalleryImagePageState",
+      "name": "_ChatMediaGalleryImagePageState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_media_gallery_image_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_preview_center_loading_indicator.dart:ImagePreviewLoadingLayer",
+      "name": "ImagePreviewLoadingLayer",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_preview_center_loading_indicator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_preview_center_loading_indicator.dart:ImagePreviewLoadingLayer.interactive",
+      "name": "interactive",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_preview_center_loading_indicator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_screen.dart:_ImageScreenState",
+      "name": "_ImageScreenState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_screen.dart:_ImageScreenState._buildLoadingPlaceholder#4",
+      "name": "_buildLoadingPlaceholder",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart:_TiledImagePreviewState",
+      "name": "_TiledImagePreviewState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart",
+      "change_type": "touched"
+    }
+  ],
+  "affected_processes": [
+    {
+      "id": "proc_33_build",
+      "name": "Build → AccountDisabledMessage",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "accountDisabledMessage",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_539_build",
+      "name": "Build → _fromLocale",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "build",
+          "step": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:lib/src/conversation.dart:_ConversationState._onFeedScrollEndSettled#0",
+    "name": "_onFeedScrollEndSettled",
+    "type": "Method",
+    "filePath": "lib/src/conversation.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 5,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 1,
+    "processes_affected": 0,
+    "modules_affected": 2
+  },
+  "byDepthCounts": {
+    "1": 1,
+    "2": 2,
+    "3": 2
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Cluster_1351",
+      "hits": 3,
+      "impact": "direct"
+    },
+    {
+      "name": "Conversation_feed",
+      "hits": 1,
+      "impact": "indirect"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._scheduleFeedScrollEndSettleWork#0",
+        "name": "_scheduleFeedScrollEndSettleWork",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._applyFeedScrollTarget#1",
+        "name": "_applyFeedScrollTarget",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._handleFeedScrollingState#1",
+        "name": "_handleFeedScrollingState",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._onFeedScroll#0",
+        "name": "_onFeedScroll",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._onFeedScrollingNotifier#0",
+        "name": "_onFeedScrollingNotifier",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}
+

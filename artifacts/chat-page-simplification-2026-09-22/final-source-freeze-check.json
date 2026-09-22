@@ -1,0 +1,22 @@
+[
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart",
+    "unchanged": true
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+    "unchanged": true
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+    "unchanged": true
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+    "unchanged": true
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+    "unchanged": true
+  }
+]

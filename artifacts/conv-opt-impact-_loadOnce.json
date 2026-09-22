@@ -1,0 +1,91 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._loadOnce#5",
+    "name": "_loadOnce",
+    "type": "Method",
+    "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 5,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 1,
+    "processes_affected": 0,
+    "modules_affected": 1
+  },
+  "byDepthCounts": {
+    "1": 1,
+    "2": 2,
+    "3": 2
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Conversation_local",
+      "hits": 5,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._load#4",
+        "name": "_load",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.loadFirstPage#2",
+        "name": "loadFirstPage",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.loadMore#3",
+        "name": "loadMore",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.ensurePrimed#4",
+        "name": "ensurePrimed",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.loadMoreForViewport#2",
+        "name": "loadMoreForViewport",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}
+

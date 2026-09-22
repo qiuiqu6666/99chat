@@ -1,0 +1,549 @@
+{
+  "before": {
+    "passed": 22,
+    "failed": 39,
+    "log": "legacy-unread-before.log"
+  },
+  "after": {
+    "passed": 23,
+    "failed": 38,
+    "log": "legacy-unread-after.log"
+  },
+  "new_failures": [],
+  "removed_failures": [
+    "history_durable_scroll_to_latest_test.dart::production return keeps drag interactive and cancels late publication"
+  ],
+  "retained_failure_count": 38,
+  "unchanged_first_assertion_count": 28,
+  "changed_first_assertion_count": 10,
+  "first_assertion_changes": [
+    {
+      "key": "chat_visible_latest_ack_recovery_test.dart::late arrival after return snapshot clears only after real row becomes visible (delayed layout: true)",
+      "changes": {
+        "source_line": {
+          "before": 274,
+          "after": 425
+        }
+      },
+      "before_detail": "first arrival persists",
+      "after_detail": "",
+      "after_source": [
+        "423:         await returning;",
+        "424:         await pendingAdmissions;",
+        "425:         expect(injected, isTrue);",
+        "426:         await frames(tester, 50);",
+        "427:         expect(global.rawMessageList(conv)!.first.seq, '103');"
+      ]
+    },
+    {
+      "key": "durable_unread_tongue_test.dart::delivery after visible snapshot stays unread and is projected at latest",
+      "changes": {
+        "source_line": {
+          "before": 423,
+          "after": 429
+        },
+        "expected": {
+          "before": "true",
+          "after": "'104'"
+        },
+        "actual": {
+          "before": "<false>",
+          "after": "'103'"
+        }
+      },
+      "before_detail": "fake-zone admission needs frames while real SQLite completes",
+      "after_detail": "Which: is different. Expected: 104 Actual: 103 ^ Differ at offset 2",
+      "after_source": [
+        "427:     expect(sdk.calls, 1);",
+        "428:     expect(scroll.offset, closeTo(0, 1));",
+        "429:     expect(global.rawMessageList(getConv())!.first.seq, '104');",
+        "430:     expect(global.receivedNewMessageCountFor(getConv()), 1,",
+        "431:         reason: 'the older visible snapshot must not consume a later identity');"
+      ]
+    },
+    {
+      "key": "history_durable_scroll_to_latest_test.dart::300 arrivals cross real window trims without skipping rows or unread progress",
+      "changes": {
+        "source_line": {
+          "before": 1227,
+          "after": 1100
+        },
+        "expected": {
+          "before": "<299>",
+          "after": "a value less than or equal to <280>"
+        },
+        "actual": {
+          "before": "<300>",
+          "after": "<284>"
+        }
+      },
+      "before_detail": "visible receipt for 101 must commit; rect=Rect.fromLTRB(0.0, 536.0, 800.0, 600.0), viewport=Rect.fromLTRB(0.0, 0.0, 800.0, 600.0), trims=[], savedTrimPages=0, raw=120, cursor=120, offset=-64.0, minimum=-1280.0",
+      "after_detail": "Which: is not a value less than or equal to <280> each published window must remain bounded",
+      "after_source": [
+        "1098:         }",
+        "1099:         previousWindowCount = count;",
+        "1100:         expect(count, lessThanOrEqualTo(ChatMessageWindowPolicy.softMax),",
+        "1101:             reason: 'each published window must remain bounded');",
+        "1102:       };"
+      ]
+    },
+    {
+      "key": "history_durable_scroll_to_latest_test.dart::a 1200px arrival is counted only after its bottom and preserves page continuity",
+      "changes": {
+        "source_line": {
+          "before": 1408,
+          "after": 1456
+        },
+        "expected": {
+          "before": "<71>",
+          "after": "true"
+        },
+        "actual": {
+          "before": "<70>",
+          "after": "<false>"
+        }
+      },
+      "before_detail": "",
+      "after_detail": "",
+      "after_source": [
+        "1454:         await frames(tester, 5);",
+        "1455:       }",
+        "1456:       expect(fullyVisible(100), isTrue);",
+        "1457:       expect(sdk.gatedNewerCalls, greaterThan(0));",
+        "1458:       final anchorTop = tester.getTopLeft(row(100)).dy;"
+      ]
+    },
+    {
+      "key": "history_durable_scroll_to_latest_test.dart::manual downward scroll loads 95 durable arrivals and confirms latest (deep=false, retry=false)",
+      "changes": {
+        "source_line": {
+          "before": 1635,
+          "after": 1572
+        },
+        "expected": {
+          "before": "<0>",
+          "after": "true"
+        },
+        "actual": {
+          "before": "<95>",
+          "after": "<false>"
+        }
+      },
+      "before_detail": "",
+      "after_detail": "",
+      "after_source": [
+        "1570:             closeTo(visibleTop, 1));",
+        "1571:         expect(global.receivedNewMessageCountFor(conv), 95);",
+        "1572:         expect(global.hasDurableHistoryDeferred(conv), isTrue);",
+        "1573:         if (deepHistory) {",
+        "1574:           // The standalone list still reports notShowLatest at this measured"
+      ]
+    },
+    {
+      "key": "history_durable_scroll_to_latest_test.dart::manual downward scroll loads 95 durable arrivals and confirms latest (deep=true, retry=false)",
+      "changes": {
+        "source_line": {
+          "before": 1635,
+          "after": 1572
+        },
+        "expected": {
+          "before": "<0>",
+          "after": "true"
+        },
+        "actual": {
+          "before": "<95>",
+          "after": "<false>"
+        }
+      },
+      "before_detail": "",
+      "after_detail": "",
+      "after_source": [
+        "1570:             closeTo(visibleTop, 1));",
+        "1571:         expect(global.receivedNewMessageCountFor(conv), 95);",
+        "1572:         expect(global.hasDurableHistoryDeferred(conv), isTrue);",
+        "1573:         if (deepHistory) {",
+        "1574:           // The standalone list still reports notShowLatest at this measured"
+      ]
+    },
+    {
+      "key": "history_durable_scroll_to_latest_test.dart::manual downward scroll loads 95 durable arrivals and confirms latest (deep=true, retry=true)",
+      "changes": {
+        "source_line": {
+          "before": 1635,
+          "after": 1572
+        },
+        "expected": {
+          "before": "<0>",
+          "after": "true"
+        },
+        "actual": {
+          "before": "<95>",
+          "after": "<false>"
+        }
+      },
+      "before_detail": "",
+      "after_detail": "",
+      "after_source": [
+        "1570:             closeTo(visibleTop, 1));",
+        "1571:         expect(global.receivedNewMessageCountFor(conv), 95);",
+        "1572:         expect(global.hasDurableHistoryDeferred(conv), isTrue);",
+        "1573:         if (deepHistory) {",
+        "1574:           // The standalone list still reports notShowLatest at this measured"
+      ]
+    },
+    {
+      "key": "history_durable_scroll_to_latest_test.dart::one latest edge gesture survives temporary media restoration geometry",
+      "changes": {
+        "source_line": {
+          "before": 255,
+          "after": 1010
+        }
+      },
+      "before_detail": "waitForRealIO predicate: global.receivedNewMessageCountFor(conv) == 0; the visibly consumed row must acknowledge normally",
+      "after_detail": "",
+      "after_source": [
+        "1008:       await frames(tester);",
+        "1009:       expect(global.receivedNewMessageCountFor(conv), 1);",
+        "1010:       expect(global.hasDurableHistoryDeferred(conv), isTrue);",
+        "1011: ",
+        "1012:       // Place the user within the edge band without arming a user gesture."
+      ]
+    },
+    {
+      "key": "history_durable_scroll_to_latest_test.dart::row-by-row downward scroll preserves anchors and consumes only seen arrivals",
+      "changes": {
+        "source_line": {
+          "before": 511,
+          "after": 553
+        },
+        "expected": {
+          "before": "exactly one matching candidate",
+          "after": "true"
+        },
+        "actual": {
+          "before": "_HitTestableWidgetFinder:<Found 0 widgets with widget matching predicate (considering only",
+          "after": "<false>"
+        }
+      },
+      "before_detail": "hit-testable widgets with a RenderBox): []> Which: means none were found but one was expected",
+      "after_detail": "",
+      "after_source": [
+        "551:         await frames(tester, 5);",
+        "552:       }",
+        "553:       expect(fullyVisible(100), isTrue);",
+        "554:       expect(sdk.gatedNewerCalls, greaterThan(0));",
+        "555:       final oldAnchorTop = tester.getTopLeft(row(100)).dy;"
+      ]
+    },
+    {
+      "key": "return_to_latest_rendered_proof_test.dart::physical extent alone cannot complete return while latest row is displaced",
+      "changes": {
+        "source_line": {
+          "before": 313,
+          "after": 423
+        },
+        "expected": {
+          "before": "true",
+          "after": "<0>"
+        },
+        "actual": {
+          "before": "<false>",
+          "after": "<2>"
+        }
+      },
+      "before_detail": "durable admission must complete",
+      "after_detail": "4px row geometry is not the product gate; true latest end settles",
+      "after_source": [
+        "421:     expect(verifyLatestVisible(), isFalse);",
+        "422:     expect(visible.value, isTrue, reason: 'the older-frame notifier is stale');",
+        "423:     expect(global.receivedNewMessageCountFor(getConv()), 0,",
+        "424:         reason: '4px row geometry is not the product gate; true latest end settles');",
+        "425:     expect(model.readReports, greaterThanOrEqualTo(1));"
+      ]
+    }
+  ],
+  "additional_exceptions": [
+    {
+      "key": "chat_visible_latest_ack_recovery_test.dart::late arrival after return snapshot clears only after real row becomes visible (delayed layout: false)",
+      "type": "PathAccessException",
+      "log_line": 1091,
+      "detail": "temporary directory cleanup failed with Windows errno 32; file in use",
+      "source_line": 371
+    }
+  ],
+  "after_by_file": {
+    "chat_visible_latest_ack_recovery_test.dart": 2,
+    "durable_unread_tongue_test.dart": 17,
+    "history_durable_scroll_to_latest_test.dart": 13,
+    "return_to_latest_rendered_proof_test.dart": 4,
+    "unread_visit_baseline_test.dart": 2
+  },
+  "after_failure_names": [
+    "chat_visible_latest_ack_recovery_test.dart::late arrival after return snapshot clears only after real row becomes visible (delayed layout: false)",
+    "chat_visible_latest_ack_recovery_test.dart::late arrival after return snapshot clears only after real row becomes visible (delayed layout: true)",
+    "durable_unread_tongue_test.dart::121 durable arrivals require an explicit return (button)",
+    "durable_unread_tongue_test.dart::121 durable arrivals require an explicit return (manual drag)",
+    "durable_unread_tongue_test.dart::a live arrival remains actionable after only a short upward scroll",
+    "durable_unread_tongue_test.dart::a successful but old SDK page cannot acknowledge newer durable arrivals",
+    "durable_unread_tongue_test.dart::arrival after the reload ACK is revealed and read only after reaching bottom",
+    "durable_unread_tongue_test.dart::begin transition error preserves unread and permits a real retry",
+    "durable_unread_tongue_test.dart::confirmed deletion of all pending messages allows the actual older latest page",
+    "durable_unread_tongue_test.dart::continuous durable arrivals reveal incrementally without starving return",
+    "durable_unread_tongue_test.dart::delivery after visible snapshot stays unread and is projected at latest",
+    "durable_unread_tongue_test.dart::failed latest fetch at the loaded edge preserves retry, entry and durable count",
+    "durable_unread_tongue_test.dart::finish transition error preserves unread and permits a real retry",
+    "durable_unread_tongue_test.dart::late burst revokes live reveal before exceeding its bounded window",
+    "durable_unread_tongue_test.dart::post-target backlog beyond the hot cap stays unread and retryable",
+    "durable_unread_tongue_test.dart::storage-only delivery revokes reveal instead of allowing a later gap",
+    "durable_unread_tongue_test.dart::tapping input returns history to bottom (gap=false, keyboardOpen=true)",
+    "durable_unread_tongue_test.dart::tapping input returns history to bottom (gap=true, keyboardOpen=false)",
+    "durable_unread_tongue_test.dart::tapping input returns history to bottom (gap=true, keyboardOpen=true)",
+    "history_durable_scroll_to_latest_test.dart::300 arrivals cross real window trims without skipping rows or unread progress",
+    "history_durable_scroll_to_latest_test.dart::a 1200px arrival is counted only after its bottom and preserves page continuity",
+    "history_durable_scroll_to_latest_test.dart::an 1800px pure hot row is counted only at its bottom before the next row",
+    "history_durable_scroll_to_latest_test.dart::continuous hot drag follows every frame (step=48.0, row=32.0)",
+    "history_durable_scroll_to_latest_test.dart::continuous hot drag follows every frame (step=48.0, row=64.0)",
+    "history_durable_scroll_to_latest_test.dart::continuous hot drag follows every frame (step=96.0, row=64.0)",
+    "history_durable_scroll_to_latest_test.dart::idle hot reveal fills its runway using only frames scheduled by production",
+    "history_durable_scroll_to_latest_test.dart::manual downward scroll loads 95 durable arrivals and confirms latest (deep=false, retry=false)",
+    "history_durable_scroll_to_latest_test.dart::manual downward scroll loads 95 durable arrivals and confirms latest (deep=true, retry=false)",
+    "history_durable_scroll_to_latest_test.dart::manual downward scroll loads 95 durable arrivals and confirms latest (deep=true, retry=true)",
+    "history_durable_scroll_to_latest_test.dart::one latest edge gesture survives temporary media restoration geometry",
+    "history_durable_scroll_to_latest_test.dart::pure hot arrivals keep their anchors and count until each row is visible",
+    "history_durable_scroll_to_latest_test.dart::row-by-row downward scroll preserves anchors and consumes only seen arrivals",
+    "return_to_latest_rendered_proof_test.dart::latest ACK rechecks context-menu protection (restoring=false)",
+    "return_to_latest_rendered_proof_test.dart::latest ACK rechecks context-menu protection (restoring=true)",
+    "return_to_latest_rendered_proof_test.dart::physical extent alone cannot complete return while latest row is displaced",
+    "return_to_latest_rendered_proof_test.dart::return does not acknowledge deferred rows outside the rendered projection",
+    "unread_visit_baseline_test.dart::partial old ACK reduces baseline without swallowing live rows",
+    "unread_visit_baseline_test.dart::same database, new global: old 213 plus 3 live displays only 3"
+  ],
+  "interpretation": "No newly failing test names; retained names include changed first assertions and are not proof that behavior was unchanged.",
+  "isolated_sensitive_validation": {
+    "method": "Copy current UIKit lib into temporary package overlay; restore all six captured .dart snapshots; absolutize every rootUri and point only UIKit to overlay; copy package_graph.json for Flutter native-assets planner.",
+    "concurrency": 1,
+    "pub": false,
+    "test_file": "test/history_durable_scroll_to_latest_test.dart",
+    "name_filter": "300 arrivals cross real window trims|one latest edge gesture survives temporary media restoration geometry",
+    "before_log": "legacy-sensitive-before-overlay.log",
+    "after_log": "legacy-sensitive-after-current.log",
+    "before": {
+      "passed": 0,
+      "failed": 2,
+      "assertions": [
+        {
+          "test": "one latest edge gesture survives temporary media restoration geometry",
+          "line": 255,
+          "predicate_line": 1049,
+          "expected": true,
+          "actual": false,
+          "meaning": "late wait for legacy receivedNewMessageCountFor == 0"
+        },
+        {
+          "test": "300 arrivals cross real window trims without skipping rows or unread progress",
+          "line": 1227,
+          "expected": 299,
+          "actual": 300,
+          "meaning": "legacy received scalar"
+        }
+      ]
+    },
+    "after": {
+      "passed": 0,
+      "failed": 2,
+      "assertions": [
+        {
+          "test": "one latest edge gesture survives temporary media restoration geometry",
+          "line": 1010,
+          "expected": true,
+          "actual": false,
+          "meaning": "earlier hasDurableHistoryDeferred assertion"
+        },
+        {
+          "test": "300 arrivals cross real window trims without skipping rows or unread progress",
+          "line": 1100,
+          "expected": "<=280",
+          "actual": 284,
+          "meaning": "published window softMax bound"
+        }
+      ]
+    },
+    "conclusion": "The introduced scroll-intent behavior was reproduced and isolated with an overlay. Restoring the one-shot exhausted-edge probe and carrying an already accepted edge intent through lazy layout expansion restores the baseline first assertions in both sensitive cases.",
+    "manifest": "baseline-overlay-manifest.json",
+    "bisect": {
+      "log": "legacy-sensitive-bisect-scroll.log",
+      "overlay": "baseline plus current message_list and chat_list_pagination_ui_gate only; tongue, live_window, cloud and global remain baseline",
+      "result": "reproduces both earlier failures, isolates the changed behavior to the scroll group"
+    },
+    "fix_validation": {
+      "log": "legacy-sensitive-after-geometry-fix.log",
+      "passed": 0,
+      "failed": 2,
+      "same_first_assertions_as_baseline": true,
+      "media_first_failure": {
+        "source_line": 255,
+        "predicate_line": 1049,
+        "meaning": "wait for legacy received scalar to reach zero"
+      },
+      "large_window_first_failure": {
+        "source_line": 1227,
+        "expected": 299,
+        "actual": 300,
+        "meaning": "legacy received scalar"
+      },
+      "observed_path": "Both tests again start one previous probe with memorySuppressed=true and position=notShowLatest; no earlier durable=false or window=284/softMax280 failure."
+    }
+  },
+  "final_validation": {
+    "log": "legacy-unread-final.log",
+    "passed": 23,
+    "failed": 38,
+    "concurrency": 1,
+    "new_failures": [],
+    "removed_failures": [
+      "history_durable_scroll_to_latest_test.dart::production return keeps drag interactive and cancels late publication"
+    ],
+    "retained_failure_count": 38,
+    "unchanged_first_assertion_count": 35,
+    "changed_first_assertion_count": 3,
+    "first_assertion_changes": [
+      {
+        "key": "chat_visible_latest_ack_recovery_test.dart::late arrival after return snapshot clears only after real row becomes visible (delayed layout: true)",
+        "changes": {
+          "source_line": {
+            "before": 274,
+            "final": 425
+          }
+        },
+        "before_detail": "first arrival persists",
+        "final_detail": "",
+        "final_source": [
+          "423:         await returning;",
+          "424:         await pendingAdmissions;",
+          "425:         expect(injected, isTrue);",
+          "426:         await frames(tester, 50);",
+          "427:         expect(global.rawMessageList(conv)!.first.seq, '103');"
+        ]
+      },
+      {
+        "key": "durable_unread_tongue_test.dart::delivery after visible snapshot stays unread and is projected at latest",
+        "changes": {
+          "source_line": {
+            "before": 423,
+            "final": 429
+          },
+          "expected": {
+            "before": "true",
+            "final": "'104'"
+          },
+          "actual": {
+            "before": "<false>",
+            "final": "'103'"
+          }
+        },
+        "before_detail": "fake-zone admission needs frames while real SQLite completes",
+        "final_detail": "Which: is different. Expected: 104 Actual: 103 ^ Differ at offset 2",
+        "final_source": [
+          "427:     expect(sdk.calls, 1);",
+          "428:     expect(scroll.offset, closeTo(0, 1));",
+          "429:     expect(global.rawMessageList(getConv())!.first.seq, '104');",
+          "430:     expect(global.receivedNewMessageCountFor(getConv()), 1,",
+          "431:         reason: 'the older visible snapshot must not consume a later identity');"
+        ]
+      },
+      {
+        "key": "return_to_latest_rendered_proof_test.dart::physical extent alone cannot complete return while latest row is displaced",
+        "changes": {
+          "source_line": {
+            "before": 313,
+            "final": 423
+          },
+          "expected": {
+            "before": "true",
+            "final": "<0>"
+          },
+          "actual": {
+            "before": "<false>",
+            "final": "<2>"
+          }
+        },
+        "before_detail": "durable admission must complete",
+        "final_detail": "4px row geometry is not the product gate; true latest end settles",
+        "final_source": [
+          "421:     expect(verifyLatestVisible(), isFalse);",
+          "422:     expect(visible.value, isTrue, reason: 'the older-frame notifier is stale');",
+          "423:     expect(global.receivedNewMessageCountFor(getConv()), 0,",
+          "424:         reason: '4px row geometry is not the product gate; true latest end settles');",
+          "425:     expect(model.readReports, greaterThanOrEqualTo(1));"
+        ]
+      }
+    ],
+    "by_file": {
+      "chat_visible_latest_ack_recovery_test.dart": 2,
+      "durable_unread_tongue_test.dart": 17,
+      "history_durable_scroll_to_latest_test.dart": 13,
+      "return_to_latest_rendered_proof_test.dart": 4,
+      "unread_visit_baseline_test.dart": 2
+    },
+    "failure_names": [
+      "chat_visible_latest_ack_recovery_test.dart::late arrival after return snapshot clears only after real row becomes visible (delayed layout: false)",
+      "chat_visible_latest_ack_recovery_test.dart::late arrival after return snapshot clears only after real row becomes visible (delayed layout: true)",
+      "durable_unread_tongue_test.dart::121 durable arrivals require an explicit return (button)",
+      "durable_unread_tongue_test.dart::121 durable arrivals require an explicit return (manual drag)",
+      "durable_unread_tongue_test.dart::a live arrival remains actionable after only a short upward scroll",
+      "durable_unread_tongue_test.dart::a successful but old SDK page cannot acknowledge newer durable arrivals",
+      "durable_unread_tongue_test.dart::arrival after the reload ACK is revealed and read only after reaching bottom",
+      "durable_unread_tongue_test.dart::begin transition error preserves unread and permits a real retry",
+      "durable_unread_tongue_test.dart::confirmed deletion of all pending messages allows the actual older latest page",
+      "durable_unread_tongue_test.dart::continuous durable arrivals reveal incrementally without starving return",
+      "durable_unread_tongue_test.dart::delivery after visible snapshot stays unread and is projected at latest",
+      "durable_unread_tongue_test.dart::failed latest fetch at the loaded edge preserves retry, entry and durable count",
+      "durable_unread_tongue_test.dart::finish transition error preserves unread and permits a real retry",
+      "durable_unread_tongue_test.dart::late burst revokes live reveal before exceeding its bounded window",
+      "durable_unread_tongue_test.dart::post-target backlog beyond the hot cap stays unread and retryable",
+      "durable_unread_tongue_test.dart::storage-only delivery revokes reveal instead of allowing a later gap",
+      "durable_unread_tongue_test.dart::tapping input returns history to bottom (gap=false, keyboardOpen=true)",
+      "durable_unread_tongue_test.dart::tapping input returns history to bottom (gap=true, keyboardOpen=false)",
+      "durable_unread_tongue_test.dart::tapping input returns history to bottom (gap=true, keyboardOpen=true)",
+      "history_durable_scroll_to_latest_test.dart::300 arrivals cross real window trims without skipping rows or unread progress",
+      "history_durable_scroll_to_latest_test.dart::a 1200px arrival is counted only after its bottom and preserves page continuity",
+      "history_durable_scroll_to_latest_test.dart::an 1800px pure hot row is counted only at its bottom before the next row",
+      "history_durable_scroll_to_latest_test.dart::continuous hot drag follows every frame (step=48.0, row=32.0)",
+      "history_durable_scroll_to_latest_test.dart::continuous hot drag follows every frame (step=48.0, row=64.0)",
+      "history_durable_scroll_to_latest_test.dart::continuous hot drag follows every frame (step=96.0, row=64.0)",
+      "history_durable_scroll_to_latest_test.dart::idle hot reveal fills its runway using only frames scheduled by production",
+      "history_durable_scroll_to_latest_test.dart::manual downward scroll loads 95 durable arrivals and confirms latest (deep=false, retry=false)",
+      "history_durable_scroll_to_latest_test.dart::manual downward scroll loads 95 durable arrivals and confirms latest (deep=true, retry=false)",
+      "history_durable_scroll_to_latest_test.dart::manual downward scroll loads 95 durable arrivals and confirms latest (deep=true, retry=true)",
+      "history_durable_scroll_to_latest_test.dart::one latest edge gesture survives temporary media restoration geometry",
+      "history_durable_scroll_to_latest_test.dart::pure hot arrivals keep their anchors and count until each row is visible",
+      "history_durable_scroll_to_latest_test.dart::row-by-row downward scroll preserves anchors and consumes only seen arrivals",
+      "return_to_latest_rendered_proof_test.dart::latest ACK rechecks context-menu protection (restoring=false)",
+      "return_to_latest_rendered_proof_test.dart::latest ACK rechecks context-menu protection (restoring=true)",
+      "return_to_latest_rendered_proof_test.dart::physical extent alone cannot complete return while latest row is displaced",
+      "return_to_latest_rendered_proof_test.dart::return does not acknowledge deferred rows outside the rendered projection",
+      "unread_visit_baseline_test.dart::partial old ACK reduces baseline without swallowing live rows",
+      "unread_visit_baseline_test.dart::same database, new global: old 213 plus 3 live displays only 3"
+    ],
+    "previous_fix_reference_for_changed_assertions": [
+      {
+        "key": "chat_visible_latest_ack_recovery_test.dart::late arrival after return snapshot clears only after real row becomes visible (delayed layout: true)",
+        "previous_fix_source_line": 425,
+        "expected": "true",
+        "actual": "<false>"
+      },
+      {
+        "key": "durable_unread_tongue_test.dart::delivery after visible snapshot stays unread and is projected at latest",
+        "previous_fix_source_line": 429,
+        "expected": "'104'",
+        "actual": "'103'"
+      },
+      {
+        "key": "return_to_latest_rendered_proof_test.dart::physical extent alone cannot complete return while latest row is displaced",
+        "previous_fix_source_line": 423,
+        "expected": "<0>",
+        "actual": "<2>"
+      }
+    ]
+  }
+}

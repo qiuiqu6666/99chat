@@ -71,6 +71,42 @@ void main() {
     expect(controller.value.getTranslation().x, lessThan(x));
     await tester.pumpWidget(const SizedBox.shrink());
   });
+  testWidgets('missing source shows retry instead of an empty black screen',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: TiledImagePreview(imageWidth: 1080, imageHeight: 100000),
+    ));
+    expect(find.text('原图加载失败，点击重试'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('pending tiles show loading then timeout with a working retry',
+      (tester) async {
+    final pending = <Completer<ui.Image?>>[];
+    ImageRegionDecodeHook.decode = (_) {
+      final completer = Completer<ui.Image?>();
+      pending.add(completer);
+      return completer.future;
+    };
+    await mount(tester, 1080, 100000);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    await tester.pump(const Duration(seconds: 21));
+    expect(find.text('原图加载失败，点击重试'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    // Late native results after timeout must be discarded safely.
+    for (final completer in pending) {
+      completer.complete(pixel());
+    }
+    await tester.pump();
+    ImageRegionDecodeHook.decode = (_) async => pixel();
+    await tester.tap(find.text('原图加载失败，点击重试'));
+    await tester.pumpAndSettle();
+    expect(find.text('原图加载失败，点击重试'), findsNothing);
+    expect(find.byType(RawImage), findsWidgets);
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(tester.takeException(), isNull);
+  });
   testWidgets(
       'pending decodes stay bounded across zoom and dispose drops stale results',
       (tester) async {

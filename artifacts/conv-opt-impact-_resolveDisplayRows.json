@@ -1,0 +1,84 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._resolveDisplayRows#0",
+    "name": "_resolveDisplayRows",
+    "type": "Method",
+    "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 4,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 3,
+    "processes_affected": 0,
+    "modules_affected": 2
+  },
+  "byDepthCounts": {
+    "1": 3,
+    "2": 1
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Chat_session",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Conversation_local",
+      "hits": 1,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Constructor:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.ConversationTabStore#0",
+        "name": "ConversationTabStore",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.displayConversationForId#1",
+        "name": "displayConversationForId",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.displayIndexOf#1",
+        "name": "displayIndexOf",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.applyLastMessageLocally#5",
+        "name": "applyLastMessageLocally",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}
+

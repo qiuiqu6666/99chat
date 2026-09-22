@@ -1,0 +1,37 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart:ChatListPaginationUiGate",
+    "name": "ChatListPaginationUiGate",
+    "type": "Class",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 194,
+  "risk": "HIGH",
+  "riskSharedAxes": "HIGH",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 5,
+    "processes_affected": 0,
+    "modules_affected": 1
+  },
+  "byDepthCounts": {
+    "1": 5,
+    "2": 52,
+    "3": 137
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Controllers",
+      "hits": 1,
+      "impact": "direct"
+    }
+  ]
+}

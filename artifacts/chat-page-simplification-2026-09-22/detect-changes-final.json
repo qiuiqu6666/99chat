@@ -1,0 +1,59 @@
+
+  GitNexus Detect Changes (1.6.12)
+warning: in the working copy of 'lib/main.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/api/agent_rebate_api.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/api/me_group_api.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/chat.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/pages/complaint/complaint_form_page.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/pages/group_live/group_live_push_info_page.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/pages/settings/settings_page.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/pages/settings/test_page.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/qr_code_page.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/group_live/group_live_index_store.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/im/history_search_coordinator.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/session_expiry_service.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/user_profile.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/widgets/group_live/group_live_top_banner.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/widgets/sticker/sticker_organize_grid.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/utils/dio_error_message.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'pubspec.yaml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test/settings_test_page_entry_test.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_media_gallery_image_page.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_preview_center_loading_indicator.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_screen.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart', LF will be replaced by CRLF the next time Git touches it
+Changes: 37 files, 180 symbols
+Affected processes: 2
+Risk level: medium
+
+Changed symbols:
+  Class AgentRebateApi → lib/src/api/agent_rebate_api.dart
+  Constructor AgentRebateApi → lib/src/api/agent_rebate_api.dart
+  Class ApiClient → lib/src/api/api_client.dart
+  Property _requestCredentialGeneration → lib/src/api/api_client.dart
+  Property _handlingAccountDisabled → lib/src/api/api_client.dart
+  Method accountDisabledMessage → lib/src/api/api_client.dart
+  Method _handleAccountDisabled → lib/src/api/api_client.dart
+  Class MutedGroupMemberRecord → lib/src/api/me_group_api.dart
+  Property nickname → lib/src/api/me_group_api.dart
+  Property avatarUrl → lib/src/api/me_group_api.dart
+  Class MeGroupApi → lib/src/api/me_group_api.dart
+  Method fetchMutedMembers → lib/src/api/me_group_api.dart
+  Class _ChatState → lib/src/chat.dart
+  Class _AddFriendPageState → lib/src/pages/add_friend_page.dart
+  Class _C2cChatSettingsPageState → lib/src/pages/c2c_chat_settings_page.dart
+... and 165 more
+
+Affected execution flows:
+  • Build → _fromLocale (3 steps) — changed: build
+  • Build → AccountDisabledMessage (6 steps) — changed: accountDisabledMessage

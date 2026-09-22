@@ -53,6 +53,8 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
   String? _localPath;
   bool _resolvingOriginal = false;
   bool _unsupported = false;
+  bool _loadFailed = false;
+  int _loadGeneration = 0;
   int _epoch = 0;
   bool _pumpScheduled = false;
   Size _viewport = Size.zero;
@@ -94,6 +96,8 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
       _grid = null;
       _localPath = null;
       _unsupported = false;
+      _loadFailed = false;
+      _loadGeneration++;
       _resolvingOriginal = false;
       _viewport = Size.zero;
       _display = Size.zero;
@@ -106,6 +110,7 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
   void dispose() {
     if (_routingPage) _pageView?.onDragCancel();
     _epoch++;
+    _loadGeneration++;
     _controller.dispose();
     for (final image in _tiles.values) {
       image.dispose();
@@ -117,6 +122,7 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
   Future<void> _ensureLocalOriginal() async {
     final message = widget.message;
     if (message == null) {
+      _loadFailed = true;
       return;
     }
     final existing = ChatMessagePreviewImageResolver.localOriginalFilePath(
@@ -135,10 +141,14 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
       return;
     }
     _resolvingOriginal = true;
+    final generation = ++_loadGeneration;
     try {
-      final refreshed =
-          await ChatMessagePreviewImageResolver.refreshOriginal(message);
-      if (!mounted || message != widget.message) {
+      // Region decoding needs a local file, not merely a resolvable URL.
+      final refreshed = await ChatMessagePreviewImageResolver.refreshOriginal(
+        message,
+        forceDownload: true,
+      ).timeout(const Duration(seconds: 60));
+      if (!mounted || generation != _loadGeneration) {
         return;
       }
       final path = ChatMessagePreviewImageResolver.localOriginalFilePath(
@@ -153,15 +163,24 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
         setState(() => _localPath = refreshed.file.path);
         _requestVisibleTiles(settled: true);
       } else {
-        setState(() => _unsupported = true);
+        setState(() => _loadFailed = true);
       }
     } catch (_) {
-      if (mounted && message == widget.message) {
-        setState(() => _unsupported = true);
+      if (mounted && generation == _loadGeneration) {
+        setState(() => _loadFailed = true);
       }
     } finally {
-      if (message == widget.message) _resolvingOriginal = false;
+      if (generation == _loadGeneration) _resolvingOriginal = false;
     }
+  }
+
+  void _retry() {
+    setState(() {
+      _epoch++;
+      _loadFailed = false;
+      _unsupported = false;
+    });
+    _ensureLocalOriginal();
   }
 
   // Original resolution becomes available asynchronously. Rendering schedules
@@ -204,8 +223,9 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
     final src = grid.sourceRect(ticket.$2);
     final dst = grid.decodeSize(ticket.$2);
     ui.Image? result;
+    var timedOut = false;
     try {
-      result = await decode(ImageRegionDecodeRequest(
+      final pending = decode(ImageRegionDecodeRequest(
           path: path,
           srcLeft: src.left.toInt(),
           srcTop: src.top.toInt(),
@@ -213,6 +233,17 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
           srcHeight: src.height.toInt(),
           dstWidth: dst.width.toInt(),
           dstHeight: dst.height.toInt()));
+      result = await pending.then((image) {
+        // A timed-out native decode can still finish; do not leak its image.
+        if (timedOut) {
+          image?.dispose();
+          return null;
+        }
+        return image;
+      }).timeout(const Duration(seconds: 20), onTimeout: () {
+        timedOut = true;
+        throw TimeoutException('Image region decode timed out');
+      });
       if (!mounted || ticket.$1 != _epoch || !_wanted.contains(ticket.$2)) {
         result?.dispose();
       } else if (result == null) {
@@ -365,6 +396,30 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
 
   @override
   Widget build(BuildContext context) {
+    return Stack(fit: StackFit.expand, children: [
+      _buildPreview(context),
+      if (_loadFailed || _unsupported)
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: SafeArea(
+            child: Material(
+              color: Colors.black87,
+              child: TextButton(
+                onPressed: _retry,
+                child: const Text('原图加载失败，点击重试',
+                    style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ),
+        )
+      else if (_tiles.isEmpty)
+        const IgnorePointer(
+          child: Center(child: CircularProgressIndicator(color: Colors.white)),
+        ),
+    ]);
+  }
+
+  Widget _buildPreview(BuildContext context) {
     if (_unsupported) {
       return ColoredBox(
           color: Colors.black,
@@ -372,9 +427,12 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
               ? const Center(
                   child: Icon(Icons.broken_image, color: Colors.white54))
               : InteractivePreviewFallback(
-                  image: widget.placeholder!, onTap: widget.onTap,
-                  sourcePixelSize: Size(widget.imageWidth.toDouble(), widget.imageHeight.toDouble()),
-                  fitTallImagesToScreenWidth: widget.fitTallImagesToScreenWidth));
+                  image: widget.placeholder!,
+                  onTap: widget.onTap,
+                  sourcePixelSize: Size(widget.imageWidth.toDouble(),
+                      widget.imageHeight.toDouble()),
+                  fitTallImagesToScreenWidth:
+                      widget.fitTallImagesToScreenWidth));
     }
     return LayoutBuilder(builder: (context, bounds) {
       final viewport = bounds.biggest;
@@ -475,6 +533,8 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
                           Positioned.fill(
                               child: Image(
                                   image: widget.placeholder!,
+                                  errorBuilder: (_, __, ___) =>
+                                      const SizedBox.shrink(),
                                   fit: BoxFit.fill)),
                         for (final index in _wanted)
                           if (_tiles[index] case final ui.Image image)

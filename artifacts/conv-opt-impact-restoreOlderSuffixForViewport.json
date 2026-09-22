@@ -1,0 +1,49 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.restoreOlderSuffixForViewport#2",
+    "name": "restoreOlderSuffixForViewport",
+    "type": "Method",
+    "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 1,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 1,
+    "processes_affected": 0,
+    "modules_affected": 1
+  },
+  "byDepthCounts": {
+    "1": 1
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Conversation_local",
+      "hits": 1,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.loadMoreForViewport#2",
+        "name": "loadMoreForViewport",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}
+

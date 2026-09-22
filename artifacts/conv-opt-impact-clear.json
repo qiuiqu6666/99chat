@@ -1,0 +1,244 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.clear#0",
+    "name": "clear",
+    "type": "Method",
+    "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 18,
+  "risk": "CRITICAL",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "lower-bound",
+  "boundaries": [
+    "205 call sites invoking `clear` were dropped at index time because the receiver's type could not be established (e.g. an unresolved constructor, factory or chained expression). Those callers are absent from this result — actual impact may be higher."
+  ],
+  "causes": {
+    "scopeExtractionFiles": 0,
+    "receiverTyping": 205,
+    "dispatchBoundary": 0,
+    "externalBoundary": 0,
+    "undecidedSatisfaction": 0,
+    "callableValueReferences": 0
+  },
+  "summary": {
+    "direct": 4,
+    "processes_affected": 0,
+    "modules_affected": 6
+  },
+  "byDepthCounts": {
+    "1": 4,
+    "2": 5,
+    "3": 9
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Conversation_local",
+      "hits": 8,
+      "impact": "direct"
+    },
+    {
+      "name": "Chat_session",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_1361",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_1362",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_1364",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_1365",
+      "hits": 1,
+      "impact": "indirect"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._runFolderUnreadRefresh#0",
+        "name": "_runFolderUnreadRefresh",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._drainPersistEventQueue#1",
+        "name": "_drainPersistEventQueue",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._resolveDisplayRows#0",
+        "name": "_resolveDisplayRows",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.bindOwnerScopeForTest#1",
+        "name": "bindOwnerScopeForTest",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Constructor:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.ConversationTabStore#0",
+        "name": "ConversationTabStore",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._scheduleFolderUnreadRefresh#0",
+        "name": "_scheduleFolderUnreadRefresh",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._flushPersistEventQueue#1",
+        "name": "_flushPersistEventQueue",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.displayConversationForId#1",
+        "name": "displayConversationForId",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.displayIndexOf#1",
+        "name": "displayIndexOf",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Constructor:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService.ConversationSyncService#0",
+        "name": "ConversationSyncService",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.applyLastMessageLocally#5",
+        "name": "applyLastMessageLocally",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._onFoldersChanged#0",
+        "name": "_onFoldersChanged",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._scheduleFolderUnreadAfterScrollSettle#0",
+        "name": "_scheduleFolderUnreadAfterScrollSettle",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState.build#1",
+        "name": "build",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState.initState#0",
+        "name": "initState",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._enqueuePersistChanged#6",
+        "name": "_enqueuePersistChanged",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService.flushPersistChangedForTest#1",
+        "name": "flushPersistChangedForTest",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService.persistChangedForTest#4",
+        "name": "persistChangedForTest",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}
+

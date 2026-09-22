@@ -1,4 +1,5 @@
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
+import 'package:tencent_cloud_chat_demo/src/utils/conversation_preview_fingerprint.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation.dart';
@@ -24,12 +25,14 @@ class ConversationRowView {
     required this.type,
     required this.orderKey,
     required this.activeTimeMs,
+    this.previewFingerprint = '',
   });
 
   final String conversationId;
   final String displayName;
   final String avatarKey;
   final String lastMessagePreview;
+  final String previewFingerprint;
   final String lastMessageId;
   final int lastMessageStatus;
   final bool lastMessageRevoked;
@@ -50,6 +53,7 @@ class ConversationRowView {
       displayName: (row.showName ?? '').trim(),
       avatarKey: (row.faceUrl ?? '').trim(),
       lastMessagePreview: previewTextOf(message),
+      previewFingerprint: conversationPreviewFingerprint(message),
       lastMessageId: message?.msgID?.trim() ?? '',
       lastMessageStatus: message?.status ?? 0,
       lastMessageRevoked: _isRevoked(message),
@@ -94,6 +98,7 @@ class ConversationRowView {
         other.displayName == displayName &&
         other.avatarKey == avatarKey &&
         other.lastMessagePreview == lastMessagePreview &&
+        other.previewFingerprint == previewFingerprint &&
         other.lastMessageId == lastMessageId &&
         other.lastMessageStatus == lastMessageStatus &&
         other.lastMessageRevoked == lastMessageRevoked &&
@@ -114,6 +119,7 @@ class ConversationRowView {
         displayName,
         avatarKey,
         lastMessagePreview,
+        previewFingerprint,
         lastMessageId,
         lastMessageStatus,
         lastMessageRevoked,

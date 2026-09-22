@@ -1,0 +1,102 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:lib/src/conversation.dart:_ConversationState._handleOnConvItemTaped#1",
+    "name": "_handleOnConvItemTaped",
+    "type": "Method",
+    "filePath": "lib/src/conversation.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 6,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 3,
+    "processes_affected": 0,
+    "modules_affected": 2
+  },
+  "byDepthCounts": {
+    "1": 3,
+    "2": 3
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Conversation_feed",
+      "hits": 5,
+      "impact": "direct"
+    },
+    {
+      "name": "Cluster_1365",
+      "hits": 1,
+      "impact": "indirect"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationBody#5",
+        "name": "_buildConversationBody",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationPeekActions#2",
+        "name": "_buildConversationPeekActions",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationRow#4",
+        "name": "_buildConversationRow",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationRowBound#1",
+        "name": "_buildConversationRowBound",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._showConversationPeek#1",
+        "name": "_showConversationPeek",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState.build#1",
+        "name": "build",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}
+
