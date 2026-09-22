@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:tencent_cloud_chat_demo/src/api/livekit_call_api.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -161,6 +162,26 @@ void main() {
     await waitForStatusRequest();
     await respond(id, 'MISSED');
     expect(repository.get(id)!.protocolType, CallProtocolType.timeout);
+  });
+
+  test('unknown call result must be confirmed before invite arrives', () async {
+    const id = 'result-before-invite';
+    CallResultEnrichmentService.instance.ingestServerItem(
+      CallRecordItem.fromJson(_recent(id)),
+    );
+    expect(repository.get(id), isNull,
+        reason: 'a result projection is not evidence that ringing ended');
+    _ringing(id);
+    await waitForStatusRequest();
+    await respond(id, 'RINGING');
+    expect(repository.get(id)!.effectiveStatus.isTerminal, isFalse);
+  });
+
+  test('unknown status response cannot manufacture an ended call', () {
+    expect(
+      () => CallSessionStatusSnapshot.fromJson({'callId': 'unknown-status'}),
+      throwsFormatException,
+    );
   });
 
   test('server ringing cache is refreshed through status, not final result API',

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart';
 import 'package:tencent_cloud_chat_demo/src/services/call_result_record.dart';
 import 'package:tencent_cloud_chat_demo/src/services/call_result_repository.dart';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/services/local_message_overlay_store.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/call_bubble_dedupe.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/call_user_id.dart';
@@ -25,6 +26,18 @@ class CallBubbleInsertService {
 
   static const int _rehydrateMaxRecords = 12;
 
+  /// The production entry for device, signaling and confirmed server results.
+  /// Repository merging precedes publication; rejected/stale observations never
+  /// publish their own payload. No history reload or secondary writer is needed.
+  bool accept(CallResultRecord record, {SessionIdentity? identity}) {
+    final captured = identity ?? SessionIdentityService.instance.capture();
+    if (captured != SessionIdentityService.instance.capture()) return false;
+    CallResultRepository.instance.save(record, identity: captured);
+    final canonical = CallResultRepository.instance.get(record.callId);
+    if (canonical == null) return false;
+    return insertTerminalBubble(canonical);
+  }
+
   /// Insert an ended call or converge existing rows for the same callId.
   bool insertTerminalBubble(CallResultRecord record, {String reason = ''}) {
     final conversationId = record.conversationId.trim();
@@ -45,43 +58,14 @@ class CallBubbleInsertService {
       conversationId,
       bubble,
     );
-    syncConversationPreview(conversationId, bubble);
-
-    if (changed) {
-      CallBubbleDedupe.scheduleDedupeConversation(
-        conversationId,
-        reason: reason.isEmpty ? 'local_bubble_insert' : reason,
-        delay: Duration.zero,
-      );
-    }
+    if (changed) syncConversationPreview(conversationId, bubble);
     return changed;
   }
 
   /// Insert or update the single lifecycle row for a callId.
   /// RINGING/ANSWERED never write chat history or conversation preview.
   bool upsertLifecycleBubble(CallResultRecord record, {String reason = ''}) {
-    final conversationId = record.conversationId.trim();
-    final callId = record.callId.trim();
-    if (conversationId.isEmpty || callId.isEmpty) return false;
-    // CallResultRepository.save() enforces monotonic lifecycle rank. Project
-    // that record so a delayed invite/accept cannot replace an ended row.
-    final canonicalRecord = CallResultRepository.instance.get(callId) ?? record;
-    if (!canonicalRecord.effectiveStatus.isTerminal) return false;
-    final bubble = buildTerminalBubbleMessage(canonicalRecord);
-    if (bubble == null) return false;
-    final changed = LocalMessageOverlayStore.instance.upsert(
-      conversationId,
-      bubble,
-    );
-    syncConversationPreview(conversationId, bubble);
-    if (changed) {
-      CallBubbleDedupe.scheduleDedupeConversation(
-        conversationId,
-        reason: reason.isEmpty ? 'call_lifecycle_upsert' : reason,
-        delay: Duration.zero,
-      );
-    }
-    return changed;
+    return insertTerminalBubble(record, reason: reason);
   }
 
   /// Pushes the overlay bubble into the conversation-list lastMessage slot.

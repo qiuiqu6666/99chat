@@ -11,7 +11,7 @@ import 'package:tencent_cloud_chat_demo/src/services/livekit_call_navigator.dart
 import 'package:tencent_cloud_chat_demo/src/services/livekit_call_ringtone.dart';
 import 'package:tencent_cloud_chat_demo/src/services/livekit_call_session.dart';
 import 'package:tencent_cloud_chat_demo/src/services/call_result_record.dart';
-import 'package:tencent_cloud_chat_demo/src/services/call_result_repository.dart';
+import 'package:tencent_cloud_chat_demo/src/services/call_bubble_insert_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/livekit_call_types.dart';
 import 'package:tencent_cloud_chat_demo/src/session/session_manager.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/call_user_id.dart';
@@ -185,7 +185,7 @@ class CallLauncher {
         mediaType: video ? 'video' : 'audio',
         isOutgoing: true,
       );
-      CallResultRepository.instance.save(ringingRecord);
+      CallBubbleInsertService.instance.accept(ringingRecord);
       final bound = LiveKitCallSession.instance.bindOutgoingCredentials(creds);
       if (!bound) {
         // User canceled while invite was in flight — tear down remote call.

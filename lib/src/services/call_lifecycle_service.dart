@@ -16,7 +16,6 @@ import 'package:tencent_cloud_chat_demo/src/services/livekit_call_signaling.dart
 import 'package:tencent_cloud_chat_demo/src/services/livekit_call_types.dart';
 import 'package:tencent_cloud_chat_demo/src/services/livekit_call_system_ui.dart';
 import 'package:tencent_cloud_chat_demo/src/services/livekit_voip_bridge.dart';
-import 'package:tencent_cloud_chat_demo/src/utils/call_bubble_dedupe.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/call_user_id.dart';
 import 'package:tencent_cloud_chat_demo/utils/custom_message/calling_message/calling_message_data_provider.dart';
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
@@ -30,7 +29,6 @@ class CallLifecycleService {
   final ValueNotifier<int> chatHistoryRefreshRevision = ValueNotifier<int>(0);
 
   bool _ready = false;
-  final Set<String> _handledEndedCallIds = <String>{};
 
   bool get isActiveCall => LiveKitCallSession.instance.isInCall;
 
@@ -97,13 +95,6 @@ class CallLifecycleService {
       chatHistoryRefreshRevision.value++;
       return;
     }
-    // Debounce duplicate end callbacks for the same callId (refresh only).
-    if (_handledEndedCallIds.contains(id)) {
-      chatHistoryRefreshRevision.value++;
-      return;
-    }
-    _handledEndedCallIds.add(id);
-
     var peer = CallUserId.normalizeCallUserId(peerUserId);
     var caller = CallUserId.normalizeCallUserId(callerUserId);
     var callee = CallUserId.normalizeCallUserId(calleeUserId);
@@ -152,20 +143,9 @@ class CallLifecycleService {
       source: CallResultSource.device,
       mediaType: mediaType == AppCallMediaType.video ? 'video' : 'audio',
     );
-    CallResultRepository.instance.save(record);
-    CallBubbleInsertService.instance.insertTerminalBubble(
-      record,
-      reason: 'livekit_call_end',
-    );
+    CallBubbleInsertService.instance.accept(record);
     unawaited(CallResultEnrichmentService.instance.ensureServerResult(id));
 
-    chatHistoryRefreshRevision.value++;
-    if (conversationId.isNotEmpty) {
-      CallBubbleDedupe.scheduleDedupeConversation(
-        conversationId,
-        reason: 'livekit_call_end',
-      );
-    }
   }
 
   CallProtocolType _protocolFromReason(AppCallEndReason reason) {
