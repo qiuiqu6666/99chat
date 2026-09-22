@@ -5,7 +5,7 @@
 
 ## 当前交付范围
 
-已实现可测试的运行时基础层及独立持久提交适配器。调度内核当前只有 shadow 构造入口，尚未连接生产消息流、持久数据库或页面；现有 MessageReconciliationWriter 继续持有业务写入权。本次交付不等于完成统一调度迁移，也不代表现有聊天问题已经根治。
+已将生产消息入站与恢复队列接入 RuntimeEffectScheduler，并统一持久 Inbox 的提交阶段顺序。AccountRuntimeSupervisor 仍为 shadow，RuntimeCommitCoordinator 和 RuntimeViewSession 尚未接管生产业务权威与页面状态；全量统一调度迁移仍未完成。详见第五批记录。
 
 | 模块 | 已实现行为 |
 | --- | --- |
@@ -14,7 +14,7 @@
 | RuntimeEffectScheduler | 限制并发、每通道 FIFO、通道轮转、显式等价请求合并、显式过载、保留已发出操作的迟到结果 |
 | RuntimeViewSession | 每次页面访问独立状态、有限回最新目标、窗口与布局证明、读取确认仅覆盖证明与捕获集合的交集 |
 
-基础层在 third_party/tencent_cloud_chat_uikit/lib/business_logic/runtime/，不依赖 Flutter、腾讯 SDK 或宿主业务服务。EffectScheduler 的执行端口目前仅由测试调用，shadow runtime 只返回效果意图。
+基础层在 third_party/tencent_cloud_chat_uikit/lib/business_logic/runtime/，不依赖 Flutter、腾讯 SDK 或宿主业务服务。EffectScheduler 已通过生产 ImMailboxRouter 执行入站工作，shadow account runtime 仍只返回效果意图。
 
 事件去重、清空请求和 actor 生命周期当前是内存实现。它们还没有持久恢复或淘汰策略，不能作为正式消息账本，也不应直接启用为长期运行的账号服务。不能通过把 shadow 政名为 live 完成上线。
 
@@ -91,7 +91,7 @@ dart analyze --fatal-infos --fatal-warnings third_party/tencent_cloud_chat_uikit
 
 本次将索引上限设为 1024 KB，并在 .gitnexusignore 中仅排除四份已确认的压缩 Web SDK 分发包。手写 Web 桥接代码保留。两个超大业务文件 tui_chat_global_model.dart 和 tim_uikit_chat_history_message_list.dart 已在图中定位到真实类与调用者，原有大小过滤缺口已补齐。后续刷新仍须设置 GITNEXUS_MAX_FILE_SIZE=1024，防止默认 512 KB 再次漏掉它们。
 
-全局流程枚举仍存在截断，接口/动态调用也不能完全静态追踪。影响分析必须查询具体目标，并核对实际调用点；不能用全局流程中的缺席或 UNKNOWN 作为零影响证据。新调度内核和持久提交适配器目前仅由测试使用，增量 schema 已接入 MessageCoreStore 的现有启动流程。
+全局流程枚举仍存在截断，接口/动态调用也不能完全静态追踪。影响分析必须查询具体目标，并核对实际调用点；不能用全局流程中的缺席或 UNKNOWN 作为零影响证据。持久提交适配器仍仅由测试使用；调度器已接入生产入站和恢复。增量 schema 已接入 MessageCoreStore 的现有启动流程。
 
 ## 手动回底与回弹消息修复（第三批）
 
@@ -102,3 +102,40 @@ dart analyze --fatal-infos --fatal-warnings third_party/tencent_cloud_chat_uikit
 第三批留下的 12 项现已全部通过。将手动阅读的胶囊计数与持久未读统一到同一个帧后可见行采样器；显式回底采用带访问代次的有限 ID 快照，避免超出 120 条的 SQL 尾部查询遗漏已处理身份。修复回底期间迟到消息、失败后的重试提示、键盘已打开时点击输入框回底，并验证空闲跑道收敛与 300 条跨窗口裁剪。
 
 原十套件 138 项及新增纳入的两个账本套件合计 165 项通过。额外万条压测的正文缓存断言仍失败，已用修改前 be41443 原业务代码复现同样失败；详见 [完整证据与范围](chat_bottom_settlement_fix.md)。生产入口迁入统一运行时的整体任务仍未完成。
+
+## 生产入站接入与压测契约修复（第五批，2026-09-23）
+
+已将生产 ImMailboxRouter 改为 RuntimeEffectScheduler 的适配层，删除 _ImMailbox 和 _QueuedEvent 两套旧队列实现。SDK 实时入站、持久 Inbox 入站及恢复现在按账号和规范会话 ID 共用 FIFO；消息命名空间与 urgent/history 标签不再拆出并行写入者，也不再让同会话后来的事件越过先到事件。不同会话轮转共享工作池。
+
+超时仅结束调用者的等待，实际执行仍占用会话和工作槽，直到原 Future 完成。drain 等待实际完成与尚在准入的事件。调度队列容量耗尽时，适配层按调用顺序等待容量，不把已提交的 SDK 消息转入有限重试缓存。运行时队列与并发有上限；不等待 dispatch 的生产者仍可能保留大量待准入 Future/SDK 对象，此项不能宣传成整个进程内存已有硬上限。
+
+RuntimeIngressProcessor 已接入 ConversationSyncService._handleMessageIngress 的持久 Inbox 路径：元数据处理、刷盘、metadataCommitted 检查点、发送身份采纳、消息列表发布、projectionPublished、Outbox 完成、Inbox 完成依序执行。账号、SDK 代次与租约所有权在各阶段间检查；心跳更新对象但不变更 owner/token 时继续有效。失败保留最后一个持久检查点，真实 SQLite 重开测试覆盖恢复不重复发布。SDK 实时快速路径仍以 SDK 历史恢复为依据；本批没有为它复制持久正文。
+
+万条集成测试的持久正文预期已修正为现有契约的 0。依据不是当前失败值，而是原有 HistoryWindowStore 万条测试与 appendDeferred 实现均明确只保存身份和计数。仍保留内存热正文 120 条、原始窗口 600 条、10000 条计数与迟到消息水位检查，并新增关闭/重开数据库后身份计数不丢失的验证。
+
+验证记录（D:/CodexRuntimeTests/unified-chat-runtime-20260922/）：
+
+- 原生产队列新增 5 项行为复现：迁移前全部失败（ingress-order-before.log），迁移后全部通过。
+- 增加容量为 1 的 1000 条投递验证、万条即时完成让出 UI、关闭后真实排空、阶段失败与恢复，共 24 项新增行为测试。
+- 18 套运行时、IM、Outbox、SQLite、SDK 和生命周期合并验证：175 项通过（runtime-production-combined.log）。
+- 两套完整历史存储/真实入站验证：56 项通过，包含两个万条场景（body-contract-complete.log）。
+- 原 12 套回底/未读页面回归再次验证：165 项通过（runtime-bottom-regressions.log）。
+- 合计 396 项通过。重写/新增调度模块及测试严格分析无问题；同步服务分析无 error/warning，有 9 项既有大括号风格提示。
+
+### 整体迁移仍需完成
+
+本批使运行时调度器真正接入了生产入站和恢复，但没有宣称完成全量迁移：
+
+| 范围 | 当前状态 |
+| --- | --- |
+| 生产入站/恢复队列 | 已由统一运行时执行，旧队列实现已删除 |
+| 持久 Inbox 提交阶段 | 已统一执行顺序；仍使用既有业务存储和检查点 |
+| AccountRuntimeSupervisor / RuntimeCommitCoordinator | actor 仍为 shadow；新持久提交适配器仍未接管生产业务权威 |
+| 清空、变更、deferred、读取权威同事务 | 未迁入同一 MessageCore 提交域 |
+| 每页面 RuntimeViewSession | 未替换现有页面状态所有者；现有回底修复保持通过 |
+| 发送、附件、资料、权限、草稿和后台效果 | 未全量迁入新效果意图/恢复策略 |
+| 新旧版本兼容范围 | 已确认新旧版本须在同一设备共用本地数据库目录并同时写同一账号；待提供旧版版本/提交及是否允许兼容协议补丁 |
+
+元数据业务内部仍有自己的预览发布逻辑；阶段执行器保证的是 _publishMessageIngressProjection 在检查点后执行，不能把它描述为全部 UI 状态已与数据库原子提交。
+
+兼容约束：不能直接迁走权威表并撤销旧写入权。未修改的旧版不认识新运行时的租约和提交入口。全量切换必须先验证旧版写入协议，不能把单独更新新版描述为已经约束全部旧写入者。

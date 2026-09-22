@@ -34,22 +34,48 @@ class _RuntimeEffectJob {
 /// runtime deliberately never constructs or invokes this executor. Each lane
 /// is FIFO, lanes rotate fairly, and external work never occupies an actor.
 class RuntimeEffectScheduler {
-  RuntimeEffectScheduler({this.maxConcurrent = 4, this.maxQueued = 256}) {
-    if (maxConcurrent < 1 || maxQueued < 1) {
+  RuntimeEffectScheduler(
+      {this.maxConcurrent = 4,
+      this.maxQueued = 256,
+      this.completionsPerTurn = 32}) {
+    if (maxConcurrent < 1 || maxQueued < 1 || completionsPerTurn < 1) {
       throw ArgumentError('Invalid capacity');
     }
   }
   final int maxConcurrent;
   final int maxQueued;
+  final int completionsPerTurn;
   final Map<String, Queue<_RuntimeEffectJob>> _queues = {};
   final Queue<String> _ready = Queue();
   final Set<String> _activeLanes = {};
   final Map<(String, Object), Future<RuntimeEffectOutcome>> _coalesced = {};
   int _queued = 0;
   bool _closed = false;
+  bool _yielding = false;
+  int _completedThisTurn = 0;
+  int _evictions = 0;
+  final Map<String, Stopwatch> _runningWatches = {};
+  Completer<void>? _idle;
 
   int get queuedCount => _queued;
   int get runningCount => _activeLanes.length;
+  int get logicalCount => _queues.length;
+  int get readyCount => _ready.length;
+  int get evictionCount => _evictions;
+  int get oldestInflightMs => _runningWatches.values.fold(
+      0,
+      (oldest, watch) => watch.elapsedMilliseconds > oldest
+          ? watch.elapsedMilliseconds
+          : oldest);
+
+  /// Includes actual in-flight completion, even after a host stops waiting.
+  Future<void> drain() => _idle?.future ?? Future<void>.value();
+
+  void _completeIdle() {
+    if (_queued != 0 || _activeLanes.isNotEmpty) return;
+    _idle?.complete();
+    _idle = null;
+  }
 
   /// Coalescing is opt-in for equivalent reads/progress only. Callers must use
   /// a structured identity containing source, cursor, scope and dependencies;
@@ -73,6 +99,7 @@ class RuntimeEffectScheduler {
       return Future.value(const RuntimeEffectOutcome(
           status: RuntimeEffectStatus.overloaded, dispatched: false));
     }
+    _idle ??= Completer<void>();
     final job = _RuntimeEffectJob(lane, identity, isCurrent, execute);
     final queue = _queues.putIfAbsent(lane, Queue.new);
     final wasEmpty = queue.isEmpty;
@@ -85,6 +112,7 @@ class RuntimeEffectScheduler {
   }
 
   void _pump() {
+    if (_yielding) return;
     while (
         !_closed && _activeLanes.length < maxConcurrent && _ready.isNotEmpty) {
       final lane = _ready.removeFirst();
@@ -92,6 +120,7 @@ class RuntimeEffectScheduler {
       final job = queue.removeFirst();
       _queued--;
       _activeLanes.add(lane);
+      _runningWatches[lane] = Stopwatch()..start();
       _run(job);
     }
   }
@@ -131,13 +160,25 @@ class RuntimeEffectScheduler {
             error: failure,
             stackTrace: stackTrace));
     _activeLanes.remove(job.lane);
+    _runningWatches.remove(job.lane);
     final queue = _queues[job.lane];
     if (queue != null && queue.isNotEmpty) {
       _ready.add(job.lane);
     } else {
-      _queues.remove(job.lane);
+      if (_queues.remove(job.lane) != null) _evictions++;
     }
-    _pump();
+    _completeIdle();
+    // Yield fast completion bursts to frame/timer events.
+    if (++_completedThisTurn >= completionsPerTurn && !_yielding) {
+      _yielding = true;
+      Timer.run(() {
+        _yielding = false;
+        _completedThisTurn = 0;
+        _pump();
+      });
+    } else {
+      _pump();
+    }
   }
 
   void _finish(_RuntimeEffectJob job, RuntimeEffectOutcome outcome) {
@@ -155,7 +196,8 @@ class RuntimeEffectScheduler {
     if (_closed) return;
     _closed = true;
     _ready.clear();
-    for (final queue in _queues.values) {
+    for (final lane in _queues.keys.toList()) {
+      final queue = _queues[lane]!;
       while (queue.isNotEmpty) {
         _queued--;
         _finish(
@@ -163,6 +205,11 @@ class RuntimeEffectScheduler {
             const RuntimeEffectOutcome(
                 status: RuntimeEffectStatus.obsolete, dispatched: false));
       }
+      if (!_activeLanes.contains(lane)) {
+        _queues.remove(lane);
+        _evictions++;
+      }
     }
+    _completeIdle();
   }
 }
