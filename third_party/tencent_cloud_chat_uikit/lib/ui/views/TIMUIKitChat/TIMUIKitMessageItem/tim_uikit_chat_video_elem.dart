@@ -431,7 +431,8 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem>
                 model: widget.chatModel,
               ),
             )
-          : NavigationRoutes.push(
+          : NavigationRoutes.cupertino(
+              fullscreenDialog: true,
               builder: (context) => ForwardMessageScreen(
                 conversationType: widget.chatModel.conversationType ?? ConvType.c2c,
                 model: widget.chatModel,

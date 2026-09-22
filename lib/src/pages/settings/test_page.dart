@@ -229,9 +229,10 @@ class TestPage extends StatelessWidget {
                 )
               : null,
           titleSpacing: 0,
+          centerTitle: true,
           title: const FittedBox(
             fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
+            alignment: Alignment.center,
             child: _Brand(),
           ),
         ),
@@ -248,13 +249,26 @@ class _Brand extends StatelessWidget {
   const _Brand();
 
   @override
-  Widget build(BuildContext context) => Text('京东六合彩',
-      style: TextStyle(
-          color: lotteryThemeColor(
-              context, Colors.black, AppTokens.textPrimaryDark),
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 2));
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('京东微信红包',
+              style: TextStyle(
+                  color: lotteryThemeColor(
+                      context, Colors.black, AppTokens.textPrimaryDark),
+                  fontSize: 19,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5)),
+          const SizedBox(height: 2),
+          Text('极速六合彩',
+              style: TextStyle(
+                  color: lotteryThemeColor(context, const Color(0xFF6B7688),
+                      AppTokens.textSecondaryDark),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 1)),
+        ],
+      );
 }
 
 class _ResultTable extends StatelessWidget {
@@ -327,6 +341,31 @@ class _ResultRow extends StatelessWidget {
   const _ResultRow({required this.result});
   final _MarkSixResult result;
 
+  Color? _attributeColor(BuildContext context, int index, String value) {
+    switch (index) {
+      case 3: // 单双
+        return switch (value) { '单' => _blue, '双' => _red, _ => null };
+      case 4: // 大小
+        return switch (value) { '小' => _blue, '大' => _red, _ => null };
+      case 8: // 五行
+        return switch (value) {
+          '金' => lotteryThemeColor(
+              context, const Color(0xFF9A6700), const Color(0xFFFFC857)),
+          '木' => lotteryThemeColor(
+              context, const Color(0xFF008A4A), const Color(0xFF55D99A)),
+          '水' => lotteryThemeColor(
+              context, const Color(0xFF0066CC), const Color(0xFF76B6FF)),
+          '火' => lotteryThemeColor(
+              context, const Color(0xFFD72C48), const Color(0xFFFF788A)),
+          '土' => lotteryThemeColor(
+              context, const Color(0xFF8C5A36), const Color(0xFFD5A678)),
+          _ => null,
+        };
+      default:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final values = [
@@ -382,7 +421,8 @@ class _ResultRow extends StatelessWidget {
                     width: _ResultTable._widths[index],
                     text: values[index],
                     background: colored ? result.waveColor.color : null,
-                    bold: colored,
+                    textColor: _attributeColor(context, index, values[index]),
+                    bold: colored || index == 3 || index == 4 || index == 8,
                   ),
           );
         }),
@@ -397,6 +437,7 @@ class _TableCell extends StatelessWidget {
     required this.text,
     this.header = false,
     this.background,
+    this.textColor,
     this.bold = false,
   });
 
@@ -404,6 +445,7 @@ class _TableCell extends StatelessWidget {
   final String text;
   final bool header;
   final Color? background;
+  final Color? textColor;
   final bool bold;
 
   @override
@@ -430,10 +472,13 @@ class _TableCell extends StatelessWidget {
               style: TextStyle(
                 color: header
                     ? Colors.white
-                    : background != null
-                        ? const Color(0xFF20242A)
-                        : lotteryThemeColor(context, const Color(0xFF20242A),
-                            AppTokens.textPrimaryDark),
+                    : textColor ??
+                        (background != null
+                            ? const Color(0xFF20242A)
+                            : lotteryThemeColor(
+                                context,
+                                const Color(0xFF20242A),
+                                AppTokens.textPrimaryDark)),
                 fontSize: 12,
                 fontWeight: header || bold ? FontWeight.w700 : FontWeight.w500,
               ),

@@ -140,6 +140,9 @@ class _LotteryDashboard extends StatefulWidget {
 
 class _LotteryDashboardState extends State<_LotteryDashboard> {
   List<_MarkSixResult> get _results => widget.results;
+  final ScrollController _scrollController = ScrollController();
+  int _visiblePredictions = 20;
+  bool _predictionPageArmed = true;
   int tab = 3;
   int window = 40;
   String attribute = '特码';
@@ -149,6 +152,33 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
   bool specialDragon = true;
   bool openedDragon = false;
   bool hotFirst = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_loadMorePredictions);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _loadMorePredictions() {
+    if (tab != 0 || !_scrollController.hasClients || !_predictionPageArmed) {
+      return;
+    }
+    final total = widget.live?.predictions.length ?? _results.length + 1;
+    if (_visiblePredictions >= total ||
+        _scrollController.position.extentAfter > 120) {
+      return;
+    }
+    final next = _visiblePredictions + 20;
+    _predictionPageArmed = false;
+    setState(() => _visiblePredictions = next > total ? total : next);
+  }
+
   static const attributes = [
     '特码',
     '生肖',
@@ -342,131 +372,190 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
       style: TextStyle(
           color: lotteryThemeColor(
               context, const Color(0xFF17243D), AppTokens.textPrimaryDark)),
-      child: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-          children: [
-            latestCard,
-            if (widget.live?.error != null)
-              TextButton(
-                  onPressed: widget.live!.refresh,
-                  child: Text(widget.live!.error!)),
-            const SizedBox(height: 10),
-            Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                    color: lotteryThemeColor(context, const Color(0xFFE7EDF5),
-                        AppTokens.surfaceAltDark),
-                    borderRadius: BorderRadius.circular(12)),
-                child: Row(children: [
-                  // Hide omission (1) and temperature (2) entries only.
-                  // Their panels and data-loading logic remain available.
-                  for (final i in [3, 0, 4])
-                    Expanded(
-                        child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 2),
-                            child: FilledButton.tonal(
-                              style: FilledButton.styleFrom(
-                                  minimumSize: const Size(0, 40),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 10),
-                                  backgroundColor: tab == i
-                                      ? const Color(0xFF1677FF)
-                                      : Colors.transparent,
-                                  foregroundColor: tab == i
-                                      ? Colors.white
-                                      : lotteryThemeColor(
-                                          context,
-                                          const Color(0xFF526077),
-                                          AppTokens.textSecondaryDark),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(9))),
-                              onPressed: () {
-                                setState(() => tab = i);
-                                if (i == 1 || i == 2) {
-                                  widget.live?.loadStatistics(_statisticsKey);
-                                }
-                              },
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                    ['智能预测', '遗漏', '冷热', '开奖历史', '已开统计'][i],
-                                    maxLines: 1,
-                                    style: const TextStyle(fontSize: 13)),
-                              ),
-                            )))
-                ])),
-            const SizedBox(height: 8),
-            if (tab == 4) ..._openedStatistics(),
-            if (tab == 0)
-              _panel(Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _sectionHeader('逐期预测'),
-                    const SizedBox(height: 8),
-                    ..._attributeControls(),
-                    if (tab == 0)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        title: const Text('综合预测 · 全部属性'),
-                        onTap: () => setState(() => combined = !combined),
-                        trailing: GroupSettingsSwitch(
-                          activeColor: AppColors.primaryBlue,
-                          value: combined,
-                          onChanged: (enabled) =>
-                              setState(() => combined = enabled),
-                        ),
+      child: NotificationListener<ScrollStartNotification>(
+          onNotification: (notification) {
+            if (notification.depth == 0 && notification.dragDetails != null) {
+              _predictionPageArmed = true;
+            }
+            return false;
+          },
+          child: ListView(
+              controller: _scrollController,
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              children: [
+                latestCard,
+                if (widget.live?.error != null &&
+                    widget.live!.error != '实时连接中断，正在自动重连')
+                  TextButton(
+                      onPressed: widget.live!.refresh,
+                      child: Text(widget.live!.error!)),
+                const SizedBox(height: 10),
+                Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                        color: lotteryThemeColor(context,
+                            const Color(0xFFE7EDF5), AppTokens.surfaceAltDark),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Row(children: [
+                      // Hide omission (1) and temperature (2) entries only.
+                      // Their panels and data-loading logic remain available.
+                      for (final i in [3, 0, 4, 5])
+                        Expanded(
+                            child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 2),
+                                child: FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                      minimumSize: const Size(0, 40),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 10),
+                                      backgroundColor: tab == i
+                                          ? const Color(0xFF1677FF)
+                                          : Colors.transparent,
+                                      foregroundColor: tab == i
+                                          ? Colors.white
+                                          : lotteryThemeColor(
+                                              context,
+                                              const Color(0xFF526077),
+                                              AppTokens.textSecondaryDark),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(9))),
+                                  onPressed: () {
+                                    setState(() {
+                                      if (i == 0 && tab != 0) {
+                                        _visiblePredictions = 20;
+                                        _predictionPageArmed = true;
+                                      }
+                                      tab = i;
+                                    });
+                                    if (i == 1 || i == 2) {
+                                      widget.live
+                                          ?.loadStatistics(_statisticsKey);
+                                    }
+                                  },
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          [
+                                            Icons.auto_awesome_rounded,
+                                            Icons.pending_actions_rounded,
+                                            Icons
+                                                .local_fire_department_outlined,
+                                            Icons.history_rounded,
+                                            Icons.bar_chart_rounded,
+                                            Icons.campaign_outlined,
+                                          ][i],
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          [
+                                            '智能预测',
+                                            '遗漏',
+                                            '冷热',
+                                            '开奖历史',
+                                            '已开统计',
+                                            '本群宣言'
+                                          ][i],
+                                          maxLines: 1,
+                                          style: const TextStyle(fontSize: 13),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )))
+                    ])),
+                const SizedBox(height: 8),
+                if (tab == 5)
+                  _panel(const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '全天候直播开奖(用户实时亲眼所见)！公平骰子！公开发包！无任何套路！杜绝一切不透明开奖！上下分不卡分！快速！红包不回收！全部是真实用户在亲身参与点包！',
+                        style: TextStyle(fontSize: 15, height: 1.7),
                       ),
-                    if (widget.live == null)
+                      SizedBox(height: 18),
                       Text(
-                          combined
-                              ? '每期同时预测 9 项，分别核对开奖结果'
-                              : attribute == '特码'
-                                  ? '特码 · 每期预测 18 码，命中任一码即为中'
-                                  : '$attribute · 每期以前 $window 期的最高频项作为预测',
-                          style: TextStyle(
-                              color: lotteryThemeColor(
-                                  context,
-                                  const Color(0xFF7D8797),
-                                  AppTokens.textSecondaryDark),
-                              fontSize: 12)),
-                    const SizedBox(height: 12),
-                    widget.live != null
-                        ? _livePredictions()
-                        : combined
-                            ? _combinedHistory()
-                            : _predictionHistory(),
-                    const SizedBox(height: 12),
-                    if (widget.live == null)
-                      Text(
-                          '演示回测，并非已发布预测。特码18码、生肖5肖、尾数4尾、头数3头、五行3个。仅使用该期之前的数据；并列按固定顺序选取，样本不足不判定。',
-                          style: TextStyle(
-                              color: lotteryThemeColor(
-                                  context,
-                                  const Color(0xFF7D8797),
-                                  AppTokens.textSecondaryDark),
-                              fontSize: 12)),
-                  ])),
-            if ((tab == 1 || tab == 2) && widget.live != null)
-              _serverStatisticsPanel()
-            else if (tab == 1 && widget.live?.statisticsComplete == false)
-              _panel(Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _sectionHeader('当前遗漏'),
-                    const Text('历史期次不连续，暂不计算遗漏和长龙。'),
-                  ]))
-            else if (tab == 1)
-              _omissionPanel(omissions, sample.length),
-            if (tab == 2 && widget.live == null)
-              _temperaturePanel(counts, ranked, sample.length),
-            if (tab == 3) ...[
-              SizedBox(height: 540, child: _ResultTable(results: _results)),
-            ],
-            const SizedBox(height: 24),
-          ]),
+                        '十一年口碑！诚信经营！安全稳定！',
+                        style: TextStyle(fontSize: 15, height: 1.7),
+                      ),
+                    ],
+                  )),
+                if (tab == 4) ..._openedStatistics(),
+                if (tab == 0)
+                  _panel(Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sectionHeader('逐期预测', showRange: false),
+                        const SizedBox(height: 8),
+                        ..._attributeControls(),
+                        if (tab == 0)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            title: const Text('综合预测 · 全部属性'),
+                            onTap: () => setState(() => combined = !combined),
+                            trailing: GroupSettingsSwitch(
+                              activeColor: AppColors.primaryBlue,
+                              value: combined,
+                              onChanged: (enabled) =>
+                                  setState(() => combined = enabled),
+                            ),
+                          ),
+                        if (widget.live == null)
+                          Text(
+                              combined
+                                  ? '每期同时预测 9 项，分别核对开奖结果'
+                                  : attribute == '特码'
+                                      ? '特码 · 每期预测 18 码，命中任一码即为中'
+                                      : '$attribute · 每期以前 $window 期的最高频项作为预测',
+                              style: TextStyle(
+                                  color: lotteryThemeColor(
+                                      context,
+                                      const Color(0xFF7D8797),
+                                      AppTokens.textSecondaryDark),
+                                  fontSize: 12)),
+                        const SizedBox(height: 12),
+                        widget.live != null
+                            ? _livePredictions()
+                            : combined
+                                ? _combinedHistory()
+                                : _predictionHistory(),
+                        const SizedBox(height: 12),
+                        if (widget.live == null)
+                          Text(
+                              '演示回测，并非已发布预测。特码18码、生肖5肖、尾数4尾、头数3头、五行3个。仅使用该期之前的数据；并列按固定顺序选取，样本不足不判定。',
+                              style: TextStyle(
+                                  color: lotteryThemeColor(
+                                      context,
+                                      const Color(0xFF7D8797),
+                                      AppTokens.textSecondaryDark),
+                                  fontSize: 12)),
+                      ])),
+                if ((tab == 1 || tab == 2) && widget.live != null)
+                  _serverStatisticsPanel()
+                else if (tab == 1 && widget.live?.statisticsComplete == false)
+                  _panel(Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _sectionHeader('当前遗漏'),
+                        const Text('历史期次不连续，暂不计算遗漏和长龙。'),
+                      ]))
+                else if (tab == 1)
+                  _omissionPanel(omissions, sample.length),
+                if (tab == 2 && widget.live == null)
+                  _temperaturePanel(counts, ranked, sample.length),
+                if (tab == 3) ...[
+                  SizedBox(height: 540, child: _ResultTable(results: _results)),
+                ],
+                const SizedBox(height: 24),
+              ])),
     );
   }
 
@@ -1116,7 +1205,7 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
 
   Widget _combinedHistory() => Column(children: [
         _combinedIssue(null, _results.take(window).toList()),
-        for (var i = 0; i < _results.length; i++)
+        for (var i = 0; i < _results.length && i < _visiblePredictions - 1; i++)
           _combinedIssue(
               _results[i], _results.skip(i + 1).take(window).toList()),
       ]);
@@ -1206,7 +1295,9 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
     return Column(children: [
       _predictionLine('期号', '预测', '开奖', '结果', header: true),
       _predictionLine('下一期', next?.join(' ') ?? '—', '—', '待开奖'),
-      for (var index = 0; index < _results.length; index++)
+      for (var index = 0;
+          index < _results.length && index < _visiblePredictions - 1;
+          index++)
         Builder(builder: (context) {
           final result = _results[index];
           final predicted =
@@ -1390,7 +1481,7 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
     if (live.predictions.isEmpty) return Text(live.loading ? '预测加载中…' : '暂无预测');
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (live.predictionMode == 'backtest') const Text('回测结果，并非开奖前已发布预测'),
-      for (final row in live.predictions)
+      for (final row in live.predictions.take(_visiblePredictions))
         Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(10),
@@ -1506,22 +1597,24 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
         const SizedBox(height: 8),
       ];
 
-  Widget _sectionHeader(String title) => Row(children: [
+  Widget _sectionHeader(String title, {bool showRange = true}) =>
+      Row(children: [
         Expanded(
             child: Text(title,
                 style: const TextStyle(
                     fontSize: 19, fontWeight: FontWeight.w800))),
-        TextButton(
-          onPressed: _selectWindow,
-          style: TextButton.styleFrom(
-              foregroundColor: lotteryThemeColor(context,
-                  const Color(0xFF536780), AppTokens.textSecondaryDark),
-              padding: const EdgeInsets.symmetric(horizontal: 6)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text('最近 $window 期', style: const TextStyle(fontSize: 12)),
-            const Icon(Icons.keyboard_arrow_up_rounded, size: 18),
-          ]),
-        ),
+        if (showRange)
+          TextButton(
+            onPressed: _selectWindow,
+            style: TextButton.styleFrom(
+                foregroundColor: lotteryThemeColor(context,
+                    const Color(0xFF536780), AppTokens.textSecondaryDark),
+                padding: const EdgeInsets.symmetric(horizontal: 6)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('最近 $window 期', style: const TextStyle(fontSize: 12)),
+              const Icon(Icons.keyboard_arrow_up_rounded, size: 18),
+            ]),
+          ),
       ]);
 
   Widget _panel(Widget child) => widget.previewOnly
@@ -1542,23 +1635,44 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
                   color: lotteryThemeColor(context, const Color(0xFFE7EDF5),
                       AppTokens.surfaceAltDark))),
           child: child);
-  Widget _tag(String text) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-          color: widget.previewOnly
-              ? lotteryThemeColor(
-                  context, const Color(0xFFEAF0F7), AppTokens.surfaceAltDark)
-              : lotteryThemeColor(
-                  context, const Color(0xFFF0F5FC), AppTokens.surfaceAltDark),
-          borderRadius: BorderRadius.circular(6)),
-      child: Text(text,
-          style: TextStyle(
-              fontSize: 11,
-              color: widget.previewOnly
-                  ? lotteryThemeColor(context, const Color(0xFF3F5068),
-                      AppTokens.textPrimaryDark)
-                  : lotteryThemeColor(context, const Color(0xFF536780),
-                      AppTokens.textSecondaryDark),
-              fontWeight:
-                  widget.previewOnly ? FontWeight.w600 : FontWeight.normal)));
+  Widget _tag(String text) {
+    final accent = switch (text) {
+      '单' || '小' || '蓝波' => _blue,
+      '双' || '大' || '红波' => _red,
+      '绿波' => _green,
+      '金' => lotteryThemeColor(
+          context, const Color(0xFF9A6700), const Color(0xFFFFC857)),
+      '木' => lotteryThemeColor(
+          context, const Color(0xFF008A4A), const Color(0xFF55D99A)),
+      '水' => lotteryThemeColor(
+          context, const Color(0xFF0066CC), const Color(0xFF76B6FF)),
+      '火' => lotteryThemeColor(
+          context, const Color(0xFFD72C48), const Color(0xFFFF788A)),
+      '土' => lotteryThemeColor(
+          context, const Color(0xFF8C5A36), const Color(0xFFD5A678)),
+      _ => null,
+    };
+    return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+            color: accent?.withValues(alpha: .10) ??
+                (widget.previewOnly
+                    ? lotteryThemeColor(context, const Color(0xFFEAF0F7),
+                        AppTokens.surfaceAltDark)
+                    : lotteryThemeColor(context, const Color(0xFFF0F5FC),
+                        AppTokens.surfaceAltDark)),
+            borderRadius: BorderRadius.circular(6)),
+        child: Text(text,
+            style: TextStyle(
+                fontSize: 11,
+                color: accent ??
+                    (widget.previewOnly
+                        ? lotteryThemeColor(context, const Color(0xFF3F5068),
+                            AppTokens.textPrimaryDark)
+                        : lotteryThemeColor(context, const Color(0xFF536780),
+                            AppTokens.textSecondaryDark)),
+                fontWeight: accent != null || widget.previewOnly
+                    ? FontWeight.w600
+                    : FontWeight.normal)));
+  }
 }

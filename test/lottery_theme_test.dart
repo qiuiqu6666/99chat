@@ -24,8 +24,12 @@ void main() {
         AppTokens.backgroundDark);
     expect(tester.widget<AppBar>(find.byType(AppBar)).backgroundColor,
         AppTokens.surfaceDark);
-    expect(tester.widget<Text>(find.text('京东六合彩')).style!.color,
+    expect(tester.widget<Text>(find.text('京东微信红包')).style!.color,
         AppTokens.textPrimaryDark);
+    expect(tester.widget<Text>(find.text('极速六合彩')).style!.color,
+        AppTokens.textSecondaryDark);
+    expect(tester.widget<Text>(find.text('京东微信红包')).style!.fontSize,
+        greaterThan(tester.widget<Text>(find.text('极速六合彩')).style!.fontSize!));
     final decorations = tester
         .widgetList<Container>(find.byType(Container))
         .map((w) => w.decoration)

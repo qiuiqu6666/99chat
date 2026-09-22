@@ -20,6 +20,9 @@ class MediaPreviewVideoChrome extends StatefulWidget {
     required this.onBack,
     required this.onTogglePlayback,
     required this.onMore,
+    this.onForward,
+    this.onSave,
+    this.onDelete,
     this.attachmentChanges,
     this.galleryIndicator,
     this.opacity = 1,
@@ -38,6 +41,9 @@ class MediaPreviewVideoChrome extends StatefulWidget {
   final VoidCallback onBack;
   final VoidCallback onTogglePlayback;
   final Future<void> Function() onMore;
+  final Future<void> Function()? onForward;
+  final Future<void> Function()? onSave;
+  final Future<void> Function()? onDelete;
 
   @override
   State<MediaPreviewVideoChrome> createState() =>
@@ -120,12 +126,14 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
 
   Future<void> showActions() => _showMore();
 
-  Future<void> _showMore() async {
+  Future<void> _showMore() => _runAction(widget.onMore);
+
+  Future<void> _runAction(Future<void> Function() action) async {
     if (_menuOpen) return;
     _menuOpen = true;
     showControls();
     try {
-      await widget.onMore();
+      await action();
     } finally {
       if (mounted) {
         _menuOpen = false;
@@ -145,6 +153,9 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
   Widget build(BuildContext context) {
     final insets = MediaQuery.viewPaddingOf(context);
     final compact = MediaQuery.sizeOf(context).height < 450;
+    final hasActions = widget.onForward != null ||
+        widget.onSave != null ||
+        widget.onDelete != null;
     return IgnorePointer(
       ignoring: !widget.active || !_visible || widget.opacity < 0.96,
       child: Opacity(
@@ -195,7 +206,9 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                 left: 0,
                 right: 0,
                 bottom: 0,
-                height: insets.bottom + (compact ? 88 : 126),
+                height: insets.bottom +
+                    (compact ? 88 : 126) +
+                    (hasActions ? 52 : 0),
                 child: const IgnorePointer(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -211,7 +224,8 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
               Positioned(
                 left: insets.left + 8,
                 right: insets.right + 20,
-                bottom: insets.bottom + (compact ? 8 : 18),
+                bottom:
+                    insets.bottom + (compact ? 8 : 18) + (hasActions ? 52 : 0),
                 child: Row(
                   children: [
                     _VideoButton(
@@ -235,10 +249,43 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                   ],
                 ),
               ),
+              if (hasActions)
+                Positioned(
+                  left: insets.left + 20,
+                  right: insets.right + 20,
+                  bottom: insets.bottom + 4,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      if (widget.onForward != null)
+                        _actionButton(Icons.ios_share_rounded, TIM_t('转发'),
+                            widget.onForward!),
+                      if (widget.onSave != null)
+                        _actionButton(Icons.download_outlined, TIM_t('保存'),
+                            widget.onSave!),
+                      if (widget.onDelete != null)
+                        _actionButton(Icons.delete_outline_rounded, TIM_t('删除'),
+                            widget.onDelete!),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _actionButton(
+      IconData icon, String label, Future<void> Function() action) {
+    return TextButton.icon(
+      onPressed: () => _runAction(action),
+      style: TextButton.styleFrom(
+        foregroundColor: Colors.white,
+        minimumSize: const Size(80, 48),
+      ),
+      icon: Icon(icon, size: 23),
+      label: Text(label),
     );
   }
 }
@@ -325,7 +372,6 @@ Future<void> showMediaPreviewVideoActions({
             item('save', TIM_t('保存视频')),
             if (onForward != null) item('forward', TIM_t('转发')),
             if (onOpenMedia != null) item('media', TIM_t('查看全部媒体')),
-            if (onPictureInPicture != null) item('pip', TIM_t('画中画')),
             if (onDelete != null)
               item('delete', TIM_t('删除'), destructive: true),
           ],

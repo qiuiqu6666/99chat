@@ -55,7 +55,8 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: TestPage()));
     await tester.pump();
 
-    expect(find.text('京东六合彩'), findsOneWidget);
+    expect(find.text('京东微信红包'), findsOneWidget);
+    expect(find.text('极速六合彩'), findsOneWidget);
     expect(find.text('开奖记录'), findsNothing);
     expect(find.text('期号'), findsOneWidget);
     final tabLabels = ['开奖历史', '预测', '遗漏', '冷热'];
