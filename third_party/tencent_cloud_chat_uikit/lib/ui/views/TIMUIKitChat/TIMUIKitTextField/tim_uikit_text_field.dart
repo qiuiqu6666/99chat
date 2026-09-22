@@ -616,7 +616,8 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
         final minBefore = position.minScrollExtent;
         final insetBefore =
             KeyboardViewportTransitionCoordinator.active?.effectiveInset.value;
-        if (KeyboardViewportTransitionCoordinator.active?.isAnimating != true &&
+        if ((allowKeyboardReturn ||
+                KeyboardViewportTransitionCoordinator.active?.isAnimating != true) &&
             !didJump &&
             (position.pixels - position.minScrollExtent).abs() > 0.5) {
           controller.jumpTo(position.minScrollExtent);

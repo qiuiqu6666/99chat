@@ -399,6 +399,12 @@ class TIMUIKitHistoryMessageListTongueContainerState
         const maxNewestReloadAttempts = 3;
         var reloadedNewest = false;
         for (var attempt = 0; attempt < maxNewestReloadAttempts; attempt++) {
+          // Capture this attempt's visit IDs before IO. A successful finite
+          // reload retires its request, never arrivals received while waiting.
+          // The SQL pending-tail query is capped and cannot prove this set.
+          final returnLiveIDs =
+              globalModel.remainingLiveIncomingIdsFor(conversationID);
+          final returnVisit = globalModel.unreadVisitGenerationFor(conversationID);
           try {
             reloadedNewest = await model.reloadNewestMessageWindow(
               allowWhileReadingHistory: true,
@@ -416,6 +422,11 @@ class TIMUIKitHistoryMessageListTongueContainerState
               return;
             }
             newestTargetReached = true;
+            if (returnVisit ==
+                globalModel.unreadVisitGenerationFor(conversationID)) {
+              globalModel.markLiveIncomingSeen(
+                conversationID: conversationID, ids: returnLiveIDs);
+            }
             break;
           }
 
@@ -626,6 +637,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
           globalModel.canRevealDurableIncomingAfterLatestReturn(conversationID)) {
         final displayedRevision =
             globalModel.messageListRevisionFor(conversationID);
+        final displayedVisit = globalModel.unreadVisitGenerationFor(conversationID);
         // A raw row may still be excluded by the current page projection.
         // Only identities actually installed in this list can prove reading.
         final displayed = widget.messageList.whereType<V2TimMessage>().toList();
@@ -635,12 +647,14 @@ class TIMUIKitHistoryMessageListTongueContainerState
         await WidgetsBinding.instance.endOfFrame;
         if (!isCurrent()) return;
         try {
-          await globalModel.acknowledgeVisibleHistoryMessages(
+          final consumed = await globalModel.acknowledgeVisibleHistoryMessages(
             conversationID,
             displayed,
             isCurrent: () {
               final position = _singleScrollPositionOrNull();
               return isCurrent() &&
+                  globalModel.unreadVisitGenerationFor(conversationID) ==
+                      displayedVisit &&
                   globalModel.canRevealDurableIncomingAfterLatestReturn(
                     conversationID,
                   ) &&
@@ -653,9 +667,18 @@ class TIMUIKitHistoryMessageListTongueContainerState
                         .map((message) => message.msgID)
                         .toList(),
                   ) &&
-                  TrueLatestEnd.atListEndFromPosition(position);
+                  TrueLatestEnd.atListEndFromPosition(position) &&
+                  (widget.verifyLatestMessageVisible?.call() ?? true);
             },
           );
+          if (consumed && isCurrent() &&
+              globalModel.unreadVisitGenerationFor(conversationID) ==
+                  displayedVisit) {
+            globalModel.markLiveIncomingSeen(
+              conversationID: conversationID,
+              ids: displayed.map(TUIChatGlobalModel.liveIncomingIdentity),
+            );
+          }
         } catch (_) {
           // Layout/owner changes invalidate this reading proof. The durable
           // ledger remains authoritative and the reminder stays retryable.

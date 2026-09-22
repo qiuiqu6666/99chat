@@ -5886,10 +5886,11 @@ class _TIMUIKitHistoryMessageListState
       }
       // Reading a connected history row is valid evidence independently of
       // FOLLOW. Requiring FOLLOW here deadlocks with latest restoration, which
-      // itself waits for durable unread to be acknowledged. Exact painted IDs
-      // below advance only the durable ledger, not the live capsule ledger.
+      // itself waits for durable unread to be acknowledged. The same painted
+      // edge advances the capsule IDs and queues the durable acknowledgement.
       if (global.isGeometryViewportTransitionActive(conv) ||
-          global.receivedNewMessageCountFor(conv) <= 0 ||
+          (global.receivedNewMessageCountFor(conv) <= 0 &&
+              global.remainingLiveIncomingCountFor(conv) <= 0) ||
           ModalRoute.of(context)?.isCurrent == false ||
           _initialSearchJumpPending ||
           _isSearchJumpStabilizing ||
@@ -5930,12 +5931,21 @@ class _TIMUIKitHistoryMessageListState
       if (readingEdge == null) return;
       final signature = '$conv:${model.historyReadingWindowRevision}:'
           '${global.receivedNewMessageCountFor(conv)}:'
+          '${global.remainingLiveIncomingCountFor(conv)}:'
           '${_messageIdentity(messages[readingEdge]!)}';
       if (signature == _visibleIncomingProgressSignature) {
         _drainVisibleIncomingProgress();
         return;
       }
       _visibleIncomingProgressSignature = signature;
+      // One painted reading edge drives both ledgers. This includes rows
+      // crossed between frames before a bounded window trims their widgets.
+      global.markLiveIncomingSeen(
+        conversationID: conv,
+        ids: messages.skip(readingEdge).whereType<V2TimMessage>()
+            .where(TUIChatGlobalModel.isConfirmedProjectionMessage)
+            .map(TUIChatGlobalModel.liveIncomingIdentity),
+      );
       // A fast drag can cross several rows in one frame. Only rows behind this
       // measured edge in the connected window qualify, never the prefetched
       // newer rows still below it. Exact IDs keep arrival order independent.
@@ -6020,81 +6030,9 @@ class _TIMUIKitHistoryMessageListState
     }());
   }
 
-  void _consumeSeenLiveIncomingInEffectiveViewport() {
-    if (!mounted) {
-      return;
-    }
-    final global = _chatGlobalModel;
-    if (global == null) {
-      return;
-    }
-    final conv = _conversationId();
-    if (global.remainingLiveIncomingCountFor(conv) <= 0) {
-      return;
-    }
-    final remaining = global.remainingLiveIncomingIdsFor(conv);
-    if (remaining.isEmpty) {
-      return;
-    }
-    final position = _singleScrollPositionOrNull();
-    if (position == null ||
-        !position.hasPixels ||
-        !position.hasContentDimensions) {
-      return;
-    }
-    final viewInsets = MediaQuery.viewInsetsOf(context).bottom;
-    final effectiveHeight =
-        (position.viewportDimension - viewInsets).clamp(0.0, double.infinity);
-    if (effectiveHeight <= 0) {
-      return;
-    }
-    final messages = _currentVisibleMessageList();
-    final seen = <String>[];
-    for (var index = 0; index < messages.length; index++) {
-      final message = messages[index];
-      if (message == null ||
-          !TUIChatGlobalModel.isConfirmedProjectionMessage(message)) {
-        continue;
-      }
-      final id = TUIChatGlobalModel.liveIncomingIdentity(message);
-      if (id.isEmpty || !remaining.contains(id)) {
-        continue;
-      }
-      final tag = _autoScrollController.tagMap[-index];
-      final rowContext = tag?.context;
-      if (rowContext == null ||
-          tag?.widget.key !=
-              ValueKey<String>(_stableMessageListKey(message, index))) {
-        continue;
-      }
-      final row = rowContext.findRenderObject();
-      final viewport = _viewportRenderBoxFor(rowContext);
-      if (row is! RenderBox ||
-          viewport == null ||
-          !row.attached ||
-          !row.hasSize ||
-          row.size.height <= 0 ||
-          _renderObjectNeedsLayout(row)) {
-        continue;
-      }
-      final top = row.localToGlobal(Offset.zero, ancestor: viewport).dy;
-      final bottom = top + row.size.height;
-      // A prefetched/recycled row or a sliver peeking through the edge does
-      // not prove reading. Tall rows count only once their bottom is visible.
-      if (bottom > 0 && bottom <= effectiveHeight + 0.5 &&
-          (top >= -0.5 || row.size.height > effectiveHeight)) {
-        seen.add(id);
-      }
-    }
-    if (seen.isNotEmpty) {
-      global.markLiveIncomingSeen(conversationID: conv, ids: seen);
-    }
-  }
-
   void _updateLatestMessageVisibility() {
     if (!mounted) return;
     _scheduleVisibleIncomingProgress();
-    _consumeSeenLiveIncomingInEffectiveViewport();
     _scheduleLiveCenterRelease();
     final next = _isLatestMessageRowVisible();
     if (_latestMessageVisible.value != next) {
@@ -6116,6 +6054,7 @@ class _TIMUIKitHistoryMessageListState
           ModalRoute.of(context)?.isCurrent == false ||
           _unreadWindowJumpInFlight ||
           model.isLoadingChatHistory ||
+          model.globalModel.isUserScrollToBottomInProgress(conv) ||
           _isSearchJumpStabilizing ||
           _shouldCompensateScrollForPagination() ||
           _historyWindowTrimUi.isBusy ||
@@ -6124,7 +6063,8 @@ class _TIMUIKitHistoryMessageListState
           model.globalModel.isContextMenuViewportRestoreActive(conv))
         return false;
       final position = _singleScrollPositionOrNull();
-      return TrueLatestEnd.atListEndFromPosition(position);
+      return TrueLatestEnd.atListEndFromPosition(position) &&
+          _isLatestMessageRowVisible();
     }
 
     if (model.haveMoreLatestData ||

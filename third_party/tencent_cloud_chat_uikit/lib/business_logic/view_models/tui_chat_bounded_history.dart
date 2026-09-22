@@ -1010,7 +1010,8 @@ extension BoundedChatHistory on TUIChatGlobalModel {
         !memoryWindowMissingNewer(conversationID) &&
         !isHistoryReadingWindowActive(conversationID) &&
         (isUserScrollToBottomInProgress(conversationID) ||
-            isFollowingLatest(conversationID));
+            isFollowingLatest(conversationID) ||
+            getMessageListPosition(conversationID) == HistoryMessagePosition.bottom);
   }
 
   /// Publish one bounded snapshot received after a successful latest reload.

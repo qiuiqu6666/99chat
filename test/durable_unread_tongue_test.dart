@@ -454,6 +454,9 @@ void main() {
     expect(global.rawMessageList(getConv())!.first.seq, '102');
     expect(global.receivedNewMessageCountFor(getConv()), 121);
     expect(model.readReports, 0);
+    expect(global.remainingLiveIncomingIdsFor(getConv()),
+        {for (var seq = 103; seq <= 223; seq++) '${getConv()}-$seq'},
+        reason: 'the bounded SQL tail must not retain captured IDs 101/102');
     expect(find.text('showUnread:121').hitTestable(), findsOneWidget);
     sdk.duringRead = null;
     sdk.newest = List.generate(50, (i) => row(223 - i));
