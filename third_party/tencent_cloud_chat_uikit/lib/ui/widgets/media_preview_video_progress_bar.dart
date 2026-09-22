@@ -9,10 +9,16 @@ class MediaPreviewVideoProgressBar extends StatefulWidget {
     super.key,
     required this.playerKey,
     this.attachmentChanges,
+    this.embedded = false,
+    this.enabled = true,
+    this.onScrubbingChanged,
   });
 
   final GlobalKey<TIMUIKitVideoPlayerState> playerKey;
   final Listenable? attachmentChanges;
+  final bool embedded;
+  final bool enabled;
+  final ValueChanged<bool>? onScrubbingChanged;
 
   @override
   State<MediaPreviewVideoProgressBar> createState() =>
@@ -28,8 +34,10 @@ class _MediaPreviewVideoProgressBarState
   Timer? _attachTimer;
   bool _visible = false;
   bool _foreground = true;
-  bool get _active => mounted && _visible && _foreground;
+  bool get _active => mounted && _visible && _foreground && widget.enabled;
   DateTime? _lastTickRebuild;
+  int _seekGeneration = 0;
+  Future<void>? _pauseForSeek;
 
   static const Duration _progressRebuildInterval = Duration(milliseconds: 100);
 
@@ -127,6 +135,7 @@ class _MediaPreviewVideoProgressBarState
       _canShowProgress = false;
       _startAttachPolling();
     }
+    if (oldWidget.enabled != widget.enabled) _updateActivity();
   }
 
   void _startAttachPolling() {
@@ -163,6 +172,16 @@ class _MediaPreviewVideoProgressBarState
   }
 
   void _detachController() {
+    if (_isDragging && mounted) {
+      // Dependency changes may occur during build. Release the chrome's
+      // interaction lock after that frame, unless a new drag has started.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isDragging) widget.onScrubbingChanged?.call(false);
+      });
+    }
+    _seekGeneration++;
+    _isDragging = false;
+    _pauseForSeek = null;
     _controller?.removeListener(_onPlaybackTick);
     _controller = null;
   }
@@ -216,21 +235,70 @@ class _MediaPreviewVideoProgressBarState
     return (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
   }
 
+  double? _bufferedProgress(Duration duration) {
+    try {
+      final ranges = _controller?.value.buffered as Iterable?;
+      if (ranges == null || ranges.isEmpty) return null;
+      var end = Duration.zero;
+      for (final range in ranges) {
+        final rangeEnd = range.end as Duration;
+        if (rangeEnd > end) end = rangeEnd;
+      }
+      return _progressFor(end, duration);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _startSeek(double value) {
+    _seekGeneration++;
+    setState(() {
+      _isDragging = true;
+      _dragValue = value;
+    });
+    widget.onScrubbingChanged?.call(true);
+    // Serialize pause → seek → resume, including slow native controller calls.
+    _pauseForSeek = Future<void>.sync(() async {
+      await _controller?.pause();
+    }).catchError((Object _) {});
+  }
+
+  Future<void> _finishSeek(double value, Duration duration) async {
+    final player = widget.playerKey.currentState;
+    final controller = _controller;
+    final generation = _seekGeneration;
+    bool isCurrent() =>
+        _active &&
+        generation == _seekGeneration &&
+        identical(controller, _controller) &&
+        identical(player, widget.playerKey.currentState);
+    try {
+      await _pauseForSeek;
+      if (!isCurrent()) return;
+      await player?.seekPlaybackTo(Duration(
+        milliseconds: (value * duration.inMilliseconds).round(),
+      ));
+      if (!isCurrent()) return;
+      player?.resumePlayback();
+    } finally {
+      if (mounted && generation == _seekGeneration) {
+        setState(() => _isDragging = false);
+        widget.onScrubbingChanged?.call(false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
-    if (!_canShowProgress ||
-        controller == null ||
-        !_isInitialized(controller)) {
+    final ready =
+        _canShowProgress && controller != null && _isInitialized(controller);
+    if (!ready && !widget.embedded) {
       return const SizedBox.shrink();
     }
 
-    final duration = _durationOf(controller);
-    if (duration <= Duration.zero) {
-      return const SizedBox.shrink();
-    }
-
-    final position = _positionOf(controller);
+    final duration = ready ? _durationOf(controller) : Duration.zero;
+    final position = ready ? _positionOf(controller) : Duration.zero;
     final sliderValue =
         _isDragging ? _dragValue : _progressFor(position, duration);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
@@ -243,93 +311,78 @@ class _MediaPreviewVideoProgressBarState
       ),
     ];
 
+    final timeline = SizedBox(
+      height: 48,
+      child: Row(
+        children: [
+          Text(
+            _formatDuration(
+              _isDragging
+                  ? Duration(
+                      milliseconds:
+                          (sliderValue * duration.inMilliseconds).round(),
+                    )
+                  : position,
+            ),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontFeatures: [FontFeature.tabularFigures()],
+              shadows: timeShadow,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: widget.embedded ? 2 : 3,
+                thumbShape: RoundSliderThumbShape(
+                    enabledThumbRadius: _isDragging ? 7 : 4),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+                activeTrackColor: Colors.white,
+                inactiveTrackColor: Colors.white38,
+                secondaryActiveTrackColor: Colors.white60,
+                disabledActiveTrackColor: Colors.white38,
+                disabledInactiveTrackColor: Colors.white24,
+                thumbColor: Colors.white,
+                overlayColor: Colors.white24,
+              ),
+              child: Slider(
+                value: sliderValue,
+                secondaryTrackValue: ready ? _bufferedProgress(duration) : null,
+                semanticFormatterCallback: (value) => _formatDuration(Duration(
+                  milliseconds: (value * duration.inMilliseconds).round(),
+                )),
+                onChangeStart: ready ? _startSeek : null,
+                onChanged: !ready
+                    ? null
+                    : (value) {
+                        setState(() => _dragValue = value);
+                      },
+                onChangeEnd:
+                    ready ? (value) => _finishSeek(value, duration) : null,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            _formatDuration(duration),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: 12,
+              fontFeatures: const [FontFeature.tabularFigures()],
+              shadows: timeShadow,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (widget.embedded) return timeline;
     return Positioned(
       left: 16,
       right: 16,
-      bottom: bottomInset + 16 + 48 + 10,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.45),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
-            children: [
-              Text(
-                _formatDuration(
-                  _isDragging
-                      ? Duration(
-                          milliseconds:
-                              (sliderValue * duration.inMilliseconds).round(),
-                        )
-                      : position,
-                ),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                  shadows: timeShadow,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 3,
-                    thumbShape:
-                        const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    overlayShape:
-                        const RoundSliderOverlayShape(overlayRadius: 14),
-                    activeTrackColor: Colors.white,
-                    inactiveTrackColor: Colors.white38,
-                    thumbColor: Colors.white,
-                    overlayColor: Colors.white24,
-                  ),
-                  child: Slider(
-                    value: sliderValue,
-                    onChangeStart: (_) {
-                      setState(() {
-                        _isDragging = true;
-                        _dragValue = sliderValue;
-                      });
-                      controller.pause();
-                    },
-                    onChanged: (value) {
-                      setState(() => _dragValue = value);
-                    },
-                    onChangeEnd: (value) async {
-                      final target = Duration(
-                        milliseconds: (value * duration.inMilliseconds).round(),
-                      );
-                      final player = widget.playerKey.currentState;
-                      try {
-                        await player?.seekPlaybackTo(target);
-                        if (!mounted || widget.playerKey.currentState != player) {
-                          return;
-                        }
-                        player?.resumePlayback();
-                      } finally {
-                        if (mounted) setState(() => _isDragging = false);
-                      }
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                _formatDuration(duration),
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.75),
-                  fontSize: 12,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                  shadows: timeShadow,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      bottom: bottomInset + 74,
+      child: timeline,
     );
   }
 }

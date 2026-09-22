@@ -30,24 +30,37 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     setupServiceLocator();
   });
-  testWidgets('mixed gallery resolves active external video instead of SDK source', (tester) async {
+  testWidgets(
+      'mixed gallery resolves active external video instead of SDK source',
+      (tester) async {
     final previousErrorHandler = FlutterError.onError;
     addTearDown(() => FlutterError.onError = previousErrorHandler);
     final pending = Completer<V2TimVideoElem>();
     var calls = 0;
-    Future<V2TimVideoElem> resolve() { calls++; return pending.future; }
+    Future<V2TimVideoElem> resolve() {
+      calls++;
+      return pending.future;
+    }
+
     final preview = attachmentVideoPreviewMessage(
-      attachment: video, source: const ChatAttachmentPlayback(''));
-    await tester.pumpWidget(MaterialApp(home: ChatMediaGalleryScreen(
-      initialIndex: 0, enableHero: false, items: [
-        ChatMediaPreviewItem(message: preview, type: ChatMediaPreviewType.video,
-          heroTag: 'external-gallery', videoElement: preview.videoElem,
-          resolveVideo: resolve),
+        attachment: video, source: const ChatAttachmentPlayback(''));
+    await tester.pumpWidget(MaterialApp(
+        home: ChatMediaGalleryScreen(
+      initialIndex: 0,
+      enableHero: false,
+      items: [
+        ChatMediaPreviewItem(
+            message: preview,
+            type: ChatMediaPreviewType.video,
+            heroTag: 'external-gallery',
+            videoElement: preview.videoElem,
+            resolveVideo: resolve),
       ],
     )));
     await tester.pump();
     FlutterError.onError = previousErrorHandler;
-    final player = tester.widget<TIMUIKitVideoPlayer>(find.byType(TIMUIKitVideoPlayer));
+    final player =
+        tester.widget<TIMUIKitVideoPlayer>(find.byType(TIMUIKitVideoPlayer));
     expect(player.externalVideo, isTrue);
     expect(player.resolveVideo, same(resolve));
     expect(calls, 1);
@@ -106,7 +119,7 @@ void main() {
         .readAsStringSync();
     expect(
         screen, contains('widget._useGallery ? null : widget.playbackHeaders'));
-    expect(screen,
+    expect(screen.replaceAll(RegExp(r'\s+'), ' '),
         contains('_playerItem.resolveVideo != null : widget.externalVideo'));
     final player = File(
             'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_videoplayer.dart')

@@ -1,0 +1,44 @@
+[
+  {
+    "file": "lib/src/chat_session/chat_session_controller.dart",
+    "indexed": "6a43f202ba41546c0af105d195e6255c2430d636ecb8980e2cd814784ccbc8c1",
+    "actual": "6a43f202ba41546c0af105d195e6255c2430d636ecb8980e2cd814784ccbc8c1",
+    "matches": true
+  },
+  {
+    "file": "lib/src/conversation.dart",
+    "indexed": "f3d9b4fb18bcec562549a3a29a5cdc7783364ed1d77f10315ed3d90eeda65e0c",
+    "actual": "f3d9b4fb18bcec562549a3a29a5cdc7783364ed1d77f10315ed3d90eeda65e0c",
+    "matches": true
+  },
+  {
+    "file": "lib/src/services/conversation_local/conversation_row_view.dart",
+    "indexed": "cf0b402134abd4abbb96d0e83b3d78b106816d99d74035d3f34168d55e3c2500",
+    "actual": "cf0b402134abd4abbb96d0e83b3d78b106816d99d74035d3f34168d55e3c2500",
+    "matches": true
+  },
+  {
+    "file": "lib/src/services/conversation_local/conversation_tab_store.dart",
+    "indexed": "2e9f136a490c5c0d0709dbd81b6fb5b0d8628e267c918ee4aa88b9e9b451168f",
+    "actual": "2e9f136a490c5c0d0709dbd81b6fb5b0d8628e267c918ee4aa88b9e9b451168f",
+    "matches": true
+  },
+  {
+    "file": "lib/src/utils/conversation_preview_fingerprint.dart",
+    "indexed": "740cde36ad768ef0cefefbaf5804409b5680f7290ab7e35d0ac6e0a57ea14b83",
+    "actual": "740cde36ad768ef0cefefbaf5804409b5680f7290ab7e35d0ac6e0a57ea14b83",
+    "matches": true
+  },
+  {
+    "file": "test/conversation_realtime_batch_test.dart",
+    "indexed": "55cf6c8ceb471a05197906dfa6a553fd8a2ee41fe68c49fec66abdfe3036eacc",
+    "actual": "55cf6c8ceb471a05197906dfa6a553fd8a2ee41fe68c49fec66abdfe3036eacc",
+    "matches": true
+  },
+  {
+    "file": "test/conversation_preview_content_invalidation_test.dart",
+    "indexed": "7f17594b943e67cc62db98a4d82408957875747dff30202b8855b0b4c44a2f40",
+    "actual": "7f17594b943e67cc62db98a4d82408957875747dff30202b8855b0b4c44a2f40",
+    "matches": true
+  }
+]

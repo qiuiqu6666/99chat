@@ -33,6 +33,7 @@ import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_media_preview_item.dart
 import 'package:tencent_cloud_chat_uikit/ui/widgets/gestured_image.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_backdrop_scope.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_chrome.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_video_chrome.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_slide_metrics.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_slide_shell.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_video_progress_bar.dart';
@@ -78,6 +79,7 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
   final MediaPreviewSlideMetrics _slideMetrics = MediaPreviewSlideMetrics();
   final ValueNotifier<int> _attachmentChanges = ValueNotifier<int>(0);
   final ValueNotifier<int> _chromeTick = ValueNotifier<int>(0);
+  final _videoChromeKey = GlobalKey<MediaPreviewVideoChromeState>();
   final MediaPreviewSlideDismissController _slideDismissController =
       MediaPreviewSlideDismissController();
   final ValueNotifier<bool> _heroModeEnabled = ValueNotifier<bool>(true);
@@ -1237,18 +1239,38 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
     if (_closing) {
       return;
     }
-    if (_currentIsVideo && _playerPageIndex == _currentIndex) {
-      if (_heroOverlayVisible) {
-        unawaited(_togglePlayback());
-        return;
-      }
-      final player = _playerKey.currentState;
-      if (player != null && player.isPlaybackPipelineReady) {
-        unawaited(_togglePlayback());
-        return;
-      }
+    if (_currentIsVideo &&
+        !MediaPreviewBackdropScope.desktopOverlayChromeOf(context)) {
+      _videoChromeKey.currentState?.toggleControls();
+      return;
+    }
+    if (_currentIsVideo &&
+        _playerPageIndex == _currentIndex &&
+        (_heroOverlayVisible ||
+            (_playerKey.currentState?.isPlaybackPipelineReady ?? false))) {
+      unawaited(_togglePlayback());
+      return;
     }
     _toggleChrome();
+  }
+
+  Future<void> _showVideoActions() async {
+    if (_closing) return;
+    final item = _currentItem;
+    final player = _playerKey.currentState;
+    await showMediaPreviewVideoActions(
+      context: context,
+      playbackSpeed: player?.playbackSpeed ?? 1,
+      onDownload: _handleDownload,
+      onForward: item.forwardFn,
+      onDelete: item.deleteFn == null ? null : _handleDelete,
+      onOpenMedia: widget.onOpenMedia == null ? null : _handleOpenMedia,
+      onSpeedChanged: (speed) async {
+        if (mounted && !_closing && player == _playerKey.currentState) {
+          await player?.setPlaybackSpeed(speed);
+        }
+      },
+    );
   }
 
   bool get _shouldShowVideoPlayerOverlay {
@@ -1331,7 +1353,16 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
     if (!ready) {
       return;
     }
-    _fadeOutVideoCoverShield();
+    if (_coverShieldInTree) {
+      _fadeOutVideoCoverShield();
+    } else {
+      // Resuming after a seek also reaches this callback, after the initial
+      // cover has gone. Keep controls in sync with actual playback.
+      setState(() {
+        _isPlaybackActive = true;
+        _pausedByUser = false;
+      });
+    }
   }
 
   Widget _buildVideoCoverShield() {
@@ -1376,7 +1407,9 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
         // initialized ≠ 首帧；封面由外层 shield / hero 留到 playback_started。
       },
       onInitFailed: () {
-          if (mounted && identical(playerKey, _playerKey)) { _attachmentChanges.value++; }
+        if (mounted && identical(playerKey, _playerKey)) {
+          _attachmentChanges.value++;
+        }
         if (!identical(playerKey, _playerKey)) return;
         MediaPreviewDebug.log('player_init_failed', {
           'playerPage': _playerPageIndex,
@@ -1406,7 +1439,10 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
         const ColoredBox(color: Colors.black),
         if (_cachedPlayerArea != null)
           Positioned.fill(child: _cachedPlayerArea!),
-        if (_pausedByUser && _hasPresentedVideoFrame && !_isPlaybackActive)
+        if (_pausedByUser &&
+            _hasPresentedVideoFrame &&
+            !_isPlaybackActive &&
+            MediaPreviewBackdropScope.desktopOverlayChromeOf(context))
           const Center(
             child:
                 Icon(Icons.play_arrow_rounded, color: Colors.white, size: 64),
@@ -1427,6 +1463,7 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: _handlePreviewTap,
+        onLongPress: () => _videoChromeKey.currentState?.showActions(),
         child: ColoredBox(
           color: Colors.black,
           child: elem == null
@@ -1593,18 +1630,46 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
 
   Widget _buildChrome(Animation<double> routeAnimation) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_slideMetrics, _chromeTick]),
+      listenable:
+          Listenable.merge([_slideMetrics, _chromeTick, routeAnimation]),
       builder: (context, _) {
-        if (!_chromeVisible ||
-            !(PlatformUtils().isMobile ||
-                PlatformUtils().isWindows ||
-                PlatformUtils().isMacOS)) {
+        if (!(PlatformUtils().isMobile ||
+            PlatformUtils().isWindows ||
+            PlatformUtils().isMacOS)) {
           return const SizedBox.shrink();
         }
         final item = _currentItem;
         final isVideo = item.type == ChatMediaPreviewType.video;
         final desktopOverlay =
             MediaPreviewBackdropScope.desktopOverlayChromeOf(context);
+        if (isVideo && !desktopOverlay) {
+          return MediaPreviewVideoChrome(
+            key: _videoChromeKey,
+            playerKey: _playerKey,
+            attachmentChanges: _attachmentChanges,
+            title: item.headerTitle ??
+                MediaPreviewHeaderUtils.titleForMessage(item.message),
+            subtitle: item.headerSubtitle ??
+                MediaPreviewHeaderUtils.subtitleForMessage(
+                    item.message.timestamp),
+            galleryIndicator: _items.length > 1
+                ? chatMediaGalleryPageLabel(
+                    indexOldestFirst: _currentIndex, count: _items.length)
+                : null,
+            isPlaying: _isPlaybackActive,
+            isReady: !_heroOverlayVisible &&
+                (_playerKey.currentState?.isPlaybackPipelineReady ?? false),
+            active: !_closing &&
+                !_galleryScrolling &&
+                !_slidePausedForDrag &&
+                _playerPageIndex == _currentIndex,
+            opacity: _slideMetrics.chromeOpacity * routeAnimation.value,
+            onBack: _close,
+            onTogglePlayback: _togglePlayback,
+            onMore: _showVideoActions,
+          );
+        }
+        if (!_chromeVisible) return const SizedBox.shrink();
         final chrome = Stack(
           clipBehavior: Clip.none,
           children: [

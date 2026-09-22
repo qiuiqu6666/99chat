@@ -24,10 +24,9 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_videoplayer.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_media_preview_item.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/image_hero.dart';
-import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_chrome.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_video_chrome.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_slide_metrics.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_slide_shell.dart';
-import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_video_progress_bar.dart';
 
 class VideoScreen extends StatefulWidget {
   const VideoScreen({
@@ -88,9 +87,7 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
 
   /// 首次进场等开播再掀封面；图集翻页落地为 false。
   bool _holdHeroUntilPlayback = true;
-  bool _chromeVisible = true;
-  Timer? _chromeAutoHideTimer;
-  static const Duration _chromeAutoHideDelay = Duration(seconds: 3);
+  final _videoChromeKey = GlobalKey<MediaPreviewVideoChromeState>();
   final ValueNotifier<int> _attachmentChanges = ValueNotifier<int>(0);
   final ValueNotifier<int> _chromeTick = ValueNotifier<int>(0);
   bool _slidePausedForDrag = false;
@@ -147,7 +144,6 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
       _isPlaybackActive = true;
       _pausedByUser = false;
     });
-    _startChromeAutoHideTimer();
   }
 
   void _markPlaybackPaused() {
@@ -157,9 +153,7 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
     setState(() {
       _isPlaybackActive = false;
       _pausedByUser = true;
-      _chromeVisible = true;
     });
-    _cancelChromeAutoHideTimer();
   }
 
   void _showHero(Object tag) {
@@ -407,35 +401,6 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
     _chromeTick.value++;
   }
 
-  /// Chrome 自动隐藏：播放中 3 秒无操作自动隐藏 top/bottom bar，
-  /// 点击画面恢复。与 Telegram 行为一致。
-  void _startChromeAutoHideTimer() {
-    _chromeAutoHideTimer?.cancel();
-    if (!_chromeVisible || _closing) {
-      return;
-    }
-    // 暂停时不再自动隐藏——用户需要看到操作栏。
-    if (!_isPlaybackActive && _pausedByUser) {
-      return;
-    }
-    _chromeAutoHideTimer = Timer(_chromeAutoHideDelay, () {
-      if (!mounted || _closing || !_chromeVisible) {
-        return;
-      }
-      // Hero 封面仍在或播放器未就绪时不隐藏。
-      if (!_shouldBuildPlayer || _heroOverlayVisible) {
-        return;
-      }
-      _chromeVisible = false;
-      _notifyChromeChanged();
-    });
-  }
-
-  void _cancelChromeAutoHideTimer() {
-    _chromeAutoHideTimer?.cancel();
-    _chromeAutoHideTimer = null;
-  }
-
   void _onGalleryPageChanged(int index) {
     if (_closing) {
       return;
@@ -447,9 +412,7 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
     final previous = _currentIndex;
     // 先只更新逻辑页与顶栏，播放器等滚动停稳再切，避免翻页中途重建卡顿。
     _currentIndex = next;
-    _chromeVisible = true;
-    _cancelChromeAutoHideTimer();
-    _startChromeAutoHideTimer();
+    _videoChromeKey.currentState?.showControls();
     _notifyChromeChanged();
     widget.onGalleryIndexChanged?.call(next);
     final scrolling = _galleryPageController.hasClients &&
@@ -602,7 +565,9 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
         key: _playerKey,
         message: _playerMessage,
         playbackHeaders: widget._useGallery ? null : widget.playbackHeaders,
-        externalVideo: widget._useGallery ? _playerItem.resolveVideo != null : widget.externalVideo,
+        externalVideo: widget._useGallery
+            ? _playerItem.resolveVideo != null
+            : widget.externalVideo,
         resolveVideo: _playerItem.resolveVideo,
         deferInitialization: true,
         preferOnlinePlayback: true,
@@ -625,7 +590,9 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
           }
         },
         onInitFailed: () {
-          if (mounted && identical(attachmentPlayerKey, _playerKey)) { _attachmentChanges.value++; }
+          if (mounted && identical(attachmentPlayerKey, _playerKey)) {
+            _attachmentChanges.value++;
+          }
           MediaPreviewDebug.log('video_screen_player_init_failed', {
             'playerPage': _playerPageIndex,
             'item': MediaPreviewDebug.itemSummary(_playerItem),
@@ -717,26 +684,10 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
                   ),
                 ),
               ),
-            if (_pausedByUser && !_heroOverlayVisible)
-              Center(
-                child: Container(
-                  width: 86,
-                  height: 86,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.28),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 64,
-                  ),
-                ),
-              ),
             if (!_heroOverlayVisible && _shouldBuildPlayer)
               Positioned.fill(
                 child: GestureDetector(
-                  onTap: _togglePlayback,
+                  onTap: _handlePreviewTap,
                   behavior: HitTestBehavior.translucent,
                   child: const SizedBox.expand(),
                 ),
@@ -867,33 +818,11 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
     return false;
   }
 
-  void _toggleChromeVisibility() {
-    if (_closing) {
-      return;
-    }
-    _chromeVisible = !_chromeVisible;
-    _notifyChromeChanged();
-    if (_chromeVisible) {
-      _startChromeAutoHideTimer();
-    } else {
-      _cancelChromeAutoHideTimer();
-    }
-  }
-
   void _handlePreviewTap() {
     if (_closing) {
       return;
     }
-    if (!_shouldBuildPlayer || _heroOverlayVisible) {
-      unawaited(_togglePlayback());
-      return;
-    }
-    final player = _playerKey.currentState;
-    if (player != null && player.isPlaybackPipelineReady) {
-      unawaited(_togglePlayback());
-      return;
-    }
-    _toggleChromeVisibility();
+    _videoChromeKey.currentState?.toggleControls();
   }
 
   Future<void> _togglePlayback() async {
@@ -932,87 +861,29 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
   }
 
   Future<void> _showVideoActionMenu() async {
-    final currentSpeed = _playerKey.currentState?.playbackSpeed ?? 1.0;
-    final action = await showModalBottomSheet<String>(
+    if (_closing) return;
+    final player = _playerKey.currentState;
+    await showMediaPreviewVideoActions(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading:
-                    const Icon(Icons.download_rounded, color: Colors.white),
-                title: Text(TIM_t('保存视频'),
-                    style: const TextStyle(color: Colors.white)),
-                onTap: () => Navigator.pop(ctx, 'save'),
-              ),
-              const Divider(height: 1, color: Colors.white24),
-              // 倍速控制
-              for (final speed in <double>[1.0, 1.5, 2.0])
-                ListTile(
-                  leading: Icon(
-                    speed == 1.0
-                        ? Icons.play_arrow_rounded
-                        : Icons.fast_forward_rounded,
-                    color: currentSpeed == speed
-                        ? const Color(0xFF4FACFE)
-                        : Colors.white70,
-                  ),
-                  title: Text(
-                    speed == 1.0 ? '正常速度' : '${speed}x 倍速',
-                    style: TextStyle(
-                      color: currentSpeed == speed
-                          ? const Color(0xFF4FACFE)
-                          : Colors.white,
-                    ),
-                  ),
-                  trailing: currentSpeed == speed
-                      ? const Icon(Icons.check_rounded,
-                          color: Color(0xFF4FACFE), size: 20)
-                      : null,
-                  onTap: () => Navigator.pop(ctx, 'speed_$speed'),
-                ),
-              // PiP 选项（仅 Android 支持 AVP PiP）
-              if (Platform.isAndroid)
-                ListTile(
-                  leading: const Icon(Icons.picture_in_picture_rounded,
-                      color: Colors.white),
-                  title:
-                      const Text('画中画', style: TextStyle(color: Colors.white)),
-                  onTap: () => Navigator.pop(ctx, 'pip'),
-                ),
-              ListTile(
-                leading: const Icon(Icons.close, color: Colors.white70),
-                title: Text(TIM_t('取消'),
-                    style: const TextStyle(color: Colors.white70)),
-                onTap: () => Navigator.pop(ctx),
-              ),
-            ],
-          ),
-        );
+      playbackSpeed: player?.playbackSpeed ?? 1,
+      onDownload: _saveVideo,
+      onForward: _currentItem.forwardFn ?? widget.forwardFn,
+      onDelete: (_currentItem.deleteFn ?? widget.deleteFn) == null
+          ? null
+          : _handleDelete,
+      onOpenMedia: null,
+      onSpeedChanged: (speed) async {
+        if (mounted && !_closing && player == _playerKey.currentState) {
+          await player?.setPlaybackSpeed(speed);
+        }
       },
+      onPictureInPicture: Platform.isAndroid
+          ? () async {
+              final ok = await player?.enablePictureInPicture();
+              if (ok == true && mounted && !_closing) _close();
+            }
+          : null,
     );
-    if (action == 'save') {
-      await _saveVideo();
-    } else if (action == 'pip') {
-      final ok = await _playerKey.currentState?.enablePictureInPicture();
-      if (ok == true && mounted) {
-        // PiP 启动后关闭全屏预览，让视频在小窗继续播放。
-        _close();
-      }
-    } else if (action != null && action.startsWith('speed_')) {
-      final speedStr = action.substring(6);
-      final speed = double.tryParse(speedStr);
-      if (speed != null) {
-        await _playerKey.currentState?.setPlaybackSpeed(speed);
-        _startChromeAutoHideTimer();
-      }
-    }
   }
 
   Future<void> _saveResolvedGalleryVideo(ChatMediaPreviewItem item) async {
@@ -1029,8 +900,9 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
     if (widget._useGallery && _currentItem.resolveVideo != null) {
       return _saveResolvedGalleryVideo(_currentItem);
     }
-    if (!widget._useGallery && widget.saveVideoFn != null)
+    if (!widget._useGallery && widget.saveVideoFn != null) {
       return widget.saveVideoFn!();
+    }
     return saveChatVideoMessage(
       context: context,
       message: _currentMessage,
@@ -1042,7 +914,6 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
   @override
   void dispose() {
     _closing = true;
-    _chromeAutoHideTimer?.cancel();
     _playerCommitDebounce?.cancel();
     _slideDismissController.dispose();
     _heroModeEnabled.dispose();
@@ -1057,53 +928,37 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
 
   Widget _buildPreviewChrome(Animation<double> routeAnimation) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_slideMetrics, _chromeTick]),
+      listenable:
+          Listenable.merge([_slideMetrics, _chromeTick, routeAnimation]),
       builder: (context, _) {
-        if (!_chromeVisible ||
-            !(PlatformUtils().isMobile ||
-                PlatformUtils().isWindows ||
-                PlatformUtils().isMacOS)) {
+        if (!(PlatformUtils().isMobile ||
+            PlatformUtils().isWindows ||
+            PlatformUtils().isMacOS)) {
           return const SizedBox.shrink();
         }
-        final chrome = Stack(
-          clipBehavior: Clip.none,
-          children: [
-            MediaPreviewTopBar(
-              title: MediaPreviewHeaderUtils.titleForMessage(_currentMessage),
-              subtitle: MediaPreviewHeaderUtils.subtitleForMessage(
-                _currentMessage.timestamp,
-              ),
-              onBack: _close,
-              onMore: _showMoreMenu,
-            ),
-            MediaPreviewBottomBar(
-              onTogglePlayback: _shouldBuildPlayer && !_heroOverlayVisible
-                  ? _togglePlayback
-                  : null,
-              isPlaybackActive: _shouldBuildPlayer && !_heroOverlayVisible
-                  ? _isPlaybackActive
-                  : null,
-              onShare: _currentItem.forwardFn ?? widget.forwardFn,
-              onEdit: null,
-              onDownload: _saveVideo,
-              // 视频全屏预览不提供图集入口；图集仍可从图片预览进入。
-              onOpenMedia: null,
-              onDelete: (_currentItem.deleteFn ?? widget.deleteFn) == null
-                  ? null
-                  : _handleDelete,
-            ),
-            MediaPreviewVideoProgressBar(
-                playerKey: _playerKey, attachmentChanges: _attachmentChanges),
-          ],
-        );
-        return IgnorePointer(
-          ignoring: _slideMetrics.chromeOpacity < 0.96,
-          child: AnimatedOpacity(
-            opacity: _slideMetrics.chromeOpacity,
-            duration: const Duration(milliseconds: 120),
-            curve: Curves.easeOutCubic,
-            child: chrome,
+        return MediaPreviewVideoChrome(
+          key: _videoChromeKey,
+          playerKey: _playerKey,
+          attachmentChanges: _attachmentChanges,
+          title: MediaPreviewHeaderUtils.titleForMessage(_currentMessage),
+          subtitle: MediaPreviewHeaderUtils.subtitleForMessage(
+            _currentMessage.timestamp,
           ),
+          galleryIndicator: _items.length > 1
+              ? chatMediaGalleryPageLabel(
+                  indexOldestFirst: _currentIndex, count: _items.length)
+              : null,
+          isPlaying: _isPlaybackActive,
+          isReady: _shouldBuildPlayer &&
+              !_heroOverlayVisible &&
+              (_playerKey.currentState?.isPlaybackPipelineReady ?? false),
+          active: !_closing &&
+              !_slidePausedForDrag &&
+              _playerPageIndex == _currentIndex,
+          opacity: _slideMetrics.chromeOpacity * routeAnimation.value,
+          onBack: _close,
+          onTogglePlayback: _togglePlayback,
+          onMore: _showVideoActionMenu,
         );
       },
     );
@@ -1139,7 +994,7 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
         },
         bodyBuilder: (context, orientation) => GestureDetector(
           onTap: _handlePreviewTap,
-          onLongPress: _showVideoActionMenu,
+          onLongPress: () => _videoChromeKey.currentState?.showActions(),
           behavior: HitTestBehavior.translucent,
           child: _buildGalleryBody(orientation),
         ),
@@ -1178,14 +1033,5 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
     if (mounted) {
       _close();
     }
-  }
-
-  void _showMoreMenu() {
-    showMediaPreviewMoreSheet(
-      context: context,
-      onDownload: _saveVideo,
-      onForward: widget.forwardFn,
-      onDelete: widget.deleteFn,
-    );
   }
 }
