@@ -1697,8 +1697,7 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
         slidePageKey: _slidePageKey,
         slideMetrics: _slideMetrics,
         entranceLatch: _entranceLatch,
-        opaquePlatformBackdrop:
-            _items.any((item) => item.type == ChatMediaPreviewType.video),
+        opaquePlatformBackdrop: _currentIsVideo,
         slideType: _currentIsVideo ? SlideType.wholePage : SlideType.onlyImage,
         onSlidingPage: _onSlidingPage,
         slideEndHandler: (

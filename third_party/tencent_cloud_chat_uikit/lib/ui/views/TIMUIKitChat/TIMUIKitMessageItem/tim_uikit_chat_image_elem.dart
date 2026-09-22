@@ -1366,7 +1366,9 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem>
       pushMediaPreview(
         context: context,
         enableGestureBack: false,
-        requiresOpaquePlatformView: true,
+        // The gallery supplies an opaque surface only on its video page.
+        // Keeping the image route transparent preserves its backdrop fade.
+        requiresOpaquePlatformView: false,
         restoreChatScrollConversationID: convId,
         child: StatefulBuilder(
           builder: (context, setPreviewState) {

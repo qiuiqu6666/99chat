@@ -115,7 +115,9 @@ class MediaPreviewSlideShell extends StatelessWidget {
                             );
                           }
                           Widget painted = ColoredBox(
-                            color: surface,
+                            // Only native iOS video needs an opaque surface.
+                            // Images must reveal the separately animated scrim.
+                            color: iosOpaque ? surface : Colors.transparent,
                             child: MediaPreviewSlideVisualScope(
                               metrics: slideMetrics,
                               child: slidePage,
@@ -151,11 +153,10 @@ class MediaPreviewSlideShell extends StatelessWidget {
   }) {
     return Positioned.fill(
       child: ListenableBuilder(
-        listenable: slideMetrics,
+        listenable: Listenable.merge([slideMetrics, routeAnimation]),
         builder: (context, _) {
           // iOS 静止时必须实心黑。半透明黑叠聊天页 = 灰罩还能看到气泡。
-          final opacity = iosOpaque &&
-                  slideMetrics.slideOffset.distance < 0.5
+          final opacity = iosOpaque && slideMetrics.slideOffset.distance < 0.5
               ? 1.0
               : entranceLatch.scrimOpacity(
                   routeAnimation,
@@ -164,7 +165,8 @@ class MediaPreviewSlideShell extends StatelessWidget {
           // 必须可命中：IgnorePointer 会让 onlyImage 下滑时空白区域穿透到下层
           // 聊天列表，表现为「关预览时会话记录被拖动」。
           return ColoredBox(
-            color: surface.withValues(alpha: (surface.a * opacity).clamp(0.0, 1.0)),
+            color: surface.withValues(
+                alpha: (surface.a * opacity).clamp(0.0, 1.0)),
           );
         },
       ),

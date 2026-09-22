@@ -10,6 +10,7 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/media_preview_overlay_route.da
 import 'package:tencent_cloud_chat_uikit/ui/utils/image_preview_resolution_utils.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_preview_video_utils.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_image_flight.dart';
 
 const double _hiddenPreviewHeroOpacity = 0.001;
 
@@ -27,7 +28,8 @@ class MediaPreviewEntranceLatch {
   AnimationStatusListener? _statusListener;
   Timer? _fallbackTimer;
 
-  void bind(Animation<double> animation, {Duration? routeDuration, bool routeOffstage = false}) {
+  void bind(Animation<double> animation,
+      {Duration? routeDuration, bool routeOffstage = false}) {
     // Hero measures the destination offstage with a completed proxy animation.
     // That measurement is not the end of the visible entrance flight.
     if (routeOffstage || _disposed || settled || _bound) {
@@ -55,11 +57,13 @@ class MediaPreviewEntranceLatch {
     animation.addStatusListener(onStatus);
     _fallbackTimer?.cancel();
     _fallbackTimer = Timer(
-      (routeDuration ?? mediaPreviewBackdropDuration) + const Duration(milliseconds: 80),
+      (routeDuration ?? mediaPreviewBackdropDuration) +
+          const Duration(milliseconds: 80),
       () {
         // A slow or interrupted flight must never unlock original rendering.
         if (animation.status == AnimationStatus.completed ||
-            (animation.value >= 0.999 && animation.status != AnimationStatus.reverse)) {
+            (animation.value >= 0.999 &&
+                animation.status != AnimationStatus.reverse)) {
           _markSettled();
         }
       },
@@ -226,6 +230,7 @@ class PreviewHero extends StatefulWidget {
 }
 
 class _PreviewHeroState extends State<PreviewHero> {
+  final _imageFrame = MediaPreviewImageFrameController();
   late bool _hidden;
   bool _visibilityUpdateScheduled = false;
 
@@ -240,7 +245,8 @@ class _PreviewHeroState extends State<PreviewHero> {
   void _onRegistryChanged() {
     // A preview can release its source during route disposal, while Flutter
     // locks the element tree. Restore on the next safe frame in that case.
-    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
       if (_visibilityUpdateScheduled) return;
       _visibilityUpdateScheduled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -273,26 +279,35 @@ class _PreviewHeroState extends State<PreviewHero> {
   void dispose() {
     MediaPreviewHeroRegistry.instance.removeListener(_onRegistryChanged);
     MediaPreviewHeroRegistry.instance.markTargetDead(widget.tag);
+    _imageFrame.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Hero(
-      tag: widget.tag,
-      // Flutter selects the destination Hero's tween. The source bubble is
-      // the destination on pop, so both ends must use the same geometry.
-      createRectTween: (begin, end) =>
-          mediaPreviewHeroRectTween(begin: begin, end: end),
-      placeholderBuilder: widget.placeholderBuilder == null
-          ? null
-          : (context, size, child) =>
-              widget.placeholderBuilder!(context, size, widget.child),
-      child: Opacity(
-        // Keep the source media painted while hidden. A true 0 opacity can skip
-        // painting and force an image repaint when returning from gallery item B.
-        opacity: _hidden ? _hiddenPreviewHeroOpacity : 1.0,
-        child: widget.child,
+    return MediaPreviewImageFrameScope(
+      controller: _imageFrame,
+      child: Hero(
+        tag: widget.tag,
+        // Flutter selects the destination Hero's tween. The source bubble is
+        // the destination on pop, so both ends must use the same geometry.
+        createRectTween: (begin, end) {
+          _imageFrame.capture();
+          return mediaPreviewHeroRectTween(begin: begin, end: end);
+        },
+        placeholderBuilder: widget.placeholderBuilder == null
+            ? null
+            : (context, size, child) =>
+                widget.placeholderBuilder!(context, size, widget.child),
+        child: Opacity(
+          // Keep the source media painted while hidden. A true 0 opacity can skip
+          // painting and force an image repaint when returning from gallery item B.
+          opacity: _hidden ? _hiddenPreviewHeroOpacity : 1.0,
+          child: MediaPreviewImageSurface(
+            controller: _imageFrame,
+            child: widget.child,
+          ),
+        ),
       ),
     );
   }
