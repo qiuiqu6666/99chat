@@ -4,6 +4,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Serial, account-keyed writes. Awaiting merge still means persisted.
 class CoalescedPresenceCache {
+  CoalescedPresenceCache({this.preserveMaxNumbers = false});
+
+  final bool preserveMaxNumbers;
+
+  Object _mergeValue(Object? current, Object incoming) => preserveMaxNumbers &&
+          current is num &&
+          incoming is num &&
+          current > incoming
+      ? current
+      : incoming;
   final Map<String, _PresenceBatch> _pending = {};
   final Map<String, Map<String, Object>> _committed = {};
   final Map<String, int> _queued = {};
@@ -26,8 +36,9 @@ class CoalescedPresenceCache {
       return value;
     });
     for (final entry in updates.entries) {
+      final value = _mergeValue(batch.updates[entry.key], entry.value);
       batch.updates.remove(entry.key);
-      batch.updates[entry.key] = entry.value;
+      batch.updates[entry.key] = value;
     }
     _trim(batch.updates);
     return batch.done.future;
@@ -63,8 +74,9 @@ class CoalescedPresenceCache {
         final previous = Map<String, Object>.of(values);
         _remember(key, previous);
         for (final entry in batch.updates.entries) {
+          final value = _mergeValue(values[entry.key], entry.value);
           values.remove(entry.key);
-          values[entry.key] = entry.value;
+          values[entry.key] = value;
         }
         _trim(values);
         final changed = values.length != previous.length ||

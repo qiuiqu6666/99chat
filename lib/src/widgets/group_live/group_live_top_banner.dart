@@ -7,7 +7,6 @@ import 'package:tencent_cloud_chat_demo/src/models/group_live_models.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
 import 'package:tencent_cloud_chat_demo/src/theme/app_colors.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/app_user_avatar.dart';
-import 'package:tencent_cloud_chat_demo/src/widgets/overflow_text_marquee.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_demo/utils/user_avatar.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/services/group_member_store.dart';
@@ -125,9 +124,11 @@ class GroupLiveTopBanner extends StatelessWidget {
                           ),
                           if (subtitle.isNotEmpty) ...[
                             const SizedBox(height: 2),
-                            OverflowTextMarquee(
-                              text: subtitle,
-                              height: 15,
+                            Text(
+                              subtitle,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color:
                                     dark ? AppColors.darkSubText : _subtitleInk,

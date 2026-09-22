@@ -3,7 +3,7 @@ import 'package:tencent_cloud_chat_demo/src/models/me_group_record.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_info.dart';
 
 void main() {
-  test('SDK non-empty name and faceUrl are kept', () {
+  test('SDK snapshot preserves the committed name and refreshes faceUrl', () {
     final record = MeGroupRecord.fromV2TimGroupInfo(
       V2TimGroupInfo(
         groupID: '@TGS#_mcSdkId',
@@ -19,7 +19,7 @@ void main() {
         'updatedAt': 1,
       }),
     );
-    expect(record.groupName, 'SDK name');
+    expect(record.groupName, 'Local name');
     expect(record.avatarUrl, 'https://im.test/face.png');
     expect(record.updatedAt, 1700000000 * 1000);
   });

@@ -722,6 +722,7 @@ class MeGroupApi {
           ownerUserId: identity.ownerUserId,
           record: detail,
           writeGeneration: writeGeneration,
+          authoritativeGroupName: true,
         );
         if (!isCurrentIdentity()) return null;
       }

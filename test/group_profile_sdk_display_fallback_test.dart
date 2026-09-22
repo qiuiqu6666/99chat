@@ -144,7 +144,7 @@ void main() {
     expect(model.groupInfo?.memberCount, 1403);
   });
 
-  test('stored SDK identity is not clobbered by REST name', () async {
+  test('REST name replaces local name and survives an older SDK snapshot', () async {
     await GroupLocalStore.instance.upsert(
       ownerUserId: owner,
       record: MeGroupRecord.fromJson(<String, dynamic>{
@@ -190,7 +190,7 @@ void main() {
     addTearDown(model.dispose);
     await model.loadGroupInfo(group);
 
-    expect(model.groupInfo?.groupName, 'SDK live name');
+    expect(model.groupInfo?.groupName, 'REST name');
     expect(model.groupInfo?.faceUrl, 'https://sdk.test/a.png');
     expect(model.groupInfo?.memberCount, 11);
   });

@@ -269,7 +269,7 @@ void main() {
       expect(merged.notice, notice);
       expect(merged.noticeUpdatedAt, saved.noticeUpdatedAt);
       expect(merged.noticeUpdatedBy, owner);
-      expect(merged.groupName, 'SDK name');
+      expect(merged.groupName, saved.groupName);
       expect(merged.memberCount, 12);
     });
   }

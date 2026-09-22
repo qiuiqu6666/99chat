@@ -9236,7 +9236,8 @@ class _TIMUIKitHistoryMessageListState
       return ChatPreviousLoadDecision.discard;
     }
     // All paths share these locks. A waiting gesture does not itself prevent
-    // trim, and geometry is checked after transient locks/overscroll recover.
+    // trim. Dragging past the older edge is already a valid pagination intent;
+    // waiting for that overscroll to rebound stalls loading under the finger.
     if (_paginationUi.isLoadingPrevious ||
         _paginationUi.loadPreviousTask != null ||
         _paginationUi.isLoadingLatest ||
@@ -9255,7 +9256,7 @@ class _TIMUIKitHistoryMessageListState
             (position == null ||
                 !position.hasPixels ||
                 !position.hasContentDimensions ||
-                position.outOfRange))) return blocked;
+                position.pixels < position.minScrollExtent))) return blocked;
     // The former scroll scheduler admitted one explicit end probe even when
     // haveMoreData was already false. Its transaction also owns reading-window
     // suppression; removing it changes how subsequent arrivals are buffered.

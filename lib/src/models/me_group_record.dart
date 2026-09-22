@@ -336,9 +336,11 @@ class MeGroupRecord {
       groupType: info.groupType.trim().isNotEmpty
           ? info.groupType.trim()
           : (preserveFrom?.groupType ?? ''),
-      groupName: (info.groupName ?? '').trim().isNotEmpty
-          ? info.groupName!.trim()
-          : (preserveFrom?.groupName ?? ''),
+      // SDK snapshots have no comparable group-name revision. Only fill an
+      // unknown name; REST detail and confirmed edits own subsequent changes.
+      groupName: (preserveFrom?.groupName ?? '').trim().isNotEmpty
+          ? preserveFrom!.groupName
+          : (info.groupName ?? '').trim(),
       displayAlias: (custom['displayAlias'] ?? '').trim().isNotEmpty
           ? custom['displayAlias']!.trim()
           : (preserveFrom?.displayAlias ?? ''),

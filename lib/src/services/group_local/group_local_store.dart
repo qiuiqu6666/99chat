@@ -1708,6 +1708,8 @@ class GroupLocalStore {
     int? writeGeneration,
     bool onlyIfAbsent = false,
     bool allowIdentityOnlyRepair = false,
+    bool authoritativeGroupName = false,
+    bool fillMissingDisplayOnly = false,
   }) async {
     final owner = _resolveOwner(ownerUserId);
     final id = record.groupId.trim();
@@ -1730,8 +1732,13 @@ class GroupLocalStore {
     if (onlyIfAbsent && await read(groupId: id, ownerUserId: owner) != null) {
       return false;
     }
-    final generation =
-        writeGeneration ?? beginMetadataWrite(ownerUserId: owner, groupId: id);
+    // Search hydration is a fallback, not a new metadata authority. It must
+    // neither cancel an in-flight detail request nor replace a committed name.
+    final generation = writeGeneration ??
+        (fillMissingDisplayOnly
+            ? _metadataWriteGenerations[_metadataWriteKey(owner, id)] ??
+                beginMetadataWrite(ownerUserId: owner, groupId: id)
+            : beginMetadataWrite(ownerUserId: owner, groupId: id));
     if (!_isCurrentMetadataWrite(
       owner: owner,
       groupId: id,
@@ -1748,6 +1755,21 @@ class GroupLocalStore {
     )) {
       return false;
     }
+    if (fillMissingDisplayOnly && existing != null) {
+      record = existing.copyWith(
+        groupName: isUsableSearchGroupDisplayName(existing.groupName, id)
+            ? existing.groupName
+            : record.groupName,
+        avatarUrl: existing.avatarUrl.trim().isNotEmpty
+            ? existing.avatarUrl
+            : record.avatarUrl,
+      );
+    }
+    final canRepairName = authoritativeGroupName &&
+        writeGeneration != null &&
+        existing != null &&
+        record.hasSuppliedField('groupName') &&
+        isUsableSearchGroupDisplayName(record.groupName, id);
     final identityOnlyRepair = allowIdentityOnlyRepair &&
         isIdentityOnlyMetadataRepair(
           existing: existing,
@@ -1756,7 +1778,11 @@ class GroupLocalStore {
     record = record.resolvingMissingFieldsFrom(existing);
     if (!acceptsMetadataRecord(existing: existing, incoming: record) &&
         !identityOnlyRepair) {
-      return false;
+      if (!canRepairName) return false;
+      // updatedAt also contains local avatar/notice/edit times. It cannot
+      // veto the name in the latest detail response. Repair only that field;
+      // the request generation still rejects responses predating local edits.
+      record = existing.copyWith(groupName: record.groupName.trim());
     }
     if (identityOnlyRepair) {
       // Repair only the identity fields. Keep notice/version, mute state,

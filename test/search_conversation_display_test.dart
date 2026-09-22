@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_friend_info.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_info.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_user_full_info.dart';
@@ -7,6 +8,9 @@ import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitSearch/conversation_se
 import 'package:tencent_cloud_chat_demo/utils/search_conversation_display.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences.setMockInitialValues({});
+
   test('① friend hint wins over store name', () {
     DisplayNameStore.instance.setC2C('hintuser1', 'Store名', notify: false);
     final display = resolveAppSearchConversationDisplay(

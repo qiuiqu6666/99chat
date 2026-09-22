@@ -47,7 +47,7 @@ void main() {
     expect(find.text('直播发包！全网最公平公开！拒绝套路、不透明'), findsNWidgets(2));
   });
 
-  test('notice and live titles use OverflowTextMarquee', () {
+  test('notice and inline live scroll while top live banner stays static', () {
     final notice =
         File('lib/src/widgets/group_notice_marquee.dart').readAsStringSync();
     expect(notice, contains('OverflowTextMarquee'));
@@ -55,7 +55,7 @@ void main() {
 
     final topBanner = File('lib/src/widgets/group_live/group_live_top_banner.dart')
         .readAsStringSync();
-    expect(topBanner, contains('OverflowTextMarquee'));
+    expect(topBanner, isNot(contains('OverflowTextMarquee')));
 
     final inline = File(
       'lib/src/widgets/group_live/group_live_inline_watch_banner.dart',

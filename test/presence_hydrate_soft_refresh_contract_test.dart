@@ -24,6 +24,9 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    // Reset the writer's committed mirror together with mock preferences.
+    await ContactSocialCacheStore.clearPresenceLastSeen();
+    await ContactSocialCacheStore.clearPresenceVisibility();
     saved = dio.interceptors.toList();
     dio.interceptors.clear();
     staleTs = DateTime.now()

@@ -113,14 +113,13 @@ class TUIGroupProfileModel extends ChangeNotifier {
   List<V2TimGroupMemberFullInfo> _previewOrdinaryMembers =
       <V2TimGroupMemberFullInfo>[];
   bool _previewMembersReady = false;
-  // Reopening a route must not discard a recently confirmed backend snapshot.
+  // Reopening a route reuses management members, never a group-name snapshot.
   // Entries are bounded, short-lived and valid only in the same login session.
   static final _recentProfiles = <String,
       ({
     SessionIdentity identity,
     DateTime confirmedAt,
     Map<String, V2TimGroupMemberFullInfo> members,
-    V2TimGroupInfo? info,
   })>{};
   int _managementLoadGeneration = 0;
   int? _profileManagementGeneration;
@@ -644,9 +643,7 @@ class TUIGroupProfileModel extends ChangeNotifier {
     _profileManagementGeneration = _localProjectionGeneration;
     _groupInfo = GroupLocalStore.instance
             .readCached(groupId: groupID, ownerUserId: identity.ownerUserId)
-            ?.toV2TimGroupInfo() ??
-        MeGroupApi.instance.confirmedGroupDetail(groupID)?.toV2TimGroupInfo() ??
-        recent?.info;
+            ?.toV2TimGroupInfo();
     _groupMemberList = [];
     _groupMemberListSeq = '0';
     _groupMemberListComplete = false;
@@ -722,6 +719,7 @@ class TUIGroupProfileModel extends ChangeNotifier {
               ownerUserId: identity.ownerUserId,
               record: detail,
               writeGeneration: detailWriteGeneration,
+              authoritativeGroupName: true,
             );
             if (!isCurrentRequest()) return;
             final stored = await GroupLocalStore.instance.read(
@@ -739,7 +737,6 @@ class TUIGroupProfileModel extends ChangeNotifier {
             groupId: groupID,
           );
           if (!isCurrentRequest()) return;
-          final existingName = existingForCount?.groupName.trim() ?? '';
           final existingAvatar = existingForCount?.avatarUrl.trim() ?? '';
           final existingCount = existingForCount?.memberCount ?? 0;
           final restCount = detail.memberCount;
@@ -747,8 +744,6 @@ class TUIGroupProfileModel extends ChangeNotifier {
             memberCount: existingCount > 0
                 ? existingCount
                 : (restCount > 0 ? restCount : 0),
-            groupName:
-                existingName.isNotEmpty ? existingName : detail.groupName,
             avatarUrl:
                 existingAvatar.isNotEmpty ? existingAvatar : detail.avatarUrl,
             avatarPreviewUrl:
@@ -760,6 +755,7 @@ class TUIGroupProfileModel extends ChangeNotifier {
             ownerUserId: identity.ownerUserId,
             record: restRecord,
             writeGeneration: detailWriteGeneration,
+            authoritativeGroupName: true,
             // The REST group-detail response is the trusted source for this
             // identity repair path.
             allowIdentityOnlyRepair: true,
@@ -809,7 +805,7 @@ class TUIGroupProfileModel extends ChangeNotifier {
                 if (sdkInfo != null) {
                   final sdkName = sdkInfo.groupName?.trim() ?? '';
                   final sdkFace = sdkInfo.faceUrl?.trim() ?? '';
-                  if (sdkName.isNotEmpty) {
+                  if (sdkName.isNotEmpty && stored.groupName.trim().isEmpty) {
                     effective.groupName = sdkName;
                   }
                   if (sdkFace.isNotEmpty) {
@@ -828,7 +824,7 @@ class TUIGroupProfileModel extends ChangeNotifier {
                     // this request started. A zero SDK count must not wipe Store.
                     transform: (current) => current.copyWith(
                       groupName: sdkName.isNotEmpty &&
-                              current.groupName == stored.groupName
+                              current.groupName.trim().isEmpty
                           ? sdkName
                           : current.groupName,
                       avatarUrl: sdkFace.isNotEmpty &&
@@ -1427,7 +1423,6 @@ class TUIGroupProfileModel extends ChangeNotifier {
         confirmedAt: DateTime.now(),
         members: _managementMembers!.map((id, member) =>
             MapEntry(id, V2TimGroupMemberFullInfo.fromJson(member.toJson()))),
-        info: _groupInfo,
       );
       while (_recentProfiles.length > 32) {
         _recentProfiles.remove(_recentProfiles.keys.first);

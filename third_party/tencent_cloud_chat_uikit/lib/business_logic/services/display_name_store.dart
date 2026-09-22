@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation.dart';
 
@@ -37,7 +38,14 @@ class DisplayNameStore extends ChangeNotifier {
     return name;
   }
 
-  String? group(String groupID) => _group[groupID.trim()];
+  String? group(String groupID) {
+    final committed = GroupLocalStore.instance
+            .readCached(groupId: groupID)
+            ?.groupName
+            .trim() ??
+        '';
+    return committed.isNotEmpty ? committed : _group[groupID.trim()];
+  }
 
   /// 按调用方提供的等价比较查找群展示名（短码 / `@TGS#` / `group_` 前缀）。
   String? groupWhere(
@@ -48,7 +56,7 @@ class DisplayNameStore extends ChangeNotifier {
     if (id.isEmpty) {
       return null;
     }
-    final direct = _group[id];
+    final direct = group(id);
     if (direct != null && direct.isNotEmpty) {
       return direct;
     }
@@ -97,7 +105,13 @@ class DisplayNameStore extends ChangeNotifier {
   }
 
   void setGroup(String groupID, String name, {bool notify = true}) {
-    _set(_group, 'group', groupID, name, notify: notify);
+    final committed = GroupLocalStore.instance
+            .readCached(groupId: groupID)
+            ?.groupName
+            .trim() ??
+        '';
+    _set(_group, 'group', groupID, committed.isNotEmpty ? committed : name,
+        notify: notify);
   }
 
   /// 批量 `setC2C`/`setGroup`（`notify: false`）后一次性通知监听者。
@@ -218,7 +232,7 @@ class DisplayNameStore extends ChangeNotifier {
     if (conversationID.startsWith('c2c_')) {
       name = c2c(conversationID.substring(4));
     } else if (conversationID.startsWith('group_')) {
-      name = _group[conversationID.substring(6)];
+      name = group(conversationID.substring(6));
     }
     if (name == null || name.isEmpty || conversation.showName == name) {
       return false;

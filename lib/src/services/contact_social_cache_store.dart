@@ -15,7 +15,9 @@ class ContactSocialCacheStore {
       'presence_last_active_visibility_cache_v1_';
 
   static String? _invalidatedScope;
-  static final _presenceWrites = CoalescedPresenceCache();
+  // Numeric values are last-active timestamps; visibility remains last-write.
+  static final _presenceWrites =
+      CoalescedPresenceCache(preserveMaxNumbers: true);
 
   /// IM SDK 未 init 时 [loginInfo] 会抛 LateError，启动阶段需安全读取。
   static String safeLoginUserId() {

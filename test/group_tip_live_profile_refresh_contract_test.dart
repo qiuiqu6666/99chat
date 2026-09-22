@@ -21,7 +21,7 @@ void main() {
     expect(body, contains('isLocalGroupTips(message)'));
     expect(body, contains('isGroupProfileRefreshTipAction(action)'));
     expect(body, contains('refreshGroupDetail(groupId, refresh: true)'));
-    expect(body, contains('applyOptimisticGroupName('));
+    expect(body, isNot(contains('applyOptimisticGroupName(')));
     expect(body, contains('extractGroupTipDisplayFields('));
     expect(body, isNot(contains('MeGroupApi.instance.fetchGroupDetail')));
     expect(body, isNot(contains('fetchGroupMembersPage(')));

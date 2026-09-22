@@ -266,7 +266,10 @@ class CoreServicesImpl implements CoreServices {
 
       final TUIFriendShipViewModel tuiFriendShipViewModel =
           serviceLocator<TUIFriendShipViewModel>();
-      final currentUserStatusList = tuiFriendShipViewModel.userStatusList;
+      // Consumers cache indexes by list identity. Publish a new snapshot so
+      // replacing a user's status also invalidates those indexes.
+      final currentUserStatusList =
+          List<V2TimUserStatus>.of(tuiFriendShipViewModel.userStatusList);
 
       for (int i = 0; i < newUserStatusList.length; i++) {
         final int indexInCurrentUserList = currentUserStatusList.indexWhere(

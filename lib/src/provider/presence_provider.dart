@@ -131,18 +131,23 @@ class PresenceProvider extends ChangeNotifier {
     return <String>{id};
   }
 
-  void _writeLastSeen(
+  int _writeLastSeen(
     String raw,
     int ts,
     DateTime now, {
     bool markFetched = true,
   }) {
+    // Last activity is monotonic within an account. Delayed queries, route
+    // arguments and disk hydration must not rewind a newer realtime value.
+    final current = _lookupLastSeen(raw);
+    if (current != null && ts < current) return current;
     for (final key in _keysFor(raw)) {
       _lastSeen[key] = ts;
       if (markFetched) {
         _lastFetchAt[key] = now;
       }
     }
+    return ts;
   }
 
   void _writeVisibility(
@@ -276,13 +281,13 @@ class PresenceProvider extends ChangeNotifier {
           continue;
         }
         final before = _lookupLastSeen(id);
-        _writeLastSeen(id, entry.value, now);
-        if (before != entry.value) {
+        final accepted = _writeLastSeen(id, entry.value, now);
+        if (before != accepted) {
           changed = true;
           changedIds.add(id);
         }
         for (final key in _keysFor(id)) {
-          persistSeen[key] = entry.value;
+          persistSeen[key] = accepted;
         }
       }
     }
@@ -390,11 +395,11 @@ class PresenceProvider extends ChangeNotifier {
     final persistVisibility = <String, String>{};
     var visualStateChanged = wasBackendOnline != online || hadPendingWork;
     if (lastActiveAt != null) {
-      _writeLastSeen(primary, lastActiveAt, now);
+      final accepted = _writeLastSeen(primary, lastActiveAt, now);
       visualStateChanged =
-          visualStateChanged || previousLastSeen != lastActiveAt;
+          visualStateChanged || previousLastSeen != accepted;
       for (final key in keys) {
-        persistSeen[key] = lastActiveAt;
+        persistSeen[key] = accepted;
       }
     }
     if (lastActiveVisibility != null &&
@@ -489,9 +494,14 @@ class PresenceProvider extends ChangeNotifier {
       return;
     }
     _hydratedFromLocalCache = true;
+    final generation = _sessionGeneration;
     final cached = await ContactSocialCacheStore.readPresenceLastSeen();
     final cachedVisibility =
         await ContactSocialCacheStore.readPresenceVisibility();
+    if (_disposed || generation != _sessionGeneration ||
+        _activeScope != scope || ContactSocialCacheStore.accountScope() != scope) {
+      return;
+    }
     if (cached.isEmpty && cachedVisibility.isEmpty) {
       _notifySafely();
       return;
@@ -508,7 +518,7 @@ class PresenceProvider extends ChangeNotifier {
     }
     for (final entry in cachedVisibility.entries) {
       final id = ChatIdFormat.rawUserUid(entry.key);
-      if (id.isEmpty) {
+      if (id.isEmpty || _visibilityFromApi.contains(id)) {
         continue;
       }
       _writeVisibility(
@@ -793,9 +803,9 @@ class PresenceProvider extends ChangeNotifier {
           final ts =
               result.lastSeen[id] ?? _lookupByRawKey(result.lastSeen, id);
           if (ts != null) {
-            _writeLastSeen(id, ts, now);
+            final accepted = _writeLastSeen(id, ts, now);
             for (final key in _keysFor(id)) {
-              seenUpdates[key] = ts;
+              seenUpdates[key] = accepted;
             }
           } else {
             for (final key in _keysFor(id)) {
@@ -1026,7 +1036,12 @@ class PresenceProvider extends ChangeNotifier {
     if (!hidden && resolveOnline(userId: id, imOnline: imOnline)) {
       return presenceBucketLabel(imOnline: true, lastSeenMs: null);
     }
-    final lastSeen = lastActiveAtOverride ?? _lookupLastSeen(id);
+    final cached = _lookupLastSeen(id);
+    final lastSeen = cached == null
+        ? lastActiveAtOverride
+        : (lastActiveAtOverride != null && lastActiveAtOverride > cached
+            ? lastActiveAtOverride
+            : cached);
     if (lastSeen != null) {
       if (hidden) {
         return hiddenLastActiveLabelFromTimestamp(lastSeen);

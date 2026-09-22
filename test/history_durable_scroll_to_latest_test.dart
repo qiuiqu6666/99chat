@@ -352,6 +352,67 @@ void main() {
     SqfliteLifecycleGuard.instance.debugReset();
   }
 
+  for (final scenario in [
+    (durable: false, count: 1, oldEdge: false),
+    (durable: false, count: 71, oldEdge: false),
+    (durable: true, count: 1, oldEdge: false),
+    (durable: true, count: 71, oldEdge: false),
+    (durable: true, count: 1, oldEdge: true),
+  ]) {
+    final durable = scenario.durable;
+    final count = scenario.count;
+    testWidgets(
+        'return after $count arrivals reaches the rendered newest row '
+        '(durable=$durable, oldEdge=${scenario.oldEdge})', (tester) async {
+      try {
+        if (!durable) HistoryWindowRepositoryProvider.repository = null;
+        await mount(tester, realTongue: true);
+        final conv = model.conversationID;
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, 1600));
+        await frames(tester);
+        expect(global.isFollowingLatest(conv), isFalse);
+        sdk.newest = 100 + count;
+        admissionsIdle = false;
+        pendingAdmissions = (() async {
+          try {
+            for (var seq = 101; seq <= sdk.newest && !stopAdmissions; seq++) {
+              await global.applyAppRealtimeMessage(_message(conv, seq),
+                  ingressEventID: 'return-$seq', ingressSequence: seq);
+            }
+          } finally {
+            admissionsIdle = true;
+          }
+        })();
+        await waitForRealIO(tester, () => admissionsIdle, 'arrivals must commit');
+        await pendingAdmissions;
+        await frames(tester);
+        if (scenario.oldEdge) {
+          // Reaching the old physical edge must not take the early success
+          // path while the newest message is still only in the repository.
+          scroll.jumpTo(scroll.position.minScrollExtent);
+        }
+        final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+            find.byType(TIMUIKitHistoryMessageListTongueContainer));
+        var returned = false;
+        final pending = state.scrollToLatestAndDismissUnreadCapsule()
+            .whenComplete(() => returned = true);
+        await waitForRealIO(tester, () => returned, 'one return must finish');
+        await pending;
+        await frames(tester);
+        final newest = find.byKey(ValueKey('row-$conv-${sdk.newest}'));
+        expect(newest.hitTestable(), findsOneWidget);
+        expect(tester.getBottomRight(newest).dy,
+            closeTo(tester.getBottomRight(find.byType(CustomScrollView)).dy, 4),
+            reason:
+                'the actual newest row must occupy the bottom of the viewport');
+        expect(scroll.offset, closeTo(scroll.position.minScrollExtent, 1));
+        expect(global.isFollowingLatest(conv), isTrue);
+      } finally {
+        await close(tester);
+      }
+    });
+  }
+
   testWidgets('production return keeps drag interactive and cancels late publication', (tester) async {
     try {
       await mount(tester);

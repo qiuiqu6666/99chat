@@ -58,7 +58,7 @@ void main() {
               }))
           .then((_) {});
 
-  test('member title uses committed count rather than rejected REST response',
+  test('detail repairs name while member title keeps newer committed count',
       () async {
     await putMetadata(1403);
     var detailCalls = 0;
@@ -69,7 +69,7 @@ void main() {
             .resolve(Response(requestOptions: request, statusCode: 200, data: {
           'data': {
             'groupId': group,
-            'groupName': 'Old name',
+            'groupName': 'Current REST name',
             'memberCount': 1418,
             'updatedAt': 1999
           }
@@ -80,7 +80,7 @@ void main() {
     addTearDown(model.dispose);
     await model.loadGroupInfo(group);
     expect(detailCalls, 1);
-    expect(model.groupInfo!.groupName, 'Committed group');
+    expect(model.groupInfo!.groupName, 'Current REST name');
     expect(model.groupInfo!.memberCount, 1403);
     expect(model.displayedMemberCount(), 1403);
     expect(await store.readCompleteSnapshotCount(groupId: group), isNull);

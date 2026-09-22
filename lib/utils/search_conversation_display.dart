@@ -96,25 +96,22 @@ SearchConversationDisplay _resolveGroupDisplay({
   final hintName = (groupHint?.groupName ?? '').trim();
   final hintFace = (groupHint?.faceUrl ?? '').trim();
   String localName = '';
-  String storeName = '';
-  if (!isUsableSearchGroupDisplayName(hintName, groupId)) {
-    try {
-      localName = GroupLocalStore.instance
-              .readCached(groupId: groupId)
-              ?.groupName
-              .trim() ??
-          '';
-    } catch (_) {
-      localName = '';
-    }
-    storeName = lookupSearchGroupStoreName(groupId)?.trim() ?? '';
+  try {
+    localName = GroupLocalStore.instance
+            .readCached(groupId: groupId)
+            ?.groupName
+            .trim() ??
+        '';
+  } catch (_) {
+    localName = '';
   }
+  final storeName = lookupSearchGroupStoreName(groupId)?.trim() ?? '';
 
   String name = '';
-  if (isUsableSearchGroupDisplayName(hintName, groupId)) {
-    name = hintName;
-  } else if (isUsableSearchGroupDisplayName(localName, groupId)) {
+  if (isUsableSearchGroupDisplayName(localName, groupId)) {
     name = localName;
+  } else if (isUsableSearchGroupDisplayName(hintName, groupId)) {
+    name = hintName;
   } else if (isUsableSearchGroupDisplayName(storeName, groupId)) {
     name = storeName;
   } else {
@@ -472,9 +469,7 @@ Future<void> _writeGroupDisplayCache({
   if (name.isEmpty && face.isEmpty) {
     return;
   }
-  if (name.isNotEmpty) {
-    DisplayNameStore.instance.setGroup(id, name, notify: false);
-  }
+  final owner = GroupLocalStore.instance.currentOwnerUserId();
   final existing = GroupLocalStore.instance.readCached(groupId: id);
   final info = V2TimGroupInfo(
     groupID: id,
@@ -489,9 +484,18 @@ Future<void> _writeGroupDisplayCache({
   );
   try {
     await GroupLocalStore.instance.upsert(
-      ownerUserId: GroupLocalStore.instance.currentOwnerUserId(),
+      ownerUserId: owner,
       record: record,
+      fillMissingDisplayOnly: true,
     );
+    if (GroupLocalStore.instance.currentOwnerUserId() != owner) return;
+    final committedName = GroupLocalStore.instance
+        .readCached(groupId: id, ownerUserId: owner)
+        ?.groupName;
+    final displayName = sanitizedSearchGroupName(id, committedName ?? name);
+    if (displayName.isNotEmpty) {
+      DisplayNameStore.instance.setGroup(id, displayName, notify: false);
+    }
   } catch (_) {}
 }
 

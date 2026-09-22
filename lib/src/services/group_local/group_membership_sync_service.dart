@@ -2471,8 +2471,7 @@ class GroupMembershipSyncService {
     );
   }
 
-  /// IM `getGroupsInfo` 可能仍是旧快照。同一条在线 custom tip 里的展示字段
-  /// 后写，避免被过期 SDK 详情挡住。不拉群成员。
+  /// 群名只通过详情刷新确认；其他实时资料字段保留原有通知投影。
   Future<void> _applyLiveCustomTipGroupIdentity({
     required String groupId,
     required String action,
@@ -2490,12 +2489,8 @@ class GroupMembershipSyncService {
     final now = DateTime.now().toUtc().millisecondsSinceEpoch;
     switch (action) {
       case 'group_name_changed':
-        if (fields.groupName.isNotEmpty) {
-          await applyOptimisticGroupName(
-            groupId: id,
-            groupName: fields.groupName,
-          );
-        }
+        // The caller already refreshed authoritative detail. A delayed tip is
+        // an invalidation signal, never a newer name than that response.
         return;
       case 'group_avatar_changed':
         if (fields.avatarUrl.isNotEmpty) {
@@ -2763,6 +2758,7 @@ class GroupMembershipSyncService {
         ownerUserId: owner,
         record: detail,
         writeGeneration: writeGeneration,
+        authoritativeGroupName: true,
       );
       if (!isCurrent()) return false;
       if (!committed) {
@@ -3525,12 +3521,17 @@ class GroupMembershipSyncService {
       ownerUserId: owner,
       record: base.copyWith(
         groupName: name,
-        updatedAt: now,
+        updatedAt: base.updatedAt > now ? base.updatedAt : now,
       ),
     );
+    final stored = GroupLocalStore.instance.readCached(
+      groupId: id,
+      ownerUserId: owner,
+    );
+    if (stored == null) return;
     await publishGroupConversationDisplay(
       groupId: id,
-      groupName: name,
+      groupName: stored.groupName,
     );
     notifyProfileRefresh(id);
     await refreshUIKitGroupList();
@@ -4008,7 +4009,7 @@ class GroupMembershipSyncService {
     );
   }
 
-  /// SDK 群名/头像回调的本地投影。失败不抛给 UIKit。
+  /// SDK 群名回调触发详情刷新，通知名称只补空；头像保留本地投影。
   Future<void> applySdkGroupIdentity({
     required String groupId,
     String? groupName,
@@ -4024,17 +4025,25 @@ class GroupMembershipSyncService {
     if ((name == null || name.isEmpty) && (face == null || face.isEmpty)) {
       return;
     }
+    final identity = SessionIdentityService.instance.capture(ownerUserId: owner);
+    if (name != null && name.isNotEmpty) {
+      await refreshGroupDetail(id, refresh: true);
+    }
+    if (!SessionIdentityService.instance.isCurrent(identity)) return;
     await GroupLocalStore.instance.patch(
       ownerUserId: owner,
       groupId: id,
       transform: (current) => current.copyWith(
-        groupName: (name != null && name.isNotEmpty) ? name : current.groupName,
+        groupName: current.groupName.trim().isEmpty && name != null
+            ? name
+            : current.groupName,
         avatarUrl: (face != null && face.isNotEmpty) ? face : current.avatarUrl,
       ),
     );
+    if (!SessionIdentityService.instance.isCurrent(identity)) return;
     await publishGroupConversationDisplay(
       groupId: id,
-      groupName: (name != null && name.isNotEmpty) ? name : null,
+      groupName: GroupLocalStore.instance.readCached(groupId: id)?.groupName,
       avatarUrl: (face != null && face.isNotEmpty) ? face : null,
     );
   }

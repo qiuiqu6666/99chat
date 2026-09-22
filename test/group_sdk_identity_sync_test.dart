@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:dio/dio.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,16 +27,27 @@ void main() {
   });
 
   setUp(() async {
+    ApiClient.instance.dio.interceptors.clear();
+    ApiClient.instance.dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (request, handler) => handler.resolve(Response(
+        requestOptions: request,
+        statusCode: 200,
+        data: {
+          'data': {'groupId': group, 'groupName': 'REST name'}
+        },
+      )),
+    ));
     SessionIdentityService.instance.invalidate();
     await ApiClient.instance.saveToken('test-token', userId: owner);
     await GroupLocalStore.instance.clearForOwner(owner);
   });
 
   tearDown(() async {
+    ApiClient.instance.dio.interceptors.clear();
     await GroupLocalStore.instance.clearForOwner(owner);
   });
 
-  test('SDK identity callback projects name and avatar into GroupLocalStore',
+  test('SDK identity callback refreshes REST name and projects avatar',
       () async {
     await GroupLocalStore.instance.upsert(
       ownerUserId: owner,
@@ -53,7 +65,7 @@ void main() {
       faceUrl: 'https://sdk.test/a.png',
     );
     final stored = GroupLocalStore.instance.readCached(groupId: group);
-    expect(stored?.groupName, 'SDK name');
+    expect(stored?.groupName, 'REST name');
     expect(stored?.avatarUrl, 'https://sdk.test/a.png');
   });
 
@@ -148,7 +160,8 @@ void main() {
     ).readAsStringSync();
     expect(source, contains('onGroupIdentityChanged'));
     expect(source, isNot(contains('if (!SelfHostedGroupBridge.enabled)')));
-    expect(source, contains('TUIGroupListenerModelHooks.onGroupIdentityChanged'));
+    expect(
+        source, contains('TUIGroupListenerModelHooks.onGroupIdentityChanged'));
     expect(
       File('lib/src/services/group_local/group_membership_sync_service.dart')
           .readAsStringSync(),

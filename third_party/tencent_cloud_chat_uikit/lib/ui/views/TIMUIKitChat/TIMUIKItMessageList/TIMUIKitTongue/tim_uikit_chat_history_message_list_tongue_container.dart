@@ -294,7 +294,12 @@ class TIMUIKitHistoryMessageListTongueContainerState
       widget.model.commitFollowAfterVisibleLatestConfirm();
 
   Future<void> scrollToLatestAndDismissUnreadCapsule() async {
-    if (_atTrueLatestEndNow()) {
+    // While reading history, durable arrivals can live only in the repository.
+    // They are not a history-page gap or an in-memory buffer, but an explicit
+    // return must load them before choosing the bottom of the visible window.
+    final needsLatestWindow = _hasMissingNewer ||
+        globalModel.hasDurableHistoryDeferred(widget.model.conversationID);
+    if (!needsLatestWindow && _atTrueLatestEndNow()) {
       _settleAtTrueLatestEnd();
       return;
     }
@@ -354,7 +359,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
     bool latestRenderedEdgeVisible() => _atTrueLatestEndNow();
     final finishTransition = widget.finishWindowTransition;
     Future<void> performReturn() async {
-      final replaceWindow = _hasMissingNewer;
+      final replaceWindow = needsLatestWindow;
 
       // A disjoint latest-window reload may retain the old viewport while the
       // network result is laid out. Ordinary long-distance returns stay live so
@@ -381,7 +386,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
       }
       // 内存窗口开启时，「回到底部」必须重拉最新一页。
       // 仅 animateTo(minExtent) 只会停在窗口内的假底部。
-      if (_hasMissingNewer) {
+      if (replaceWindow) {
         globalModel.beginUserScrollToBottom(
           conversationID,
           lockMilliseconds: 8000,

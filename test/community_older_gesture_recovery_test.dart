@@ -448,6 +448,61 @@ void main() {
     }
   });
 
+  testWidgets('older loading starts while the finger holds the top overscroll',
+      (tester) async {
+    TestGesture? gesture;
+    try {
+      physics = const BouncingScrollPhysics();
+      final handler = FlutterError.onError;
+      await tester.pumpWidget(build());
+      FlutterError.onError = handler;
+      await frames(tester);
+      // Materialize the older rows before choosing a distance from the edge;
+      // the initial lazy-sliver extent is only an estimate.
+      scroll.jumpTo(scroll.position.maxScrollExtent);
+      await frames(tester, 2);
+      scroll.jumpTo(scroll.position.maxScrollExtent);
+      await frames(tester, 2);
+      scroll.jumpTo(scroll.position.maxScrollExtent - 80);
+      await frames(tester, 2);
+      gesture = await tester.startGesture(const Offset(400, 250));
+      await gesture.moveBy(const Offset(0, 240));
+      await frames(tester, 2);
+      expect(scroll.position.outOfRange, isTrue);
+      await frames(tester, 20);
+      expect(uiOlderLoads, 1,
+          reason: 'reaching the top must load without releasing for a rebound');
+      expect(sdk.gatedCalls, 1);
+    } finally {
+      await gesture?.cancel();
+      await close(tester);
+    }
+  });
+
+  testWidgets('one fast older fling loads without a second gesture',
+      (tester) async {
+    try {
+      physics = const BouncingScrollPhysics();
+      final handler = FlutterError.onError;
+      await tester.pumpWidget(build());
+      FlutterError.onError = handler;
+      await frames(tester);
+      scroll.jumpTo(scroll.position.maxScrollExtent);
+      await frames(tester, 2);
+      scroll.jumpTo(scroll.position.maxScrollExtent);
+      await frames(tester, 2);
+      scroll.jumpTo(scroll.position.maxScrollExtent - 700);
+      await frames(tester, 2);
+      await tester.fling(find.byType(CustomScrollView),
+          const Offset(0, 300), 4000);
+      await frames(tester, 100);
+      expect(uiOlderLoads, 1);
+      expect(sdk.gatedCalls, 1);
+    } finally {
+      await close(tester);
+    }
+  });
+
   testWidgets('an initially exhausted edge admits one reading-window probe',
       (tester) async {
     try {
