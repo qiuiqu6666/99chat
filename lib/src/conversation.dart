@@ -87,6 +87,8 @@ import 'package:tencent_cloud_chat_demo/src/utils/message_conversation_id.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/archive_conversation_lookup.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/conversation_preview_history_sync.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/conversation_preview_fingerprint.dart';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_folder_unread_index.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/conversation_feed/conversation_content_patch.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/group_notice_selection.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/desktop_login_sessions_page.dart';
 import 'package:tencent_cloud_chat_demo/src/services/desktop_login_session_service.dart';
@@ -661,9 +663,15 @@ class _ConversationState extends State<Conversation> {
   int? _folderHydratingGeneration;
   bool _wasRouteVisibleForDesktopBanner = false;
   final Map<String, int> _folderUnreadById = <String, int>{};
+  final ConversationFolderUnreadIndex _folderUnreadIndex = ConversationFolderUnreadIndex();
+  int _folderUnreadConfigurationRevision = 0;
+  int _folderUnreadAppliedConfigurationRevision = -1;
+  int _folderUnreadSourceRevision = -1;
+  SessionIdentity? _folderUnreadIdentity;
   bool _folderUnreadRefreshInFlight = false;
   List<String>? _cachedVisibleConversationIds;
   List<V2TimConversation>? _visibleConversationView;
+  final Map<String, int> _visiblePositions = {};
   bool _visibleUsesFullStoreView = false;
   int _visibleCacheContentRevision = -1;
   final Map<String, V2TimConversation> _visibleOfficialPlaceholders = {};
@@ -694,7 +702,7 @@ class _ConversationState extends State<Conversation> {
     );
   }
 
-  int _previewProjectionToken(
+  ConversationPreviewToken _previewProjectionToken(
     TUIChatGlobalModel globalModel,
     V2TimConversation conversation,
   ) {
@@ -703,13 +711,12 @@ class _ConversationState extends State<Conversation> {
     final conversationId = conversation.conversationID.trim();
     final revisionKey =
         cacheKey?.isNotEmpty == true ? cacheKey! : conversationId;
-    final lastMessage = conversation.lastMessage;
-    return Object.hashAll(<Object?>[
-      revisionKey,
-      globalModel.messageListRevisionFor(revisionKey),
-      globalModel.messageProjectionRevisionFor(revisionKey),
-      conversationPreviewFingerprint(lastMessage),
-    ]);
+    return ConversationPreviewToken(
+      message: conversation.lastMessage,
+      conversationKey: revisionKey,
+      listRevision: globalModel.messageListRevisionFor(revisionKey),
+      projectionRevision: globalModel.messageProjectionRevisionFor(revisionKey),
+    );
   }
 
   V2TimMessage? _previewLastMessageFor(V2TimConversation conversation) {
@@ -717,24 +724,25 @@ class _ConversationState extends State<Conversation> {
     final globalModel = serviceLocator<TUIChatGlobalModel>();
     final token = _previewProjectionToken(globalModel, conversation);
     final cached = _previewProjectionByConversation[id];
-    if (cached != null && cached.token == token) {
+    if (cached != null && cached.token == token.token) {
       return cached.message;
     }
     // Never scan a chat projection from a row build. Keep the previous preview
     // for this frame and reconcile it in the next frame's bounded work batch.
-    _queuePreviewProjection(conversation);
+    _queuePreviewProjection(conversation, capturedToken: token);
     return cached?.message ?? conversation.lastMessage;
   }
 
-  void _queuePreviewProjection(V2TimConversation conversation) {
+  void _queuePreviewProjection(V2TimConversation conversation,
+      {ConversationPreviewToken? capturedToken}) {
     if (!_conversationWorkEnabled) return;
     final id = conversation.conversationID.trim();
     if (id.isEmpty) return;
-    final token = _previewProjectionToken(
+    final token = capturedToken ?? _previewProjectionToken(
       serviceLocator<TUIChatGlobalModel>(),
       conversation,
     );
-    if (_previewProjectionByConversation[id]?.token == token) {
+    if (_previewProjectionByConversation[id]?.token == token.token) {
       _pendingPreviewProjectionRows.remove(id);
       return;
     }
@@ -756,13 +764,14 @@ class _ConversationState extends State<Conversation> {
         if (entry.value.isObserved) entry.key,
     };
     if (observedIds.isEmpty) return;
-    // currentConversationById currently scans the list. Read it once rather
-    // than repeating that scan for each subscribed row.
-    for (final conversation in ChatSessionController.instance.conversations) {
-      if (observedIds.remove(conversation.conversationID.trim())) {
-        _queuePreviewProjection(conversation);
-        if (observedIds.isEmpty) break;
-      }
+    final store = ConversationTabStore.instance;
+    for (final conversation in resolveObservedConversationRows(
+      observedIds: observedIds,
+      lookup: (id) => store.conversationForId(id) ??
+          _folderSdkRows[ConversationIdCanonical.forStorage(id)] ??
+          _visibleOfficialPlaceholders[ConversationIdCanonical.forStorage(id)],
+    )) {
+      _queuePreviewProjection(conversation);
     }
   }
 
@@ -783,19 +792,24 @@ class _ConversationState extends State<Conversation> {
       if (_previewProjectionRowRevisions[id]?.isObserved != true) continue;
       final token = _previewProjectionToken(globalModel, conversation);
       final previous = _previewProjectionByConversation[id];
-      if (previous?.token == token) continue;
+      if (previous?.token == token.token) continue;
       final resolved =
           ConversationPreviewHistorySync.resolveFromChatVisibleProjection(
         globalModel: globalModel,
         conversation: conversation,
       );
       _previewProjectionByConversation[id] =
-          _ConversationPreviewProjectionEntry(token: token, message: resolved);
+          _ConversationPreviewProjectionEntry(
+        token: token.token,
+        message: resolved,
+        capturedFingerprint: identical(resolved, conversation.lastMessage)
+            ? token.messageFingerprint : null,
+      );
       // On the first projection pass the row may currently be showing
       // `conversation.lastMessage`. Compare against that fallback as well so
       // the asynchronously precomputed result is painted when it differs.
       final paintedFingerprint = previous?.messageFingerprint ??
-          conversationPreviewFingerprint(conversation.lastMessage);
+          token.messageFingerprint;
       final changed = paintedFingerprint !=
           _previewProjectionByConversation[id]!.messageFingerprint;
       if (changed) {
@@ -816,6 +830,7 @@ class _ConversationState extends State<Conversation> {
     _visibilityRevision++;
     _cachedVisibleConversationIds = null;
     _visibleConversationView = null;
+    _visiblePositions.clear();
     _visibleUsesFullStoreView = false;
     _visibleCacheContentRevision = -1;
     _visibleOfficialPlaceholders.clear();
@@ -1014,6 +1029,9 @@ class _ConversationState extends State<Conversation> {
   }
 
   void _onArchivedIdsChangedForMainList() {
+    _folderUnreadConfigurationRevision++;
+    _folderUnreadForceFull = true;
+    _scheduleFolderUnreadRefresh();
     // 主列表同步由进程级同步单例监听负责，此处只刷新本页可见缓存。
     _invalidateVisibleConversationsCache();
     if (mounted) {
@@ -1384,6 +1402,11 @@ class _ConversationState extends State<Conversation> {
     if (!mounted) {
       return;
     }
+    // Membership can change in an unselected folder without changing the
+    // capsule name or the selected folder's rows.
+    _folderUnreadConfigurationRevision++;
+    _folderUnreadForceFull = true;
+    _scheduleFolderUnreadRefresh();
     final folders = ConversationFolderStore.instance.folders;
     final nextIdentity = folders
         .map((folder) => '${folder.folderId}\u0000${folder.name}')
@@ -1438,7 +1461,7 @@ class _ConversationState extends State<Conversation> {
     }
     if (ConversationFolderStore.instance.folders.isEmpty &&
         _folderUnreadById.isEmpty &&
-        _folderConvUnreadSample.isEmpty &&
+        _folderUnreadIndex.isEmpty &&
         !_folderUnreadForceFull) {
       ConversationFeedPerf.increment('folder_unread_empty_noop');
       return;
@@ -1461,8 +1484,7 @@ class _ConversationState extends State<Conversation> {
         },
       );
       if (postLeave) {
-        // leave 后恢复时走增量，避免双页 forceFull 成对重扫。
-        _folderUnreadForceFull = false;
+        // Preserve a pending folder/archive invalidation during chat leave.
         _folderUnreadLeaveKickTimer?.cancel();
         final remain =
             ChatSessionController.instance.postChatLeaveQuietRemaining;
@@ -1490,12 +1512,23 @@ class _ConversationState extends State<Conversation> {
 
   bool _folderUnreadRefreshDeferred = false;
   bool _folderUnreadForceFull = true;
-  final Map<String, int> _folderConvUnreadSample = <String, int>{};
 
   void _runFolderUnreadRefresh() {
     if (_folderUnreadRefreshInFlight) {
       return;
     }
+    final aggregate = ConversationUnreadAggregate.instance;
+    final sourceRevision = aggregate.sdkUnreadRevision.value;
+    final configurationRevision = _folderUnreadConfigurationRevision;
+    final identity = SessionIdentityService.instance.capture();
+    final previousIdentity = _folderUnreadIdentity;
+    final changedIds = aggregate.rawUnreadChangesSince(_folderUnreadSourceRevision);
+    final forceFull = _folderUnreadForceFull ||
+        previousIdentity == null ||
+        !SessionIdentityService.instance.isCurrent(previousIdentity) ||
+        _folderUnreadAppliedConfigurationRevision != configurationRevision ||
+        changedIds == null;
+    if (!forceFull && changedIds.isEmpty) return;
     if (ConversationPerfFlags.folderUnreadSingleFlightEnabled &&
         FolderUnreadRefreshGate.markJoinIfBusy()) {
       _folderUnreadRefreshDeferred = true;
@@ -1515,92 +1548,41 @@ class _ConversationState extends State<Conversation> {
     }
     _folderUnreadRefreshDeferred = false;
     _folderUnreadRefreshInFlight = true;
-    final forceFull = _folderUnreadForceFull || _folderUnreadById.isEmpty;
     ConversationPerfGateLog.log(
       forceFull ? 'folder_unread_run' : 'folder_unread_incremental',
     );
     unawaited(() async {
       try {
-        final folders = ConversationFolderStore.instance.folders;
-        final allIds = <String>{};
-        final folderIdToIds = <String, List<String>>{};
-        for (final folder in folders) {
-          final ids = folder.conversationIds
-              .where((id) => !_isConversationArchivedInEitherScope(id))
-              .toList(growable: false);
-          folderIdToIds[folder.folderId] = ids;
-          allIds.addAll(ids);
-        }
-        if (allIds.isEmpty) {
-          if (!mounted) {
-            return;
-          }
-          final changed = _folderUnreadById.isNotEmpty ||
-              _folderConvUnreadSample.isNotEmpty ||
-              _folderUnreadForceFull;
-          _folderUnreadById.clear();
-          _folderConvUnreadSample.clear();
-          _folderUnreadForceFull = false;
-          if (changed) {
-            setState(() {});
-          } else {
-            ConversationFeedPerf.increment('folder_unread_empty_noop');
-          }
-          return;
-        }
-
-        // Counts also change for conversations outside the visible list.
-        // Read the shared thin SDK index, without querying a second database.
-        final queryIds = allIds;
-        final unreadById = await ConversationUnreadAggregate.instance
-            .readSdkUnreadCountsForIds(queryIds);
-        if (!mounted) {
-          return;
-        }
-
         if (forceFull) {
-          final next = <String, int>{};
-          for (final entry in folderIdToIds.entries) {
-            var sum = 0;
-            for (final id in entry.value) {
-              sum += _folderUnreadLookup(unreadById, id);
-            }
-            next[entry.key] = sum;
-          }
-          _folderUnreadById
-            ..clear()
-            ..addAll(next);
-          _folderConvUnreadSample
-            ..clear()
-            ..addAll(unreadById);
-          _folderUnreadForceFull = false;
-          setState(() {});
+          _folderUnreadIndex.rebuild({
+            for (final folder in ConversationFolderStore.instance.folders)
+              folder.folderId: folder.conversationIds
+                  .where((id) => !_isConversationArchivedInEitherScope(id))
+                  .toList(growable: false),
+          });
+        }
+        final queryIds = forceFull
+            ? _folderUnreadIndex.allQueryIds.toSet()
+            : _folderUnreadIndex.queryIdsForChanges(changedIds);
+        final unreadById = queryIds.isEmpty
+            ? const <String, int>{}
+            : await aggregate.readSdkUnreadCountsForIds(queryIds);
+        if (!mounted ||
+            !SessionIdentityService.instance.isCurrent(identity)) {
           return;
         }
-
-        var touched = false;
-        for (final id in queryIds) {
-          final nextUnread = _folderUnreadLookup(unreadById, id);
-          final prev = _folderConvUnreadSample[id] ?? 0;
-          final delta = nextUnread - prev;
-          _folderConvUnreadSample[id] = nextUnread;
-          if (delta == 0) {
-            continue;
-          }
-          for (final folder in folders) {
-            final hit = folder.conversationIds.any(
-              (member) => MessageConversationId.sameConversation(member, id),
-            );
-            if (!hit) {
-              continue;
-            }
-            final cur = _folderUnreadById[folder.folderId] ?? 0;
-            _folderUnreadById[folder.folderId] =
-                (cur + delta).clamp(0, 1 << 30);
-            touched = true;
-          }
+        if (configurationRevision != _folderUnreadConfigurationRevision) {
+          _folderUnreadRefreshDeferred = true;
+          return;
         }
-        if (touched) {
+        _folderUnreadIndex.applyCounts(unreadById);
+        final next = _folderUnreadIndex.totals;
+        _folderUnreadSourceRevision = sourceRevision;
+        _folderUnreadAppliedConfigurationRevision = configurationRevision;
+        _folderUnreadIdentity = identity;
+        _folderUnreadForceFull = false;
+        if (!mapEquals(_folderUnreadById, next)) {
+          _folderUnreadById..clear()..addAll(next);
           setState(() {});
         }
       } catch (error) {
@@ -1631,19 +1613,6 @@ class _ConversationState extends State<Conversation> {
         }
       }
     }());
-  }
-
-  int _folderUnreadLookup(Map<String, int> unreadById, String id) {
-    final direct = unreadById[id];
-    if (direct != null) {
-      return direct;
-    }
-    for (final mapEntry in unreadById.entries) {
-      if (MessageConversationId.sameConversation(mapEntry.key, id)) {
-        return mapEntry.value;
-      }
-    }
-    return 0;
   }
 
   Future<void> _ensureScopeConversationsHydrated() async {
@@ -3860,6 +3829,7 @@ class _ConversationState extends State<Conversation> {
   List<V2TimConversation> _cacheVisibleConversationView(
     List<V2TimConversation> rows, {
     bool retainVisibleIds = false,
+    bool readOnly = false,
   }) {
     // A revision-bound, read-only projection; every mutable row is owned by
     // TabStore or the selected folder's bounded SDK lookup.
@@ -3868,6 +3838,9 @@ class _ConversationState extends State<Conversation> {
           rows.map((row) => row.conversationID.trim()).toList(growable: false);
       _cachedVisibleConversationIds = ids;
       _cachedVisibleIds = ids.toSet();
+      _visiblePositions
+        ..clear()
+        ..addEntries(ids.indexed.map((entry) => MapEntry(entry.$2, entry.$1)));
     }
     _visibleCacheContentRevision =
         ConversationTabStore.instance.contentRevision;
@@ -3877,7 +3850,7 @@ class _ConversationState extends State<Conversation> {
       rows,
       ConversationTabStore.instance.conversations,
     );
-    _visibleConversationView = _visibleUsesFullStoreView
+    _visibleConversationView = _visibleUsesFullStoreView || readOnly
         ? rows
         : List<V2TimConversation>.unmodifiable(rows);
     return _visibleConversationView!;
@@ -3885,6 +3858,7 @@ class _ConversationState extends State<Conversation> {
 
   List<V2TimConversation> _getVisibleConversations() {
     final store = ConversationTabStore.instance;
+    store.flushRealtimePatches();
     final identity = _visibleCacheIdentity;
     if (identity != null &&
         !SessionIdentityService.instance.isCurrent(identity)) {
@@ -3917,6 +3891,20 @@ class _ConversationState extends State<Conversation> {
       if (_visibleUsesFullStoreView) {
         return _cacheVisibleConversationView(store.conversations,
             retainVisibleIds: true);
+      }
+      final changedIds = store.contentChangesSince(_visibleCacheContentRevision);
+      if (changedIds != null) {
+        final patched = patchConversationContents(
+          current: _visibleConversationView!,
+          positions: _visiblePositions,
+          changedIds: changedIds,
+          lookup: store.displayConversationForId,
+        );
+        if (patched != null) {
+          ConversationFeedPerf.increment('visible_projection_content_patch');
+          return _cacheVisibleConversationView(patched,
+              retainVisibleIds: true, readOnly: true);
+        }
       }
       // Resolve once per Store revision, so replacements are never masked by
       // a cached row. Repeated consumers in the same frame reuse this view.
@@ -5803,7 +5791,8 @@ class _ConversationPreviewProjectionEntry {
   _ConversationPreviewProjectionEntry({
     required this.token,
     required this.message,
-  }) : messageFingerprint = conversationPreviewFingerprint(message);
+    String? capturedFingerprint,
+  }) : messageFingerprint = capturedFingerprint ?? conversationPreviewFingerprint(message);
 
   final int token;
   final V2TimMessage? message;

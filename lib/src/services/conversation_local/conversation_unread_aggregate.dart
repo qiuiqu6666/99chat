@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_change_journal.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_local/group_membership_sync_service.dart';
 import 'dart:collection';
 import 'dart:math' as math;
@@ -77,6 +78,12 @@ class ConversationUnreadAggregate extends ChangeNotifier {
   /// Folder badges consume raw SDK counts, including muted/archived rows.
   /// Their changes are independent of the notifiable tab sums.
   final ValueNotifier<int> sdkUnreadRevision = ValueNotifier<int>(0);
+  final ConversationChangeJournal _rawUnreadChanges = ConversationChangeJournal();
+  final Map<String, int> _publishedRawCounts = {};
+  final Map<String, String> _publishedRawIds = {};
+
+  Set<String>? rawUnreadChangesSince(int revision) =>
+      _rawUnreadChanges.changesSince(revision);
   int _sdkRevision = 0;
   final Map<String, V2TimConversation> _sdkRows = {};
   final Map<String, int> _sdkRowRevisions = {};
@@ -172,7 +179,21 @@ class ConversationUnreadAggregate extends ChangeNotifier {
   }
 
   void _publishSdkSums({Set<String>? changedKeys}) {
-    sdkUnreadRevision.value++;
+    final rawChangedIds = <String>{};
+    for (final key in changedKeys ?? {..._sdkRows.keys, ..._publishedRawCounts.keys}) {
+      final row = _sdkRows[key];
+      final next = row?.unreadCount ?? 0;
+      if (next != (_publishedRawCounts[key] ?? 0)) {
+        rawChangedIds.add(row?.conversationID ?? _publishedRawIds[key] ?? key);
+      }
+      if (next == 0) {
+        _publishedRawCounts.remove(key);
+        _publishedRawIds.remove(key);
+      } else {
+        _publishedRawCounts[key] = next;
+        _publishedRawIds[key] = row!.conversationID;
+      }
+    }
     if (changedKeys == null) {
       _sdkContributions.clear();
       _sdkC2cSum = 0;
@@ -207,6 +228,11 @@ class ConversationUnreadAggregate extends ChangeNotifier {
       }
     }
     final c2c = _sdkC2cSum, group = _sdkGroupSum;
+    if (rawChangedIds.isNotEmpty) {
+      final revision = sdkUnreadRevision.value + 1;
+      _rawUnreadChanges.record(revision, rawChangedIds);
+      sdkUnreadRevision.value = revision;
+    }
     if (c2c == _c2cNotifiableUnreadSum && group == _groupNotifiableUnreadSum) {
       return;
     }
@@ -662,6 +688,9 @@ class ConversationUnreadAggregate extends ChangeNotifier {
 
   @visibleForTesting
   void resetForTest() {
+    _publishedRawCounts.clear();
+    _publishedRawIds.clear();
+    _rawUnreadChanges.reset(revision: sdkUnreadRevision.value);
     _sdkUnreadSeeded = false;
     _sdkContributions.clear();
     _sdkC2cSum = 0;
@@ -719,6 +748,11 @@ class ConversationUnreadAggregate extends ChangeNotifier {
     _sdkRows.clear();
     _sdkRowRevisions.clear();
     _sdkRevision = 0;
+    _publishedRawCounts.clear();
+    _publishedRawIds.clear();
+    final rawRevision = sdkUnreadRevision.value + 1;
+    _rawUnreadChanges.reset(revision: sdkUnreadRevision.value);
+    _rawUnreadChanges.record(rawRevision, null);
     _sessionClearGeneration++;
     _debounce?.cancel();
     _debounce = null;
@@ -733,11 +767,11 @@ class ConversationUnreadAggregate extends ChangeNotifier {
     _recentDeltaKeys.clear();
     _recentDeltaKeySet.clear();
     _lastNotifiableByConversation.clear();
-    if (_c2cNotifiableUnreadSum == 0 && _groupNotifiableUnreadSum == 0) {
-      return;
-    }
+    final hadUnread =
+        _c2cNotifiableUnreadSum != 0 || _groupNotifiableUnreadSum != 0;
     _c2cNotifiableUnreadSum = 0;
     _groupNotifiableUnreadSum = 0;
-    notifyListeners();
+    sdkUnreadRevision.value = rawRevision;
+    if (hadUnread) notifyListeners();
   }
 }

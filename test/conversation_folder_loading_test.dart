@@ -16,12 +16,15 @@ import 'package:tencent_cloud_chat_demo/src/provider/presence_provider.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_folder_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_tab_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_unread_aggregate.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_list_sync_notifier.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/conversation_feed/conversation_feed_body.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/conversation_feed/conversation_folder_chip_bar.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation_result.dart';
+import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitConversation/archived_conversation_store.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/controller/tim_uikit_conversation_controller.dart';
 
@@ -144,6 +147,112 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     FlutterError.onError = originalHandler;
   }
+
+  testWidgets(
+      'follow-up: unselected folder membership and archive refresh badges',
+      (tester) async {
+    final aggregate = ConversationUnreadAggregate.instance;
+    aggregate.sdkPageForTest = (_) async => V2TimConversationResult(
+          conversationList: [
+            row('loaded_0')..unreadCount = 3,
+            row('loaded_1')..unreadCount = 7
+          ],
+          isFinished: true,
+        );
+    try {
+      await aggregate
+          .readSdkUnreadCountsForIds({'c2c_loaded_0', 'c2c_loaded_1'});
+      await mount(tester, [
+        folder('a', ['loaded_0']),
+        folder('b', ['loaded_1'])
+      ]);
+      await frame(tester);
+      int unread(String id) {
+        final bar = tester.widget<ConversationFolderChipBar>(
+            find.byType(ConversationFolderChipBar));
+        return bar.unreadForFolder(folders.folderById(id)!);
+      }
+
+      expect(unread('a'), 3);
+      expect(unread('b'), 7);
+      folders.foldersNotifier.value = [
+        folder('a', ['loaded_0']),
+        folder('b', ['loaded_0'])
+      ];
+      await frame(tester);
+      expect(unread('b'), 3);
+      archivedConversationC2cIDsNotifier.value = {'c2c_loaded_0'};
+      await frame(tester);
+      expect(unread('a'), 0);
+      expect(unread('b'), 0);
+    } finally {
+      await close(tester);
+      archivedConversationC2cIDsNotifier.value = {};
+      aggregate.resetForTest();
+    }
+  });
+
+  testWidgets(
+      'follow-up: filtered content patches preserve snapshots and skip unrelated rows',
+      (tester) async {
+    try {
+      await mount(tester, [
+        folder('visible', ['loaded_0', 'loaded_1'])
+      ]);
+      await select(tester, 'visible');
+      final feed = tester
+          .widget<ConversationFeedBody>(find.byType(ConversationFeedBody));
+      final before = feed.getVisibleConversations();
+      store.applyPatches([row('loaded_0')..draftText = 'edited'],
+          preserveOrder: true, explicitDraftIds: {'c2c_loaded_0'});
+      expect(store.conversationForId('c2c_loaded_0')!.draftText, 'edited');
+      final after = feed.getVisibleConversations();
+      expect(after.map((r) => r.conversationID),
+          before.map((r) => r.conversationID));
+      expect(
+          after.firstWhere((r) => r.conversationID == 'c2c_loaded_0').draftText,
+          'edited');
+      expect(
+          before
+              .firstWhere((r) => r.conversationID == 'c2c_loaded_0')
+              .draftText,
+          isNull);
+      store.applyPatches([row('loaded_2')..draftText = 'outside'],
+          preserveOrder: true, explicitDraftIds: {'c2c_loaded_2'});
+      expect(feed.getVisibleConversations(), same(after));
+    } finally {
+      await close(tester);
+    }
+  });
+
+  testWidgets(
+      'follow-up: filtered view recovers after missing more than 64 updates',
+      (tester) async {
+    try {
+      await mount(tester, [
+        folder('visible', ['loaded_0', 'loaded_1'])
+      ]);
+      await select(tester, 'visible');
+      final feed = tester
+          .widget<ConversationFeedBody>(find.byType(ConversationFeedBody));
+      store.applyPatches([row('loaded_1')..draftText = 'initial'],
+          preserveOrder: true, explicitDraftIds: {'c2c_loaded_1'});
+      feed.getVisibleConversations();
+      final structureRevision = store.structureRevision;
+      for (var i = 0; i < 70; i++) {
+        store.applyPatches([row('loaded_1')..draftText = 'update $i'],
+            preserveOrder: true, explicitDraftIds: {'c2c_loaded_1'});
+      }
+      expect(store.structureRevision, structureRevision);
+      final rows = feed.getVisibleConversations();
+      expect(rows, hasLength(2));
+      expect(
+          rows.firstWhere((r) => r.conversationID == 'c2c_loaded_1').draftText,
+          'update 69');
+    } finally {
+      await close(tester);
+    }
+  });
 
   testWidgets(
       'cold folder never claims empty while a later SDK batch is pending',

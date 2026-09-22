@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart';
 import 'package:tencent_cloud_chat_demo/src/chat_session/conversation_projection_reason.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
-import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_flags.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_tab_store.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation.dart';
@@ -22,6 +23,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
+    SharedPreferences.setMockInitialValues({});
+    setupServiceLocator();
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   });

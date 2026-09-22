@@ -1,5 +1,6 @@
 import 'package:tencent_cloud_chat_uikit/ui/utils/background_media_gate.dart';
 import 'dart:async';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_change_journal.dart';
 import 'dart:collection';
 import 'dart:convert';
 import 'package:tencent_cloud_chat_demo/src/services/group_local/group_membership_sync_service.dart';
@@ -160,6 +161,13 @@ class ConversationTabStore extends ChangeNotifier {
   ConversationTabStore._();
 
   static final ConversationTabStore instance = ConversationTabStore._();
+
+  final ConversationChangeJournal _contentChanges = ConversationChangeJournal();
+
+  Set<String>? contentChangesSince(int revision) {
+    flushRealtimePatches();
+    return _contentChanges.changesSince(revision);
+  }
 
   // Only the SDK callback entry buffers work. User mutations and synchronous
   // reads drain it first, so older callbacks cannot overwrite later actions.
@@ -331,6 +339,15 @@ class ConversationTabStore extends ChangeNotifier {
     _displayStructureDirty |= structureChanged;
     _displayChangedIds.addAll(changedIds);
     _contentRevision++;
+    _contentChanges.record(
+      _contentRevision,
+      // SDK aliases can differ from the ID retained by the display snapshot.
+      // Consumers index that retained ID, so publish the accepted row's ID.
+      structureChanged || changedIds.isEmpty
+          ? null
+          : changedIds.map((id) =>
+              conversationForId(id)?.conversationID.trim() ?? id.trim()),
+    );
     if (structureChanged) _structureRevision++;
   }
 
@@ -546,13 +563,18 @@ class ConversationTabStore extends ChangeNotifier {
   bool get _lastNotificationStructureChanged => _notificationStructureChanged;
   set _lastNotificationStructureChanged(bool value) {
     _notificationStructureChanged = value;
-    invalidateDisplay(structureChanged: value);
+    if (value) invalidateDisplay(structureChanged: true);
   }
 
   Set<String> get _lastNotificationChangedIds => _notificationChangedIds;
   set _lastNotificationChangedIds(Set<String> value) {
     _notificationChangedIds = value;
     _displayChangedIds.addAll(value);
+    // Content-only commits publish after their IDs are known. Publishing in
+    // the structure setter would record an unknown delta and force a rebuild.
+    if (!_notificationStructureChanged) {
+      invalidateDisplay(changedIds: value);
+    }
   }
 
   bool get lastNotificationStructureChanged =>
@@ -971,15 +993,15 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   /// 冷启 / Tab 首次：拉第一页（reset）。
-  /// [coldStart] = true 时使用 [coldStartFirstPageSize]（30）减少首次拉取耗时。
+  /// All default first-page callers share one bounded size. Explicit counts
+  /// remain authoritative; later pages retain [defaultPageSize].
   Future<void> ensurePrimed({
     int? convType,
-    int count = defaultPageSize,
+    int? count,
     bool coldStart = false,
     String caller = '',
   }) async {
-    final effectiveCount =
-        coldStart && count == defaultPageSize ? coldStartFirstPageSize : count;
+    final effectiveCount = count ?? coldStartFirstPageSize;
     if (convType != null) {
       final type = _normalizeType(convType);
       // Realtime patches may arrive before the first SDK page. Only an actual
@@ -2571,6 +2593,7 @@ class ConversationTabStore extends ChangeNotifier {
     _pinSortDeferred = false;
     _structureRevision = 0;
     _contentRevision = 0;
+    _contentChanges.reset();
     _primedTypes.clear();
     _failedLoadTypes.clear();
     _sortDirtyTypes.clear();

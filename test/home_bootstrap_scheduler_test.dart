@@ -30,7 +30,7 @@ void main() {
   test('scheduler executes one task at a time and records each attempt', () {
     final source =
         File('lib/src/bootstrap/home_bootstrap.dart').readAsStringSync();
-    expect(source, contains('for (final task in _nativeSideEffectTasks())'));
+    expect(source, contains('for (final task in _nativeSideEffectTasks(identity))'));
     expect(source, contains('await _runWithRetry(task, identity, generation)'));
     expect(source, contains("'home_task_start'"));
     expect(source, contains("'home_task_retry'"));

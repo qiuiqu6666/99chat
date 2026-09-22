@@ -8,6 +8,7 @@ import 'package:tencent_cloud_chat_demo/src/services/active_chat_registry.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_mutation_coordinator.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_tab_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_flags.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_unread_aggregate.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_pin_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/message_conversation_id.dart';
@@ -102,9 +103,20 @@ void main() {
         store.setItemsForTest(
             convType: type,
             items: List.generate(size, (i) => _CountedRow(id(i), type)));
+        // setItemsForTest bypasses production trimming. Establish the actual
+        // retained window before measuring patches to existing rows.
+        store.applyPatches([_row(id(0), type: type, unread: 1)],
+            explicitUnreadIds: {id(0)}, preserveOrder: true, notify: false);
+        final retained = store.countForType(type);
+        expect(retained, size.clamp(0,
+            ConversationPerfFlags.uiAppendOlderEmergencyMaxPerType));
+        expect(store.typeIndexOf(type, id(retained - 1)), retained - 1);
+        if (retained < size) {
+          expect(store.typeIndexOf(type, id(retained)), isNull);
+        }
         _CountedRow.idReads = 0;
         for (var i = 0; i < 100; i++) {
-          final target = (i * 37) % size;
+          final target = (i * 37) % retained;
           store.applyPatches([_row(id(target), type: type)], notify: false);
           expect(store.typeIndexOf(type, id(target)), target);
         }
@@ -114,7 +126,7 @@ void main() {
         expect(noOpReads, lessThan(2000));
         _CountedRow.idReads = 0;
         for (var i = 0; i < 100; i++) {
-          final target = (i * 37) % size;
+          final target = (i * 37) % retained;
           store.applyPatches([_row(id(target), type: type, unread: i + 1)],
               explicitUnreadIds: {id(target)},
               preserveOrder: true,
