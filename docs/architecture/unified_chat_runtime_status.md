@@ -5,7 +5,7 @@
 
 ## 当前交付范围
 
-已实现可测试的运行时基础层。当前只有 shadow 构造入口，尚未连接生产消息流、持久数据库或页面；现有 MessageReconciliationWriter 继续持有业务写入权。本次交付不等于完成统一调度迁移，也不代表现有聊天问题已经根治。
+已实现可测试的运行时基础层及独立持久提交适配器。调度内核当前只有 shadow 构造入口，尚未连接生产消息流、持久数据库或页面；现有 MessageReconciliationWriter 继续持有业务写入权。本次交付不等于完成统一调度迁移，也不代表现有聊天问题已经根治。
 
 | 模块 | 已实现行为 |
 | --- | --- |
@@ -56,6 +56,25 @@ dart analyze --fatal-infos --fatal-warnings third_party/tencent_cloud_chat_uikit
 
 对应日志保存在原工作区 artifacts/chat-full-chain-2026-09-22/runtime-baseline-tests.log 和 runtime-baseline-im-gate.log。新工作树检查日志位于 .dart-appdata/。
 
+
+## 持久提交层（第二批）
+
+已增加 RuntimeCommitCoordinator 和 RuntimeCommitSchema，并以 3 行增量代码注册到 MessageCoreStore 的建表及旧库修复流程。未迁移或删除旧表，未启用第二个生产消息写入者。
+
+- 会话快照、事件去重和效果意图在同一 SQLite 事务内提交；版本冲突、身份冲突或写入失败时整体回滚。
+- 复用 MessageCore 的数据库写入队列与持久租约；事务提交前再次检查租约与账号代次。
+- 清空代次与待执行效果取消一起提交；已发出的操作保留原身份与结果。
+- 效果执行前必须先持久领取唯一 attempt；结果未知不能再次领取或自动重发。
+- 新租约接管后，已领取但未确认的操作进入 unknown；未发送操作保留，需宿主显式复核后才能在新会话领取。
+- 有限分页按 revision、operation 和 kind 游标恢复，不遗漏同一次提交中的多个效果。
+- 已完成事件保留持久去重身份。快照和效果账本尚无归档策略，不应当作完整历史消息存储。
+
+新增 16 项真实 SQLite 测试，覆盖重启、回执丢失、原子失败、租约/账号失效、并发版本竞争、重复领取、迟到结果、跨会话隔离、分页与旧库升级。清空回执丢失测试已验证修复前失败、修复后通过。
+
+当前合并验证：90 项通过（40 项新运行时/持久测试，50 项原有 Writer、MessageCore、IM05、回执兼容测试）。全部新增 Dart 模块和测试严格分析无问题。日志在 .dart-appdata/runtime-combined-tests.log。
+
+此层目前只由测试使用，shadow supervisor 仍不会调用数据库。清空/变更/deferred/读取权威迁移、持久 actor 接入、生产入口切换、页面接入和旧写入入口删除均未完成；第二批交付不等于完整第二阶段或整体根治。
+
 ## 后续迁移门槛
 
 1. 完成基线与性能测量；修复现有门禁自身的问题。
@@ -68,8 +87,8 @@ dart analyze --fatal-infos --fatal-warnings third_party/tencent_cloud_chat_uikit
 
 ## 图分析范围
 
-本工作树单独注册为 99chat-runtime，索引位于 D:\CodexRuntimeIndexes\unified-chat-runtime-20260922，避免原工作区并发改动和系统盘空间不足影响分析。
+本工作树单独注册为 99chat-runtime，当前索引位于 D:\\CodexRuntimeIndexes\\unified-chat-runtime-verified-20260922，避免原工作区并发改动和 Windows 旧索引句柄影响分析。
 
-默认文件大小范围能够覆盖本次所有新增核心与测试。将范围扩到 2048 KB 后，压缩 Web SDK 解析超时；该次索引没有作为编辑依据。现有超大聊天文件的影响分析仍未闭合，默认索引不能用来批准其生产写入切换。后续必须明确处理 SDK 产物的索引策略并核验超大业务文件，不能把 UNKNOWN 或未解析调用视为没有影响。
+本次将索引上限设为 1024 KB，并在 .gitnexusignore 中仅排除四份已确认的压缩 Web SDK 分发包。手写 Web 桥接代码保留。两个超大业务文件 tui_chat_global_model.dart 和 tim_uikit_chat_history_message_list.dart 已在图中定位到真实类与调用者，原有大小过滤缺口已补齐。后续刷新仍须设置 GITNEXUS_MAX_FILE_SIZE=1024，防止默认 512 KB 再次漏掉它们。
 
-索引的全局流程枚举存在截断；本次另行查询具体改动符号，并核对实际调用点。新模块目前只有新增测试引用，没有生产入口。
+全局流程枚举仍存在截断，接口/动态调用也不能完全静态追踪。影响分析必须查询具体目标，并核对实际调用点；不能用全局流程中的缺席或 UNKNOWN 作为零影响证据。新调度内核和持久提交适配器目前仅由测试使用，增量 schema 已接入 MessageCoreStore 的现有启动流程。

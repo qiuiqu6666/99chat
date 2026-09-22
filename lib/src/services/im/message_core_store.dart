@@ -2,6 +2,7 @@ import 'receipt_recovery_compat.dart';
 import 'dart:async';
 
 import 'im_inbox_recovery_query.dart';
+import 'runtime_commit_schema.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:tencent_cloud_chat_demo/src/services/startup_perf_log.dart';
@@ -142,6 +143,7 @@ class MessageCoreStore {
   }
 
   static const _schemaObjects = <String>{
+    ...RuntimeCommitSchema.objects,
     'message_event_inbox',
     'idx_message_event_scope',
     'idx_message_event_recovery_operation',
@@ -165,6 +167,7 @@ class MessageCoreStore {
 
   Future<void> _createSchema(DatabaseExecutor db) async {
     final batch = db.batch();
+    RuntimeCommitSchema.addTo(batch);
     batch.execute('''
       CREATE TABLE IF NOT EXISTS message_event_inbox (
         owner_user_id TEXT NOT NULL,
