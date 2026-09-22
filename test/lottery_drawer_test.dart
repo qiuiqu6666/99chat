@@ -68,8 +68,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     final shell = find.byKey(const ValueKey('lottery-preview-card-shell'));
-    expect((tester.widget<Container>(shell).decoration as BoxDecoration).color,
-        Colors.white);
+    expect(
+        (tester.widget<Container>(shell).decoration as BoxDecoration).gradient,
+        isA<LinearGradient>());
     final loadingSize = tester.getSize(shell);
     expect(loadingSize.height, 160);
     final paintedTop = tester.getTopLeft(shell);
@@ -89,6 +90,14 @@ void main() {
         data: liveFixture(pendingOptions!.path)));
     await tester.pumpAndSettle();
     expect(find.text('最新开奖'), findsOneWidget);
+    final latestCard = tester
+        .widget<Container>(find.byKey(const ValueKey('lottery-latest-card')));
+    expect(latestCard.decoration, isNull, reason: '弹窗预览内容不应再形成第二层卡片');
+    final watermark = find.byKey(const ValueKey('lottery-latest-watermark'));
+    expect(watermark, findsOneWidget);
+    expect(tester.widget<Image>(watermark).image,
+        const AssetImage('assets/lhc/latest_card_watermark.png'));
+    expect(tester.getSize(watermark), const Size(96, 96));
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(tester.getSize(shell), loadingSize);
     await tester.tapAt(const Offset(5, 5));

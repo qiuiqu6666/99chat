@@ -214,17 +214,39 @@ class TestPage extends StatelessWidget {
   Widget build(BuildContext context) => LotteryBackGesture(
           child: Scaffold(
         backgroundColor: lotteryThemeColor(
-            context, const Color(0xFFF2F5F9), AppTokens.backgroundDark),
+            context, const Color(0xFFF3F8FF), AppTokens.backgroundDark),
         appBar: AppBar(
           elevation: 0,
           scrolledUnderElevation: 0,
-          backgroundColor:
-              lotteryThemeColor(context, Colors.white, AppTokens.surfaceDark),
+          toolbarHeight: 52,
+          backgroundColor: lotteryThemeColor(
+              context, const Color(0xFFF4F9FF), AppTokens.surfaceDark),
+          flexibleSpace: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  lotteryThemeColor(
+                      context, const Color(0xFFF7FAFF), AppTokens.surfaceDark),
+                  lotteryThemeColor(
+                      context, const Color(0xFFEAF3FF), AppTokens.surfaceDark),
+                ],
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: lotteryThemeColor(
+                      context, const Color(0xFFE8F0FC), AppTokens.borderDark),
+                ),
+              ),
+            ),
+          ),
           automaticallyImplyLeading: false,
+          leadingWidth: 64,
           leading: Navigator.of(context).canPop()
               ? IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                  color: AppTokens.accent,
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 24),
+                  color: const Color(0xFF1976F3),
                   onPressed: () => Navigator.of(context).pop(),
                 )
               : null,
@@ -254,19 +276,19 @@ class _Brand extends StatelessWidget {
         children: [
           Text('京东微信红包',
               style: TextStyle(
-                  color: lotteryThemeColor(
-                      context, Colors.black, AppTokens.textPrimaryDark),
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5)),
+                  color: lotteryThemeColor(context, const Color(0xFF17243D),
+                      AppTokens.textPrimaryDark),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2)),
           const SizedBox(height: 2),
           Text('极速六合彩',
               style: TextStyle(
-                  color: lotteryThemeColor(context, const Color(0xFF6B7688),
+                  color: lotteryThemeColor(context, const Color(0xFF74839B),
                       AppTokens.textSecondaryDark),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 1)),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.5)),
         ],
       );
 }
@@ -313,12 +335,13 @@ class _TableRow extends StatelessWidget {
         height: header ? 34 : 36,
         decoration: BoxDecoration(
           color: header
-              ? const Color(0xFF292B2E)
+              ? lotteryThemeColor(
+                  context, const Color(0xFFEAF3FF), AppTokens.surfaceAltDark)
               : lotteryThemeColor(context, Colors.white, AppTokens.surfaceDark),
           border: Border(
               bottom: BorderSide(
                   color: lotteryThemeColor(
-                      context, const Color(0xFFB8BBC0), AppTokens.borderDark),
+                      context, const Color(0xFFE7EDF6), AppTokens.borderDark),
                   width: .8)),
         ),
         child: Row(
@@ -387,7 +410,7 @@ class _ResultRow extends StatelessWidget {
         border: Border(
             bottom: BorderSide(
                 color: lotteryThemeColor(
-                    context, const Color(0xFFB8BBC0), AppTokens.borderDark),
+                    context, const Color(0xFFE7EDF6), AppTokens.borderDark),
                 width: .8)),
       ),
       child: Row(
@@ -403,14 +426,14 @@ class _ResultRow extends StatelessWidget {
                             right: BorderSide(
                                 color: lotteryThemeColor(
                                     context,
-                                    const Color(0xFFB8BBC0),
+                                    const Color(0xFFE7EDF6),
                                     AppTokens.borderDark),
                                 width: .8))),
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
                         _NumberBall(result.numberText,
-                            wave: result.waveColor, size: 26),
+                            wave: result.waveColor, size: 28),
                         const SizedBox(width: 2),
                         Text(result.zodiac,
                             style: const TextStyle(fontSize: 11)),
@@ -454,33 +477,45 @@ class _TableCell extends StatelessWidget {
         height: double.infinity,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: background,
           border: Border(
               right: BorderSide(
                   color: lotteryThemeColor(
-                      context, const Color(0xFFB8BBC0), AppTokens.borderDark),
-                  width: .8)),
+                      context, const Color(0xFFE7EDF6), AppTokens.borderDark),
+                  width: .7)),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              text,
-              maxLines: 1,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: header
-                    ? Colors.white
-                    : textColor ??
-                        (background != null
-                            ? const Color(0xFF20242A)
-                            : lotteryThemeColor(
-                                context,
-                                const Color(0xFF20242A),
-                                AppTokens.textPrimaryDark)),
-                fontSize: 12,
-                fontWeight: header || bold ? FontWeight.w700 : FontWeight.w500,
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            padding: EdgeInsets.symmetric(
+                horizontal: background != null || textColor != null ? 5 : 1,
+                vertical: background != null || textColor != null ? 4 : 1),
+            decoration: header || (background == null && textColor == null)
+                ? null
+                : BoxDecoration(
+                    color: background ?? textColor!.withValues(alpha: .09),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                text,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: header
+                      ? lotteryThemeColor(context, const Color(0xFF30415D),
+                          AppTokens.textPrimaryDark)
+                      : background != null
+                          ? Colors.white
+                          : textColor ??
+                              lotteryThemeColor(
+                                  context,
+                                  const Color(0xFF20242A),
+                                  AppTokens.textPrimaryDark),
+                  fontSize: 12,
+                  fontWeight:
+                      header || bold ? FontWeight.w700 : FontWeight.w500,
+                ),
               ),
             ),
           ),

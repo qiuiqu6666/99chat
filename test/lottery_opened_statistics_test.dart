@@ -6,6 +6,30 @@ import 'package:tencent_cloud_chat_demo/src/pages/settings/test_page.dart';
 import 'lottery_live_fixture.dart';
 
 void main() {
+  testWidgets('opened statistics use tinted paired rows on a narrow screen',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const MaterialApp(home: TestPage()));
+    await tester.tap(find.text('已开统计'));
+    await tester.pumpAndSettle();
+
+    final basic = tester.widget<Container>(
+        find.byKey(const ValueKey('opened-statistics-基本类型')));
+    expect((basic.decoration as BoxDecoration).color, const Color(0xFFF1F7FF));
+    expect(
+        tester
+            .getSize(find.byKey(const ValueKey('opened-statistics-基本类型')))
+            .height,
+        lessThan(112));
+    expect(find.text('数据统计'), findsWidgets);
+    expect(find.byKey(const ValueKey('opened-单双-单')), findsOneWidget);
+    expect(find.byKey(const ValueKey('opened-单双-双')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('opened counts exclude closed rounds and use returned attributes',
       (tester) async {
     tester.view.physicalSize = const Size(360, 900);

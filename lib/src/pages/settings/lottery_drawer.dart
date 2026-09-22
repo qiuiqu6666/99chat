@@ -97,12 +97,20 @@ Future<void> showLotteryDrawer(BuildContext context,
                       height: 160,
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
-                        color: lotteryThemeColor(
-                            context, Colors.white, AppTokens.surfaceDark),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            lotteryThemeColor(context, const Color(0xFFFAFCFF),
+                                AppTokens.surfaceDark),
+                            lotteryThemeColor(context, const Color(0xFFF0F6FF),
+                                AppTokens.surfaceDark),
+                          ],
+                        ),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                             color: lotteryThemeColor(context,
-                                const Color(0xFFCED6E1), AppTokens.borderDark)),
+                                const Color(0xFFD8E6FC), AppTokens.borderDark)),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x1F17243D),
@@ -111,29 +119,53 @@ Future<void> showLotteryDrawer(BuildContext context,
                           )
                         ],
                       ),
-                      child: Column(children: [
-                        Expanded(
-                            child: LayoutBuilder(
-                          builder: (context, constraints) =>
-                              SingleChildScrollView(
-                                  child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                                minHeight: constraints.maxHeight),
-                            child: Center(
-                                child: LotteryLatestPreview(gameId: gameId)),
-                          )),
-                        )),
-                        Padding(
-                          padding: EdgeInsets.only(bottom: 8),
-                          child: Text('点击卡片 · 全屏查看开奖记录',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: lotteryThemeColor(
-                                      context,
-                                      const Color(0xFF4B586D),
-                                      AppTokens.textSecondaryDark),
-                                  fontWeight: FontWeight.w500)),
+                      child: Stack(children: [
+                        Positioned(
+                          right: 6,
+                          bottom: 8,
+                          child: IgnorePointer(
+                            child: ExcludeSemantics(
+                              child: Opacity(
+                                opacity: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? 0.14
+                                    : 0.20,
+                                child: Image.asset(
+                                  'assets/lhc/latest_card_watermark.png',
+                                  key: const ValueKey(
+                                      'lottery-latest-watermark'),
+                                  width: 96,
+                                  height: 96,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
+                        Column(children: [
+                          Expanded(
+                              child: LayoutBuilder(
+                            builder: (context, constraints) =>
+                                SingleChildScrollView(
+                                    child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                  minHeight: constraints.maxHeight),
+                              child: Center(
+                                  child: LotteryLatestPreview(gameId: gameId)),
+                            )),
+                          )),
+                          Padding(
+                            padding: EdgeInsets.only(bottom: 8),
+                            child: Text('点击卡片 · 全屏查看开奖记录',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: lotteryThemeColor(
+                                        context,
+                                        const Color(0xFF4B586D),
+                                        AppTokens.textSecondaryDark),
+                                    fontWeight: FontWeight.w500)),
+                          ),
+                        ]),
                       ]),
                     ),
                   ),

@@ -17,9 +17,47 @@ void main() {
       ),
     ));
     expect(tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
-        const Color(0xFFF2F5F9));
+        const Color(0xFFF3F8FF));
+    expect(tester.widget<AppBar>(find.byType(AppBar)).toolbarHeight, 52);
+    expect(tester.widget<AppBar>(find.byType(AppBar)).backgroundColor,
+        const Color(0xFFF4F9FF));
+    expect(tester.widget<Text>(find.text('京东微信红包')).style!.fontWeight,
+        FontWeight.w800);
+    final watermark = find.byKey(const ValueKey('lottery-latest-watermark'));
+    expect(watermark, findsOneWidget);
+    expect(tester.widget<Image>(watermark).image,
+        const AssetImage('assets/lhc/latest_card_watermark.png'));
+    expect(tester.getSize(watermark), const Size(96, 96));
+    expect(
+        tester
+            .widget<Opacity>(find
+                .ancestor(
+                  of: watermark,
+                  matching: find.byType(Opacity),
+                )
+                .first)
+            .opacity,
+        0.20);
+    final latestCard = tester
+        .widget<Container>(find.byKey(const ValueKey('lottery-latest-card')));
+    expect((latestCard.decoration as BoxDecoration).gradient,
+        isA<LinearGradient>());
+    expect(
+        ((latestCard.decoration as BoxDecoration).gradient! as LinearGradient)
+            .colors,
+        [const Color(0xFFFAFCFF), const Color(0xFFF0F6FF)]);
     dark.value = true;
     await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<Opacity>(find
+                .ancestor(
+                  of: watermark,
+                  matching: find.byType(Opacity),
+                )
+                .first)
+            .opacity,
+        0.14);
     expect(tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
         AppTokens.backgroundDark);
     expect(tester.widget<AppBar>(find.byType(AppBar)).backgroundColor,
@@ -63,8 +101,26 @@ void main() {
     dark.value = false;
     await tester.pumpAndSettle();
     expect(tester.widget<AppBar>(find.byType(AppBar)).backgroundColor,
-        Colors.white);
+        const Color(0xFFF4F9FF));
     await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('lottery header and latest card stay compact on a phone',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(const MaterialApp(home: TestPage()));
+
+    expect(
+        tester
+            .getSize(find.byKey(const ValueKey('lottery-latest-card')))
+            .height,
+        lessThan(150));
+    expect(tester.getSize(find.byKey(const ValueKey('lottery-tab-bar'))).height,
+        lessThan(42));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('dark preview shell and expansion stay dark', (tester) async {
@@ -82,7 +138,10 @@ void main() {
     await tester.pumpAndSettle();
     final shell = tester.widget<Container>(
         find.byKey(const ValueKey('lottery-preview-card-shell')));
-    expect((shell.decoration as BoxDecoration).color, AppTokens.surfaceDark);
+    expect(
+        ((shell.decoration as BoxDecoration).gradient! as LinearGradient)
+            .colors,
+        [AppTokens.surfaceDark, AppTokens.surfaceDark]);
     expect(tester.widget<Text>(find.text('点击卡片 · 全屏查看开奖记录')).style!.color,
         AppTokens.textSecondaryDark);
     await tester.tap(find.byKey(const ValueKey('lottery-preview-open')));
