@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'widgets/favorite_editor_icon.dart';
 import 'package:tencent_cloud_chat_demo/src/platform/permission_guard.dart';
 
 import 'package:dio/dio.dart';
@@ -266,87 +267,170 @@ class _FavoriteEditPageState extends State<FavoriteEditPage> {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-
+    final card = AppColors.card(dark: dark);
+    final text = AppColors.text(dark: dark);
+    final secondary = AppColors.subText(dark: dark);
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: AppColors.line(dark: dark)),
+    );
     return Scaffold(
-      backgroundColor: AppColors.background(dark: dark),
+      backgroundColor:
+          dark ? AppColors.background(dark: true) : const Color(0xFFF5F8FF),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: AppColors.card(dark: dark),
+        centerTitle: true,
+        backgroundColor: card,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          color: AppColors.primaryBlue,
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 22),
+          color: secondary,
           onPressed: _saving ? null : () => Navigator.pop(context),
         ),
-        title: Text(
-          widget.isEditing ? TIM_t('编辑收藏') : TIM_t('新建收藏'),
-          style: TextStyle(
-            color: AppColors.text(dark: dark),
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(
-                    TIM_t('保存'),
-                    style: const TextStyle(
-                      color: AppColors.primaryBlue,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: [
-          if (!widget.isEditing) ...[
-            _TypeSelector(
-              type: _type,
-              dark: dark,
-              onChanged: (t) => setState(() => _type = t),
-            ),
-            const SizedBox(height: 16),
-          ],
-          ..._buildTypeFields(dark),
-          const SizedBox(height: 20),
-          Text(
-            TIM_t('备注'),
+        title: Text(widget.isEditing ? TIM_t('编辑收藏') : TIM_t('新建收藏'),
             style: TextStyle(
-              fontSize: 14,
-              color: AppColors.subText(dark: dark),
+                color: text, fontSize: 17, fontWeight: FontWeight.w600)),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 9, 12, 9),
+            child: FilledButton(
+              onPressed: _saving ? null : _save,
+              style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primaryBlue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9)),
+                  padding: const EdgeInsets.symmetric(horizontal: 15)),
+              child: _saving
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : Text(TIM_t('保存'),
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600)),
             ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _remarkController,
-            maxLines: 2,
-            decoration: InputDecoration(
-              hintText: TIM_t('选填，便于在列表中识别'),
-              filled: true,
-              fillColor: AppColors.card(dark: dark),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: AppColors.line(dark: dark)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: AppColors.line(dark: dark)),
-              ),
-            ),
-            style: TextStyle(color: AppColors.text(dark: dark)),
-          ),
+          )
         ],
       ),
+      body: SafeArea(
+          top: false,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: AbsorbPointer(
+                  absorbing: _saving,
+                  child: ListView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+                    children: [
+                      if (!widget.isEditing) ...[
+                        _TypeSelector(
+                            type: _type,
+                            dark: dark,
+                            onChanged: (t) => setState(() => _type = t)),
+                        const SizedBox(height: 16),
+                      ],
+                      ..._buildTypeFields(dark),
+                      const SizedBox(height: 20),
+                      Row(children: [
+                        Text(TIM_t('备注'),
+                            style: TextStyle(
+                                fontSize: 15,
+                                color: text,
+                                fontWeight: FontWeight.w500)),
+                        const SizedBox(width: 12),
+                        Text(TIM_t('选填'),
+                            style: TextStyle(fontSize: 12, color: secondary)),
+                      ]),
+                      const SizedBox(height: 10),
+                      TextField(
+                        key: const ValueKey('favorite-remark'),
+                        controller: _remarkController,
+                        minLines: 1,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          hintText: TIM_t('添加备注，便于在列表中识别…'),
+                          hintStyle: TextStyle(fontSize: 14, color: secondary),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 17),
+                          filled: true,
+                          fillColor: card,
+                          border: border,
+                          enabledBorder: border,
+                          focusedBorder: border.copyWith(
+                              borderSide: const BorderSide(
+                                  color: AppColors.primaryBlue)),
+                        ),
+                        style: TextStyle(fontSize: 14, color: text),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                            color: AppColors.primaryBlue
+                                .withValues(alpha: dark ? .12 : .045),
+                            borderRadius: BorderRadius.circular(14)),
+                        child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const FavoriteEditorIcon('tip',
+                                  size: 28, color: AppColors.primaryBlue),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                    Text(TIM_t('小提示'),
+                                        style: const TextStyle(
+                                            color: AppColors.primaryBlue,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                        TIM_t('记录笔记，或选择图片、视频进行收藏。添加备注，方便以后查找。'),
+                                        style: TextStyle(
+                                            color: secondary,
+                                            fontSize: 12,
+                                            height: 1.5)),
+                                  ])),
+                            ]),
+                      ),
+                      const SizedBox(height: 28),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                              colors: [Color(0xFF50BCFF), Color(0xFF348CFF)]),
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                                color: AppColors.primaryBlue
+                                    .withValues(alpha: .15),
+                                blurRadius: 18,
+                                offset: const Offset(0, 6))
+                          ],
+                        ),
+                        child: FilledButton(
+                          onPressed: _saving ? null : _save,
+                          style: FilledButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: const StadiumBorder()),
+                          child: Text(_saving ? TIM_t('保存中…') : TIM_t('保存收藏'),
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                    ],
+                  )),
+            ),
+          )),
     );
   }
 
@@ -354,28 +438,42 @@ class _FavoriteEditPageState extends State<FavoriteEditPage> {
     switch (_type) {
       case FavoriteMessageType.text:
         return [
-          TextField(
-            controller: _textController,
-            maxLines: 12,
-            minLines: 6,
-            decoration: InputDecoration(
-              hintText: TIM_t('输入笔记内容'),
-              filled: true,
-              fillColor: AppColors.card(dark: dark),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: AppColors.line(dark: dark)),
+          Container(
+            decoration: BoxDecoration(
+                color: AppColors.card(dark: dark),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.line(dark: dark))),
+            padding: const EdgeInsets.all(16),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              TextField(
+                key: const ValueKey('favorite-note'),
+                controller: _textController,
+                minLines: 8,
+                maxLines: 14,
+                decoration: InputDecoration(
+                  hintText: TIM_t('请输入笔记内容…'),
+                  hintStyle: TextStyle(
+                      fontSize: 16, color: AppColors.subText(dark: dark)),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                style: TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                    color: AppColors.text(dark: dark)),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: AppColors.line(dark: dark)),
+              const SizedBox(height: 12),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _textController,
+                builder: (_, value, __) => Text(
+                    '${value.text.characters.length}',
+                    style: TextStyle(
+                        fontSize: 12, color: AppColors.subText(dark: dark))),
               ),
-            ),
-            style: TextStyle(
-              fontSize: 16,
-              height: 1.5,
-              color: AppColors.text(dark: dark),
-            ),
+            ]),
           ),
         ];
       case FavoriteMessageType.image:
@@ -383,8 +481,9 @@ class _FavoriteEditPageState extends State<FavoriteEditPage> {
         return [
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: AspectRatio(
-              aspectRatio: 1,
+            child: SizedBox(
+              height: (MediaQuery.sizeOf(context).shortestSide * .42)
+                  .clamp(120.0, 180.0),
               child: FavoriteMediaPreview(
                 pathOrUrl: preview,
                 dark: dark,
@@ -402,8 +501,9 @@ class _FavoriteEditPageState extends State<FavoriteEditPage> {
         return [
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
+            child: SizedBox(
+              height: (MediaQuery.sizeOf(context).shortestSide * .42)
+                  .clamp(120.0, 180.0),
               child: _buildVideoPreview(dark),
             ),
           ),
@@ -520,43 +620,65 @@ class _TypeSelector extends StatelessWidget {
 
   Widget _chip(FavoriteMessageType value, String label, IconData icon) {
     final selected = type == value;
+    final subtitle = switch (value) {
+      FavoriteMessageType.text => TIM_t('记录文字内容'),
+      FavoriteMessageType.image => TIM_t('保存图片内容'),
+      FavoriteMessageType.video => TIM_t('保存视频内容'),
+    };
     return Expanded(
+        child: Semantics(
+      button: true,
+      selected: selected,
       child: Material(
         color: selected
-            ? AppColors.primaryBlue.withValues(alpha: 0.12)
+            ? (dark ? const Color(0xFF1E3552) : const Color(0xFFE9F3FF))
             : AppColors.card(dark: dark),
-        borderRadius: BorderRadius.circular(10),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(
+                color:
+                    selected ? const Color(0xFFB9DAFF) : Colors.transparent)),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => onChanged(value),
-          borderRadius: BorderRadius.circular(10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Column(
-              children: [
-                Icon(
-                  icon,
-                  size: 22,
-                  color: selected
-                      ? AppColors.primaryBlue
-                      : AppColors.subText(dark: dark),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: selected
-                        ? AppColors.primaryBlue
-                        : AppColors.text(dark: dark),
-                  ),
-                ),
-              ],
+          child: Stack(children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 5),
+              child: SizedBox(
+                  width: double.infinity,
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    FavoriteEditorIcon('type_${value.name}', size: 32),
+                    const SizedBox(height: 8),
+                    Text(label,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text(dark: dark))),
+                    const SizedBox(height: 4),
+                    Text(subtitle,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 11,
+                            height: 1.3,
+                            color: AppColors.subText(dark: dark))),
+                  ])),
             ),
-          ),
+            if (selected)
+              const Positioned(
+                  top: 7,
+                  right: 7,
+                  child: DecoratedBox(
+                      decoration: BoxDecoration(
+                          color: AppColors.primaryBlue, shape: BoxShape.circle),
+                      child: Padding(
+                          padding: EdgeInsets.all(2),
+                          child: Icon(Icons.check_rounded,
+                              size: 11, color: Colors.white)))),
+          ]),
         ),
       ),
-    );
+    ));
   }
 }
 
