@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_videoplayer.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_chrome.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_video_chrome.dart';
 
 class _Controller extends ChangeNotifier {
@@ -322,13 +323,15 @@ void main() {
     for (final action in ['forward', 'save', 'delete']) {
       final button = find.byKey(ValueKey('video-inline-$action'));
       expect(button, findsOneWidget);
-      final iconButton = tester.widget<IconButton>(button);
-      expect(iconButton.tooltip, isNotEmpty);
+      expect(tester.widget<MediaPreviewCircleButton>(button).icon, isNotNull);
+      final tooltip = tester.widget<Tooltip>(
+          find.ancestor(of: button, matching: find.byType(Tooltip)).first);
+      expect(tooltip.message, isNotEmpty);
       final material = tester.widget<Material>(
-          find.ancestor(of: button, matching: find.byType(Material)).first);
+          find.descendant(of: button, matching: find.byType(Material)).first);
       expect(material.shape, isA<CircleBorder>());
-      expect(material.color, const Color(0xFF383838));
-      expect(tester.getSize(button), const Size(48, 48));
+      expect(material.color, Colors.black.withValues(alpha: 0.45));
+      expect(tester.getSize(button), const Size(40, 40));
       expect(tester.getRect(button).bottom, lessThanOrEqualTo(810));
       await tester.tap(button);
       await tester.pump();
@@ -339,10 +342,65 @@ void main() {
         tester.getCenter(find.byKey(const ValueKey('video-inline-save')));
     final deleteCenter =
         tester.getCenter(find.byKey(const ValueKey('video-inline-delete')));
-    expect(saveCenter.dx - forwardCenter.dx, closeTo(60, 1));
-    expect(deleteCenter.dx - saveCenter.dx, closeTo(60, 1));
-    expect(saveCenter.dx, closeTo(195, 1));
+    expect(saveCenter.dx - forwardCenter.dx, closeTo(44, 1));
+    expect(deleteCenter.dx - saveCenter.dx, closeTo(44, 1));
+    expect(
+        tester.getRect(find.byKey(const ValueKey('video-inline-delete'))).right,
+        closeTo(378, 1));
     expect(called, ['forward', 'save', 'delete']);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('landscape video actions stay inside the right safe area',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(812, 375);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await mount(
+      tester,
+      playerKey: GlobalKey<TIMUIKitVideoPlayerState>(),
+      chromeKey: GlobalKey<MediaPreviewVideoChromeState>(),
+      playing: false,
+      insets: const EdgeInsets.only(left: 44, right: 44, bottom: 21),
+      onForward: () async {},
+      onSave: () async {},
+      onDelete: () async {},
+    );
+    final deleteButton = find.byKey(const ValueKey('video-inline-delete'));
+    expect(tester.getRect(deleteButton).right, closeTo(756, 1));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('video save animates while waiting for completion',
+      (tester) async {
+    final save = Completer<void>();
+    var calls = 0;
+    await mount(
+      tester,
+      playerKey: GlobalKey<TIMUIKitVideoPlayerState>(),
+      chromeKey: GlobalKey<MediaPreviewVideoChromeState>(),
+      onSave: () {
+        calls++;
+        return save.future;
+      },
+    );
+
+    await tester.tap(find.byKey(const ValueKey('video-inline-save')));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(calls, 1);
+    expect(find.byKey(const ValueKey('video-save-loading')), findsOneWidget);
+    expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
+    await tester.pump(const Duration(seconds: 4));
+    expect(opacity(tester), 1);
+
+    save.complete();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byKey(const ValueKey('video-save-loading')), findsNothing);
+    expect(find.byKey(const ValueKey('video-inline-save')), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });

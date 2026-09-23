@@ -456,6 +456,16 @@ Future<void> saveNetworkVideoFile(
             ]));
     overlay.insert(loadingEntry!);
   }
+  final loadingStartedAt = DateTime.now();
+  Future<void> finishLoading() async {
+    final remaining = const Duration(milliseconds: 400) -
+        DateTime.now().difference(loadingStartedAt);
+    if (remaining > Duration.zero) {
+      await Future<void>.delayed(remaining);
+    }
+    hideLoading();
+  }
+
   Directory? downloadDirectory;
   try {
     await WidgetsBinding.instance.endOfFrame;
@@ -490,10 +500,11 @@ Future<void> saveNetworkVideoFile(
     debugPrint(
         '[VideoSave] stage=complete success=${saveVideoResultSuccess(result)}');
     if (!context.mounted) return;
-    hideLoading();
+    await finishLoading();
+    if (!context.mounted) return;
     notifySaveVideoResult(context, success: saveVideoResultSuccess(result));
   } catch (error) {
-    hideLoading();
+    await finishLoading();
     debugPrint('Video save failed: ${error.runtimeType}');
     if (context.mounted) notifySaveVideoResult(context, success: false);
   } finally {

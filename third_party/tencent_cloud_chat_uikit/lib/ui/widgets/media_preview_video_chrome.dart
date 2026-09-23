@@ -6,6 +6,7 @@ import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_videoplayer.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_video_progress_bar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_chrome.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_preview_video_utils.dart';
 
 /// Shared by single-video and mixed-media previews. Only the controls fade;
 /// the video texture stays outside this subtree.
@@ -56,6 +57,7 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
   bool _visible = true;
   bool _scrubbing = false;
   bool _menuOpen = false;
+  bool _saving = false;
   bool _foreground = true;
 
   @override
@@ -73,6 +75,10 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
     if (oldWidget.playerKey != widget.playerKey) {
       _scrubbing = false;
       _visible = true;
+    }
+    if (oldWidget.playerKey != widget.playerKey ||
+        oldWidget.galleryIndicator != widget.galleryIndicator) {
+      _saving = false;
     }
     if (oldWidget.isPlaying != widget.isPlaying ||
         oldWidget.isReady != widget.isReady ||
@@ -139,6 +145,20 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
         _menuOpen = false;
         showControls();
       }
+    }
+  }
+
+  Future<void> _runSave(Future<void> Function() action) async {
+    if (_menuOpen || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await _runAction(action);
+    } catch (error) {
+      debugPrint(
+          '[VideoSave] stage=preview_action_failed type=${error.runtimeType}');
+      if (mounted) notifySaveVideoResult(context, success: false);
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -251,24 +271,24 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
               ),
               if (hasActions)
                 Positioned(
-                  left: insets.left + 20,
-                  right: insets.right + 20,
-                  bottom: insets.bottom + 8,
+                  left: insets.left + 12,
+                  right: insets.right + 12,
+                  bottom: insets.bottom + 16,
                   child: Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 12,
+                    alignment: WrapAlignment.end,
+                    spacing: 4,
                     children: [
                       if (widget.onForward != null)
                         _actionButton(
                           id: 'forward',
-                          icon: CupertinoIcons.arrowshape_turn_up_right_fill,
+                          icon: Icons.ios_share_rounded,
                           label: TIM_t('转发'),
                           action: widget.onForward!,
                         ),
                       if (widget.onSave != null)
                         _actionButton(
                           id: 'save',
-                          icon: CupertinoIcons.square_arrow_down_fill,
+                          icon: Icons.download_rounded,
                           label: TIM_t('保存'),
                           action: widget.onSave!,
                         ),
@@ -295,18 +315,33 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
     required String label,
     required Future<void> Function() action,
   }) {
-    return Material(
-      color: const Color(0xFF383838),
-      shape: const CircleBorder(),
-      child: IconButton(
-        key: ValueKey('video-inline-$id'),
-        tooltip: label,
-        onPressed: () => _runAction(action),
-        color: Colors.white,
-        iconSize: 23,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
-        icon: Icon(icon),
+    final saving = id == 'save' && _saving;
+    return Tooltip(
+      message: saving ? TIM_t('正在保存视频…') : label,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 160),
+        child: saving
+            ? Material(
+                key: const ValueKey('video-save-loading'),
+                color: Colors.black.withValues(alpha: 0.45),
+                shape: const CircleBorder(),
+                child: const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Center(
+                    child: CupertinoActivityIndicator(
+                      radius: 9,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              )
+            : MediaPreviewCircleButton(
+                key: ValueKey('video-inline-$id'),
+                icon: icon,
+                onPressed: () => unawaited(
+                    id == 'save' ? _runSave(action) : _runAction(action)),
+              ),
       ),
     );
   }
