@@ -179,7 +179,6 @@ class _AddFriendPageState extends State<AddFriendPage> {
 
   V2TimUserFullInfo? _userInfo;
   String _sdkFaceUrl = '';
-  bool _loadingUserInfo = true;
   bool _adding = false;
   bool _checkingCardPolicy = false;
   bool _cardAddBlocked = false;
@@ -408,11 +407,9 @@ class _AddFriendPageState extends State<AddFriendPage> {
     if (widget.useLocalProfile &&
         widget.initialUserInfo != null &&
         _isUsablePublicNick(widget.initialUserInfo?.nickName)) {
-      if (mounted) setState(() => _loadingUserInfo = false);
       return;
     }
     if (widget.userID.isEmpty) {
-      if (mounted) setState(() => _loadingUserInfo = false);
       return;
     }
 
@@ -444,7 +441,6 @@ class _AddFriendPageState extends State<AddFriendPage> {
     setState(() {
       _userInfo = loaded;
       _sdkFaceUrl = faceUrl;
-      _loadingUserInfo = false;
     });
   }
 
@@ -1408,9 +1404,7 @@ class _AddFriendPageState extends State<AddFriendPage> {
           fit: StackFit.expand,
           clipBehavior: Clip.none,
           children: [
-            _loadingUserInfo
-                ? const Center(child: CircularProgressIndicator())
-                : _buildProfileBody(
+            _buildProfileBody(
                     i18n: i18n,
                     showName: showName,
                     presenceTitle: presenceTitle,
@@ -1422,7 +1416,7 @@ class _AddFriendPageState extends State<AddFriendPage> {
                     dividerColor: dividerColor,
                     primaryColor: primaryColor,
                   ),
-            if (!_loadingUserInfo && _shouldShowGameLedger())
+            if (_shouldShowGameLedger())
               UserProfileGameLedgerFloatingEntry(
                 theme: theme,
                 onOpenLedger: _openGameLedger,
@@ -1468,22 +1462,6 @@ class _AddFriendPageState extends State<AddFriendPage> {
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             scrolledUnderElevation: 0,
-            actions: [
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_horiz_rounded, color: titleColor),
-                onSelected: (_) => unawaited(_copyDisplayUserID()),
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                      value: 'copy',
-                      child: Text(i18n.t(
-                          zhHans: '复制用户ID',
-                          zhHant: '複製使用者ID',
-                          en: 'Copy user ID',
-                          ja: 'IDをコピー',
-                          ko: 'ID 복사')))
-                ],
-              ),
-            ],
           ),
           body: body,
         );

@@ -6,6 +6,7 @@ import 'package:tencent_cloud_chat_demo/utils/media_url_resolver.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/desktop_media_preview_hook.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/desktop_media_preview_payload.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class MomentsVideoPlayerPage extends StatefulWidget {
   const MomentsVideoPlayerPage({
@@ -134,6 +135,7 @@ class _MomentsVideoPlayerPageState extends State<MomentsVideoPlayerPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        leading: const AppBackButton(),
         backgroundColor: Colors.black,
         surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.white),

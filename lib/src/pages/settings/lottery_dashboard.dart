@@ -152,11 +152,45 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
   bool specialDragon = true;
   bool openedDragon = false;
   bool hotFirst = true;
+  String _downloadUrl = '';
+  bool _downloadUrlLoading = true;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_loadMorePredictions);
+    if (!widget.previewOnly) {
+      unawaited(_loadDownloadUrl());
+    }
+  }
+
+  Future<void> _loadDownloadUrl() async {
+    try {
+      final contact = await PlatformApi.instance.fetchContact();
+      if (!mounted) return;
+      setState(() {
+        _downloadUrl = contact.downloadUrl.trim().isNotEmpty
+            ? contact.downloadUrl.trim()
+            : contact.website.trim();
+        _downloadUrlLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _downloadUrlLoading = false);
+    }
+  }
+
+  Future<void> _copyDownloadUrl() async {
+    if (_downloadUrl.isEmpty) {
+      unawaited(_loadDownloadUrl());
+      return;
+    }
+    try {
+      await ClipboardGuard.copy(_downloadUrl);
+      if (mounted) ToastUtils.toast('下载链接已复制', context: context);
+    } catch (_) {
+      if (mounted) ToastUtils.toast('复制失败，请重试', context: context);
+    }
   }
 
   @override
@@ -169,18 +203,11 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
     if (tab != 0 || !_scrollController.hasClients || !_predictionPageArmed) {
       return;
     }
-    if (_scrollController.position.extentAfter > 120) {
+    final total = widget.live?.predictions.length ?? _results.length + 1;
+    if (_visiblePredictions >= total ||
+        _scrollController.position.extentAfter > 120) {
       return;
     }
-    final live = widget.live;
-    if (live != null) {
-      if (!live.predictionHasMore || live.predictionLoadingMore) return;
-      _predictionPageArmed = false;
-      unawaited(live.loadMorePredictions());
-      return;
-    }
-    final total = _results.length + 1;
-    if (_visiblePredictions >= total) return;
     final next = _visiblePredictions + 20;
     _predictionPageArmed = false;
     setState(() => _visiblePredictions = next > total ? total : next);
@@ -607,6 +634,60 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
                                         TextStyle(fontSize: 14, height: 1.55)),
                               ]),
                         ]),
+                      ),
+                      const SizedBox(height: 14),
+                      Material(
+                        color: lotteryThemeColor(context,
+                            const Color(0xFFF2F8FF), AppTokens.surfaceAltDark),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          key: const ValueKey('lottery-app-download-link'),
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: _downloadUrlLoading ? null : _copyDownloadUrl,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            child: Row(children: [
+                              const Icon(Icons.download_rounded,
+                                  color: _blue, size: 23),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('下载 App',
+                                          style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700)),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        _downloadUrlLoading
+                                            ? '正在获取下载链接…'
+                                            : _downloadUrl.isEmpty
+                                                ? '暂无下载链接，点击重试'
+                                                : _downloadUrl,
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: _downloadUrl.isEmpty
+                                                ? lotteryThemeColor(
+                                                    context,
+                                                    const Color(0xFF8291A8),
+                                                    AppTokens.textSecondaryDark)
+                                                : _blue),
+                                      ),
+                                    ]),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(Icons.copy_rounded,
+                                  size: 18,
+                                  color: lotteryThemeColor(
+                                      context,
+                                      const Color(0xFF6B84A8),
+                                      AppTokens.textSecondaryDark)),
+                            ]),
+                          ),
+                        ),
                       ),
                     ],
                   )),
@@ -1792,13 +1873,13 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (live.predictionMode == 'backtest') const Text('回测结果，并非开奖前已发布预测'),
-      for (final row in live.predictions)
+      for (final row in live.predictions.take(_visiblePredictions))
         Builder(builder: (context) {
           final issue = '${row['issue']}';
           final draw = live.draws.firstWhere(
               (item) => '${item['issue']}' == issue,
               orElse: () => <String, dynamic>{});
-          final openAt = draw['openAt'];
+          final drawAt = draw['status'] == 'drawn' ? draw['drawAt'] : null;
           final predictionItems = (row['items'] as List? ?? [])
               .whereType<Map>()
               .where((item) =>
@@ -1840,7 +1921,7 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
                 const SizedBox(width: 3),
                 Flexible(
                     child: Text(
-                        '预计开盘时间：${openAt is int ? live.formatTime(openAt) : '待公布'}',
+                        '开奖时间：${drawAt is int ? live.formatTime(drawAt) : '待公布'}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -1941,15 +2022,6 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
             ]),
           );
         }),
-      if (live.predictionLoadingMore)
-        const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      if (live.predictionPageError != null)
-        Center(
-          child: TextButton(
-            onPressed: live.loadMorePredictions,
-            child: Text(live.predictionPageError!),
-          ),
-        ),
     ]);
   }
 

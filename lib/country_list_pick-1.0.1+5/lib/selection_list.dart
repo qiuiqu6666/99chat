@@ -396,7 +396,7 @@ class _SelectionListState extends State<SelectionList> {
                 .round().clamp(0, _alphabet.length - 1);
         _text = _alphabet[posSelected];
         if (_text != _oldtext) {
-          HapticFeedback.selectionClick();
+          HapticFeedback.lightImpact();
           final target = _firstCountryIndexForLetter(_text.toString());
           if (target >= 0) {
             _jumpToCountryIndex(target);

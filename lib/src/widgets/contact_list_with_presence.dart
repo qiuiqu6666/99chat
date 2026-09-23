@@ -144,11 +144,10 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
     if (widget.friends == null) {
       ImSdkRelationshipDirectory.instance.addListener(_onDirectoryChange);
     }
+    _refreshContactProjection(notify: false);
     if (widget.friends == null &&
         ImSdkRelationshipDirectory.instance.hasCompleteFriendSnapshot) {
       unawaited(_pumpDirectoryProjection(notifyFirstBatch: false));
-    } else {
-      _refreshContactProjection(notify: false);
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -189,21 +188,27 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
     if (!enabled) {
       _presenceDebounceTimer?.cancel();
       _projectionSettleTimer?.cancel();
+      _scrolling = false;
       _lastPresenceEnsureKey = null;
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_workEnabled) return;
-      if (_directoryNeedsPump || _shouldPumpDirectory()) {
-        _directoryNeedsPump = false;
-        _projectionPending = false;
-        unawaited(_pumpDirectoryProjection());
-      } else if (_projectionPending) {
-        _projectionPending = false;
-        _refreshContactProjection(force: true);
-      }
+      _flushPendingDirectoryProjection();
       _prefetchFirstScreenPresence();
     });
+  }
+
+  void _flushPendingDirectoryProjection() {
+    if (!_workEnabled || _scrolling) return;
+    final refresh = _projectionPending;
+    final pump = _directoryNeedsPump || _shouldPumpDirectory();
+    _projectionPending = false;
+    _directoryNeedsPump = false;
+    // Rebuild from the updated materialized rows before appending new friends.
+    // Otherwise a deletion made under another route stays in the cached AZ rows.
+    if (refresh) _refreshContactProjection(force: true);
+    if (pump) unawaited(_pumpDirectoryProjection());
   }
 
   @override
@@ -264,6 +269,7 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
       return;
     }
     if (!_workEnabled || _scrolling) {
+      _applyDirectoryIncremental(change, deferProjection: true);
       _projectionPending = true;
       if (change.snapshotCompleted || change.addedIds.isNotEmpty) {
         _directoryNeedsPump = true;
@@ -291,6 +297,7 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
 
   Future<void> _pumpDirectoryProjection({bool notifyFirstBatch = true}) async {
     if (_directoryPumping) {
+      _directoryNeedsPump = true;
       return;
     }
     _directoryPumping = true;
@@ -345,10 +352,17 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
     } finally {
       _directoryPumping = false;
       _ensureVisibleProfiles();
+      if (_directoryNeedsPump && mounted && _workEnabled && !_scrolling) {
+        _directoryNeedsPump = false;
+        unawaited(_pumpDirectoryProjection());
+      }
     }
   }
 
-  void _applyDirectoryIncremental(RelationshipDirectoryChange change) {
+  void _applyDirectoryIncremental(
+    RelationshipDirectoryChange change, {
+    bool deferProjection = false,
+  }) {
     final directory = ImSdkRelationshipDirectory.instance;
     var mutated = false;
     for (final id in change.removedIds) {
@@ -388,6 +402,7 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
         mutated = true;
       }
     }
+    if (deferProjection) return;
     if (mutated && _cachedShowList != null) {
       _refreshContactProjection(force: true);
     }
@@ -405,11 +420,13 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
     final current = (_cachedShowList ?? const <ISuspensionBeanImpl>[])
         .where((row) => row.memberInfo is! TopListItem)
         .toList();
+    final accepted = <V2TimFriendInfo>[];
     final starred = StarredFriendProvider.shared;
     for (final item in added) {
       if (widget.filterItem != null && !widget.filterItem!(item)) {
         continue;
       }
+      accepted.add(item);
       final isStarred = starred.isStarred(item.userID);
       final bean = ISuspensionBeanImpl(
         memberInfo: item,
@@ -459,6 +476,9 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
         current.insert(i, bean);
       }
     }
+    // The build path uses this list for the empty state and contact count.
+    // Keep it in sync when rows arrive through staged directory projection.
+    _filteredFriends = <V2TimFriendInfo>[..._filteredFriends, ...accepted];
     _cachedShowList = current;
     _composeContactEntries();
     if (notify && mounted) {
@@ -721,9 +741,8 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
       return;
     }
     final ttlMs = PresenceProvider.softFetchTtl.inMilliseconds;
-    final bucket = ttlMs <= 0
-        ? 0
-        : DateTime.now().millisecondsSinceEpoch ~/ ttlMs;
+    final bucket =
+        ttlMs <= 0 ? 0 : DateTime.now().millisecondsSinceEpoch ~/ ttlMs;
     final idsKey = userIds.length <= 3
         ? userIds.join('|')
         : '${userIds.length}:${userIds.first}:${userIds.last}:${userIds[userIds.length ~/ 2]}';
@@ -1102,14 +1121,7 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
                   Timer(const Duration(milliseconds: 120), () {
                 if (!mounted) return;
                 _scrolling = false;
-                if (_directoryNeedsPump || _shouldPumpDirectory()) {
-                  _directoryNeedsPump = false;
-                  _projectionPending = false;
-                  unawaited(_pumpDirectoryProjection());
-                } else if (_projectionPending) {
-                  _projectionPending = false;
-                  _refreshContactProjection(force: true);
-                }
+                _flushPendingDirectoryProjection();
               });
             }
             return false;

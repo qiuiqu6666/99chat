@@ -13,6 +13,7 @@ import 'wallet_order_events.dart';
 import 'wallet_pending_filters.dart';
 import 'wallet_pending_recovery_service.dart';
 import 'wallet_pending_store.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class WalletPendingListScreen extends StatefulWidget {
   const WalletPendingListScreen({super.key});
@@ -136,6 +137,7 @@ class _WalletPendingListScreenState extends State<WalletPendingListScreen> {
       Scaffold(
       backgroundColor: cs.bg,
       appBar: AppBar(
+        leading: const AppBackButton(),
         backgroundColor: cs.bg,
         elevation: 0,
         scrolledUnderElevation: 0,

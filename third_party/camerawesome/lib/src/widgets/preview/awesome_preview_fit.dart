@@ -146,22 +146,23 @@ class PreviewFitWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final transformController = TransformationController()
-      ..value = (Matrix4.identity()..scale(scale));
+    final fit = switch (previewFit) {
+      CameraPreviewFit.fitWidth => BoxFit.fitWidth,
+      CameraPreviewFit.fitHeight => BoxFit.fitHeight,
+      CameraPreviewFit.contain => BoxFit.contain,
+      CameraPreviewFit.cover => BoxFit.cover,
+    };
 
-    return Align(
-      alignment: alignment,
-      child: SizedBox(
-        height: previewSize.height * scale,
-        child: Padding(
-          padding: previewPadding ?? EdgeInsets.zero,
-          child: InteractiveViewer(
+    return SizedBox(
+      width: constraints.maxWidth,
+      height: constraints.maxHeight,
+      child: Padding(
+        padding: previewPadding ?? EdgeInsets.zero,
+        child: ClipRect(
+          child: FittedBox(
             key: previewWidgetKey,
-            transformationController: transformController,
-            scaleEnabled: false,
-            constrained: false,
-            panEnabled: false,
-            clipBehavior: Clip.antiAlias,
+            fit: fit,
+            alignment: alignment,
             child: SizedBox(
               width: previewSize.width,
               height: previewSize.height,

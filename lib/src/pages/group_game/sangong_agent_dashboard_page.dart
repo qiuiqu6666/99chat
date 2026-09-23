@@ -6,6 +6,7 @@ import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart
 import 'package:tencent_cloud_chat_demo/src/models/agent_rebate_models.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/group_game/sangong_agent_member_detail_page.dart';
 import 'package:tencent_cloud_chat_demo/utils/dio_error_message.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class SangongAgentDashboardPage extends StatefulWidget {
   const SangongAgentDashboardPage({super.key, this.imGroupId = ''});
@@ -108,6 +109,7 @@ class _SangongAgentDashboardPageState extends State<SangongAgentDashboardPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FC),
       appBar: AppBar(
+        leading: const AppBackButton(),
         title:
             const Text('团队统计', style: TextStyle(fontWeight: FontWeight.w700)),
         centerTitle: true,

@@ -7,6 +7,7 @@ import 'package:tencent_cloud_chat_demo/src/pages/group_game/sangong_agent_membe
 import 'package:tencent_cloud_chat_demo/src/widgets/app_dialog.dart';
 import 'package:tencent_cloud_chat_demo/utils/dio_error_message.dart';
 import 'package:tencent_cloud_chat_demo/utils/toast.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class SangongAgentTeamPage extends StatefulWidget {
   const SangongAgentTeamPage({super.key});
@@ -144,7 +145,8 @@ class _SangongAgentTeamPageState extends State<SangongAgentTeamPage> {
   Widget build(BuildContext context) {
     final data = _data;
     return Scaffold(
-      appBar: AppBar(title: const Text('查询下级')),
+      appBar: AppBar(
+        leading: const AppBackButton(),title: const Text('查询下级')),
       body: Column(
         children: [
           Padding(

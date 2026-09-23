@@ -33,7 +33,8 @@ class CallBubbleInsertService {
       return false;
     }
     final canonicalRecord = CallResultRepository.instance.get(callId) ?? record;
-    if (!canonicalRecord.effectiveStatus.isTerminal) {
+    if (!canonicalRecord.effectiveStatus.isTerminal ||
+        !CallResultRepository.instance.isBubbleVisible(canonicalRecord)) {
       return false;
     }
     final bubble = buildTerminalBubbleMessage(canonicalRecord);
@@ -66,7 +67,10 @@ class CallBubbleInsertService {
     // CallResultRepository.save() enforces monotonic lifecycle rank. Project
     // that record so a delayed invite/accept cannot replace an ended row.
     final canonicalRecord = CallResultRepository.instance.get(callId) ?? record;
-    if (!canonicalRecord.effectiveStatus.isTerminal) return false;
+    if (!canonicalRecord.effectiveStatus.isTerminal ||
+        !CallResultRepository.instance.isBubbleVisible(canonicalRecord)) {
+      return false;
+    }
     final bubble = buildTerminalBubbleMessage(canonicalRecord);
     if (bubble == null) return false;
     final changed = LocalMessageOverlayStore.instance.upsert(

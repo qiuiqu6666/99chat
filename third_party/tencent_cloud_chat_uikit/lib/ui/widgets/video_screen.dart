@@ -865,18 +865,12 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
     final player = _playerKey.currentState;
     await showMediaPreviewVideoActions(
       context: context,
-      playbackSpeed: player?.playbackSpeed ?? 1,
       onDownload: _saveVideo,
       onForward: _currentItem.forwardFn ?? widget.forwardFn,
       onDelete: (_currentItem.deleteFn ?? widget.deleteFn) == null
           ? null
           : _handleDelete,
       onOpenMedia: null,
-      onSpeedChanged: (speed) async {
-        if (mounted && !_closing && player == _playerKey.currentState) {
-          await player?.setPlaybackSpeed(speed);
-        }
-      },
       onPictureInPicture: Platform.isAndroid
           ? () async {
               final ok = await player?.enablePictureInPicture();

@@ -609,10 +609,10 @@ class CameraAwesomeX : CameraInterface, FlutterPlugin, ActivityAware {
         cameraState.apply {
             this.sensors = sensors
             // TODO Make below variables parameters
-            // Also reset flash mode and aspect ratio
+            // Reset flash for the new sensor, but keep the selected aspect ratio.
+            // Changing the viewport here makes preview and recording frame
+            // differently after switching between the front and back cameras.
             this.flashMode = FlashMode.NONE
-            this.aspectRatio = null
-            this.rational = Rational(3, 4)
             updateLifecycle(activity!!)
         }
     }

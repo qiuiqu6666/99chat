@@ -61,7 +61,8 @@ void main() {
     await tester.tap(find.byType(GroupSettingsSwitch));
     await tester.pumpAndSettle();
     expect(find.text('已开启'), findsOneWidget);
-    expect(find.textContaining('预计开盘时间：'), findsOneWidget);
+    expect(find.text('开奖时间：09-21 23:49'), findsOneWidget);
+    expect(find.textContaining('预计开盘时间：'), findsNothing);
     expect(
         tester
             .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '特码'))

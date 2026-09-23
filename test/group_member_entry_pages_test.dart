@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_directory.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_friend_info.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_member_full_info.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_user_full_info.dart';
@@ -190,6 +191,65 @@ void main() {
     expect(attempts, 2);
     final contacts = tester.widget<ContactList>(find.byType(ContactList));
     expect(contacts.disabledUserIds, contains('friend'));
+    await pump(tester, const SizedBox.shrink());
+    model.dispose();
+  });
+
+  testWidgets('invite picker follows live friend additions and removals',
+      (tester) async {
+    final directory = ImSdkRelationshipDirectory.instance;
+    directory.reset();
+    addTearDown(directory.reset);
+    RelationshipFriendEntry friend(String id, String name) =>
+        RelationshipFriendEntry(
+          userId: id,
+          displayName: name,
+          faceUrl: '',
+          remark: name,
+          sortKey: ImSdkRelationshipDirectory.sortKeyFor(
+            id: id,
+            displayName: name,
+            azTag: name[0],
+          ),
+        );
+    directory.applyFriendSnapshot(
+      captureId: directory.beginFriendCapture(),
+      entries: [friend('ann', 'Ann'), friend('ben', 'Ben')],
+    );
+    final model = _EntryModel()
+      ..contactList = [
+        V2TimFriendInfo(userID: 'ann'),
+        V2TimFriendInfo(userID: 'ben'),
+      ];
+    await pump(
+      tester,
+      AddGroupMemberPage(
+        model: model,
+        existingMemberUserIdsLoader: (_) async => {},
+      ),
+    );
+    await tester.pump();
+    expect(
+      tester.widget<ContactList>(find.byType(ContactList)).contactList
+          .map((item) => item.userID),
+      ['ann', 'ben'],
+    );
+    final selection = tester.state<ContactListState>(find.byType(ContactList));
+    selection.selectAllSelectable();
+    await tester.pump();
+    expect(selection.areAllSelectableSelected, isTrue);
+
+    directory.applyFriendRemoves(['ann', 'ben']);
+    directory.applyFriendAdds([friend('cara', 'Cara')]);
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      tester.widget<ContactList>(find.byType(ContactList)).contactList
+          .map((item) => item.userID),
+      ['cara'],
+    );
+    expect(selection.areAllSelectableSelected, isFalse);
     await pump(tester, const SizedBox.shrink());
     model.dispose();
   });

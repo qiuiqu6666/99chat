@@ -15,6 +15,7 @@ import 'package:tencent_cloud_chat_demo/utils/toast.dart';
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 import 'package:tencent_cloud_chat_demo/src/session/session_manager.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_local/group_info_resolver.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 String _groupLiveCurrentUserId() {
   try {
@@ -192,6 +193,7 @@ class _GroupLiveRoomPageState extends State<GroupLiveRoomPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        leading: const AppBackButton(),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         title: Text(title),

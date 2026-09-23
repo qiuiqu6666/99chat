@@ -441,8 +441,10 @@ class Avatar extends TIMUIKitStatelessWidget {
     pushMediaPreview(
       context: context,
       enableGestureBack: false,
+      transitionDuration: Duration.zero,
       child: _AvatarNetworkPreviewPage(
         thumbUrl: trimmed,
+        initialPreviewUrl: previewFaceUrl,
         thumbProvider: getImageProvider(
           url: trimmed,
           cacheKey: avatarCacheKey,
@@ -568,6 +570,7 @@ class Avatar extends TIMUIKitStatelessWidget {
 class _AvatarNetworkPreviewPage extends StatefulWidget {
   const _AvatarNetworkPreviewPage({
     required this.thumbUrl,
+    this.initialPreviewUrl,
     required this.thumbProvider,
     required this.previewUrlResolver,
     required this.previewProviderBuilder,
@@ -575,6 +578,7 @@ class _AvatarNetworkPreviewPage extends StatefulWidget {
   });
 
   final String thumbUrl;
+  final String? initialPreviewUrl;
   final ImageProvider thumbProvider;
   final Future<String?> Function() previewUrlResolver;
   final ImageProvider Function(String url) previewProviderBuilder;
@@ -599,32 +603,61 @@ class _AvatarNetworkPreviewPageState extends State<_AvatarNetworkPreviewPage> {
   }
 
   Future<void> _resolvePreview() async {
-    String url;
+    var url = widget.initialPreviewUrl?.trim() ?? '';
     try {
-      url = (await widget.previewUrlResolver())?.trim() ?? '';
+      if (url.isEmpty) {
+        url = (await widget.previewUrlResolver())?.trim() ?? '';
+      }
     } catch (_) {
-      // A failed lazy preview request must leave the already visible thumb in
-      // place.  This is deliberately not a fallback to another URL variant.
+      url = '';
+    }
+    if (!mounted) {
       return;
     }
-    if (!mounted || url.isEmpty) {
+    var provider = url.isNotEmpty
+        ? widget.previewProviderBuilder(url)
+        : widget.thumbProvider;
+    var loadFailed = false;
+    await precacheImage(
+      provider,
+      context,
+      onError: (_, __) => loadFailed = true,
+    );
+    if (!mounted) {
       return;
+    }
+    if (loadFailed && url.isNotEmpty) {
+      // A failed high-resolution request can still show the cached thumb.
+      url = '';
+      provider = widget.thumbProvider;
+      await precacheImage(provider, context, onError: (_, __) {});
+      if (!mounted) {
+        return;
+      }
     }
     setState(() {
       _previewUrl = url;
-      _imageProvider = widget.previewProviderBuilder(url);
+      _imageProvider = provider;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final previewUrl = _previewUrl;
+    if (previewUrl == null) {
+      // Keep the previous page visible until the final image is decoded;
+      // a black loading route would flash before the full-screen image.
+      return const SizedBox.expand();
+    }
     return ImageScreen(
-      key: ValueKey<String>(previewUrl ?? widget.thumbUrl),
+      key: ValueKey<String>(previewUrl.isEmpty ? widget.thumbUrl : previewUrl),
       imageProvider: _imageProvider,
-      placeholderImageProvider: widget.thumbProvider,
+      // The resolved provider is the first full-screen image. An unavailable
+      // preview still falls back to the thumb, without a later size switch.
+      placeholderImageProvider: null,
       heroTag: '',
-      downloadFn: previewUrl == null || widget.savePreviewUrl == null
+      enableHero: false,
+      downloadFn: previewUrl.isEmpty || widget.savePreviewUrl == null
           ? null
           : () => widget.savePreviewUrl!(previewUrl),
       downloadOnly: true,

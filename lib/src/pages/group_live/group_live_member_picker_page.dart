@@ -16,6 +16,7 @@ import 'package:tencent_cloud_chat_uikit/theme/color.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/directory_list_style.dart';
 
 import 'group_live_member_loader.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class GroupLiveMemberPickerPage extends StatefulWidget {
   const GroupLiveMemberPickerPage({super.key, required this.loadPage});
@@ -108,6 +109,7 @@ class _GroupLiveMemberPickerPageState extends State<GroupLiveMemberPickerPage> {
         .toList(growable: false);
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
           title: Text(i18n.t(
         zhHans: '选择主播',
         zhHant: '選擇主播',

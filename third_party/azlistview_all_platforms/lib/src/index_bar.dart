@@ -531,7 +531,7 @@ class _BaseIndexBarState extends State<BaseIndexBar> {
     }
     if (lastIndex < 0 || lastIndex == _lastHapticIndex) return;
     _lastHapticIndex = lastIndex;
-    HapticFeedback.selectionClick();
+    HapticFeedback.lightImpact();
   }
 
   /// trigger drag event.
@@ -589,8 +589,6 @@ class _BaseIndexBarState extends State<BaseIndexBar> {
         int index = _getIndex(details.localPosition.dy);
         if (index >= 0 && lastIndex != index) {
           lastIndex = index;
-          //HapticFeedback.lightImpact();
-          //HapticFeedback.vibrate();
           _triggerDragEvent(IndexBarDragDetails.actionUpdate);
         }
       },

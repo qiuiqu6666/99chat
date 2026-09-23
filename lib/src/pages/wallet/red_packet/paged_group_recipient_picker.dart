@@ -17,6 +17,7 @@ import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/group_member_cloud_search.dart';
 import 'red_packet_member.dart';
 import 'red_packet_controller.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class RecipientMemberPage {
   const RecipientMemberPage(this.members, this.cursor);
@@ -263,6 +264,7 @@ class _PagedGroupRecipientPickerState extends State<PagedGroupRecipientPicker> {
     final canLoad = _pager.cursor != null;
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
           title: Text(widget.title ??
               i18n.t(
                   zhHans: '选择接收人',

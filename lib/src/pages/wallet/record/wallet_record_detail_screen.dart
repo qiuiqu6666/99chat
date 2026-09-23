@@ -26,6 +26,7 @@ import 'wallet_record_models.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_user_full_info.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_user_full_info.dart';
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 
 class WalletRecordDetailScreen extends StatefulWidget {
@@ -494,6 +495,7 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
       Scaffold(
       backgroundColor: cs.bg,
       appBar: AppBar(
+        leading: const AppBackButton(),
         centerTitle: true,
         elevation: 0,
         shadowColor: Colors.transparent,
@@ -745,6 +747,8 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
           ko: '상태',
         ),
         value: _redPacketStatusText,
+        redPacketStyle: true,
+        statusBadge: item.isRedPacketRefund,
         showDivider: !isLast,
       ),
     );
@@ -760,6 +764,7 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
             ko: '홍바오 유형',
           ),
           value: item.rpType,
+          redPacketStyle: true,
           showDivider: !isLast,
         ),
       );
@@ -776,6 +781,7 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
             ko: '개수',
           ),
           value: item.rpCnt,
+          redPacketStyle: true,
           showDivider: !isLast,
         ),
       );
@@ -792,6 +798,7 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
             ko: '총액',
           ),
           value: item.rpTotal,
+          redPacketStyle: true,
           showDivider: !isLast,
         ),
       );
@@ -808,6 +815,7 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
             ko: '수령 완료',
           ),
           value: item.rpClaim,
+          redPacketStyle: true,
           showDivider: !isLast,
         ),
       );
@@ -825,6 +833,7 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
             ko: '축하 메시지',
           ),
           value: item.rpMsg,
+          redPacketStyle: true,
           showDivider: !isLast,
         ),
       );
@@ -840,6 +849,7 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
           ko: '거래 시간',
         ),
         value: _formattedDetailTime,
+        redPacketStyle: true,
         showDivider: !isLast,
       ),
     );
@@ -856,6 +866,7 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
           ),
           value: _formatShort(item.orderNo),
           copyValue: item.orderNo,
+          redPacketStyle: true,
           showDivider: !isLast,
         ),
       );
@@ -899,6 +910,7 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
           name: displayName,
           amount: amountText,
           time: timeText,
+          redPacketStyle: true,
           showDivider: i != _claims.length - 1,
         ),
       );
@@ -907,13 +919,14 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
     return wrapWalletPage(
       context,
       Scaffold(
-      backgroundColor: cs.bg,
+      backgroundColor: cs.dark ? cs.bg : const Color(0xFFF3F7FD),
       appBar: AppBar(
+        leading: const AppBackButton(),
         centerTitle: true,
         elevation: 0,
         shadowColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
-        backgroundColor: appBar.background,
+        backgroundColor: cs.dark ? appBar.background : const Color(0xFFF3F7FD),
         foregroundColor: appBar.title,
         systemOverlayStyle: walletPageOverlayStyle(context),
         title: Text(
@@ -951,27 +964,27 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: EdgeInsets.fromLTRB(22.w, 24.h, 22.w, 24.h),
+          padding: EdgeInsets.fromLTRB(20.w, 24.h, 20.w, 32.h),
           children: [
             Center(
               child: _DetailCoinLogo(
                 coin: item.coin,
-                size: 111.w,
+                size: 140.w,
               ),
             ),
-            SizedBox(height: 27.h),
+            SizedBox(height: 14.h),
             _buildAmountHeader(cs),
-            SizedBox(height: 15.h),
+            SizedBox(height: 6.h),
             Text(
               _fiatText,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 24.sp,
+                fontSize: 21.sp,
                 fontWeight: FontWeight.w400,
                 color: cs.subText,
               ),
             ),
-            SizedBox(height: 51.h),
+            SizedBox(height: 30.h),
             if (_cardFail != null) ...[
               _CardSendFailBox(
                 draft: _cardFail!,
@@ -982,12 +995,13 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
             ],
             _AssetDetailCard(
               cs: cs,
+              redPacketStyle: true,
               children: detailRows,
             ),
             if (claimRows.isNotEmpty) ...[
-              SizedBox(height: 24.h),
+              SizedBox(height: 20.h),
               Padding(
-                padding: EdgeInsets.only(left: 12.w, bottom: 12.h),
+                padding: EdgeInsets.only(left: 2.w, bottom: 10.h),
                 child: Text(
                   i18n.t(
                     zhHans: '领取明细',
@@ -998,13 +1012,14 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
                   ),
                   style: TextStyle(
                     fontSize: 24.sp,
-                    fontWeight: FontWeight.w500,
-                    color: cs.subText,
+                    fontWeight: FontWeight.w700,
+                    color: cs.text,
                   ),
                 ),
               ),
               _AssetDetailCard(
                 cs: cs,
+                redPacketStyle: true,
                 children: claimRows,
               ),
             ],
@@ -1019,19 +1034,37 @@ class _WalletRecordDetailScreenState extends State<WalletRecordDetailScreen> {
 class _AssetDetailCard extends StatelessWidget {
   final WalletPageColors cs;
   final List<Widget> children;
+  final bool redPacketStyle;
 
   const _AssetDetailCard({
     required this.cs,
     required this.children,
+    this.redPacketStyle = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 27.w, vertical: 15.h),
+      padding: redPacketStyle
+          ? EdgeInsets.symmetric(horizontal: 26.w, vertical: 12.h)
+          : EdgeInsets.symmetric(horizontal: 27.w, vertical: 15.h),
       decoration: BoxDecoration(
-        color: cs.dark ? cs.inputFill : cs.surfaceAlt,
-        borderRadius: BorderRadius.circular(30.r),
+        color: redPacketStyle
+            ? cs.card
+            : (cs.dark ? cs.inputFill : cs.surfaceAlt),
+        borderRadius: BorderRadius.circular(redPacketStyle ? 22.r : 30.r),
+        border: redPacketStyle && !cs.dark
+            ? Border.all(color: const Color(0xFFE4EBF5), width: 1.w)
+            : null,
+        boxShadow: redPacketStyle
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: cs.dark ? 0.16 : 0.09),
+                  blurRadius: 28.r,
+                  offset: Offset(0, 8.h),
+                ),
+              ]
+            : null,
       ),
       child: Column(children: children),
     );
@@ -1045,6 +1078,8 @@ class _AssetDetailRow extends StatelessWidget {
   final Widget? valueWidget;
   final String? copyValue;
   final bool showDivider;
+  final bool redPacketStyle;
+  final bool statusBadge;
 
   const _AssetDetailRow({
     required this.cs,
@@ -1053,6 +1088,8 @@ class _AssetDetailRow extends StatelessWidget {
     this.valueWidget,
     this.copyValue,
     this.showDivider = true,
+    this.redPacketStyle = false,
+    this.statusBadge = false,
   });
 
   @override
@@ -1060,36 +1097,62 @@ class _AssetDetailRow extends StatelessWidget {
     final canCopy =
         copyValue != null && copyValue!.trim().isNotEmpty && copyValue != '--';
     return Container(
-      padding: EdgeInsets.symmetric(vertical: 19.5.h),
+      padding: EdgeInsets.symmetric(vertical: redPacketStyle ? 13.h : 19.5.h),
       child: Row(
         children: [
           SizedBox(
-            width: 129.w,
+            width: redPacketStyle ? 126.w : 129.w,
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 24.sp,
+                fontSize: redPacketStyle ? 21.sp : 24.sp,
                 fontWeight: FontWeight.w400,
                 color: cs.subText,
               ),
             ),
           ),
-          SizedBox(width: 18.w),
+          SizedBox(width: redPacketStyle ? 10.w : 18.w),
           Expanded(
             child: valueWidget ??
-                Text(
-                  value ?? '--',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontSize: 24.sp,
-                    fontWeight: FontWeight.w500,
-                    color: cs.text,
-                    height: 1.1,
-                  ),
-                ),
+                (statusBadge
+                    ? Align(
+                        alignment: Alignment.centerRight,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 13.w,
+                            vertical: 5.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: cs.dark
+                                ? cs.inputFill
+                                : const Color(0xFFEAF2FF),
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          child: Text(
+                            value ?? '--',
+                            style: TextStyle(
+                              fontSize: 20.sp,
+                              fontWeight: FontWeight.w600,
+                              color: cs.text,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Text(
+                        value ?? '--',
+                        textAlign: TextAlign.right,
+                        maxLines: redPacketStyle ? 2 : null,
+                        overflow: redPacketStyle ? TextOverflow.ellipsis : null,
+                        style: TextStyle(
+                          fontSize: redPacketStyle ? 21.sp : 24.sp,
+                          fontWeight: FontWeight.w600,
+                          color: cs.text,
+                          height: 1.1,
+                        ),
+                      )),
           ),
           if (canCopy) ...[
-            SizedBox(width: 15.w),
+            SizedBox(width: redPacketStyle ? 8.w : 15.w),
             Builder(
               builder: (context) => InkWell(
                 onTap: () async {
@@ -1110,7 +1173,7 @@ class _AssetDetailRow extends StatelessWidget {
                   padding: EdgeInsets.all(3.w),
                   child: Icon(
                     Icons.copy_rounded,
-                    size: 27.sp,
+                    size: redPacketStyle ? 23.sp : 27.sp,
                     color: cs.subText,
                   ),
                 ),
@@ -1129,6 +1192,7 @@ class _ClaimDetailRow extends StatelessWidget {
   final String amount;
   final String time;
   final bool showDivider;
+  final bool redPacketStyle;
 
   const _ClaimDetailRow({
     required this.cs,
@@ -1136,12 +1200,13 @@ class _ClaimDetailRow extends StatelessWidget {
     required this.amount,
     required this.time,
     this.showDivider = true,
+    this.redPacketStyle = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(vertical: 19.5.h),
+      padding: EdgeInsets.symmetric(vertical: redPacketStyle ? 17.h : 19.5.h),
       decoration: showDivider
           ? BoxDecoration(
               border: Border(
@@ -1158,20 +1223,20 @@ class _ClaimDetailRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 24.sp,
+                fontSize: redPacketStyle ? 21.sp : 24.sp,
                 fontWeight: FontWeight.w500,
                 color: cs.text,
               ),
             ),
           ),
-          SizedBox(width: 18.w),
+          SizedBox(width: redPacketStyle ? 10.w : 18.w),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 amount,
                 style: TextStyle(
-                  fontSize: 24.sp,
+                  fontSize: redPacketStyle ? 21.sp : 24.sp,
                   fontWeight: FontWeight.w600,
                   color: cs.text,
                   height: 1.1,
@@ -1182,7 +1247,7 @@ class _ClaimDetailRow extends StatelessWidget {
                 Text(
                   time,
                   style: TextStyle(
-                    fontSize: 20.sp,
+                    fontSize: redPacketStyle ? 18.sp : 20.sp,
                     fontWeight: FontWeight.w400,
                     color: cs.subText,
                   ),

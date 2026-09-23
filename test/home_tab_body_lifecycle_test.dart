@@ -14,6 +14,7 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_text_elem.dart';
 import 'package:tencent_cloud_chat_uikit/ui/controller/tim_uikit_conversation_controller.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/home_tab_activity.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_directory.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/local_setting.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/presence_provider.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
@@ -105,6 +106,152 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   });
 
+  testWidgets('hidden contact list applies friend add and delete on return',
+      (tester) async {
+    final directory = ImSdkRelationshipDirectory.instance;
+    directory.reset();
+    addTearDown(directory.reset);
+    RelationshipFriendEntry friend(String id, String name) =>
+        RelationshipFriendEntry(
+          userId: id,
+          displayName: name,
+          faceUrl: '',
+          remark: name,
+          sortKey: ImSdkRelationshipDirectory.sortKeyFor(
+            id: id,
+            displayName: name,
+            azTag: name[0],
+          ),
+        );
+    directory.applyFriendSnapshot(
+      captureId: directory.beginFriendCapture(),
+      entries: [friend('contact_a', 'Ann'), friend('contact_b', 'Ben')],
+    );
+
+    const list = ContactListWithPresence(isShowOnlineStatus: false);
+    await tester.pumpWidget(host(list));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Ann'), findsOneWidget);
+    expect(find.text('Ben'), findsOneWidget);
+
+    await tester.pumpWidget(host(list, active: false));
+    directory.applyFriendRemoves(const ['contact_b']);
+    directory.applyFriendAdds([friend('contact_c', 'Cara')]);
+    await tester.pumpWidget(host(list));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Ann'), findsOneWidget);
+    expect(find.text('Ben'), findsNothing);
+    expect(find.text('Cara'), findsOneWidget);
+  });
+
+  testWidgets('visible contact list applies friend add and delete immediately',
+      (tester) async {
+    final directory = ImSdkRelationshipDirectory.instance;
+    directory.reset();
+    addTearDown(directory.reset);
+    RelationshipFriendEntry friend(String id, String name) =>
+        RelationshipFriendEntry(
+          userId: id,
+          displayName: name,
+          faceUrl: '',
+          remark: name,
+          sortKey: ImSdkRelationshipDirectory.sortKeyFor(
+            id: id,
+            displayName: name,
+            azTag: name[0],
+          ),
+        );
+    directory.applyFriendSnapshot(
+      captureId: directory.beginFriendCapture(),
+      entries: [friend('contact_a', 'Ann')],
+    );
+
+    await tester.pumpWidget(host(
+      const ContactListWithPresence(isShowOnlineStatus: false),
+    ));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Ann'), findsOneWidget);
+
+    directory.applyFriendAdds([friend('contact_b', 'Ben')]);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Ben'), findsOneWidget);
+
+    directory.applyFriendRemoves(const ['contact_a']);
+    await tester.pump();
+    expect(find.text('Ann'), findsNothing);
+    expect(find.text('Ben'), findsOneWidget);
+  });
+
+  testWidgets('contacts appear when first friend snapshot arrives after mount',
+      (tester) async {
+    final directory = ImSdkRelationshipDirectory.instance;
+    directory.reset();
+    addTearDown(directory.reset);
+
+    await tester.pumpWidget(host(ContactListWithPresence(
+      isShowOnlineStatus: false,
+      topList: [TopListItem(id: 'new', name: 'New Friends')],
+    )));
+    expect(find.text('New Friends'), findsOneWidget);
+    expect(find.text('Ann'), findsNothing);
+
+    directory.applyFriendSnapshot(
+      captureId: directory.beginFriendCapture(),
+      entries: [
+        RelationshipFriendEntry(
+          userId: 'contact_a',
+          displayName: 'Ann',
+          faceUrl: '',
+          remark: 'Ann',
+          sortKey: ImSdkRelationshipDirectory.sortKeyFor(
+            id: 'contact_a',
+            displayName: 'Ann',
+            azTag: 'A',
+          ),
+        ),
+      ],
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Ann'), findsOneWidget);
+  });
+
+  testWidgets(
+      'contacts appear when an initially empty directory gains a friend',
+      (tester) async {
+    final directory = ImSdkRelationshipDirectory.instance;
+    directory.reset();
+    addTearDown(directory.reset);
+    directory.applyFriendSnapshot(
+      captureId: directory.beginFriendCapture(),
+      entries: const [],
+    );
+
+    await tester.pumpWidget(host(ContactListWithPresence(
+      isShowOnlineStatus: false,
+      topList: [TopListItem(id: 'new', name: 'New Friends')],
+    )));
+    expect(find.text('New Friends'), findsOneWidget);
+
+    directory.applyFriendAdds([
+      RelationshipFriendEntry(
+        userId: 'contact_b',
+        displayName: 'Ben',
+        faceUrl: '',
+        remark: 'Ben',
+        sortKey: ImSdkRelationshipDirectory.sortKeyFor(
+          id: 'contact_b',
+          displayName: 'Ben',
+          azTag: 'B',
+        ),
+      ),
+    ]);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Ben'), findsOneWidget);
+  });
+
   testWidgets(
       'new top entries update callbacks without sorting offline friends',
       (tester) async {
@@ -175,11 +322,12 @@ void main() {
     FlutterError.onError = errorHandler;
     expect(tester.state(feed), same(feedState));
     final updated = row(0, unread: 7)
-      ..lastMessage = (V2TimMessage.fromJson({'message_risk_type_identified': 0})
-        ..msgID = 'hidden-tab-message'
-        ..elemType = 1
-        ..timestamp = 100
-        ..textElem = V2TimTextElem(text: 'Arrived while tab hidden'));
+      ..lastMessage =
+          (V2TimMessage.fromJson({'message_risk_type_identified': 0})
+            ..msgID = 'hidden-tab-message'
+            ..elemType = 1
+            ..timestamp = 100
+            ..textElem = V2TimTextElem(text: 'Arrived while tab hidden'));
     tabs.applyPatches([updated], reason: 'sdk_realtime');
     await tester.pump(const Duration(milliseconds: 150));
     await tester.pumpWidget(host(page));

@@ -5,6 +5,7 @@ import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
 import 'package:tencent_cloud_chat_demo/utils/theme.dart';
 import 'package:tencent_cloud_chat_uikit/theme/color.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/screen_utils.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class SkinPage extends StatelessWidget {
   const SkinPage({Key? key}) : super(key: key);
@@ -62,6 +63,7 @@ class SkinPage extends StatelessWidget {
         ),
         defaultWidget: Scaffold(
             appBar: AppBar(
+              leading: const AppBackButton(),
               iconTheme: IconThemeData(
                 color: theme.primaryColor ?? const Color(0xFF1E90FF),
               ),

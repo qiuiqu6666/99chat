@@ -7,6 +7,7 @@ import 'wallet_repository.dart';
 import 'widgets/wallet_page_colors.dart';
 import 'withdraw_address_screen.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class WithdrawCoinPickerScreen extends StatelessWidget {
   const WithdrawCoinPickerScreen({super.key});
@@ -35,6 +36,7 @@ class _WithdrawCoinPickerView extends StatelessWidget {
       Scaffold(
       backgroundColor: cs.bg,
       appBar: AppBar(
+        leading: const AppBackButton(),
         centerTitle: true,
         elevation: 0,
         shadowColor: Colors.transparent,

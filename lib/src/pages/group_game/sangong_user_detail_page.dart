@@ -9,6 +9,7 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/user_profile/sangong_account_flow_list.dart';
 import '../../../utils/dio_error_message.dart';
 import '../../../utils/toast.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 String sangongReportDate(DateTime date) =>
     '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -357,7 +358,8 @@ class _SangongUserDetailPageState extends State<SangongUserDetailPage> {
     return DefaultTabController(
         length: 3,
         child: Scaffold(
-          appBar: AppBar(title: const Text('用户详情'), actions: [
+          appBar: AppBar(
+            leading: const AppBackButton(),title: const Text('用户详情'), actions: [
             IconButton(
                 onPressed: _busy
                     ? null

@@ -1,6 +1,8 @@
 import 'dart:async';
 import '../../api/lottery_number_mappings.dart';
 import '../../api/lottery_live_api.dart';
+import '../../api/platform_api.dart';
+import '../../platform/clipboard_guard.dart';
 import 'lottery_reveal_state.dart';
 import 'lottery_back_gesture.dart';
 import 'lottery_scratch_cover.dart';
@@ -218,7 +220,7 @@ class TestPage extends StatelessWidget {
         appBar: AppBar(
           elevation: 0,
           scrolledUnderElevation: 0,
-          toolbarHeight: 52,
+          toolbarHeight: 60,
           backgroundColor: lotteryThemeColor(
               context, const Color(0xFFF4F9FF), AppTokens.surfaceDark),
           flexibleSpace: DecoratedBox(
@@ -279,16 +281,18 @@ class _Brand extends StatelessWidget {
                   color: lotteryThemeColor(context, const Color(0xFF17243D),
                       AppTokens.textPrimaryDark),
                   fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2)),
-          const SizedBox(height: 2),
+                  height: 1.12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4)),
+          const SizedBox(height: 1),
           Text('极速六合彩',
               style: TextStyle(
                   color: lotteryThemeColor(context, const Color(0xFF74839B),
                       AppTokens.textSecondaryDark),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.5)),
+                  fontSize: 12,
+                  height: 1.15,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.7)),
         ],
       );
 }

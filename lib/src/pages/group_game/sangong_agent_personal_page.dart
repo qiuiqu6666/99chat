@@ -7,6 +7,7 @@ import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart
 import 'package:tencent_cloud_chat_demo/src/pages/group_game/sangong_agent_member_detail_page.dart';
 import 'package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart';
 import 'package:tencent_cloud_chat_demo/utils/dio_error_message.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class SangongAgentPersonalPage extends StatefulWidget {
   const SangongAgentPersonalPage(
@@ -94,7 +95,8 @@ class _State extends State<SangongAgentPersonalPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('个人数据')),
+        appBar: AppBar(
+          leading: const AppBackButton(),title: const Text('个人数据')),
         body: Center(
             child: _loading
                 ? const CircularProgressIndicator()

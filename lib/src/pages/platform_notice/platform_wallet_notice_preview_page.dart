@@ -10,6 +10,7 @@ import 'package:tencent_cloud_chat_demo/src/widgets/platform_notice/platform_wal
 import 'package:tencent_cloud_chat_demo/src/widgets/official_account_name_label.dart';
 import 'package:tencent_cloud_chat_demo/utils/theme.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/avatar.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 /// 伪公众号钱包通知样式静态预览（Debug / 设计稿对照）。
 class PlatformWalletNoticePreviewPage extends StatelessWidget {
@@ -46,6 +47,7 @@ class PlatformWalletNoticePreviewPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: chatBg,
       appBar: AppBar(
+        leading: const AppBackButton(),
         centerTitle: true,
         elevation: 0,
         shadowColor: Colors.transparent,

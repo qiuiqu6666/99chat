@@ -165,7 +165,7 @@ class _LuckyDetailBody extends StatelessWidget {
                         en: 'Red packet from ${data.displaySenderName}',
                         ja: '${data.displaySenderName}の紅包',
                         ko: '${data.displaySenderName}님의 홍바오'),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -305,7 +305,7 @@ class _ClaimRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                 Text(name,
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style:
                         TextStyle(color: cs.text, fontSize: 16, height: 1.3)),

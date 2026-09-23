@@ -7,6 +7,7 @@ import 'package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_demo/utils/dio_error_message.dart';
 import 'package:tencent_cloud_chat_demo/utils/toast.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class SangongAgentMemberDetailPage extends StatefulWidget {
   const SangongAgentMemberDetailPage({super.key, required this.member});
@@ -169,7 +170,8 @@ class _State extends State<SangongAgentMemberDetailPage> {
     final name = m.nickname.trim().isEmpty ? m.imUserId : m.nickname.trim();
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FC),
-      appBar: AppBar(title: Text(name)),
+      appBar: AppBar(
+        leading: const AppBackButton(),title: Text(name)),
       body: Column(children: [
         Material(
           color: Colors.white,

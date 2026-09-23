@@ -22,6 +22,7 @@ import 'red_packet_member_picker_page.dart';
 import 'red_packet_models.dart';
 import '../wallet_repository.dart';
 import '../widgets/pay_method_sheet.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class RedPacketScreen extends StatefulWidget {
   final String conversationId;
@@ -385,6 +386,7 @@ class _RedPacketScreenState extends State<RedPacketScreen> {
             backgroundColor: cs.bg,
             resizeToAvoidBottomInset: true,
             appBar: AppBar(
+              leading: const AppBackButton(),
               iconTheme: IconThemeData(color: appBar.icon),
               elevation: 0,
               scrolledUnderElevation: 0,

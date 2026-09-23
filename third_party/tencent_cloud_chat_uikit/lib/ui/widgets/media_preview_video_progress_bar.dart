@@ -288,6 +288,18 @@ class _MediaPreviewVideoProgressBarState
     }
   }
 
+  Future<void> _cyclePlaybackSpeed() async {
+    final player = widget.playerKey.currentState;
+    if (!widget.enabled || player == null) return;
+    const speeds = <double>[1.0, 1.5, 2.0];
+    final currentIndex = speeds.indexOf(player.playbackSpeed);
+    final nextSpeed = speeds[(currentIndex + 1) % speeds.length];
+    await player.setPlaybackSpeed(nextSpeed);
+    if (mounted && identical(player, widget.playerKey.currentState)) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
@@ -311,27 +323,51 @@ class _MediaPreviewVideoProgressBarState
       ),
     ];
 
+    final currentTime = _formatDuration(
+      _isDragging
+          ? Duration(
+              milliseconds: (sliderValue * duration.inMilliseconds).round(),
+            )
+          : position,
+    );
+    final totalTime = _formatDuration(duration);
+    final speed = widget.playerKey.currentState?.playbackSpeed ?? 1.0;
     final timeline = SizedBox(
-      height: 48,
-      child: Row(
+      height: 56,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            _formatDuration(
-              _isDragging
-                  ? Duration(
-                      milliseconds:
-                          (sliderValue * duration.inMilliseconds).round(),
-                    )
-                  : position,
-            ),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontFeatures: [FontFeature.tabularFigures()],
-              shadows: timeShadow,
-            ),
+          Row(
+            children: [
+              Text(
+                '$currentTime / $totalTime',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                  shadows: timeShadow,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                key: const ValueKey('video-playback-speed'),
+                onPressed: ready && widget.enabled
+                    ? () => unawaited(_cyclePlaybackSpeed())
+                    : null,
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white70,
+                  disabledForegroundColor: Colors.white38,
+                  minimumSize: const Size(48, 28),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  '${speed.toStringAsFixed(1)}×',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 4),
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
@@ -362,16 +398,6 @@ class _MediaPreviewVideoProgressBarState
                 onChangeEnd:
                     ready ? (value) => _finishSeek(value, duration) : null,
               ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            _formatDuration(duration),
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.75),
-              fontSize: 12,
-              fontFeatures: const [FontFeature.tabularFigures()],
-              shadows: timeShadow,
             ),
           ),
         ],

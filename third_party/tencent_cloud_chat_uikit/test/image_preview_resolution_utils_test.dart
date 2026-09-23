@@ -281,6 +281,38 @@ void main() {
       expect(pixels, const Size(1080, 1920));
     });
 
+    test('cropped thumbnail cannot replace the original display geometry', () {
+      final message = V2TimMessage.fromJson({'message_risk_type_identified': 0})
+        ..elemType = MessageElemType.V2TIM_ELEM_TYPE_IMAGE
+        ..imageElem = V2TimImageElem(
+          imageList: [V2TimImage(type: 0, width: 1200, height: 800)],
+        );
+      final loading = imagePreviewDisplayConfigResolved(
+        sourceMessage: message,
+        screenWidth: 390,
+        screenHeight: 844,
+      );
+      final thumbnail = imagePreviewDisplayConfigResolved(
+        sourceMessage: message,
+        screenWidth: 390,
+        screenHeight: 844,
+        decodedWidth: 80,
+        decodedHeight: 80,
+        trustDecodedSize: false,
+      );
+      expect(thumbnail.layoutEquals(loading), isTrue);
+
+      final original = imagePreviewDisplayConfigResolved(
+        sourceMessage: message,
+        screenWidth: 390,
+        screenHeight: 844,
+        decodedWidth: 800,
+        decodedHeight: 1200,
+      );
+      expect(original.imageWidth, 800);
+      expect(original.imageHeight, 1200);
+    });
+
     test('display box matches hero dest so enlarge does not jump twice', () {
       const screenWidth = 390.0;
       const screenHeight = 844.0;
@@ -649,6 +681,25 @@ void main() {
         ),
         BoxFit.contain,
       );
+    });
+
+    test('unknown avatar size does not enlarge its thumbnail first', () {
+      final loading = imagePreviewDisplayConfig(
+        imageWidth: 0,
+        imageHeight: 0,
+        screenWidth: 390,
+        screenHeight: 844,
+        fitTallImagesToScreenWidth: false,
+      );
+      final decodedThumbnail = imagePreviewDisplayConfig(
+        imageWidth: 96,
+        imageHeight: 96,
+        screenWidth: 390,
+        screenHeight: 844,
+        fitTallImagesToScreenWidth: false,
+      );
+      expect(loading.fit, decodedThumbnail.fit);
+      expect(loading.fit, BoxFit.scaleDown);
     });
   });
 }

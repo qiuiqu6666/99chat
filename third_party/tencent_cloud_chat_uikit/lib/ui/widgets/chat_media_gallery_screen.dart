@@ -995,6 +995,12 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
   }
 
   void _close() {
+    if (ModalRoute.of(context)?.reverseTransitionDuration == Duration.zero) {
+      if (_prepareForClose(preserveSlideBackdrop: true)) {
+        _popSlideDismiss();
+      }
+      return;
+    }
     _slideDismissController.startMomentumDismiss(
       vsync: this,
       context: context,
@@ -1257,19 +1263,12 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
   Future<void> _showVideoActions() async {
     if (_closing) return;
     final item = _currentItem;
-    final player = _playerKey.currentState;
     await showMediaPreviewVideoActions(
       context: context,
-      playbackSpeed: player?.playbackSpeed ?? 1,
       onDownload: _handleDownload,
       onForward: item.forwardFn,
       onDelete: item.deleteFn == null ? null : _handleDelete,
       onOpenMedia: widget.onOpenMedia == null ? null : _handleOpenMedia,
-      onSpeedChanged: (speed) async {
-        if (mounted && !_closing && player == _playerKey.currentState) {
-          await player?.setPlaybackSpeed(speed);
-        }
-      },
     );
   }
 

@@ -142,7 +142,7 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
       await action();
     } finally {
       if (mounted) {
-        _menuOpen = false;
+        setState(() => _menuOpen = false);
         showControls();
       }
     }
@@ -256,7 +256,7 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                       onPressed:
                           widget.isReady ? widget.onTogglePlayback : null,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: MediaPreviewVideoProgressBar(
                         playerKey: widget.playerKey,
@@ -362,25 +362,22 @@ class _VideoButton extends StatelessWidget {
   Widget build(BuildContext context) => IconButton(
         tooltip: label,
         icon: Icon(icon),
-        iconSize: 25,
+        iconSize: 32,
         color: Colors.white,
         disabledColor: Colors.white38,
-        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+        constraints: const BoxConstraints(minWidth: 56, minHeight: 56),
         onPressed: onPressed,
       );
 }
 
 Future<void> showMediaPreviewVideoActions({
   required BuildContext context,
-  required double playbackSpeed,
   required Future<void> Function() onDownload,
-  required Future<void> Function(double) onSpeedChanged,
   Future<void> Function()? onForward,
   Future<void> Function()? onDelete,
   Future<void> Function()? onPictureInPicture,
   VoidCallback? onOpenMedia,
 }) async {
-  const speeds = [1.0, 1.5, 2.0];
   final action = await showCupertinoModalPopup<String>(
     context: context,
     semanticsDismissible: true,
@@ -397,34 +394,6 @@ Future<void> showMediaPreviewVideoActions({
           primaryColor: CupertinoColors.activeBlue,
         ),
         child: CupertinoActionSheet(
-          title: Text(TIM_t('播放速度')),
-          message: SizedBox(
-            width: double.infinity,
-            child: CupertinoSlidingSegmentedControl<double>(
-              groupValue: speeds.contains(playbackSpeed) ? playbackSpeed : null,
-              children: {
-                for (final speed in speeds)
-                  speed: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                    child: Text(
-                      '${speed.toStringAsFixed(1)}×',
-                      maxLines: 1,
-                      style: CupertinoTheme.of(sheetContext)
-                          .textTheme
-                          .textStyle
-                          .copyWith(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                    ),
-                  ),
-              },
-              onValueChanged: (speed) {
-                if (speed != null) Navigator.pop(sheetContext, 'speed_$speed');
-              },
-            ),
-          ),
           actions: [
             item('save', TIM_t('保存视频')),
             if (onForward != null) item('forward', TIM_t('转发')),
@@ -454,10 +423,5 @@ Future<void> showMediaPreviewVideoActions({
       await onPictureInPicture?.call();
     case 'media':
       onOpenMedia?.call();
-    default:
-      if (action?.startsWith('speed_') == true) {
-        final speed = double.tryParse(action!.substring(6));
-        if (speed != null) await onSpeedChanged(speed);
-      }
   }
 }

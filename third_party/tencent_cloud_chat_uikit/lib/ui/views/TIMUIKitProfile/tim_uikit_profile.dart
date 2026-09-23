@@ -83,6 +83,8 @@ class TIMUIKitProfile extends StatefulWidget {
   /// Whether use the small card mode on Desktop. Usually shows on the Chat page.
   final bool smallCardMode;
 
+  final bool showLoadingAnimation;
+
   const TIMUIKitProfile(
       {Key? key,
       required this.userID,
@@ -105,7 +107,8 @@ class TIMUIKitProfile extends StatefulWidget {
       this.builder,
       this.isSelf = false,
       this.lifeCycle,
-      this.smallCardMode = false})
+      this.smallCardMode = false,
+      this.showLoadingAnimation = true})
       : super(key: key);
 
   @override
@@ -115,7 +118,6 @@ class TIMUIKitProfile extends StatefulWidget {
 class _TIMUIKitProfileState extends TIMUIKitState<TIMUIKitProfile> {
   final TUIProfileViewModel _model = TUIProfileViewModel();
   late TIMUIKitProfileController _controller;
-
   @override
   void initState() {
     _controller = widget.controller ?? TIMUIKitProfileController();
@@ -164,12 +166,12 @@ class _TIMUIKitProfileState extends TIMUIKitState<TIMUIKitProfile> {
           final V2TimFriendInfo? userInfo = model.userProfile?.friendInfo;
 
           if (userInfo == null) {
-            return Center(
+            return widget.showLoadingAnimation ? Center(
               child: LoadingAnimationWidget.staggeredDotsWave(
                 color: theme.weakTextColor ?? Colors.grey,
                 size: 48,
               ),
-            );
+            ) : const SizedBox.shrink();
           }
 
           final conversation = model.userProfile?.conversation ??
