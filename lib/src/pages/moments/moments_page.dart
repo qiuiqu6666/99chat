@@ -10,6 +10,7 @@ import 'package:tencent_cloud_chat_demo/src/models/moments/moment_settings_model
 import 'package:tencent_cloud_chat_demo/src/models/moments/moment_models.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/moments/moments_cover_picker.dart';
+import 'package:tencent_cloud_chat_demo/src/pages/moments/moments_action_bar.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/moments/moments_compose_page.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/settings/moments_permission_page.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/moments/moments_detail_page.dart';
@@ -1432,19 +1433,6 @@ class _MomentCardState extends State<_MomentCard> {
               PopupMenuItem(value: 'delete', child: Text(TIM_t('删除'))),
           ],
         );
-    Widget action(IconData icon, String label, VoidCallback onTap,
-        {bool active = false}) {
-      return TextButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 21),
-        label: Text(label, style: const TextStyle(fontSize: 13)),
-        style: TextButton.styleFrom(
-          foregroundColor: active ? AppColors.primaryBlue : secondary,
-          minimumSize: const Size(48, 44),
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-        ),
-      );
-    }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10),
@@ -1505,20 +1493,17 @@ class _MomentCardState extends State<_MomentCard> {
                   style: TextStyle(color: secondary, fontSize: 12)),
             ],
             const SizedBox(height: 6),
-            Row(children: [
-              action(
-                  liked ? Icons.thumb_up_alt : Icons.thumb_up_alt_outlined,
-                  post.likeCount > 0 ? '${post.likeCount}' : TIM_t('赞'),
-                  widget.onLike,
-                  active: liked),
-              const SizedBox(width: 20),
-              action(
-                  Icons.chat_bubble_outline_rounded,
+            MomentsActionBar(
+              dark: dark,
+              liked: liked,
+              likeLabel: post.likeCount > 0 ? '${post.likeCount}' : TIM_t('赞'),
+              commentLabel:
                   post.commentCount > 0 ? '${post.commentCount}' : TIM_t('评论'),
-                  widget.onComment),
-              const Spacer(),
-              moreMenu(),
-            ]),
+              onLike: widget.onLike,
+              onComment: widget.onComment,
+              onOpen: widget.onTap,
+              onDelete: widget.onDelete,
+            ),
             if (post.likes.isNotEmpty ||
                 post.comments.isNotEmpty ||
                 post.commentCount > 0)
