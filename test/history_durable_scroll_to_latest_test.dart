@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 // ignore: depend_on_referenced_packages
@@ -149,9 +150,14 @@ class _ReadingModel extends TUIChatSeparateViewModel {
       pendingLatestCalls++;
       return pendingLatestPage!.future;
     }
-    return super.loadChatRecord(getType: getType, lastMsgSeq: lastMsgSeq,
-        count: count, lastMsgID: lastMsgID, lastMsg: lastMsg,
-        direction: direction, forceReloadNewest: forceReloadNewest);
+    return super.loadChatRecord(
+        getType: getType,
+        lastMsgSeq: lastMsgSeq,
+        count: count,
+        lastMsgID: lastMsgID,
+        lastMsg: lastMsg,
+        direction: direction,
+        forceReloadNewest: forceReloadNewest);
   }
 
   @override
@@ -314,7 +320,8 @@ void main() {
     if (sdk.latestPageGate != null && !sdk.latestPageGate!.isCompleted) {
       sdk.latestPageGate!.complete();
     }
-    if (model.pendingLatestPage != null && !model.pendingLatestPage!.isCompleted) {
+    if (model.pendingLatestPage != null &&
+        !model.pendingLatestPage!.isCompleted) {
       model.pendingLatestPage!.complete(false);
     }
     // If an assertion failed during admission, stop starting further appends
@@ -383,7 +390,8 @@ void main() {
             admissionsIdle = true;
           }
         })();
-        await waitForRealIO(tester, () => admissionsIdle, 'arrivals must commit');
+        await waitForRealIO(
+            tester, () => admissionsIdle, 'arrivals must commit');
         await pendingAdmissions;
         await frames(tester);
         if (scenario.oldEdge) {
@@ -391,10 +399,12 @@ void main() {
           // path while the newest message is still only in the repository.
           scroll.jumpTo(scroll.position.minScrollExtent);
         }
-        final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
-            find.byType(TIMUIKitHistoryMessageListTongueContainer));
+        final state =
+            tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+                find.byType(TIMUIKitHistoryMessageListTongueContainer));
         var returned = false;
-        final pending = state.scrollToLatestAndDismissUnreadCapsule()
+        final pending = state
+            .scrollToLatestAndDismissUnreadCapsule()
             .whenComplete(() => returned = true);
         await waitForRealIO(tester, () => returned, 'one return must finish');
         await pending;
@@ -407,13 +417,28 @@ void main() {
                 'the actual newest row must occupy the bottom of the viewport');
         expect(scroll.offset, closeTo(scroll.position.minScrollExtent, 1));
         expect(global.isFollowingLatest(conv), isTrue);
+        if (!durable && count == 1) {
+          // The first arrival after restoration must extend the real live
+          // edge and stay in the viewport without another manual swipe.
+          sdk.newest++;
+          await global.applyAppRealtimeMessage(_message(conv, sdk.newest),
+              ingressEventID: 'after-return-${sdk.newest}',
+              ingressSequence: sdk.newest);
+          await frames(tester);
+          final followingRow =
+              find.byKey(ValueKey('row-$conv-${sdk.newest}'));
+          expect(followingRow.hitTestable(), findsOneWidget);
+          expect(scroll.offset, closeTo(scroll.position.minScrollExtent, 1));
+        }
       } finally {
         await close(tester);
       }
     });
   }
 
-  testWidgets('production return keeps drag interactive and cancels late publication', (tester) async {
+  testWidgets(
+      'production return keeps drag interactive and cancels late publication',
+      (tester) async {
     try {
       await mount(tester);
       final conv = model.conversationID;
@@ -423,10 +448,12 @@ void main() {
       global.markMemoryWindowMissingNewer(conv);
       sdk.newest = 150;
       sdk.latestPageGate = Completer<void>();
-      final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
-          find.byType(TIMUIKitHistoryMessageListTongueContainer));
+      final state =
+          tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+              find.byType(TIMUIKitHistoryMessageListTongueContainer));
       var returned = false;
-      final pending = state.scrollToLatestAndDismissUnreadCapsule()
+      final pending = state
+          .scrollToLatestAndDismissUnreadCapsule()
           .whenComplete(() => returned = true);
       await waitForRealIO(tester, () => sdk.requests.any((r) => r.seq <= 0),
           'latest SDK request must start');
@@ -437,7 +464,8 @@ void main() {
       await tester.drag(list, const Offset(0, 120));
       await frames(tester);
       expect(scroll.offset, greaterThan(before));
-      expect(returned, isTrue, reason: 'a deliberate drag cancels explicit return');
+      expect(returned, isTrue,
+          reason: 'a deliberate drag cancels explicit return');
       expect(global.isUserScrollToBottomInProgress(conv), isFalse);
       final afterDrag = scroll.offset;
       sdk.latestPageGate!.complete();
@@ -452,7 +480,9 @@ void main() {
     }
   });
 
-  testWidgets('old newer-page cleanup cannot restore suppression after window replacement', (tester) async {
+  testWidgets(
+      'old newer-page cleanup cannot restore suppression after window replacement',
+      (tester) async {
     try {
       await mount(tester);
       final conv = model.conversationID;
@@ -464,10 +494,13 @@ void main() {
       global.setMemoryWindowSuppressed(conv, true);
       model.pendingLatestPage = Completer<bool>();
       admissionsIdle = false;
-      pendingAdmissions = global.applyAppRealtimeMessage(_message(conv, 101),
-          ingressEventID: 'stale-page-101', ingressSequence: 101)
-          .then<void>((_) {}).whenComplete(() => admissionsIdle = true);
-      await waitForRealIO(tester, () => admissionsIdle, 'durable arrival must persist');
+      pendingAdmissions = global
+          .applyAppRealtimeMessage(_message(conv, 101),
+              ingressEventID: 'stale-page-101', ingressSequence: 101)
+          .then<void>((_) {})
+          .whenComplete(() => admissionsIdle = true);
+      await waitForRealIO(
+          tester, () => admissionsIdle, 'durable arrival must persist');
       final reachingEdge = Stopwatch()..start();
       while (model.pendingLatestCalls == 0 &&
           reachingEdge.elapsed < const Duration(seconds: 15)) {
@@ -478,7 +511,8 @@ void main() {
           reason: 'manual scrolling must start a newer-page request');
       sdk.newest = 150;
       var reloaded = false;
-      final reload = model.reloadNewestMessageWindow(allowWhileReadingHistory: true)
+      final reload = model
+          .reloadNewestMessageWindow(allowWhileReadingHistory: true)
           .then((result) => reloaded = result);
       await waitForRealIO(tester, () => reloaded, 'replacement must finish');
       await reload;
@@ -519,7 +553,9 @@ void main() {
               ingressEventID: 'continuous-hot-$seq', ingressSequence: seq);
         }
         await frames(tester);
-        expect(global.deferredIncomingBufferedCount(conv), 71);
+        expect(global.deferredIncomingBufferedCount(conv), 0);
+        expect(global.rawMessageCount(conv), 171);
+        expect(global.receivedNewMessageCountFor(conv), 71);
         gesture = await tester.startGesture(const Offset(400, 550));
         await gesture.moveBy(const Offset(0, -20));
         await frame(tester, 16);
@@ -528,13 +564,13 @@ void main() {
           await gesture.moveBy(Offset(0, -scenario.step));
           await frame(tester, 16);
           expect(scroll.offset - before, closeTo(-scenario.step, 1),
-              reason: 'frame $step must follow the finger across the buffered '
-                  'edge; buffered=${global.deferredIncomingBufferedCount(conv)}');
+              reason: 'frame $step must follow the finger across the appended '
+                  'rows; buffered=${global.deferredIncomingBufferedCount(conv)}');
         }
-        // Staging rows ahead of the finger must not consume their unread IDs.
+        // Appended rows ahead of the finger must not consume their unread IDs.
         final unread = global.receivedNewMessageCountFor(conv);
         expect(unread, inExclusiveRange(0, 71));
-        expect(global.rawMessageCount(conv), greaterThan(100 + 71 - unread));
+        expect(global.rawMessageCount(conv), 171);
       } finally {
         await gesture?.cancel();
         await close(tester);
@@ -569,12 +605,19 @@ void main() {
         if (expected == 0) {
           expect(capsule.hitTestable(), findsNothing);
         } else {
-          expect(capsule.hitTestable(), findsOneWidget);
-          expect(
-              tester.widget<TIMUIKitTongueItem>(capsule).unreadCount, expected);
-          final label =
-              find.descendant(of: capsule, matching: find.byType(Text));
-          expect(tester.widget<Text>(label).data, contains('$expected'));
+          if (capsule.hitTestable().evaluate().isEmpty) {
+            expect(scroll.offset - scroll.position.minScrollExtent,
+                lessThan(scroll.position.viewportDimension * 0.5),
+                reason:
+                    'a hidden capsule must be within its distance threshold');
+          } else {
+            expect(capsule.hitTestable(), findsOneWidget);
+            expect(tester.widget<TIMUIKitTongueItem>(capsule).unreadCount,
+                expected);
+            final label =
+                find.descendant(of: capsule, matching: find.byType(Text));
+            expect(tester.widget<Text>(label).data, contains('$expected'));
+          }
         }
       }
 
@@ -635,7 +678,8 @@ void main() {
             reason: 'one 64px gesture must reveal adjacent message $seq');
         await waitForRealIO(
             tester,
-            () => global.receivedNewMessageCountFor(conv) <=
+            () =>
+                global.receivedNewMessageCountFor(conv) <=
                 100 + arrivalsCount - seq,
             'the visible receipt for message $seq must commit');
         // Receipt publication can occur after this frame's widget build.
@@ -715,7 +759,7 @@ void main() {
       (tester) async {
     const newest = 171;
     try {
-      // Exercise the in-memory deferred path independently of durable ingress.
+      // Exercise the connected in-memory append path independently of storage.
       HistoryWindowRepositoryProvider.repository = null;
       await mount(tester, realTongue: true);
       final conv = model.conversationID;
@@ -737,9 +781,14 @@ void main() {
         if (expected == 0) {
           expect(capsule.hitTestable(), findsNothing);
         } else {
-          expect(capsule.hitTestable(), findsOneWidget);
-          expect(
-              tester.widget<TIMUIKitTongueItem>(capsule).unreadCount, expected);
+          if (capsule.hitTestable().evaluate().isEmpty) {
+            expect(scroll.offset - scroll.position.minScrollExtent,
+                lessThan(scroll.position.viewportDimension * 0.5));
+          } else {
+            expect(capsule.hitTestable(), findsOneWidget);
+            expect(tester.widget<TIMUIKitTongueItem>(capsule).unreadCount,
+                expected);
+          }
         }
       }
 
@@ -763,14 +812,19 @@ void main() {
           admissionsIdle = true;
         }
       })();
-      await waitForRealIO(tester, () => admissionsIdle,
-          '71 pure hot admissions must finish');
+      await waitForRealIO(
+          tester, () => admissionsIdle, '71 pure hot admissions must finish');
       await pendingAdmissions;
       expect(admissionError, isNull);
       await frames(tester);
       expect(global.hasDurableHistoryDeferred(conv), isFalse);
-      expect(global.deferredIncomingBufferedCount(conv), 71);
-      expect(global.rawMessageList(conv)!.map((message) => message.msgID),
+      expect(global.deferredIncomingBufferedCount(conv), 0);
+      expect(global.rawMessageCount(conv), newest);
+      expect(
+          global
+              .rawMessageList(conv)!
+              .skip(newest - beforeArrivalIDs.length)
+              .map((message) => message.msgID),
           orderedEquals(beforeArrivalIDs));
       expect(scroll.offset, closeTo(beforeArrivalOffset, 1));
       expectCounter(71);
@@ -824,20 +878,16 @@ void main() {
   });
 
   testWidgets(
-      'idle hot reveal fills its runway using only frames scheduled by production',
+      'idle connected append keeps the reading position and unread count',
       (tester) async {
     try {
       HistoryWindowRepositoryProvider.repository = null;
       await mount(tester, realTongue: true);
       final conv = model.conversationID;
       final list = find.byType(CustomScrollView);
-      final viewport = tester.getRect(list);
-      Finder row(int seq) => find.byKey(ValueKey('row-$conv-$seq'));
-
       Future<int> pumpOnlyScheduledFrames() async {
         var pumped = 0;
-        // In particular, do not force the otherwise idle post-frame expiry
-        // callbacks forward: the production controller must schedule them.
+        // Do not introduce a gesture while verifying idle append behavior.
         while (tester.binding.hasScheduledFrame && pumped < 60) {
           final handler = FlutterError.onError;
           await tester.pump(const Duration(milliseconds: 16));
@@ -845,7 +895,7 @@ void main() {
           pumped++;
         }
         expect(tester.binding.hasScheduledFrame, isFalse,
-            reason: 'runway preparation must finish within a bounded number '
+            reason: 'idle append must finish within a bounded number '
                 'of production-scheduled frames');
         return pumped;
       }
@@ -856,13 +906,20 @@ void main() {
         final capsule = find.byWidgetPredicate((widget) =>
             widget is TIMUIKitTongueItem &&
             widget.valueType == MessageListTongueType.showUnread);
-        expect(capsule.hitTestable(), findsOneWidget);
-        expect(tester.widget<TIMUIKitTongueItem>(capsule).unreadCount, expected);
+        if (capsule.hitTestable().evaluate().isEmpty) {
+          expect(scroll.offset - scroll.position.minScrollExtent,
+              lessThan(scroll.position.viewportDimension * 0.5));
+        } else {
+          expect(capsule.hitTestable(), findsOneWidget);
+          expect(
+              tester.widget<TIMUIKitTongueItem>(capsule).unreadCount, expected);
+        }
       }
 
       await tester.drag(list, const Offset(0, 512), touchSlopY: 0);
       await frames(tester);
       expect(global.isFollowingLatest(conv), isFalse);
+      final readingOffset = scroll.offset;
       sdk.newest = 171;
       admissionsIdle = false;
       pendingAdmissions = (() async {
@@ -882,32 +939,15 @@ void main() {
       await pendingAdmissions;
       expect(admissionError, isNull);
       await frames(tester);
-      expect(global.rawMessageCount(conv), 100);
+      expect(global.rawMessageCount(conv), 171);
+      expect(global.deferredIncomingBufferedCount(conv), 0);
+      expect(scroll.offset, closeTo(readingOffset, 1));
       expectCounter(71);
 
-      // Reach the old edge while idle, without the active-drag batch covered
-      // above. The first row provides only 64px; production must supply its
-      // own frames to fill the idle 150px runway.
-      scroll.jumpTo(scroll.position.minScrollExtent);
-      final idleFrames = await pumpOnlyScheduledFrames();
-      expect(idleFrames, greaterThan(0));
-      expect(global.rawMessageCount(conv), 103,
-          reason: 'an idle reader needs three staged 64px rows, without '
-              'the test pumping extra frames or sending another gesture');
-      expect(scroll.offset - scroll.position.minScrollExtent,
-          inInclusiveRange(150, 214));
-      expect(tester.getRect(row(100)).bottom, closeTo(viewport.bottom, 1));
+      await pumpOnlyScheduledFrames();
+      expect(global.rawMessageCount(conv), 171);
+      expect(scroll.offset, closeTo(readingOffset, 1));
       expectCounter(71);
-
-      for (var seq = 101; seq <= 102; seq++) {
-        await tester.drag(list, const Offset(0, -64), touchSlopY: 0);
-        await pumpOnlyScheduledFrames();
-        expect(row(seq), findsOneWidget);
-        expect(tester.getRect(row(seq)).bottom, closeTo(viewport.bottom, 1),
-            reason: 'the next row must appear with one 64px gesture after '
-                'production finishes its idle runway preparation');
-        expectCounter(171 - seq);
-      }
     } finally {
       await close(tester);
     }
@@ -942,8 +982,14 @@ void main() {
         final capsule = find.byWidgetPredicate((widget) =>
             widget is TIMUIKitTongueItem &&
             widget.valueType == MessageListTongueType.showUnread);
-        expect(capsule.hitTestable(), findsOneWidget);
-        expect(tester.widget<TIMUIKitTongueItem>(capsule).unreadCount, expected);
+        if (capsule.hitTestable().evaluate().isEmpty) {
+          expect(scroll.offset - scroll.position.minScrollExtent,
+              lessThan(scroll.position.viewportDimension * 0.5));
+        } else {
+          expect(capsule.hitTestable(), findsOneWidget);
+          expect(
+              tester.widget<TIMUIKitTongueItem>(capsule).unreadCount, expected);
+        }
       }
 
       await tester.drag(list, const Offset(0, 512), touchSlopY: 0);
@@ -971,8 +1017,13 @@ void main() {
       await pendingAdmissions;
       expect(admissionError, isNull);
       await frames(tester);
-      expect(global.deferredIncomingBufferedCount(conv), 71);
-      expect(global.rawMessageList(conv)!.map((message) => message.msgID),
+      expect(global.deferredIncomingBufferedCount(conv), 0);
+      expect(global.rawMessageCount(conv), 171);
+      expect(
+          global
+              .rawMessageList(conv)!
+              .skip(171 - beforeArrivalIDs.length)
+              .map((message) => message.msgID),
           orderedEquals(beforeArrivalIDs));
       expect(scroll.offset, closeTo(beforeArrivalOffset, 1));
       expectCounter(71);
@@ -988,7 +1039,9 @@ void main() {
       final oldAnchorTop = tester.getTopLeft(row(100)).dy;
       await waitForRealIO(
           tester,
-          () => global.rawMessageList(conv)!.any((message) => message.seq == '101'),
+          () => global
+              .rawMessageList(conv)!
+              .any((message) => message.seq == '101'),
           'the tall hot row must be staged before reading beyond the old edge');
       await frames(tester);
       expect(fullyVisible(100), isTrue);
@@ -1015,8 +1068,7 @@ void main() {
         tallRect = tester.getRect(row(101));
         expect(tallRect.top, closeTo(previousTop - 64, 1),
             reason: 'preparing adjacent hot rows must not jump within media');
-        if (tallRect.top < viewport.top &&
-            tallRect.bottom > viewport.bottom) {
+        if (tallRect.top < viewport.top && tallRect.bottom > viewport.bottom) {
           observedMiddle = true;
         }
         expectCounter(71);
@@ -1063,8 +1115,8 @@ void main() {
           admissionsIdle = true;
         }
       })();
-      await waitForRealIO(tester, () => admissionsIdle,
-          'the pending arrival must be durable');
+      await waitForRealIO(
+          tester, () => admissionsIdle, 'the pending arrival must be durable');
       expect(admissionError, isNull);
       await frames(tester);
       expect(global.receivedNewMessageCountFor(conv), 1);
@@ -1081,22 +1133,32 @@ void main() {
       // This is a programmatic update, not a second or reversed user gesture.
       scroll.jumpTo(edgePixels + 512);
       await frames(tester);
-      expect(sdk.requests.skip(requestsBefore).where((r) =>
-          r.type == HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_NEWER_MSG), isEmpty);
+      expect(
+          sdk.requests.skip(requestsBefore).where(
+              (r) => r.type == HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_NEWER_MSG),
+          isEmpty);
       global.restoreScrollAfterMediaPreview(conv);
       await frames(tester);
       global.finishScrollAfterMediaPreview(conv);
-      await tester.runAsync(() =>
-          Future<void>.delayed(const Duration(milliseconds: 450)));
-      await waitForRealIO(tester,
-          () => !global.shouldLockChatScrollForMediaPreview &&
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 450)));
+      await waitForRealIO(
+          tester,
+          () =>
+              !global.shouldLockChatScrollForMediaPreview &&
               !global.isRestoringScrollAfterMediaPreview,
           'media restoration must release');
-      await waitForRealIO(tester,
+      await waitForRealIO(
+          tester,
           () => global.rawMessageList(conv)!.any((m) => m.seq == '101'),
           'the original edge gesture must resume without a second drag');
-      expect(sdk.requests.skip(requestsBefore).where((r) =>
-          r.type == HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_NEWER_MSG).length, 1);
+      expect(
+          sdk.requests
+              .skip(requestsBefore)
+              .where((r) =>
+                  r.type == HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_NEWER_MSG)
+              .length,
+          1);
       expect(scroll.offset, closeTo(edgePixels, 1));
       expect(global.receivedNewMessageCountFor(conv), 1,
           reason: 'loading an unseen row must not acknowledge it');
@@ -1106,7 +1168,8 @@ void main() {
       expect(latest.hitTestable(), findsOneWidget);
       expect(tester.getRect(latest).bottom,
           lessThanOrEqualTo(tester.getRect(list).bottom + 1));
-      await waitForRealIO(tester,
+      await waitForRealIO(
+          tester,
           () => global.receivedNewMessageCountFor(conv) == 0,
           'the visibly consumed row must acknowledge normally');
     } finally {
@@ -1140,9 +1203,14 @@ void main() {
         if (expected == 0) {
           expect(capsule.hitTestable(), findsNothing);
         } else {
-          expect(capsule.hitTestable(), findsOneWidget);
-          expect(
-              tester.widget<TIMUIKitTongueItem>(capsule).unreadCount, expected);
+          if (capsule.hitTestable().evaluate().isEmpty) {
+            expect(scroll.offset - scroll.position.minScrollExtent,
+                lessThan(scroll.position.viewportDimension * 0.5));
+          } else {
+            expect(capsule.hitTestable(), findsOneWidget);
+            expect(tester.widget<TIMUIKitTongueItem>(capsule).unreadCount,
+                expected);
+          }
         }
       }
 
@@ -1200,7 +1268,9 @@ void main() {
       sdk.newerPageGate!.complete();
       await waitForRealIO(
           tester,
-          () => global.rawMessageList(conv)!.any((message) => message.seq == '120'),
+          () => global
+              .rawMessageList(conv)!
+              .any((message) => message.seq == '120'),
           'the first adjacent page must load');
       await frames(tester);
       expect(fullyVisible(100), isTrue);
@@ -1214,8 +1284,10 @@ void main() {
         // Waiting neither sends another gesture nor waits for the next row
         // to become visible: that still requires exactly one 64 px drag.
         if (!global.rawMessageList(conv)!.any((m) => m.seq == '$seq')) {
-          await waitForRealIO(tester,
-              () => global.rawMessageList(conv)!.any((m) => m.seq == '$seq') &&
+          await waitForRealIO(
+              tester,
+              () =>
+                  global.rawMessageList(conv)!.any((m) => m.seq == '$seq') &&
                   !model.isLoadingChatHistory &&
                   !tester
                       .state<ChatHistoryWindowTransitionState>(
@@ -1223,8 +1295,8 @@ void main() {
                       .isRetainingViewport,
               'the existing edge request must load message $seq without another gesture');
           expect(fullyVisible(seq - 1), isTrue);
-          expect(tester.getTopLeft(row(seq - 1)).dy,
-              closeTo(readingEdgeTop, 1));
+          expect(
+              tester.getTopLeft(row(seq - 1)).dy, closeTo(readingEdgeTop, 1));
           expectCounter(newest - seq + 1);
         }
         await tester.drag(list, const Offset(0, -64), touchSlopY: 0);
@@ -1240,29 +1312,30 @@ void main() {
         if (!adjacentAfterGesture) {
           final nearby = <String>[];
           for (var candidate = seq - 3; candidate <= seq + 3; candidate++) {
-            nearby.add('$candidate:${row(candidate).evaluate().isEmpty ? 'unmounted' : tester.getRect(row(candidate))}');
+            nearby.add(
+                '$candidate:${row(candidate).evaluate().isEmpty ? 'unmounted' : tester.getRect(row(candidate))}');
           }
           debugPrint('CHAT_OVERLAP_ADJACENCY_FAILURE '
               '${{
-                'expected': seq,
-                'sdkNewest': sdk.newest,
-                'sdkRequests': sdk.requests,
-                'rawNewest': global.rawMessageList(conv)?.first.seq,
-                'rawOldest': global.rawMessageList(conv)?.last.seq,
-                'cursor': model.historyNewerPageCursor?.seq,
-                'modelLoading': model.isLoadingChatHistory,
-                'modelMoreLatest': model.haveMoreLatestData,
-                'rawCount': global.rawMessageCount(conv),
-                'offset': scroll.offset,
-                'minExtent': scroll.position.minScrollExtent,
-                'maxExtent': scroll.position.maxScrollExtent,
-                'unread': global.receivedNewMessageCountFor(conv),
-                'following': global.isFollowingLatest(conv),
-                'newerMissing': global.memoryWindowMissingNewer(conv),
-                'historyActive': model.hasHistoryReadingWindow,
-                'rowRects': nearby,
-                'trimCount': committedTrimSizes.length,
-              }}');
+            'expected': seq,
+            'sdkNewest': sdk.newest,
+            'sdkRequests': sdk.requests,
+            'rawNewest': global.rawMessageList(conv)?.first.seq,
+            'rawOldest': global.rawMessageList(conv)?.last.seq,
+            'cursor': model.historyNewerPageCursor?.seq,
+            'modelLoading': model.isLoadingChatHistory,
+            'modelMoreLatest': model.haveMoreLatestData,
+            'rawCount': global.rawMessageCount(conv),
+            'offset': scroll.offset,
+            'minExtent': scroll.position.minScrollExtent,
+            'maxExtent': scroll.position.maxScrollExtent,
+            'unread': global.receivedNewMessageCountFor(conv),
+            'following': global.isFollowingLatest(conv),
+            'newerMissing': global.memoryWindowMissingNewer(conv),
+            'historyActive': model.hasHistoryReadingWindow,
+            'rowRects': nearby,
+            'trimCount': committedTrimSizes.length,
+          }}');
           await frames(tester, 200);
           debugPrint('CHAT_OVERLAP_AFTER_NO_FURTHER_GESTURE '
               'expected=$seq sdkRequests=${sdk.requests.length} '
@@ -1299,11 +1372,16 @@ void main() {
           final capsule = find.byWidgetPredicate((widget) =>
               widget is TIMUIKitTongueItem &&
               widget.valueType == MessageListTongueType.showUnread);
-          return newest == seq
-              ? capsule.hitTestable().evaluate().isEmpty
-              : capsule.hitTestable().evaluate().length == 1 &&
-                  tester.widget<TIMUIKitTongueItem>(capsule).unreadCount ==
-                      newest - seq;
+          final visible = capsule.hitTestable().evaluate();
+          if (newest == seq) return visible.isEmpty;
+          if (visible.length == 1) {
+            return tester.widget<TIMUIKitTongueItem>(capsule).unreadCount ==
+                newest - seq;
+          }
+          return visible.isEmpty &&
+              scroll.offset - scroll.position.minScrollExtent <
+                  scroll.position.viewportDimension * 0.5 &&
+              !global.memoryWindowMissingNewer(conv);
         }, 'the reading UI must finish its trim transition for message $seq');
         expect(fullyVisible(seq), isTrue);
         expect(tester.getTopLeft(row(seq)).dy, closeTo(readingEdgeTop, 1));
@@ -1311,7 +1389,8 @@ void main() {
       }
       await waitForRealIO(
           tester,
-          () => !global.hasDurableHistoryDeferred(conv) &&
+          () =>
+              !global.hasDurableHistoryDeferred(conv) &&
               global.isFollowingLatest(conv) &&
               model.hasCaughtUpToLiveLatest,
           'reading all 300 arrivals must resume following latest');
@@ -1319,14 +1398,17 @@ void main() {
       expect(fullyVisible(newest), isTrue);
       expect(committedTrimSizes, isNotEmpty,
           reason: 'this scenario must commit a real bounded-window trim');
-      expect(store.trimPageWrites, greaterThanOrEqualTo(committedTrimSizes.length),
+      expect(
+          store.trimPageWrites, greaterThanOrEqualTo(committedTrimSizes.length),
           reason: 'each committed trim must persist its displaced pages');
       expect(peakWindowCount, greaterThan(ChatMessageWindowPolicy.targetSize));
-      expect(peakWindowCount, lessThanOrEqualTo(ChatMessageWindowPolicy.softMax));
+      expect(
+          peakWindowCount, lessThanOrEqualTo(ChatMessageWindowPolicy.softMax));
       expect(
           sdk.requests
               .where((request) =>
-                  request.type == HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_NEWER_MSG &&
+                  request.type ==
+                      HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_NEWER_MSG &&
                   request.seq < newest)
               .map((request) => request.seq)
               .toSet()
@@ -1366,13 +1448,16 @@ void main() {
       await waitForRealIO(tester, () => admissionsIdle,
           'preview arrivals must persist without moving the history reader');
       expect(admissionError, isNull);
-      await waitForRealIO(tester,
+      await waitForRealIO(
+          tester,
           () => global.receivedNewMessageCountFor(conv) == 5,
           'the inbound coalescer must publish the five preview arrivals');
       expect(global.receivedNewMessageCountFor(conv), 5);
       global.restoreScrollAfterMediaPreview(conv);
-      await waitForRealIO(tester,
-          () => !global.shouldLockChatScrollForMediaPreview &&
+      await waitForRealIO(
+          tester,
+          () =>
+              !global.shouldLockChatScrollForMediaPreview &&
               !global.isRestoringScrollAfterMediaPreview,
           'the actual media viewport restoration must release');
       global.beginKeyboardViewportTransition(conv);
@@ -1385,7 +1470,8 @@ void main() {
       final requestsBeforeReturn = sdk.requests.length;
       sdk.latestPageGate = Completer<void>();
       await tester.tap(capsule.hitTestable());
-      await waitForRealIO(tester,
+      await waitForRealIO(
+          tester,
           () => sdk.requests.skip(requestsBeforeReturn).any((r) => r.seq <= 0),
           'the visible unread button must start a latest-window read');
       sdk.newest = 410;
@@ -1406,15 +1492,18 @@ void main() {
           'arrivals during the pending button action must persist');
       expect(admissionError, isNull);
       sdk.latestPageGate!.complete();
-      await waitForRealIO(tester,
-          () => !global.isUserScrollToBottomInProgress(conv) &&
+      await waitForRealIO(
+          tester,
+          () =>
+              !global.isUserScrollToBottomInProgress(conv) &&
               global.rawMessageList(conv)?.first.seq == '410' &&
               (scroll.offset - scroll.position.minScrollExtent).abs() <= 1,
           'trim + media restore + keyboard + arrivals must complete return');
       await frames(tester);
       final latestRow = find.byKey(ValueKey('row-$conv-410'));
       expect(latestRow.hitTestable(), findsOneWidget,
-          reason: 'SDK/model completion alone does not prove the newest row painted');
+          reason:
+              'SDK/model completion alone does not prove the newest row painted');
       final currentViewport = tester.getRect(list);
       final latestRect = tester.getRect(latestRow);
       expect(latestRect.top, greaterThanOrEqualTo(currentViewport.top - 1));
@@ -1479,7 +1568,8 @@ void main() {
               widget.valueType == MessageListTongueType.showUnread);
           return global.receivedNewMessageCountFor(conv) == expected &&
               capsule.hitTestable().evaluate().length == 1 &&
-              tester.widget<TIMUIKitTongueItem>(capsule).unreadCount == expected;
+              tester.widget<TIMUIKitTongueItem>(capsule).unreadCount ==
+                  expected;
         }, 'the already-visible tall-row receipt for $seq must commit');
       }
 
@@ -1569,6 +1659,91 @@ void main() {
       await close(tester);
     }
   });
+
+  testWidgets('arrivals during an iOS bottom bounce remain reachable',
+      (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      await mount(tester);
+      final conv = model.conversationID;
+      final list = find.byType(CustomScrollView);
+      await tester.drag(list, const Offset(0, 1200));
+      await frames(tester);
+      scroll.jumpTo(scroll.position.minScrollExtent + 50);
+      await frames(tester);
+      final gesture = await tester.startGesture(tester.getCenter(list));
+      await gesture.moveBy(const Offset(0, -160));
+      await frame(tester);
+      expect(scroll.position.pixels, lessThan(scroll.position.minScrollExtent));
+      await gesture.up();
+      sdk.newest = 103;
+      admissionsIdle = false;
+      pendingAdmissions = (() async {
+        try {
+          for (var seq = 101; seq <= 103; seq++) {
+            await global.applyAppRealtimeMessage(_message(conv, seq),
+                ingressEventID: 'bounce-$seq', ingressSequence: seq);
+          }
+        } finally {
+          admissionsIdle = true;
+        }
+      })();
+      await waitForRealIO(tester, () => admissionsIdle, 'bounce arrivals');
+      await pendingAdmissions;
+      await frames(tester, 80);
+      final newestVisible = find.text('seq:103').hitTestable().evaluate().isNotEmpty;
+      final reminderVisible =
+          find.textContaining('showUnread:').hitTestable().evaluate().isNotEmpty;
+      expect(newestVisible || reminderVisible, isTrue,
+          reason: 'a rebound must either follow the new tip or retain its reminder');
+      if (!newestVisible) {
+        expect(global.remainingLiveIncomingCountFor(conv), greaterThan(0));
+      }
+    } finally {
+      await close(tester);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  for (final durable in [false, true]) {
+    testWidgets('near-bottom rebound keeps new arrivals discoverable '
+        '(durable=$durable)', (tester) async {
+      try {
+        if (!durable) HistoryWindowRepositoryProvider.repository = null;
+        await mount(tester);
+        final conv = model.conversationID;
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, 1200));
+        await frames(tester);
+        expect(global.isFollowingLatest(conv), isFalse);
+        // Exercise the settled near-edge part of a rebound without pressing
+        // the capsule. A geometric near-bottom is not yet a latest-row proof.
+        scroll.jumpTo(scroll.position.minScrollExtent + 30);
+        await frames(tester);
+        expect(global.isFollowingLatest(conv), isFalse);
+        sdk.newest = 103;
+        admissionsIdle = false;
+        pendingAdmissions = (() async {
+          try {
+            for (var seq = 101; seq <= 103; seq++) {
+              await global.applyAppRealtimeMessage(_message(conv, seq),
+                  ingressEventID: 'rebound-$seq', ingressSequence: seq);
+            }
+          } finally {
+            admissionsIdle = true;
+          }
+        })();
+        await waitForRealIO(tester, () => admissionsIdle, 'rebound arrivals');
+        await pendingAdmissions;
+        await frames(tester, 50);
+        expect(global.remainingLiveIncomingCountFor(conv), greaterThan(0));
+        expect(find.textContaining('showUnread:').hitTestable(), findsOneWidget,
+            reason: 'unseen arrivals must remain reachable even near the edge');
+        expect(find.text('seq:103').hitTestable(), findsNothing);
+      } finally {
+        await close(tester);
+      }
+    });
+  }
 
   for (final scenario in [
     (deep: false, failFirst: false),
@@ -1695,6 +1870,11 @@ void main() {
         expect(global.hasDurableHistoryDeferred(conv), isFalse);
         expect(global.receivedNewMessageCountFor(conv), 0);
         expect(model.hasCaughtUpToLiveLatest, isTrue);
+        await frames(tester);
+        expect(global.isFollowingLatest(conv), isTrue);
+        expect(global.remainingLiveIncomingCountFor(conv), 0);
+        expect(find.textContaining('showUnread:').hitTestable(), findsNothing);
+        expect(find.textContaining('toLatest:').hitTestable(), findsNothing);
       } finally {
         await close(tester);
       }

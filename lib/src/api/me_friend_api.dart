@@ -12,7 +12,9 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_friend_info.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_friend_info.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_user_full_info.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_user_full_info.dart';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
+import 'package:tencent_cloud_chat_demo/src/services/friend_local/contacts_protocol_sync_service.dart';
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 
 import 'api_client.dart';
@@ -27,6 +29,7 @@ class MeFriendApi {
       <String, Future<FriendRelation?>>{};
   final Map<String, _CachedFriendRelation> _relationCache =
       <String, _CachedFriendRelation>{};
+  final Map<String, SessionIdentity> _relationRequestIdentities = {};
 
   Dio get _dio => ApiClient.instance.dio;
 
@@ -214,7 +217,7 @@ class MeFriendApi {
     return null;
   }
 
-  /// 选人页统一数据源：IM SDK 好友关系。
+  /// 选人页使用与通讯录相同的已确认关系。
   Future<List<V2TimFriendInfo>> loadFriendsForPickers() async {
     final friends = await fetchV2TimFriends();
     return friends
@@ -230,19 +233,9 @@ class MeFriendApi {
   Future<List<V2TimFriendInfo>> fetchV2TimFriends({
     bool allowLegacySdkFallback = false,
   }) async {
-    return _fetchImSdkFriendList();
-  }
-
-  Future<List<V2TimFriendInfo>> _fetchImSdkFriendList() async {
-    try {
-      final res = await TencentImSDKPlugin.v2TIMManager
-          .getFriendshipManager()
-          .getFriendList();
-      if (res.code == 0 && res.data != null) {
-        return res.data!;
-      }
-    } catch (_) {}
-    return const <V2TimFriendInfo>[];
+    await ContactsProtocolSyncService.instance.sync(reason: 'friend_picker');
+    final records = await FriendLocalStore.instance.readAll();
+    return [for (final record in records) record.toV2TimFriendInfo()];
   }
 
   /// PUT /me/friends/{friendUserId}/remark
@@ -255,7 +248,9 @@ class MeFriendApi {
     // patch miss the existing row and leave SQLite with the old remark.
     final id = ChatIdFormat.rawUserUid(friendUserId.trim());
     if (id.isEmpty) return;
+    final identity = SessionIdentityService.instance.capture();
     await _dio.put('/me/friends/$id/remark', data: {'remark': remark.trim()});
+    if (!SessionIdentityService.instance.isCurrent(identity)) return;
     await FriendSyncService.instance.applyOptimisticRemark(
       friendUserId: id,
       remark: remark.trim(),
@@ -264,10 +259,12 @@ class MeFriendApi {
 
   /// DELETE /me/friends/{friendUserId}
   Future<void> deleteFriend(String friendUserId) async {
-    final id = friendUserId.trim();
+    final id = ChatIdFormat.rawUserUid(friendUserId);
     if (id.isEmpty) return;
+    final identity = SessionIdentityService.instance.capture();
     await _dio.delete('/me/friends/$id');
-    _relationCache.remove(ChatIdFormat.rawUserUid(id));
+    if (!SessionIdentityService.instance.isCurrent(identity)) return;
+    invalidateRelation(id);
     await FriendSyncService.instance.applyOptimisticDelete(id);
   }
 
@@ -363,20 +360,26 @@ class MeFriendApi {
     if (_isSelfPeer(id)) {
       return null;
     }
+    final identity = SessionIdentityService.instance.capture();
     final cached = _relationCache[id];
-    if (cached != null && !cached.isExpired) {
+    if (cached != null && cached.identity == identity && !cached.isExpired) {
       return cached.relation;
     }
 
     final running = _relationRequests[id];
-    if (running != null) {
+    if (running != null && _relationRequestIdentities[id] == identity) {
       return running;
     }
 
     late final Future<FriendRelation?> task;
     task = _fetchRelationSafely(id).then((relation) {
+      if (!identical(_relationRequests[id], task) ||
+          !SessionIdentityService.instance.isCurrent(identity)) {
+        return null;
+      }
       if (relation != null) {
         _relationCache[id] = _CachedFriendRelation(
+          identity: identity,
           relation: relation,
           expiresAt: DateTime.now().add(_relationCacheTtl),
         );
@@ -385,10 +388,19 @@ class MeFriendApi {
     }).whenComplete(() {
       if (identical(_relationRequests[id], task)) {
         _relationRequests.remove(id);
+        _relationRequestIdentities.remove(id);
       }
     });
     _relationRequests[id] = task;
+    _relationRequestIdentities[id] = identity;
     return task;
+  }
+
+  void invalidateRelation(String peerUserId) {
+    final id = ChatIdFormat.rawUserUid(peerUserId);
+    _relationCache.remove(id);
+    _relationRequests.remove(id);
+    _relationRequestIdentities.remove(id);
   }
 
   Future<MeFriendRecord?> cachedByUserId(String friendUserId) async {
@@ -416,11 +428,13 @@ class MeFriendApi {
 
 class _CachedFriendRelation {
   const _CachedFriendRelation({
+    required this.identity,
     required this.relation,
     required this.expiresAt,
   });
 
   final FriendRelation relation;
+  final SessionIdentity identity;
   final DateTime expiresAt;
 
   bool get isExpired => !DateTime.now().isBefore(expiresAt);
@@ -579,6 +593,7 @@ class MeFriendRecord {
 
   final String friendUserId;
   final String remark;
+
   /// False for relation/public-profile responses that carry no remark field.
   final bool remarkKnown;
   final String friendNickname;
@@ -614,7 +629,8 @@ class MeFriendRecord {
     return MeFriendRecord(
       friendUserId: friendUserId,
       remark: _asString(json['remark'] ?? json['friendRemark']),
-      remarkKnown: json.containsKey('remark') || json.containsKey('friendRemark'),
+      remarkKnown:
+          json.containsKey('remark') || json.containsKey('friendRemark'),
       friendNickname: _asString(
         json['friendNickname'] ??
             json['friend_nickname'] ??

@@ -2,6 +2,7 @@
 import 'dart:convert';
 
 import 'package:tencent_cloud_chat_demo/src/services/call_result_repository.dart';
+import 'package:tencent_cloud_chat_demo/src/services/call_result_record.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/call_bubble_dedupe_key.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/call_user_id.dart';
@@ -1057,8 +1058,13 @@ class CallingMessageDataProvider {
     if (record.operatorUserId.isNotEmpty) {
       _operatorId = record.operatorUserId;
     }
-    if (record.protocolType != CallProtocolType.unknown) {
-      _protocolType = record.protocolType;
+    // Canonical state can suppress an unconfirmed terminal row, but it must
+    // never turn an invite/accept into a new historical terminal message.
+    if (record.protocolType != CallProtocolType.unknown &&
+        (_isFinalState || !record.effectiveStatus.isTerminal)) {
+      _protocolType = record.effectiveStatus.isTerminal
+          ? record.protocolType
+          : CallResultRecord.protocolTypeFromStatus(record.effectiveStatus);
     }
     if (_jsonData != null) {
       if (record.durationSec > 0) {

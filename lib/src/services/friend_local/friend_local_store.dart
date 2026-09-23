@@ -18,7 +18,12 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_friend_info.dart'
 
 /// 自托管好友通讯录本地库（按登录账号隔离）。在线状态不由本库提供。
 class FriendLocalStore {
-  FriendLocalStore._();
+  FriendLocalStore._() : _memoryOnly = false;
+
+  @visibleForTesting
+  FriendLocalStore.memoryForTest() : _memoryOnly = true;
+
+  final bool _memoryOnly;
 
   static final FriendLocalStore instance = FriendLocalStore._();
 
@@ -29,13 +34,16 @@ class FriendLocalStore {
   static const _table = 'friends';
   static const _searchTable = 'friend_search_index';
   static const _ftsTable = 'contact_fts';
-  static const int _dbVersion = 6;
+  static const int _dbVersion = 7;
   static const int defaultSearchPageSize = 80;
 
   Database? _db;
   final Map<String, List<MeFriendRecord>> _memoryByOwner = {};
   final Map<String, Set<String>> _memoryProtocolEvents = {};
   final Map<String, Map<String, int>> _memoryTombstoneVersions = {};
+  final Map<String, Map<String, Object?>> _memorySyncJobs = {};
+  final Map<String, Map<String, Map<String, SyncProtocolItem>>> _memoryStaging =
+      {};
   bool _factoryReady = false;
   bool? _ftsAvailable;
 
@@ -193,6 +201,13 @@ class FriendLocalStore {
           );
           await _createProtocolTables(db);
         }
+        if (oldVersion < 7) {
+          // Legacy optimistic/SDK writers could corrupt membership after the
+          // saved watermark. Keep the visible cache, but require one full sync.
+          await db.delete(_syncJobTable);
+          await db.delete('contact_sync_staging');
+          await db.delete('contact_sync_event');
+        }
       },
     );
     try {
@@ -307,8 +322,10 @@ class FriendLocalStore {
     Database target,
     String table,
   ) async {
-    final sourceInfo = await source.diagnosedRawQuery('PRAGMA table_info($table)');
-    final targetInfo = await target.diagnosedRawQuery('PRAGMA table_info($table)');
+    final sourceInfo =
+        await source.diagnosedRawQuery('PRAGMA table_info($table)');
+    final targetInfo =
+        await target.diagnosedRawQuery('PRAGMA table_info($table)');
     final targetColumns = targetInfo
         .map((row) => row['name']?.toString() ?? '')
         .where((name) => name.isNotEmpty)
@@ -318,10 +335,12 @@ class FriendLocalStore {
         .where((name) => name.isNotEmpty && targetColumns.contains(name))
         .toList(growable: false);
     if (columns.isEmpty) return;
-    final inferRemarkKnown = table == _table && !columns.contains('remark_known');
+    final inferRemarkKnown =
+        table == _table && !columns.contains('remark_known');
     final insertColumns = [...columns, if (inferRemarkKnown) 'remark_known'];
     final names = insertColumns.map(_quoteIdentifier).join(', ');
-    final placeholders = List<String>.filled(insertColumns.length, '?').join(', ');
+    final placeholders =
+        List<String>.filled(insertColumns.length, '?').join(', ');
     var offset = 0;
     while (true) {
       final rows = await source.diagnosedQuery(
@@ -391,10 +410,20 @@ class FriendLocalStore {
     final rows = await db.diagnosedQuery(
       _table,
       columns: const [
-        'owner_user_id', 'friend_user_id', 'friend_nickname',
-        'friend_avatar_url', 'friend_avatar_version', 'remark', 'remark_known', 'added_at',
-        'peer_deleted_me', 'can_message', 'in_my_friend_list', 'is_friend',
-        'item_version', 'updated_at',
+        'owner_user_id',
+        'friend_user_id',
+        'friend_nickname',
+        'friend_avatar_url',
+        'friend_avatar_version',
+        'remark',
+        'remark_known',
+        'added_at',
+        'peer_deleted_me',
+        'can_message',
+        'in_my_friend_list',
+        'is_friend',
+        'item_version',
+        'updated_at',
       ],
       where: 'owner_user_id = ?',
       whereArgs: [owner],
@@ -513,7 +542,7 @@ class FriendLocalStore {
     return currentOwnerUserId();
   }
 
-  bool get _useMemoryOnly => kIsWeb;
+  bool get _useMemoryOnly => kIsWeb || _memoryOnly;
 
   /// 测试可见：当前进程是否启用了 FTS5。
   @visibleForTesting
@@ -531,10 +560,20 @@ class FriendLocalStore {
     final rows = await db.diagnosedQuery(
       _table,
       columns: const [
-        'owner_user_id', 'friend_user_id', 'friend_nickname',
-        'friend_avatar_url', 'friend_avatar_version', 'remark', 'remark_known', 'added_at',
-        'peer_deleted_me', 'can_message', 'in_my_friend_list', 'is_friend',
-        'item_version', 'updated_at',
+        'owner_user_id',
+        'friend_user_id',
+        'friend_nickname',
+        'friend_avatar_url',
+        'friend_avatar_version',
+        'remark',
+        'remark_known',
+        'added_at',
+        'peer_deleted_me',
+        'can_message',
+        'in_my_friend_list',
+        'is_friend',
+        'item_version',
+        'updated_at',
       ],
       where: 'owner_user_id = ?',
       whereArgs: [owner],
@@ -938,6 +977,14 @@ class FriendLocalStore {
     String? snapshotRevision,
   }) async {
     final owner = _resolveOwner(ownerUserId);
+    if (_useMemoryOnly) {
+      if (snapshotRevision == null) {
+        _memoryStaging.remove(owner);
+      } else {
+        _memoryStaging[owner]?.remove(snapshotRevision);
+      }
+      return;
+    }
     if (owner.isEmpty || _useMemoryOnly) return;
     final db = await _openDb();
     await db.delete(
@@ -953,6 +1000,7 @@ class FriendLocalStore {
 
   Future<void> clearSyncJob({required String ownerUserId}) async {
     final owner = _resolveOwner(ownerUserId);
+    _memorySyncJobs.remove(owner);
     if (owner.isEmpty || _useMemoryOnly) return;
     final db = await _openDb();
     await db.delete(_syncJobTable,
@@ -965,6 +1013,7 @@ class FriendLocalStore {
     String domain = 'contacts',
   }) async {
     final owner = _resolveOwner(ownerUserId);
+    if (_useMemoryOnly) return _memorySyncJobs[owner];
     if (owner.isEmpty || _useMemoryOnly) return null;
     final db = await _openDb();
     final rows = await db.diagnosedQuery(
@@ -986,6 +1035,16 @@ class FriendLocalStore {
     int accountGeneration = 0,
   }) async {
     final owner = _resolveOwner(ownerUserId);
+    if (_useMemoryOnly && owner.isNotEmpty) {
+      _memorySyncJobs[owner] = {
+        'snapshot_revision': snapshotRevision,
+        'next_cursor': nextCursor,
+        'has_more': hasMore ? 1 : 0,
+        'persisted_count': persistedCount,
+        'state': state,
+      };
+      return;
+    }
     if (owner.isEmpty || _useMemoryOnly) return;
     final db = await _openDb();
     await db.insert(
@@ -1008,6 +1067,7 @@ class FriendLocalStore {
 
   Future<void> clearProtocolEvents({required String ownerUserId}) async {
     final owner = _resolveOwner(ownerUserId);
+    _memoryProtocolEvents.remove(owner);
     if (owner.isEmpty || _useMemoryOnly) return;
     final db = await _openDb();
     await db.delete(
@@ -1051,10 +1111,32 @@ class FriendLocalStore {
     required String snapshotRevision,
     required List<MeFriendRecord> records,
     int accountGeneration = 0,
+    bool replaceAbsent = false,
   }) async {
     final owner = _resolveOwner(ownerUserId);
     final revision = snapshotRevision.trim();
     if (owner.isEmpty || revision.isEmpty || _useMemoryOnly) {
+      if (_useMemoryOnly &&
+          replaceAbsent &&
+          owner.isNotEmpty &&
+          revision.isNotEmpty) {
+        _memoryByOwner[owner] = List<MeFriendRecord>.of(records);
+        final tombstones =
+            _memoryTombstoneVersions.putIfAbsent(owner, () => {});
+        for (final item in _memoryStaging[owner]?[revision]?.values ??
+            <SyncProtocolItem>[]) {
+          if (item.deleted && item.itemVersion > (tombstones[item.id] ?? -1)) {
+            tombstones[item.id] = item.itemVersion;
+          }
+        }
+        for (final record in records) {
+          if (record.itemVersion > (tombstones[record.friendUserId] ?? -1)) {
+            tombstones.remove(record.friendUserId);
+          }
+        }
+        _memoryStaging[owner]?.remove(revision);
+        return;
+      }
       await replaceAll(ownerUserId: owner, records: records);
       return;
     }
@@ -1114,7 +1196,8 @@ class FriendLocalStore {
       }
       // Realtime/change writes that won the race before this transaction began
       // must not be rolled back by an older snapshot row.
-      for (final current in currentById.values) {
+      for (final current
+          in replaceAbsent ? const <MeFriendRecord>[] : currentById.values) {
         final tombstoneVersion =
             tombstoneVersionById[current.friendUserId] ?? 0;
         if (!effectiveById.containsKey(current.friendUserId) &&
@@ -1344,14 +1427,13 @@ class FriendLocalStore {
     final revision = snapshotRevision.trim();
     if (owner.isEmpty || revision.isEmpty || items.isEmpty || _useMemoryOnly) {
       if (_useMemoryOnly && owner.isNotEmpty && revision.isNotEmpty) {
-        final tombstones =
-            _memoryTombstoneVersions.putIfAbsent(owner, () => <String, int>{});
+        final staged = _memoryStaging
+            .putIfAbsent(owner, () => {})
+            .putIfAbsent(revision, () => {});
         for (final item in items) {
-          if (!item.deleted || item.id.trim().isEmpty) continue;
-          final id = item.id.trim();
-          final previous = tombstones[id] ?? 0;
-          if (item.itemVersion >= previous) {
-            tombstones[id] = item.itemVersion;
+          if (item.id.isNotEmpty &&
+              item.itemVersion >= (staged[item.id]?.itemVersion ?? -1)) {
+            staged[item.id] = item;
           }
         }
       }
@@ -1402,7 +1484,19 @@ class FriendLocalStore {
     final owner = _resolveOwner(ownerUserId);
     final revision = snapshotRevision.trim();
     if (owner.isEmpty || revision.isEmpty) return const [];
-    if (_useMemoryOnly) return const [];
+    if (_useMemoryOnly) {
+      return [
+        for (final item
+            in _memoryStaging[owner]?[revision]?.values ?? <SyncProtocolItem>[])
+          if (!item.deleted)
+            MeFriendRecord.fromJson({
+              ...item.data,
+              'friendUserId': item.id,
+              'itemVersion': item.itemVersion,
+              'updatedAt': item.updatedAt,
+            }),
+      ];
+    }
     final db = await _openDb();
     final rows = await db.diagnosedQuery(
       'contact_sync_staging',
@@ -1738,6 +1832,8 @@ class FriendLocalStore {
       return;
     }
     _memoryByOwner.remove(owner);
+    _memorySyncJobs.remove(owner);
+    _memoryStaging.remove(owner);
     if (_useMemoryOnly) {
       return;
     }
@@ -1764,6 +1860,8 @@ class FriendLocalStore {
     _memoryByOwner.clear();
     _memoryProtocolEvents.clear();
     _memoryTombstoneVersions.clear();
+    _memorySyncJobs.clear();
+    _memoryStaging.clear();
   }
 
   /// 测试专用：整表清空（生产登出禁止调用）。

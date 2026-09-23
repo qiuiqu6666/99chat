@@ -224,6 +224,16 @@ class LiveKitCallSignaling {
     required String mediaType,
     required String roomName,
   }) {
+    // Unknown/auxiliary signaling actions are not an ended call.
+    if (!const {
+      'invite',
+      'accept',
+      'reject',
+      'cancel',
+      'timeout',
+      'hangup',
+      'answered_elsewhere'
+    }.contains(action)) return;
     final wasUnknown = CallResultRepository.instance.get(callId) == null;
     final self = _safeSelfUserId();
     final peer = self.isNotEmpty && CallUserId.isSameCallUserId(self, calleeId)
@@ -241,13 +251,7 @@ class LiveKitCallSignaling {
       isOutgoing:
           self.isNotEmpty && CallUserId.isSameCallUserId(self, callerId),
     );
-    CallResultRepository.instance.save(record);
-    if (record.effectiveStatus.isTerminal) {
-      CallBubbleInsertService.instance.upsertLifecycleBubble(
-        record,
-        reason: 'signaling_$action',
-      );
-    }
+    CallBubbleInsertService.instance.accept(record);
     if (record.effectiveStatus.isTerminal) {
       unawaited(CallResultEnrichmentService.instance.reconcileStatus(callId));
     } else if (wasUnknown && action != 'invite') {

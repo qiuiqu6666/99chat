@@ -2,7 +2,7 @@ import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKItMessageLi
 
 /// 「回到底部」胶囊显隐。
 ///
-/// 真最新端隐藏。N 不点亮胶囊。离开 FOLLOW 用固定 24px；胶囊用 0.5 屏。
+/// 真最新端隐藏。尚未看到的新消息优先显示。离开 FOLLOW 用固定 24px；胶囊用 0.5 屏。
 class BackToBottomCapsulePolicy {
   BackToBottomCapsulePolicy._();
 
@@ -48,7 +48,7 @@ class BackToBottomCapsulePolicy {
     bool capsuleCurrentlyVisible = false,
     required bool presentationBottomLocked,
     required bool programmaticScrollToBottom,
-    @Deprecated('N does not light the capsule') int liveUnreadCount = 0,
+    int liveUnreadCount = 0,
     @Deprecated('Use distanceFromLatestEdge') bool leftBottomByOneScreen = false,
     @Deprecated('Use atTrueLatestEnd') bool physicallyAtBottom = false,
     @Deprecated('Not a product SSOT') bool latestMessageVisible = false,
@@ -60,7 +60,7 @@ class BackToBottomCapsulePolicy {
     if (atTrueLatestEnd) {
       return false;
     }
-    if (hasMissingNewer || missingNewerThanViewport) {
+    if (hasMissingNewer || missingNewerThanViewport || liveUnreadCount > 0) {
       return true;
     }
     if (distanceFromLatestEdge <= followExitThresholdPx) {

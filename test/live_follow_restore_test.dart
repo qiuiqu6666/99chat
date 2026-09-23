@@ -64,7 +64,7 @@ void main() {
     model.dispose();
   });
 
-  test('buffer records remaining; ACK does not change it', () async {
+  test('visible ACK settles the buffered identity without changing receive generation', () async {
     final first = _message(conv, 2);
     await global.applyAppRealtimeMessage(first);
     await waitUntil(() => global.remainingLiveIncomingCountFor(conv) == 1);
@@ -77,7 +77,7 @@ void main() {
       [first],
       isCurrent: () => true,
     );
-    expect(global.remainingLiveIncomingCountFor(conv), 1);
+    expect(global.remainingLiveIncomingCountFor(conv), 0);
     expect(global.liveReceiveGenerationFor(conv), gen);
   });
 
@@ -173,6 +173,27 @@ void main() {
     expect(global.remainingLiveIncomingCountFor(conv), 0);
     expect(global.rawMessageList(conv)!.map((m) => m.msgID), idsBefore);
     expect(modelNotifies, 1);
+    expect(global.receivedNewMessageCountFor(conv), 0);
+    expect(global.hasDurableHistoryDeferred(conv), isFalse);
+  });
+
+  test('partial coverage cannot restore FOLLOW or clear unread', () async {
+    for (var id = 2; id <= 3; id++) {
+      await global.applyAppRealtimeMessage(_message(conv, id));
+    }
+    await waitUntil(() => global.deferredIncomingBufferedCount(conv) == 2);
+    expect(global.flushDeferredIncomingMessages(conv, userInitiated: true),
+        isTrue);
+    final before = global.receivedNewMessageCountFor(conv);
+    expect(model.commitLiveFollowRestore(
+      visit: global.unreadVisitGenerationFor(conv),
+      restoreOpId: global.beginLiveFollowRestoreOp(conv),
+      liveReceiveGeneration: global.liveReceiveGenerationFor(conv),
+      coveredIds: {'$conv-2'},
+    ), isFalse);
+    expect(global.isFollowingLatest(conv), isFalse);
+    expect(global.remainingLiveIncomingCountFor(conv), 2);
+    expect(global.receivedNewMessageCountFor(conv), before);
   });
 
   test('buffer-only arrival invalidates a stale COMMIT snapshot', () async {

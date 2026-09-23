@@ -20,8 +20,13 @@ void main() {
 
   const ownerUserId = 'owner_a';
   const peerUserId = 'b123456';
+  late List<String> syncReasons;
 
   setUp(() async {
+    syncReasons = [];
+    FriendSyncService.instance.debugProtocolSync = (reason) async {
+      syncReasons.add(reason);
+    };
     FriendSyncService.instance.debugOwnerUserId = ownerUserId;
     FriendSyncService.instance.debugSkipBecameFriendsSideEffects = true;
     FriendSyncService.instance.debugRemarkDisplayPublishCount = 0;
@@ -45,6 +50,7 @@ void main() {
   });
 
   tearDown(() {
+    FriendSyncService.instance.debugProtocolSync = null;
     FriendSyncService.instance.debugOwnerUserId = null;
     FriendSyncService.instance.debugSkipBecameFriendsSideEffects = false;
   });
@@ -123,7 +129,9 @@ void main() {
     expect(event.remark, '备注名');
   });
 
-  test('applyListChanged remark_updated updates local friend remark', () async {
+  test(
+      'unversioned remark hint requests sync without overwriting the confirmed row',
+      () async {
     final changed = await FriendSyncService.instance.applyListChanged(
       FriendRealtimeEvent.fromJson(<String, dynamic>{
         'type': 'event',
@@ -138,13 +146,14 @@ void main() {
     final friends = await FriendLocalStore.instance.readAll(
       ownerUserId: ownerUserId,
     );
-    expect(friends.single.remark, '备注名');
+    expect(friends.single.remark, '旧备注');
+    expect(syncReasons, ['friend_list_remark_updated']);
     expect(friends.single.friendNickname, '小明');
-    expect(PeerProfileRefreshBus.instance.matches(peerUserId), isTrue);
+    expect(PeerProfileRefreshBus.instance.matches(peerUserId), isFalse);
   });
 
   test(
-    'applyListChanged remark_updated clears remark when payload is empty',
+    'empty legacy remark hint cannot clear the confirmed remark',
     () async {
       final changed = await FriendSyncService.instance.applyListChanged(
         FriendRealtimeEvent.fromJson(<String, dynamic>{
@@ -160,7 +169,7 @@ void main() {
       final friends = await FriendLocalStore.instance.readAll(
         ownerUserId: ownerUserId,
       );
-      expect(friends.single.remark, '');
+      expect(friends.single.remark, '旧备注');
     },
   );
 
@@ -185,7 +194,7 @@ void main() {
     expect(FriendSyncService.instance.debugRemarkDisplayPublishCount, 0);
   });
 
-  test('onBecameFriends upserts peer into local store', () async {
+  test('delayed became-friends tip cannot recreate a missing friend', () async {
     const newPeer = 'new_friend_99';
     await FriendSyncService.instance.onBecameFriends(
       peerUserId: newPeer,
@@ -198,14 +207,11 @@ void main() {
       ownerUserId: ownerUserId,
     );
     final match = friends.where((e) => e.friendUserId == newPeer).toList();
-    expect(match, hasLength(1));
-    expect(match.single.friendNickname, '新同学');
-    expect(match.single.friendAvatarUrl, 'https://example.com/new.png');
-    expect(match.single.isFriend, isTrue);
-    expect(match.single.inMyFriendList, isTrue);
+    expect(match, isEmpty);
+    expect(syncReasons, ['friend_added_hint']);
   });
 
-  test('confirmed friend add updates the live contact directory immediately',
+  test('friend-add hint waits for confirmed sync before updating live contacts',
       () async {
     final directory = ImSdkRelationshipDirectory.instance;
     directory.reset();
@@ -221,10 +227,11 @@ void main() {
       reason: 'test_immediate_contact',
     );
 
-    expect(directory.friend('instant_friend')?.displayName, '新好友');
+    expect(directory.friend('instant_friend'), isNull);
+    expect(syncReasons, ['friend_added_hint']);
   });
 
-  test('confirmed friend delete removes the live contact immediately',
+  test('friend-delete hint waits for confirmed sync before removing live contacts',
       () async {
     final directory = ImSdkRelationshipDirectory.instance;
     directory.reset();
@@ -248,11 +255,12 @@ void main() {
 
     await FriendSyncService.instance.applyOptimisticDelete(peerUserId);
 
-    expect(directory.friend(peerUserId), isNull);
+    expect(directory.friend(peerUserId)?.displayName, '小明');
+    expect(syncReasons, ['friend_deleted']);
   });
 
   test(
-    'onBecameFriends keeps new peer visible when local store already has friends',
+    'became-friends hint leaves existing friends intact until server confirms',
     () async {
       const newPeer = 'visible_after_auto';
       final before = await FriendSyncService.instance.loadFriendsForUIKit();
@@ -268,7 +276,7 @@ void main() {
 
       final after = await FriendSyncService.instance.loadFriendsForUIKit();
       expect(after.map((e) => e.userID), contains(peerUserId));
-      expect(after.map((e) => e.userID), contains(newPeer));
+      expect(after.map((e) => e.userID), isNot(contains(newPeer)));
     },
   );
 
@@ -290,4 +298,16 @@ void main() {
       expect(friends.single.remark, '旧备注');
     },
   );
+  test('unversioned delete does not remove a newer re-added relationship',
+      () async {
+    await FriendSyncService.instance
+        .applyListChanged(FriendRealtimeEvent.fromJson({
+      'event': 'friend_list_changed',
+      'action': 'removed',
+      'peerUserId': peerUserId,
+    }));
+    expect(await FriendLocalStore.instance.readAll(ownerUserId: ownerUserId),
+        hasLength(1));
+    expect(syncReasons, ['friend_list_removed']);
+  });
 }

@@ -1,14 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:tencent_cloud_chat_demo/src/services/call_result_record.dart';
+import 'package:tencent_cloud_chat_demo/src/services/call_result_repository.dart';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:tencent_cloud_chat_demo/src/utils/web_chat_open_policy.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
-import 'package:tencent_cloud_chat_uikit/business_logic/view_models/message_delta.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
-import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/regexp_probe.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/call_bubble_dedupe_key.dart';
 import 'package:tencent_cloud_chat_demo/utils/custom_message/calling_message/calling_message_data_provider.dart';
@@ -59,25 +58,21 @@ class _CallMsgMeta {
   );
 }
 
-/// Global call-bubble dedupe for a conversation message list.
+/// Pure call-history projection. It never schedules work or writes a message list.
 class CallBubbleDedupe {
   CallBubbleDedupe._();
 
   static const int _maxMetaCache = 500;
   static final Map<String, _CallMsgMeta> _metaCache = <String, _CallMsgMeta>{};
-  static final Map<String, Timer> _scheduled = <String, Timer>{};
-  static final Set<String> _inFlight = <String>{};
 
   /// 同列表指纹命中则跳过二次 normalize（开聊常对同一窗跑多次）。
   static final Map<String, _NormalizeCacheEntry> _normalizeCache =
       <String, _NormalizeCacheEntry>{};
   static const int _maxNormalizeCache = 8;
 
-  /// 进页门禁：hold 期间禁止把 dedupe 结果写回全局列表（避免 tip 乱窜）。
+  /// Legacy hold API retained for callers/tests; never gates or writes history.
   static final Set<String> _openHold = <String>{};
   static final Map<String, Timer> _openHoldTimeouts = <String, Timer>{};
-  static final Map<String, String> _pendingDedupeReason = <String, String>{};
-  static final Map<String, bool> _pendingDedupeCallOnly = <String, bool>{};
 
   static const Duration openHoldTimeout = Duration(seconds: 2);
 
@@ -85,10 +80,7 @@ class CallBubbleDedupe {
   @visibleForTesting
   static int debugJsonDecodeCount = 0;
 
-  /// Optional hook after a conversation list was normalized/deduped in-place.
-  static void Function(String conversationId)? onConversationDeduped;
-
-  /// 进聊天页调用：延后写回全局列表，展示层 normalize 仍可用。
+  /// Legacy compatibility only; production rendering is a pure projection.
   static void beginOpenHold(
     String conversationId, {
     Duration timeout = openHoldTimeout,
@@ -104,28 +96,11 @@ class CallBubbleDedupe {
     });
   }
 
-  /// reveal / dispose / 超时：解除 hold，并 flush 最多一次 pending dedupe。
+  /// Releases a legacy hold without publishing or mutating messages.
   static void endOpenHold(String conversationId) {
     final convKey = _convKey(conversationId);
-    if (convKey.isEmpty) {
-      return;
-    }
     _openHoldTimeouts.remove(convKey)?.cancel();
-    final wasHeld = _openHold.remove(convKey);
-    final pendingReason = _pendingDedupeReason.remove(convKey);
-    final pendingCallOnly = _pendingDedupeCallOnly.remove(convKey);
-    if (!wasHeld && pendingReason == null) {
-      return;
-    }
-    if (pendingReason != null) {
-      scheduleDedupeConversation(
-        convKey,
-        reason: pendingReason.isEmpty ? 'open_hold_flush' : pendingReason,
-        scheduleSlot: 'open_hold_flush',
-        delay: Duration.zero,
-        callOnly: pendingCallOnly,
-      );
-    }
+    _openHold.remove(convKey);
   }
 
   @visibleForTesting
@@ -141,8 +116,6 @@ class CallBubbleDedupe {
     }
     _openHoldTimeouts.clear();
     _openHold.clear();
-    _pendingDedupeReason.clear();
-    _pendingDedupeCallOnly.clear();
   }
 
   @visibleForTesting
@@ -169,161 +142,17 @@ class CallBubbleDedupe {
     return TUIChatGlobalModel.dedupeMessages(normalized);
   }
 
-  /// 进页 / model 通知等场景用：合并短时间内的多次触发，避免主线程连环卡死。
-  /// [scheduleSlot] 区分同会话不同延迟任务（如 open / late_im），互不取消。
-  static void scheduleDedupeConversation(
-    String conversationId, {
-    String reason = '',
-    String scheduleSlot = 'default',
-    Duration delay = const Duration(milliseconds: 120),
-    bool? callOnly,
-  }) {
-    final convKey = _convKey(conversationId);
-    if (convKey.isEmpty) {
-      return;
-    }
-    final slot = scheduleSlot.trim().isEmpty ? 'default' : scheduleSlot.trim();
-    final effectiveCallOnly =
-        callOnly ?? WebChatOpenPolicy.useCallOnlyOpenDedupe(scheduleSlot: slot);
-    final timerKey = '$convKey|$slot';
-    _scheduled[timerKey]?.cancel();
-    _scheduled[timerKey] = Timer(delay, () {
-      _scheduled.remove(timerKey);
-      dedupeConversation(
-        convKey,
-        reason: reason,
-        callOnly: effectiveCallOnly,
-      );
-    });
-  }
-
-  static void cancelScheduled(String conversationId) {
-    final convKey = _convKey(conversationId);
-    if (convKey.isEmpty) {
-      return;
-    }
-    final prefix = '$convKey|';
-    final keys = _scheduled.keys.where((k) => k.startsWith(prefix)).toList();
-    for (final key in keys) {
-      _scheduled.remove(key)?.cancel();
-    }
-  }
-
-  static void dedupeConversation(
-    String conversationId, {
-    String reason = '',
-    bool callOnly = false,
-  }) {
-    final convKey = _convKey(conversationId);
-    if (convKey.isEmpty) {
-      return;
-    }
-    if (_openHold.contains(convKey)) {
-      _pendingDedupeReason[convKey] =
-          reason.isEmpty ? 'deferred_open_hold' : reason;
-      _pendingDedupeCallOnly[convKey] = callOnly;
-      debugPrint(
-        '[CallBubble] dedupe deferred hold conv=$convKey reason=$reason',
-      );
-      return;
-    }
-    if (!_inFlight.add(convKey)) {
-      // 同会话正在跑：再排一次，用最新列表收尾。
-      scheduleDedupeConversation(
-        convKey,
-        reason: reason.isEmpty ? 'reenter' : '$reason/reenter',
-        scheduleSlot: 'reenter',
-        delay: const Duration(milliseconds: 80),
-      );
-      return;
-    }
-    void release() {
-      _inFlight.remove(convKey);
-    }
-
-    final globalModel = serviceLocator<TUIChatGlobalModel>();
-    final existing = globalModel.messageListMap[convKey];
-    if (existing == null || existing.isEmpty) {
-      release();
-      return;
-    }
-    final before = existing.length;
-    final normalized = normalizeCallHistoryMessages(
-      List<V2TimMessage>.from(existing),
-      preserveTipIdentity: true,
-    );
-    var applyCallOnly = callOnly;
-    final List<V2TimMessage> deduped;
-    if (applyCallOnly) {
-      if (!_nonCallSequencePreserved(existing, normalized)) {
-        deduped = TUIChatGlobalModel.dedupeMessages(normalized);
-        applyCallOnly = false;
-      } else {
-        deduped = normalized;
-      }
-    } else {
-      deduped = TUIChatGlobalModel.dedupeMessages(normalized);
-    }
-    if (_sameMessageIds(deduped, existing)) {
-      release();
-      return;
-    }
-
-    void apply() {
-      try {
-        if (_openHold.contains(convKey)) {
-          _pendingDedupeReason[convKey] =
-              reason.isEmpty ? 'deferred_open_hold' : reason;
-          _pendingDedupeCallOnly[convKey] = applyCallOnly;
-          debugPrint(
-            '[CallBubble] dedupe deferred hold(apply) conv=$convKey '
-            'reason=$reason',
-          );
-          return;
-        }
-        globalModel.commitMessageDelta(
-          MessageDelta<V2TimMessage>(
-            conversationKey: convKey,
-            eventID:
-                'call_bubble_dedupe${applyCallOnly ? "_call_only" : "_full"}:${DateTime.now().microsecondsSinceEpoch}',
-            kind: applyCallOnly
-                ? MessageDeltaKind.localMetadata
-                : MessageDeltaKind.delete,
-            source: MessageDeltaSource.compatibilityProjection,
-            generation: globalModel.messageDeltaGenerationFor(convKey),
-            clearEpoch: globalModel.messageDeltaClearEpochFor(convKey),
-            replace: true,
-            upserts: deduped.map(globalModel.messageDeltaRecord),
-          ),
-        );
-        debugPrint(
-          '[CallBubble] dedupeConversation reason=$reason conv=$convKey '
-          'callOnly=$applyCallOnly before=$before after=${deduped.length}',
-        );
-        onConversationDeduped?.call(convKey);
-      } finally {
-        release();
-      }
-    }
-
-    // 避开布局/paint 中途 notify，防止 RenderSliverMultiBoxAdaptor null check。
-    final phase = SchedulerBinding.instance.schedulerPhase;
-    if (phase == SchedulerPhase.idle ||
-        phase == SchedulerPhase.postFrameCallbacks) {
-      apply();
-    } else {
-      SchedulerBinding.instance.addPostFrameCallback((_) => apply());
-    }
-  }
-
   static List<V2TimMessage> normalizeCallHistoryMessages(
     List<V2TimMessage> messages, {
     bool preserveTipIdentity = false,
   }) {
     final fingerprint = _listFingerprint(
-      messages,
-      preserveTipIdentity: preserveTipIdentity,
-    );
+          messages,
+          preserveTipIdentity: preserveTipIdentity,
+        ) +
+        '|result:${CallResultRepository.instance.revision.value}'
+            '|owner:${SessionIdentityService.instance.capture().ownerUserId}'
+            '|epoch:${SessionIdentityService.instance.generation}';
     final cacheKey = _normalizeCacheKey(
       messages,
       preserveTipIdentity: preserveTipIdentity,
@@ -395,8 +224,10 @@ class CallBubbleDedupe {
         candidates.add(message);
         continue;
       }
-      if ((meta.looksLikeCall || meta.isLocalBubble) &&
-          !meta.shouldDisplayInHistory) {
+      final canonical = CallResultRepository.instance.get(meta.inviteId);
+      if ((canonical != null && !canonical.effectiveStatus.isTerminal) ||
+          ((meta.looksLikeCall || meta.isLocalBubble) &&
+              !meta.shouldDisplayInHistory)) {
         if (kDebugMode) {
           debugPrint(
             '[CallBubble] normalize drop non-history msg=${message.msgID}',
@@ -421,9 +252,12 @@ class CallBubbleDedupe {
         continue;
       }
 
-      final callKey = meta.stableKey;
-      final nearKey = meta.nearKey;
       final inviteId = meta.inviteId.trim();
+      // An explicit call ID must never collide through a weaker duration key.
+      final callKey = inviteId.isNotEmpty
+          ? 'call:${meta.conversationId}:$inviteId'
+          : meta.stableKey;
+      final nearKey = inviteId.isNotEmpty ? '' : meta.nearKey;
       if (callKey.isEmpty && nearKey.isEmpty && inviteId.isEmpty) {
         out.add(message);
         continue;
@@ -559,7 +393,9 @@ class CallBubbleDedupe {
       _metaFor(message).inviteId;
 
   static _CallMsgMeta _metaFor(V2TimMessage message) {
-    final key = _cacheKey(message);
+    final key = '${SessionIdentityService.instance.capture().ownerUserId}:'
+        '${SessionIdentityService.instance.generation}:'
+        '${CallResultRepository.instance.revision.value}:${_cacheKey(message)}';
     final cached = _metaCache[key];
     if (cached != null) {
       return cached;
@@ -983,49 +819,6 @@ class CallBubbleDedupe {
     final nextTs = next.timestamp ?? 0;
     final currentTs = current.timestamp ?? 0;
     return nextTs >= currentTs;
-  }
-
-  static bool _nonCallSequencePreserved(
-    List<V2TimMessage> before,
-    List<V2TimMessage> after,
-  ) {
-    String? messageId(V2TimMessage message) {
-      final msgId = message.msgID?.trim() ?? '';
-      if (msgId.isNotEmpty) {
-        return msgId;
-      }
-      final id = message.id?.trim() ?? '';
-      return id.isEmpty ? null : id;
-    }
-
-    bool isCallRelated(V2TimMessage message) {
-      final meta = _metaFor(message);
-      return meta.looksLikeCall || meta.isLocalBubble;
-    }
-
-    final beforeIds = before
-        .where((message) => !isCallRelated(message))
-        .map(messageId)
-        .whereType<String>()
-        .toList(growable: false);
-    final afterIds = after
-        .where((message) => !isCallRelated(message))
-        .map(messageId)
-        .whereType<String>()
-        .toList(growable: false);
-    return listEquals(beforeIds, afterIds);
-  }
-
-  static bool _sameMessageIds(List<V2TimMessage> a, List<V2TimMessage> b) {
-    if (a.length != b.length) {
-      return false;
-    }
-    for (var i = 0; i < a.length; i++) {
-      if ((a[i].msgID ?? '') != (b[i].msgID ?? '')) {
-        return false;
-      }
-    }
-    return true;
   }
 
   static String _convKey(String conversationId) {

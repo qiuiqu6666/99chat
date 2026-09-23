@@ -187,4 +187,35 @@ void main() {
     expect(rows.single.remark, 'A');
     expect(rows.single.itemVersion, 10);
   });
+  test('delete and re-add reject reordered events and preserve tombstones',
+      () async {
+    await seed(remark: 'initial', version: 17);
+    Future<bool> apply(String eventId, int version, bool deleted) {
+      final event = SyncChangeEvent.fromJson({
+        'eventId': eventId,
+        'id': peer,
+        'itemVersion': version,
+        'operation': deleted ? 'delete' : 'upsert',
+        'deleted': deleted,
+        'friendNickname': 'confirmed',
+        'remark': 'v$version',
+      });
+      return FriendLocalStore.instance.applyProtocolChange(
+          ownerUserId: owner,
+          event: event,
+          record: deleted ? null : meFriendRecordFromSyncChangeEvent(event));
+    }
+
+    expect(await apply('delete-18', 18, true), isTrue);
+    expect(await apply('late-add-17', 17, false), isFalse);
+    expect(
+        await FriendLocalStore.instance.readAll(ownerUserId: owner), isEmpty);
+    expect(await apply('re-add-19', 19, false), isTrue);
+    expect(await apply('late-delete-18', 18, true), isFalse);
+    expect(
+        (await FriendLocalStore.instance.readAll(ownerUserId: owner))
+            .single
+            .itemVersion,
+        19);
+  });
 }

@@ -82,6 +82,7 @@ import 'package:tencent_cloud_chat_uikit/business_logic/mobile_async_commit_guar
 import 'package:tencent_cloud_chat_demo/src/services/im/durable_ingress_gateway.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/contracts/contracts.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/runtime_ingress_processor.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store_platform.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/im05_persistence.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/im_mailbox.dart';
@@ -1108,59 +1109,31 @@ class ConversationSyncService {
       return;
     }
     try {
-      var providerOutgoingAdopted = false;
-      var projectionPublished =
-          claimed.status == ImInboxStatus.projectionPublished;
-      if (claimed.status == ImInboxStatus.processing) {
-        // Run the user-visible projection in parallel with conversation
-        // metadata work. A slow preview/database write must not delay the
-        // message row, unread badge, or last-message update.
-        await Future.wait<void>(<Future<void>>[
-          _publishMessageIngressProjection(event, identity: identity).then((_) {
-            projectionPublished = true;
-          }),
-          _applyMessageIngressMetadata(event, identity: identity),
-        ]);
-        await _ingressPersistFlush.request();
-        if (!await _advanceMessageInboxStatus(
+      await const RuntimeIngressProcessor().run(
+        status: claimed.status,
+        // Heartbeats renew the lease object without replacing its ownership.
+        // Fence by owner/token so healthy renewals do not reject a valid turn.
+        isCurrent: () =>
+            _isCurrentRealtimeIdentity(identity) &&
+            event.domainGeneration == _messageDomainGeneration &&
+            _messageCoreLease?.leaseOwnerId == lease.leaseOwnerId &&
+            _messageCoreLease?.fencingToken == lease.fencingToken,
+        applyMetadata: () =>
+            _applyMessageIngressMetadata(event, identity: identity),
+        flushMetadata: () => _ingressPersistFlush.request(),
+        advance: (from, to) => _advanceMessageInboxStatus(
           event: event,
           identity: identity,
-          expectedStatus: ImInboxStatus.processing,
-          nextStatus: ImInboxStatus.metadataCommitted,
-        )) {
-          return;
-        }
-      }
-      if (claimed.status == ImInboxStatus.processing ||
-          claimed.status == ImInboxStatus.metadataCommitted) {
-        providerOutgoingAdopted = await _adoptProviderOutgoingMessage(
-          event,
-          identity: identity,
-          lease: lease,
-        );
-        if (!projectionPublished) {
-          await _publishMessageIngressProjection(event, identity: identity);
-          projectionPublished = true;
-        }
-        if (!await _advanceMessageInboxStatus(
-          event: event,
-          identity: identity,
-          expectedStatus: ImInboxStatus.metadataCommitted,
-          nextStatus: ImInboxStatus.projectionPublished,
-        )) {
-          return;
-        }
-      }
-      if (claimed.status == ImInboxStatus.projectionPublished) {
-        providerOutgoingAdopted = await _adoptProviderOutgoingMessage(
-          event,
-          identity: identity,
-          lease: lease,
-        );
-      }
-      if (providerOutgoingAdopted) {
-        final outgoing = _providerOutgoingIdentity(event, identity: identity);
-        if (outgoing != null) {
+          expectedStatus: from,
+          nextStatus: to,
+        ),
+        adoptOutgoing: () => _adoptProviderOutgoingMessage(
+          event, identity: identity, lease: lease),
+        publish: () =>
+            _publishMessageIngressProjection(event, identity: identity),
+        completeOutgoing: () async {
+          final outgoing = _providerOutgoingIdentity(event, identity: identity);
+          if (outgoing == null) return;
           final completed = await Im05Persistence(store: _messageIngressStore)
               .completeOutboxProjection(
             ownerUserId: identity.ownerUserId,
@@ -1174,13 +1147,7 @@ class ConversationSyncService {
               'provider Outbox projection completion was rejected',
             );
           }
-        }
-      }
-      await _advanceMessageInboxStatus(
-        event: event,
-        identity: identity,
-        expectedStatus: ImInboxStatus.projectionPublished,
-        nextStatus: ImInboxStatus.completed,
+        },
       );
     } catch (error, stack) {
       // Leave PROCESSING durable. Recovery must replay the event rather than

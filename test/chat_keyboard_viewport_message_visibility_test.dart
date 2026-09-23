@@ -168,13 +168,13 @@ void main() {
     expect(tongue.contains('_settleLiveUnreadAtTrueLatestEnd()'), isTrue);
     final liveSettleStart =
         tongue.indexOf('void _settleLiveUnreadAtTrueLatestEnd()');
-    final liveSettleEnd = tongue.indexOf('void _settleAtTrueLatestEnd()', liveSettleStart);
+    final liveSettleEnd = tongue.indexOf('bool _settleAtTrueLatestEnd()', liveSettleStart);
     expect(liveSettleStart, greaterThanOrEqualTo(0));
     expect(liveSettleEnd, greaterThan(liveSettleStart));
     final liveSettle = tongue.substring(liveSettleStart, liveSettleEnd);
     expect(liveSettle.contains('markMessageAsRead'), isFalse);
     expect(liveSettle.contains('_entryUnreadCount = 0'), isFalse);
-    final tapSettleStart = tongue.indexOf('void _settleAtTrueLatestEnd()');
+    final tapSettleStart = tongue.indexOf('bool _settleAtTrueLatestEnd()');
     final tapSettleEnd = tongue.indexOf('Future<void> scrollToLatestAndDismissUnreadCapsule()', tapSettleStart);
     expect(tapSettleStart, greaterThanOrEqualTo(0));
     expect(tapSettleEnd, greaterThan(tapSettleStart));

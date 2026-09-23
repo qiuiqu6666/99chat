@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:tencent_cloud_chat_demo/src/api/me_friend_api.dart';
-import 'package:tencent_cloud_chat_demo/src/services/friend_local/friend_local_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 
@@ -24,6 +24,8 @@ class C2cFriendMessageGuard {
   C2cFriendMessageGuard._();
 
   static const String becameFriendsTrustSource = 'became_friends';
+
+  static int _revision = 0;
 
   static final Map<String, _PermissionCacheEntry> _permissionCache = {};
   static final Map<String, Future<C2cSendPermissionDecision>> _inflightFetches =
@@ -72,7 +74,15 @@ class C2cFriendMessageGuard {
       }
     }
 
+    final revision = _revision;
+    final identity = SessionIdentityService.instance.capture();
     final relation = await MeFriendApi.instance.tryFetchRelation(id);
+    if (revision != _revision ||
+        !SessionIdentityService.instance.isCurrent(identity)) {
+      return const C2cUiPermissionSnapshot(
+          decision: C2cSendPermissionDecision.unknown,
+          relationConfirmed: false);
+    }
     if (relation != null) {
       final canSend = await _applyRelationResult(id, relation);
       return C2cUiPermissionSnapshot(
@@ -84,6 +94,12 @@ class C2cFriendMessageGuard {
     }
 
     final local = await MeFriendApi.instance.cachedByUserId(id);
+    if (revision != _revision ||
+        !SessionIdentityService.instance.isCurrent(identity)) {
+      return const C2cUiPermissionSnapshot(
+          decision: C2cSendPermissionDecision.unknown,
+          relationConfirmed: false);
+    }
     if (local != null) {
       final canSend = _preferTrustOverNegative(id, local.canMessage);
       _permissionCache[id] = _PermissionCacheEntry(
@@ -136,6 +152,8 @@ class C2cFriendMessageGuard {
     if (id == null) {
       return;
     }
+    _revision++;
+    MeFriendApi.instance.invalidateRelation(id);
     _permissionCache.remove(id);
     _inflightFetches.remove(id);
     if (clearTrusted) {
@@ -212,6 +230,7 @@ class C2cFriendMessageGuard {
 
   @visibleForTesting
   static void debugReset() {
+    _revision++;
     _permissionCache.clear();
     _inflightFetches.clear();
     _trustedAllowHints.clear();
@@ -371,7 +390,13 @@ class C2cFriendMessageGuard {
   }
 
   static Future<C2cSendPermissionDecision> _fetchDecision(String id) async {
+    final revision = _revision;
+    final identity = SessionIdentityService.instance.capture();
     final relation = await MeFriendApi.instance.tryFetchRelation(id);
+    if (revision != _revision ||
+        !SessionIdentityService.instance.isCurrent(identity)) {
+      return C2cSendPermissionDecision.unknown;
+    }
     if (relation != null) {
       final canSend = await _applyRelationResult(id, relation);
       return canSend
@@ -380,6 +405,10 @@ class C2cFriendMessageGuard {
     }
 
     final cached = await MeFriendApi.instance.cachedByUserId(id);
+    if (revision != _revision ||
+        !SessionIdentityService.instance.isCurrent(identity)) {
+      return C2cSendPermissionDecision.unknown;
+    }
     if (cached != null) {
       final canSend = _preferTrustOverNegative(id, cached.canMessage);
       _permissionCache[id] = _PermissionCacheEntry(
@@ -407,10 +436,6 @@ class C2cFriendMessageGuard {
     final canSend = resolveCanSendWithTrust(
       relationCanMessage: relation.canMessage,
       hasFreshTrust: trusted,
-    );
-    await _patchLocalRelation(
-      relation,
-      preserveOptimisticCanMessage: trusted && !relation.canMessage,
     );
     _permissionCache[id] = _PermissionCacheEntry(
       canSend,
@@ -448,56 +473,6 @@ class C2cFriendMessageGuard {
       return null;
     }
     return id;
-  }
-
-  static Future<void> _patchLocalRelation(
-    FriendRelation relation, {
-    bool preserveOptimisticCanMessage = false,
-  }) async {
-    final id = ChatIdFormat.canonicalC2cUserId(relation.peerUserId);
-    if (id.isEmpty) {
-      return;
-    }
-
-    final owner = FriendLocalStore.instance.currentOwnerUserId();
-    if (owner.isEmpty) {
-      return;
-    }
-
-    final existing = await MeFriendApi.instance.cachedByUserId(id);
-    if (existing != null) {
-      await FriendLocalStore.instance.patch(
-        ownerUserId: owner,
-        friendUserId: id,
-        transform: (current) => current.copyWith(
-          canMessage: preserveOptimisticCanMessage
-              ? current.canMessage
-              : relation.canMessage,
-          peerDeletedMe: relation.peerDeletedMe,
-          inMyFriendList: relation.inMyFriendList,
-          isFriend: relation.isFriend,
-        ),
-      );
-      return;
-    }
-
-    if (relation.canMessage || relation.inMyFriendList || relation.isFriend) {
-      await FriendLocalStore.instance.upsert(
-        ownerUserId: owner,
-        record: MeFriendRecord(
-          friendUserId: id,
-          remark: '',
-          remarkKnown: false,
-          friendNickname: '',
-          friendAvatarUrl: '',
-          addedAt: DateTime.now().toUtc().millisecondsSinceEpoch,
-          peerDeletedMe: relation.peerDeletedMe,
-          canMessage: preserveOptimisticCanMessage ? true : relation.canMessage,
-          inMyFriendList: relation.inMyFriendList,
-          isFriend: relation.isFriend,
-        ),
-      );
-    }
   }
 }
 

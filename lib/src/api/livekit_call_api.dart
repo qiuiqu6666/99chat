@@ -206,8 +206,10 @@ class CallSessionStatusSnapshot {
 
   factory CallSessionStatusSnapshot.fromJson(Map<String, dynamic> json) {
     final status = CallSessionStatusCodec.parse(json['status']) ??
-        CallSessionStatusCodec.parse(json['phase']) ??
-        CallSessionStatus.ended;
+        CallSessionStatusCodec.parse(json['phase']);
+    if (status == null) {
+      throw const FormatException('Missing or unknown call session status');
+    }
     return CallSessionStatusSnapshot(
       callId: (json['callId'] ?? json['id'] ?? '').toString().trim(),
       status: status,
