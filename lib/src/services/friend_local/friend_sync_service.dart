@@ -13,6 +13,7 @@ import 'package:tencent_cloud_chat_demo/src/services/c2c_friend_message_guard.da
 import 'package:tencent_cloud_chat_demo/src/services/friend_local/friend_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_local/friend_warmup_remark_gate.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_reconcile_service.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_directory.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_realtime/friend_realtime_event.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/presence_provider.dart';
@@ -302,7 +303,8 @@ class FriendSyncService {
     }
     // An unchanged notification advances the UIKit friendship revision and
     // re-enters contact loading, which itself performs this warmup.
-    if (previousNames.entries.any((entry) => store.c2c(entry.key) != entry.value)) {
+    if (previousNames.entries
+        .any((entry) => store.c2c(entry.key) != entry.value)) {
       store.notifyBatch();
     }
   }
@@ -451,6 +453,12 @@ class FriendSyncService {
     );
     await FriendLocalStore.instance.upsert(ownerUserId: owner, record: record);
     await UserProfileLocalService.instance.saveFriendRecord(record);
+    ImSdkRelationshipDirectory.instance
+        .applyFriendAdds(<RelationshipFriendEntry>[
+      ImSdkRelationshipReconcileService.friendEntryFromSdk(
+        record.toV2TimFriendInfo(),
+      ),
+    ]);
     await publishFriendRemarkDisplayName(
       friendUserId: id,
       remark: record.remark,
@@ -547,6 +555,13 @@ class FriendSyncService {
           record: addedRecord,
         );
         await UserProfileLocalService.instance.saveFriendRecord(addedRecord);
+        ImSdkRelationshipDirectory.instance.applyFriendAdds(
+          <RelationshipFriendEntry>[
+            ImSdkRelationshipReconcileService.friendEntryFromSdk(
+              addedRecord.toV2TimFriendInfo(),
+            ),
+          ],
+        );
         _seedPresenceFromFriendRecords([addedRecord]);
         if (addedRecord.remarkKnown) {
           await publishFriendRemarkDisplayName(
@@ -563,6 +578,9 @@ class FriendSyncService {
         await FriendLocalStore.instance.delete(
           ownerUserId: owner,
           friendUserId: peerUserId,
+        );
+        ImSdkRelationshipDirectory.instance.applyFriendRemoves(
+          <String>[peerUserId],
         );
         changed = true;
         break;
@@ -913,6 +931,7 @@ class FriendSyncService {
       friendUserId: id,
       force: true,
     );
+    ImSdkRelationshipDirectory.instance.applyFriendRemoves(<String>[id]);
     C2cFriendMessageGuard.invalidate(id, clearTrusted: true);
     await refreshUIKitLists(force: true);
     try {

@@ -4,6 +4,7 @@ import 'package:tencent_chat_i18n_tool/language_json/strings.g.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/terms_of_service_localizations.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
 import 'package:tencent_cloud_chat_demo/src/ui/app_tokens.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class TermsOfServicePage extends StatelessWidget {
   const TermsOfServicePage({super.key});
@@ -15,6 +16,7 @@ class TermsOfServicePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.weakBackgroundColor ?? AppTokens.surface,
       appBar: AppBar(
+        leading: const AppBackButton(),
         backgroundColor: theme.appbarBgColor ?? AppTokens.surface,
         foregroundColor: theme.primaryColor ?? const Color(0xFF1E90FF),
         elevation: 0,

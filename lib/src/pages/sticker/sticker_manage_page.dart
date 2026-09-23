@@ -11,6 +11,7 @@ import 'package:tencent_cloud_chat_demo/src/theme/app_colors.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/sticker/sticker_image.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_constants.dart';
 import 'package:tencent_cloud_chat_demo/utils/toast.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class StickerManagePage extends StatefulWidget {
   const StickerManagePage({super.key});
@@ -85,6 +86,7 @@ class _StickerManagePageState extends State<StickerManagePage> {
       child: Scaffold(
         backgroundColor: AppColors.background(dark: dark),
         appBar: AppBar(
+          leading: const AppBackButton(),
           elevation: 0,
           centerTitle: true,
           backgroundColor: AppColors.card(dark: dark),

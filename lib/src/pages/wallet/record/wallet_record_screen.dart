@@ -27,6 +27,7 @@ import 'wallet_record_controller.dart';
 import 'wallet_record_detail_screen.dart';
 import 'wallet_record_models.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 
 String walletRecordNormalizeCoin(String coin) {
@@ -184,6 +185,7 @@ class _WalletRecordScreenState extends State<WalletRecordScreen> {
           Scaffold(
             backgroundColor: cs.bg,
             appBar: AppBar(
+              leading: const AppBackButton(),
               centerTitle: true,
               elevation: 0,
               shadowColor: Colors.transparent,

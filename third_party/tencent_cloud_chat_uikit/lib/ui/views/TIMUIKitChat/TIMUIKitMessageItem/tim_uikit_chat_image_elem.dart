@@ -1367,8 +1367,10 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem>
       pushMediaPreview(
         context: context,
         enableGestureBack: false,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
         // The gallery supplies an opaque surface only on its video page.
-        // Keeping the image route transparent preserves its backdrop fade.
+        // Image preview appears immediately without a backdrop transition.
         requiresOpaquePlatformView: false,
         restoreChatScrollConversationID: convId,
         child: StatefulBuilder(
@@ -1378,6 +1380,7 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem>
               items: session.preview.items,
               initialIndex: session.preview.initialIndex,
               sourceMessage: widget.message,
+              enableHero: false,
               onOpenMedia: _openConversationMediaPageFromPreview,
               onClosing: onPreviewClosing,
             );
@@ -1390,6 +1393,8 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem>
     pushMediaPreview(
       context: context,
       enableGestureBack: false,
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
       restoreChatScrollConversationID: convId,
       child: StatefulBuilder(
         builder: (context, setPreviewState) {
@@ -1415,6 +1420,7 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem>
             imageProvider: imageProvider,
             placeholderImageProvider: placeholderImageProvider,
             heroTag: heroTag,
+            enableHero: false,
             messageID: widget.message.msgID,
             sourceMessage: widget.message,
             headerTitle:

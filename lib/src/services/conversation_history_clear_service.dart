@@ -5,6 +5,7 @@ import 'package:tencent_cloud_chat_demo/src/services/group_local/group_change_ev
 import 'package:tencent_cloud_chat_demo/src/services/group_local/group_local_tips_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_local/group_tips_operator_patch_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/message_history_coverage_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/local_message_overlay_store.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/archive_history_provider.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
@@ -34,6 +35,7 @@ class ConversationHistoryClearService {
     await CallResultRepository.instance.removeByConversationId(
       fullConversationId,
     );
+    LocalMessageOverlayStore.instance.clearConversation(fullConversationId);
     final snapshot = await ConversationLocalStore.instance.conversationById(
       fullConversationId,
     );
@@ -52,7 +54,8 @@ class ConversationHistoryClearService {
       clearEpoch: clearEpoch,
     );
     try {
-      await serviceLocator<TUIChatGlobalModel>().invalidateMessageHistoryCoverage(
+      await serviceLocator<TUIChatGlobalModel>()
+          .invalidateMessageHistoryCoverage(
         fullConversationId,
         isGroup: isGroup,
         clearEpoch: clearEpoch,

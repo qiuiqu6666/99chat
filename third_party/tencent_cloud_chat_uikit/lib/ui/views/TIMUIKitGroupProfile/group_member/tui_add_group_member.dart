@@ -15,10 +15,12 @@ import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_grou
 import 'package:tencent_cloud_chat_uikit/business_logic/services/group_member_store.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/group/group_member_feedback_bridge.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/group/self_hosted_group_invite_bridge.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_directory.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/screen_utils.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/group_member/group_member_picker_search_bar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitSearch/conversation_search_utils.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/picker_user_filter.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/contact_list.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/tim_uikit_back_button.dart';
 import 'package:tencent_cloud_chat_uikit/theme/tui_theme.dart';
@@ -98,6 +100,7 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
   void initState() {
     super.initState();
     widget.model.addListener(_onGroupModelChanged);
+    ImSdkRelationshipDirectory.instance.addListener(_onFriendDirectoryChange);
     // The profile's partial/cached page is not evidence of current membership.
     unawaited(Future<void>.microtask(_loadContactMembership));
     _removals = GroupMemberStore.instance.removals.listen((event) {
@@ -131,6 +134,7 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
   void dispose() {
     _existingResolveGeneration++;
     _removals?.cancel();
+    ImSdkRelationshipDirectory.instance.removeListener(_onFriendDirectoryChange);
     widget.model.removeListener(_onGroupModelChanged);
     _searchController.dispose();
     super.dispose();
@@ -138,6 +142,34 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
 
   void _onGroupModelChanged() {
     _safeSetState(() {});
+  }
+
+  void _onFriendDirectoryChange(RelationshipDirectoryChange change) {
+    if (change.kind != RelationshipListKind.friends) return;
+    _syncContactsFromDirectory();
+    if (change.addedIds.isNotEmpty && !_membershipLoading && !_membershipError) {
+      unawaited(_resolveExistingMembersFromContacts());
+    }
+  }
+
+  void _syncContactsFromDirectory() {
+    if (!mounted) return;
+    final directory = ImSdkRelationshipDirectory.instance;
+    if (!directory.hasCompleteFriendSnapshot) return;
+    final contacts = filterFriendListForPickers(<V2TimFriendInfo>[
+      for (final id in directory.friendOrderedIds)
+        if (directory.friend(id) case final entry?) entry.toV2TimFriendInfo(),
+    ]);
+    final byId = <String, V2TimFriendInfo>{
+      for (final friend in contacts) friend.userID.trim(): friend,
+    };
+    widget.model.contactList = contacts;
+    _safeSetState(() {
+      selectedContacts = <V2TimFriendInfo>[
+        for (final friend in selectedContacts)
+          if (byId[friend.userID.trim()] case final current?) current,
+      ];
+    });
   }
 
   String _membershipUid(String? id) => ChatIdFormat.rawUserUid(id);
@@ -150,7 +182,10 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
     });
     try {
       await widget.model.loadContactsForPicker();
-      if (mounted) await _resolveExistingMembersFromContacts();
+      if (mounted) {
+        _syncContactsFromDirectory();
+        await _resolveExistingMembersFromContacts();
+      }
     } catch (_) {
       _membershipError = true;
     } finally {

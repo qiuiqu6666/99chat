@@ -13,6 +13,7 @@ import 'widgets/pay_loading_overlay.dart';
 import 'widgets/wallet_page_colors.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart';
 import 'withdraw_success_navigation.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 enum WithdrawTransferMode { friend, chain }
 
@@ -381,6 +382,7 @@ class _WithdrawTransferConfirmScreenState
       Scaffold(
       backgroundColor: cs.bg,
       appBar: AppBar(
+        leading: const AppBackButton(),
         centerTitle: true,
         elevation: 0,
         shadowColor: Colors.transparent,
@@ -549,6 +551,7 @@ class _WithdrawTransferConfirmScreenState
       Scaffold(
       backgroundColor: cs.bg,
       appBar: AppBar(
+        leading: const AppBackButton(),
         centerTitle: true,
         elevation: 0,
         shadowColor: Colors.transparent,

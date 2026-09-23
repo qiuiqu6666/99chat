@@ -21,6 +21,7 @@ import 'widgets/pay_loading_overlay.dart';
 import 'widgets/wallet_amount_input.dart';
 import 'widgets/wallet_page_colors.dart';
 import 'widgets/wallet_tip.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class WalletExchangeScreen extends StatefulWidget {
   const WalletExchangeScreen({super.key});
@@ -374,6 +375,7 @@ class _WalletExchangeScreenState extends State<WalletExchangeScreen> {
       Scaffold(
         backgroundColor: cs.bg,
         appBar: AppBar(
+          leading: const AppBackButton(),
           iconTheme: IconThemeData(color: appBar.icon),
           centerTitle: true,
           elevation: 0,

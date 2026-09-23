@@ -12,6 +12,7 @@ import 'widgets/biometric_pay_enable_prompt.dart';
 import 'widgets/pay_loading_overlay.dart';
 import 'widgets/wallet_page_colors.dart';
 import 'withdraw_success_navigation.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class WithdrawChainReviewScreen extends StatefulWidget {
   final CoinDto coin;
@@ -215,6 +216,7 @@ class _WithdrawChainReviewScreenState extends State<WithdrawChainReviewScreen> {
       Scaffold(
       backgroundColor: cs.bg,
       appBar: AppBar(
+        leading: const AppBackButton(),
         centerTitle: true,
         elevation: 0,
         shadowColor: Colors.transparent,

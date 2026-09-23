@@ -3458,6 +3458,7 @@ class UserProfileState extends State<UserProfile> {
                               ? _buildWideDetailPane(theme, pageBackgroundColor)
                               : isWideScreen
                                   ? TIMUIKitProfile(
+                                      showLoadingAnimation: false,
                                       lifeCycle: ProfileLifeCycle(
                                         didGetFriendInfo: (V2TimFriendInfo?
                                             friendInfo) async {
@@ -3608,6 +3609,7 @@ class UserProfileState extends State<UserProfile> {
                                             ],
                                     )
                                   : TIMUIKitProfile(
+                                      showLoadingAnimation: false,
                                       lifeCycle: ProfileLifeCycle(
                                         didGetFriendInfo: (V2TimFriendInfo?
                                             friendInfo) async {

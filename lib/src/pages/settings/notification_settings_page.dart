@@ -211,26 +211,8 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               ),
             ),
             Selector<LocalSetting, bool>(
-              selector: (_, s) => s.notifyVoiceVideoCall,
+              selector: (_, s) => s.notifyCallQuickAnswerPopup,
               builder: (_, value, __) => _NotificationSwitchCell(
-                title: i18n.t(
-                  zhHans: '语音和视频通话通知',
-                  zhHant: '語音與視訊通話通知',
-                  en: 'Voice and Video Call Notifications',
-                  ja: '音声・ビデオ通話通知',
-                  ko: '음성 및 영상 통화 알림',
-                ),
-                value: value,
-                onChanged: (v) => _runRemoteUpdate(
-                  () => MeNotificationSettingsSyncService.instance
-                      .updateCallNotificationEnabled(localSetting, v),
-                ),
-              ),
-            ),
-            Selector<LocalSetting, (bool, bool)>(
-              selector: (_, s) =>
-                  (s.notifyVoiceVideoCall, s.notifyCallQuickAnswerPopup),
-              builder: (_, state, __) => _NotificationSwitchCell(
                 title: i18n.t(
                   zhHans: '语音和视频通话用弹窗快捷接听',
                   zhHant: '語音與視訊通話彈窗快捷接聽',
@@ -238,13 +220,8 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   ja: '音声・ビデオ通話のクイック応答ポップアップ',
                   ko: '음성 및 영상 통화 팝업 빠른 응답',
                 ),
-                isSubItem: true,
-                value: state.$2,
-                enabled: state.$1,
-                onChanged: (v) {
-                  if (!localSetting.notifyVoiceVideoCall) return;
-                  localSetting.notifyCallQuickAnswerPopup = v;
-                },
+                value: value,
+                onChanged: (v) => localSetting.notifyCallQuickAnswerPopup = v,
               ),
             ),
             Selector<LocalSetting, NotificationDisplayMode>(
@@ -437,29 +414,23 @@ class _SettingsSectionHeader extends StatelessWidget {
 class _NotificationSwitchCell extends StatelessWidget {
   final String title;
   final bool value;
-  final bool isSubItem;
   final bool showDivider;
-  final bool enabled;
   final ValueChanged<bool> onChanged;
 
   const _NotificationSwitchCell({
     required this.title,
     required this.value,
     required this.onChanged,
-    this.isSubItem = false,
     this.showDivider = true,
-    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final dark = settingsIsDark(context);
-    final displayTitle = isSubItem ? '- $title' : title;
-
     return SizedBox(
       height: 56,
       child: Container(
-        padding: EdgeInsets.fromLTRB(isSubItem ? 24 : 16, 0, 16, 0),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
         decoration: BoxDecoration(
           border: showDivider
               ? Border(
@@ -474,12 +445,11 @@ class _NotificationSwitchCell extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                displayTitle,
+                title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: AppColors.text(dark: dark)
-                      .withValues(alpha: enabled ? 1 : 0.45),
+                  color: AppColors.text(dark: dark),
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
                 ),
@@ -487,7 +457,7 @@ class _NotificationSwitchCell extends StatelessWidget {
             ),
             GroupSettingsSwitch(
               value: value,
-              onChanged: enabled ? onChanged : null,
+              onChanged: onChanged,
               activeColor: AppColors.primaryBlue,
             ),
           ],

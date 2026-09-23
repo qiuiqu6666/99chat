@@ -59,12 +59,8 @@ class LotteryLiveApi {
     try {
       response = await dio.get('$path/$resource', queryParameters: {
         'machineCode': machine,
-        if (resource == 'draws') 'limit': 100,
-        if (resource == 'predictions') ...{
-          'window': window,
-          'page': 1,
-          'pageSize': LotteryLiveSession.predictionPageSize,
-        },
+        if (resource == 'draws' || resource == 'predictions') 'limit': 100,
+        if (resource == 'predictions') 'window': window,
         ...query,
       });
       _lotteryHttpLog('response', uri: response.realUri, response: response);
@@ -126,19 +122,12 @@ LotteryLiveSession lotteryLiveSession(String machine) {
 /// Shared between preview and full screen; stops network work with no viewers.
 class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
   LotteryLiveSession(this.api, this.machine);
-  static const int predictionPageSize = 20;
   final LotteryLiveApi api;
   final String machine;
   Map<String, dynamic>? config;
   LotteryNumberMappings? mappings;
   List<Map<String, dynamic>> draws = [];
   List<Map<String, dynamic>> predictions = [];
-  int predictionPage = 0;
-  bool predictionHasMore = false;
-  bool predictionLoadingMore = false;
-  String? predictionPageError;
-  String? predictionSnapshotId;
-  int _predictionGeneration = 0;
   final statistics = <String, LotteryStatistics>{};
   String? statisticsError;
   String? _statisticsAttribute;
@@ -211,67 +200,6 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Future<void> loadMorePredictions() async {
-    if (!active ||
-        loading ||
-        predictionLoadingMore ||
-        !predictionHasMore ||
-        groupUid == null) {
-      return;
-    }
-    final epoch = _epoch;
-    final generation = _predictionGeneration;
-    final requestedWindow = window;
-    final nextPage = predictionPage + 1;
-    predictionLoadingMore = true;
-    predictionPageError = null;
-    notifyListeners();
-    try {
-      final response = await api
-          .get('predictions', machine, window: requestedWindow, query: {
-        'page': nextPage,
-        'pageSize': predictionPageSize,
-        if (predictionSnapshotId != null) 'snapshotId': predictionSnapshotId,
-      });
-      if (response['groupUid'] != groupUid) {
-        throw const FormatException('预测实例不匹配');
-      }
-      final data = response['data'];
-      if (data is! Map || data['window'] != requestedWindow) {
-        throw const FormatException('预测窗口不一致');
-      }
-      if (predictionSnapshotId != null &&
-          data['snapshotId'] != null &&
-          data['snapshotId'] != predictionSnapshotId) {
-        throw const FormatException('预测快照不一致');
-      }
-      final nextRows =
-          _parsePredictions(data).take(predictionPageSize).toList();
-      if (epoch != _epoch || generation != _predictionGeneration || !active) {
-        return;
-      }
-      final seen = predictions.map((row) => row['issue']).toSet();
-      final appendedRows =
-          nextRows.where((row) => seen.add(row['issue'])).toList();
-      predictions = [
-        ...predictions,
-        ...appendedRows,
-      ];
-      predictionPage = nextPage;
-      predictionHasMore =
-          nextRows.length == predictionPageSize && appendedRows.isNotEmpty;
-    } catch (_) {
-      if (epoch == _epoch && generation == _predictionGeneration && active) {
-        predictionPageError = '预测加载失败，点击重试';
-      }
-    } finally {
-      if (epoch == _epoch && generation == _predictionGeneration && active) {
-        predictionLoadingMore = false;
-        notifyListeners();
-      }
-    }
-  }
-
   String predictionMode = 'published';
   String? groupUid;
   String? error;
@@ -320,9 +248,7 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
 
   void _stop() {
     _statisticsGeneration++;
-    _predictionGeneration++;
     statisticsLoading = false;
-    predictionLoadingMore = false;
     _epoch++;
     loading = false;
     connected = false;
@@ -345,10 +271,6 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
     if (window == value) return;
     window = value;
     predictions = [];
-    predictionPage = 0;
-    predictionHasMore = false;
-    predictionSnapshotId = null;
-    predictionPageError = null;
     statistics.clear();
     statisticsError = null;
     _stop();
@@ -478,12 +400,6 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> refresh() async {
     if (!active || loading) return;
     loading = true;
-    _predictionGeneration++;
-    predictionPage = 0;
-    predictionHasMore = false;
-    predictionLoadingMore = false;
-    predictionPageError = null;
-    predictionSnapshotId = null;
     final epoch = ++_epoch;
     // HTTP and socket must never race to overwrite each other.
     _subscription?.cancel();
@@ -539,18 +455,13 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
       if (predictionData['window'] != window) {
         throw const FormatException('预测窗口不一致');
       }
-      final parsedPredictions = _parsePredictions(predictionData);
-      final newPredictions =
-          parsedPredictions.take(predictionPageSize).toList();
+      final newPredictions = _parsePredictions(predictionData);
       trace('success', 'count=${newPredictions.length}');
       stage = 'apply_state';
       config = newConfig;
       mappings = newMappings;
       draws = newDraws;
       predictions = newPredictions;
-      predictionPage = 1;
-      predictionHasMore = parsedPredictions.length >= predictionPageSize;
-      predictionSnapshotId = predictionData['snapshotId'] as String?;
       predictionMode = '${predictionData['mode']}';
       groupUid = group;
       error = null;
@@ -584,9 +495,6 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
         mappings = null;
         draws = [];
         predictions = [];
-        predictionPage = 0;
-        predictionHasMore = false;
-        predictionSnapshotId = null;
         statistics.clear();
         groupUid = null;
       }
@@ -640,14 +548,7 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
             case 'predictions':
               final data = message['data'] as Map;
               if (data['window'] != window) return;
-              _predictionGeneration++;
-              predictionLoadingMore = false;
-              final nextPredictions = _parsePredictions(data);
-              predictions = nextPredictions.take(predictionPageSize).toList();
-              predictionPage = 1;
-              predictionHasMore = nextPredictions.length >= predictionPageSize;
-              predictionPageError = null;
-              predictionSnapshotId = data['snapshotId'] as String?;
+              predictions = _parsePredictions(data);
               predictionMode = '${data['mode']}';
             case 'statistics':
               final data = message['data'] as Map;

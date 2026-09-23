@@ -248,9 +248,9 @@ ImagePreviewDisplayConfig imagePreviewDisplayConfig({
       imageHeight <= 0 ||
       screenWidth <= 0 ||
       screenHeight <= 0) {
-    return const ImagePreviewDisplayConfig(
+    return ImagePreviewDisplayConfig(
       mode: ImagePreviewDisplayMode.normal,
-      fit: BoxFit.contain,
+      fit: fitTallImagesToScreenWidth ? BoxFit.contain : BoxFit.scaleDown,
       alignment: Alignment.center,
       initialAlignment: InitialAlignment.center,
       verticallyScrollable: false,
@@ -377,12 +377,15 @@ ImagePreviewDisplayConfig imagePreviewDisplayConfigResolved({
   required double screenHeight,
   int decodedWidth = 0,
   int decodedHeight = 0,
+  bool trustDecodedSize = true,
   bool fitTallImagesToScreenWidth = true,
 }) {
   final pixels = imagePreviewPreferredPixelSize(
     meta: imagePreviewMetaSizeFromMessage(sourceMessage),
-    decodedWidth: decodedWidth,
-    decodedHeight: decodedHeight,
+    // A cropped thumbnail can have a different aspect ratio from the source.
+    // Only the original image may correct source metadata (e.g. EXIF rotation).
+    decodedWidth: trustDecodedSize ? decodedWidth : 0,
+    decodedHeight: trustDecodedSize ? decodedHeight : 0,
   );
   return imagePreviewDisplayConfig(
     imageWidth: pixels.width.round(),

@@ -7,6 +7,7 @@ import 'package:tencent_cloud_chat_demo/src/api/wallet_models.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/wallet/transfer_party_name_resolver.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/wallet/widgets/platform_coin_icon.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 import 'widgets/wallet_page_colors.dart';
 
@@ -185,6 +186,7 @@ class _TransferDetailScreenState extends State<TransferDetailScreen> {
       Scaffold(
         backgroundColor: cs.card,
         appBar: AppBar(
+          leading: const AppBackButton(color: Color(0xFF2399E5)),
           iconTheme: const IconThemeData(color: Color(0xFF2399E5)),
           elevation: 0,
           shadowColor: Colors.transparent,

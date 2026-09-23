@@ -71,7 +71,7 @@ abstract class CameraState {
             ? Sensor.position(SensorPosition.front)
             : Sensor.position(SensorPosition.back),
         // TODO Initial values are not set in native when set like this
-        aspectRatio: aspectRatio ?? CameraAspectRatios.ratio_4_3,
+        aspectRatio: aspectRatio ?? previous.aspectRatio,
         zoom: zoom ?? 0.0,
         flashMode: flash ?? FlashMode.none,
       );
@@ -84,7 +84,7 @@ abstract class CameraState {
         sensors: newSensorsCopy
           ..insert(0, newSensorsCopy.removeAt(newSensorsCopy.length - 1)),
         // TODO Initial values are not set in native when set like this
-        aspectRatio: aspectRatio ?? CameraAspectRatios.ratio_4_3,
+        aspectRatio: aspectRatio ?? previous.aspectRatio,
         zoom: zoom ?? 0.0,
         flashMode: flash ?? FlashMode.none,
       );

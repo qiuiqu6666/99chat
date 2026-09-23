@@ -70,7 +70,7 @@ void main() {
       expect(options.path, '/api/v1/lotteries/mark-six-demo/predictions');
       expect(options.uri.queryParameters['machineCode'], machine);
       expect(options.queryParameters,
-          {'machineCode': machine, 'window': 12, 'page': 1, 'pageSize': 20});
+          {'machineCode': machine, 'limit': 100, 'window': 12});
       expect(options.headers.keys.map((v) => v.toLowerCase()),
           isNot(contains('authorization')));
       expect(options.headers.keys.map((v) => v.toLowerCase()),

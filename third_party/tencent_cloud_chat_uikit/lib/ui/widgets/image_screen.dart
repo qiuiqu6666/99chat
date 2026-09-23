@@ -1177,6 +1177,12 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
   }
 
   void close() {
+    if (ModalRoute.of(context)?.reverseTransitionDuration == Duration.zero) {
+      if (_prepareForClose(preserveSlideBackdrop: true)) {
+        _popSlideDismissRoute();
+      }
+      return;
+    }
     _slideDismissController.startMomentumDismiss(
       vsync: this,
       context: context,
@@ -1796,6 +1802,13 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
         child: const Icon(Icons.broken_image, color: Colors.white54, size: 48),
       );
     }
+    final trustDecodedSize = message == null ||
+        (_previewImageReady &&
+            (_originalUpgradeCompleted.contains(index) ||
+                ChatMessagePreviewImageResolver.isOriginTierProvider(
+                  _refreshedProviders[index] ?? item.imageProvider,
+                  message,
+                )));
 
     final computedBoxSize = imagePreviewBoxSizeFor(
       display: display,
@@ -1843,6 +1856,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
           screenHeight: screenSize.height,
           decodedWidth: info?.image.width ?? 0,
           decodedHeight: info?.image.height ?? 0,
+          trustDecodedSize: trustDecodedSize,
           fitTallImagesToScreenWidth: widget.fitTallImagesToScreenWidth,
         );
         final maxScale = imagePreviewMaxScale(
@@ -1880,6 +1894,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
               screenHeight: screenHeight,
               decodedWidth: imgWidth,
               decodedHeight: imgHeight,
+              trustDecodedSize: trustDecodedSize,
               fitTallImagesToScreenWidth: widget.fitTallImagesToScreenWidth,
             );
             final doubleTapTarget = imagePreviewDoubleTapScale(

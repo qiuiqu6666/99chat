@@ -4,6 +4,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tencent_cloud_chat_demo/src/api/me_friend_api.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_local/friend_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_local/friend_sync_service.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_directory.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_realtime/friend_realtime_event.dart';
 import 'package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart';
 import 'package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_store.dart';
@@ -202,6 +203,52 @@ void main() {
     expect(match.single.friendAvatarUrl, 'https://example.com/new.png');
     expect(match.single.isFriend, isTrue);
     expect(match.single.inMyFriendList, isTrue);
+  });
+
+  test('confirmed friend add updates the live contact directory immediately',
+      () async {
+    final directory = ImSdkRelationshipDirectory.instance;
+    directory.reset();
+    addTearDown(directory.reset);
+    directory.applyFriendSnapshot(
+      captureId: directory.beginFriendCapture(),
+      entries: const [],
+    );
+
+    await FriendSyncService.instance.onBecameFriends(
+      peerUserId: 'instant_friend',
+      nickname: '新好友',
+      reason: 'test_immediate_contact',
+    );
+
+    expect(directory.friend('instant_friend')?.displayName, '新好友');
+  });
+
+  test('confirmed friend delete removes the live contact immediately',
+      () async {
+    final directory = ImSdkRelationshipDirectory.instance;
+    directory.reset();
+    addTearDown(directory.reset);
+    directory.applyFriendSnapshot(
+      captureId: directory.beginFriendCapture(),
+      entries: [
+        RelationshipFriendEntry(
+          userId: peerUserId,
+          displayName: '小明',
+          faceUrl: '',
+          remark: '',
+          sortKey: ImSdkRelationshipDirectory.sortKeyFor(
+            id: peerUserId,
+            displayName: '小明',
+            azTag: 'X',
+          ),
+        ),
+      ],
+    );
+
+    await FriendSyncService.instance.applyOptimisticDelete(peerUserId);
+
+    expect(directory.friend(peerUserId), isNull);
   });
 
   test(

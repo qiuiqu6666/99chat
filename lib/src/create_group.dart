@@ -784,8 +784,21 @@ class _CreateGroup extends State<CreateGroup> {
   void initState() {
     super.initState();
     _friendshipViewModel.addListener(_onFriendListChanged);
+    ImSdkRelationshipDirectory.instance.addListener(_onFriendDirectoryChange);
     PeerProfileRefreshBus.instance.revision.addListener(_onPeerProfileRefresh);
     _getConversationList();
+  }
+
+  void _onFriendDirectoryChange(RelationshipDirectoryChange change) {
+    if (!mounted || change.kind != RelationshipListKind.friends) return;
+    final directory = ImSdkRelationshipDirectory.instance;
+    _safeSetState(() {
+      selectedFriendList = <V2TimFriendInfo>[
+        for (final selected in selectedFriendList)
+          if (directory.friend(selected.userID.trim()) case final current?)
+            current.toV2TimFriendInfo(),
+      ];
+    });
   }
 
   void _onFriendListChanged() {
@@ -801,6 +814,7 @@ class _CreateGroup extends State<CreateGroup> {
     _friendListRequestGen++;
     _friendListRefreshTimer?.cancel();
     _friendshipViewModel.removeListener(_onFriendListChanged);
+    ImSdkRelationshipDirectory.instance.removeListener(_onFriendDirectoryChange);
     PeerProfileRefreshBus.instance.revision
         .removeListener(_onPeerProfileRefresh);
     _searchController.dispose();

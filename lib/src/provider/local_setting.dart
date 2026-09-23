@@ -37,7 +37,6 @@ class LocalSetting with ChangeNotifier {
   double? _chatFontScale;
 
   bool? _notifySystemMessage;
-  bool? _notifyVoiceVideoCall;
   bool? _notifyCallQuickAnswerPopup;
   NotificationDisplayMode? _notifyDisplayContent;
   bool? _notifyMessageBanner;
@@ -194,12 +193,11 @@ class LocalSetting with ChangeNotifier {
     _notifyNotificationSettingsChanged();
   }
 
-  bool get notifyVoiceVideoCall => _notifyVoiceVideoCall ?? true;
+  bool get notifyVoiceVideoCall => true;
 
   set notifyVoiceVideoCall(bool value) {
-    _notifyVoiceVideoCall = value;
     notifyListeners();
-    updateSettingsToLocal('notifyVoiceVideoCall', value);
+    updateSettingsToLocal('notifyVoiceVideoCall', true);
     _notifyNotificationSettingsChanged();
   }
 
@@ -229,14 +227,13 @@ class LocalSetting with ChangeNotifier {
     required NotificationDisplayMode notificationDisplayContent,
   }) {
     _notifySystemMessage = systemMessageNotificationEnabled;
-    _notifyVoiceVideoCall = callNotificationEnabled;
     _notifyDisplayContent = notificationDisplayContent;
     notifyListeners();
     updateSettingsToLocal(
       'notifySystemMessage',
       systemMessageNotificationEnabled,
     );
-    updateSettingsToLocal('notifyVoiceVideoCall', callNotificationEnabled);
+    updateSettingsToLocal('notifyVoiceVideoCall', true);
     updateSettingsToLocalString(
       'notifyDisplayContent',
       notificationDisplayContent.storageKey,
@@ -344,7 +341,9 @@ class LocalSetting with ChangeNotifier {
       _isShowReadingStatus = storedReadingStatus;
     }
     _notifySystemMessage = prefs.getBool('notifySystemMessage') ?? true;
-    _notifyVoiceVideoCall = prefs.getBool('notifyVoiceVideoCall') ?? true;
+    if (prefs.getBool('notifyVoiceVideoCall') != true) {
+      await prefs.setBool('notifyVoiceVideoCall', true);
+    }
     _notifyCallQuickAnswerPopup =
         prefs.getBool('notifyCallQuickAnswerPopup') ?? true;
     _notifyDisplayContent = NotificationDisplayMode.fromStorage(

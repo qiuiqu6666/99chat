@@ -1,10 +1,60 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tencent_cloud_chat_demo/src/services/call_bubble_insert_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/call_result_record.dart';
 import 'package:tencent_cloud_chat_demo/src/services/call_result_repository.dart';
+import 'package:tencent_cloud_chat_demo/src/services/local_message_overlay_store.dart';
 import 'package:tencent_cloud_chat_demo/utils/custom_message/calling_message/calling_message_data_provider.dart';
 
 void main() {
   group('CallResultRepository', () {
+    test('cleared chat does not rehydrate old call bubbles', () async {
+      SharedPreferences.setMockInitialValues({});
+      const conversationId = 'c2c_peer_cleared_call_bubbles';
+      final clearedAt = DateTime.now().millisecondsSinceEpoch;
+      CallResultRecord record(String callId, int endedAtMs) => CallResultRecord(
+            callId: callId,
+            conversationId: conversationId,
+            callerUserId: 'self',
+            operatorUserId: 'self',
+            peerUserId: 'peer_cleared_call_bubbles',
+            protocolType: CallProtocolType.hangup,
+            durationSec: 5,
+            endedAtMs: endedAtMs,
+            isOutgoing: true,
+          );
+
+      final oldCall = record('cleared_call_old', clearedAt - 1000);
+      CallResultRepository.instance.save(oldCall);
+      expect(CallBubbleInsertService.instance.insertTerminalBubble(oldCall),
+          isTrue);
+      expect(LocalMessageOverlayStore.instance.messagesFor(conversationId),
+          hasLength(1));
+
+      await CallResultRepository.instance
+          .removeByConversationId(conversationId);
+      LocalMessageOverlayStore.instance.clearConversation(conversationId);
+      // The recent-calls endpoint can return this same old call later.
+      CallResultRepository.instance.save(oldCall);
+      expect(CallBubbleInsertService.instance.insertTerminalBubble(oldCall),
+          isFalse);
+      CallBubbleInsertService.instance
+          .ensureConversationBubbles(conversationId);
+      expect(LocalMessageOverlayStore.instance.messagesFor(conversationId),
+          isEmpty);
+      expect(
+          CallResultRepository.instance.recordsForConversation(conversationId),
+          isEmpty);
+
+      final newCall = record('cleared_call_new', clearedAt + 60000);
+      CallResultRepository.instance.save(newCall);
+      expect(CallBubbleInsertService.instance.insertTerminalBubble(newCall),
+          isTrue);
+      expect(LocalMessageOverlayStore.instance.messagesFor(conversationId),
+          hasLength(1));
+      LocalMessageOverlayStore.instance.clearConversation(conversationId);
+    });
+
     test('save and get by callId', () {
       const callId = 'invite_test_001';
       CallResultRepository.instance.save(

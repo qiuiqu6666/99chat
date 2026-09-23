@@ -46,7 +46,8 @@ class CallBubbleInsertService {
       return false;
     }
     final canonicalRecord = CallResultRepository.instance.get(callId) ?? record;
-    if (!canonicalRecord.effectiveStatus.isTerminal) {
+    if (!canonicalRecord.effectiveStatus.isTerminal ||
+        !CallResultRepository.instance.isBubbleVisible(canonicalRecord)) {
       return false;
     }
     final bubble = buildTerminalBubbleMessage(canonicalRecord);

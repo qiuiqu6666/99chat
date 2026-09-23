@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// A short, local burst that does not change the underlying star action.
 class StarBurstButton extends StatefulWidget {
@@ -29,6 +30,7 @@ class _StarBurstButtonState extends State<StarBurstButton>
   Future<void> _tap() async {
     if (_busy) return;
     setState(() => _busy = true);
+    HapticFeedback.lightImpact();
     if (!MediaQuery.disableAnimationsOf(context)) _controller.forward(from: 0);
     try {
       await widget.onPressed();

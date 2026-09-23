@@ -497,6 +497,12 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
         ),
       );
     }
+    final trustDecodedSize = _previewImageReady &&
+        (_originalUpgradeCompleted ||
+            ChatMessagePreviewImageResolver.isOriginTierProvider(
+              _refreshedProvider ?? widget.item.imageProvider,
+              widget.item.message,
+            ));
 
     final boxSize = imagePreviewBoxSizeFor(
       display: display,
@@ -533,6 +539,7 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
           screenHeight: screenSize.height,
           decodedWidth: info?.image.width ?? 0,
           decodedHeight: info?.image.height ?? 0,
+          trustDecodedSize: trustDecodedSize,
         );
         final maxScale = imagePreviewMaxScale(
           imageWidth: resolved.imageWidth,
@@ -571,6 +578,7 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
               screenHeight: screenSize.height,
               decodedWidth: imgWidth,
               decodedHeight: imgHeight,
+              trustDecodedSize: trustDecodedSize,
             );
             final doubleTapTarget = imagePreviewDoubleTapScale(
               imageWidth: resolved.imageWidth,

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/user_agreement_localizations.dart';
 import 'package:tencent_cloud_chat_demo/src/ui/app_tokens.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class UserAgreementPage extends StatelessWidget {
   const UserAgreementPage({Key? key}) : super(key: key);
@@ -14,6 +15,7 @@ class UserAgreementPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.weakBackgroundColor ?? AppTokens.surface,
       appBar: AppBar(
+        leading: const AppBackButton(),
         backgroundColor: theme.appbarBgColor ?? AppTokens.surface,
         foregroundColor: theme.primaryColor ?? const Color(0xFF1E90FF),
         elevation: 0,

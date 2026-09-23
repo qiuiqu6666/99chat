@@ -43,8 +43,16 @@ class _PlayerState extends TIMUIKitVideoPlayerState {
   Completer<void>? seekGate;
   Duration? sought;
   int starts = 0;
+  double speed = 1.0;
   @override
   dynamic get playbackController => controller;
+  @override
+  double get playbackSpeed => speed;
+  @override
+  Future<void> setPlaybackSpeed(double value) async {
+    speed = value;
+  }
+
   @override
   Future<void> seekPlaybackTo(Duration position) async {
     sought = position;
@@ -172,6 +180,30 @@ void main() {
       .widget<AnimatedOpacity>(
           find.byKey(const ValueKey('video-controls-fade')))
       .opacity;
+
+  testWidgets('time sits above the progress bar and speed cycles on tap',
+      (tester) async {
+    final playerKey = GlobalKey<TIMUIKitVideoPlayerState>();
+    final chromeKey = GlobalKey<MediaPreviewVideoChromeState>();
+    await mount(tester, playerKey: playerKey, chromeKey: chromeKey);
+    final player = playerKey.currentState! as _PlayerState;
+    final speedButton = find.byKey(const ValueKey('video-playback-speed'));
+    final timeline = find.text('00:32 / 02:18');
+    expect(timeline, findsOneWidget);
+    expect(tester.getTopLeft(timeline).dy,
+        lessThan(tester.getTopLeft(find.byType(Slider)).dy));
+    for (final expected in <(double, String)>[
+      (1.5, '1.5×'),
+      (2.0, '2.0×'),
+      (1.0, '1.0×'),
+    ]) {
+      await tester.tap(speedButton);
+      await tester.pump();
+      expect(player.speed, expected.$1);
+      expect(find.text(expected.$2), findsOneWidget);
+    }
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('canvas toggles controls without interrupting playback',
       (tester) async {
@@ -405,20 +437,17 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets(
-      'video menu retains save forward speed and confirmed-delete callbacks',
+  testWidgets('video menu keeps actions without a duplicate speed selector',
       (tester) async {
     var save = 0;
     var forward = 0;
     var delete = 0;
-    double? speed;
     await mount(
       tester,
       playerKey: GlobalKey<TIMUIKitVideoPlayerState>(),
       chromeKey: GlobalKey<MediaPreviewVideoChromeState>(),
       onMore: () => showMediaPreviewVideoActions(
         context: tester.element(find.byType(MediaPreviewVideoChrome)),
-        playbackSpeed: 1,
         onDownload: () async {
           save++;
         },
@@ -428,13 +457,9 @@ void main() {
         onDelete: () async {
           delete++;
         },
-        onSpeedChanged: (value) async {
-          speed = value;
-        },
       ),
     );
     for (final target in [
-      find.text('1.5×'),
       find.byKey(const ValueKey('video-action-save')),
       find.byKey(const ValueKey('video-action-forward')),
       find.byKey(const ValueKey('video-action-delete')),
@@ -443,6 +468,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(CupertinoActionSheet), findsOneWidget);
       expect(find.byType(BottomSheet), findsNothing);
+      expect(
+          find.byType(CupertinoSlidingSegmentedControl<double>), findsNothing);
+      expect(find.text('播放速度'), findsNothing);
       expect(
         tester
             .widget<CupertinoActionSheetAction>(
@@ -455,7 +483,6 @@ void main() {
       await tester.tap(target);
       await tester.pumpAndSettle();
     }
-    expect(speed, 1.5);
     expect(save, 1);
     expect(forward, 1);
     expect(delete, 1);
@@ -474,11 +501,7 @@ void main() {
         chromeKey: GlobalKey<MediaPreviewVideoChromeState>(),
         onMore: () => showMediaPreviewVideoActions(
           context: tester.element(find.byType(MediaPreviewVideoChrome)),
-          playbackSpeed: 1.5,
           onDownload: () async {
-            commands++;
-          },
-          onSpeedChanged: (_) async {
             commands++;
           },
         ),
@@ -488,11 +511,7 @@ void main() {
       expect(find.byKey(const ValueKey('video-action-delete')), findsNothing);
       expect(find.byKey(const ValueKey('video-action-forward')), findsNothing);
       expect(
-          tester
-              .widget<CupertinoSlidingSegmentedControl<double>>(
-                  find.byType(CupertinoSlidingSegmentedControl<double>))
-              .groupValue,
-          1.5);
+          find.byType(CupertinoSlidingSegmentedControl<double>), findsNothing);
       await tester.pump(const Duration(seconds: 5));
       expect(opacity(tester), 1);
       if (cancelFromBarrier) {
@@ -530,11 +549,9 @@ void main() {
             : const EdgeInsets.only(top: 47, bottom: 34),
         onMore: () => showMediaPreviewVideoActions(
           context: tester.element(find.byType(MediaPreviewVideoChrome)),
-          playbackSpeed: 1,
           onDownload: () async {},
           onForward: () async {},
           onDelete: () async {},
-          onSpeedChanged: (_) async {},
           onOpenMedia: () {
             openedMedia++;
           },

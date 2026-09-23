@@ -15,6 +15,7 @@ import 'wallet_repository_provider.dart';
 import 'widgets/platform_coin_icon.dart';
 import 'widgets/wallet_page_colors.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class WalletDepositRecordScreen extends StatelessWidget {
   const WalletDepositRecordScreen({super.key});
@@ -266,6 +267,7 @@ class _WalletAssetRecordScreenState extends State<_WalletAssetRecordScreen> {
       Scaffold(
       backgroundColor: cs.bg,
       appBar: AppBar(
+        leading: const AppBackButton(),
         centerTitle: true,
         elevation: 0,
         shadowColor: Colors.transparent,

@@ -2,6 +2,7 @@ import UIKit
 import Flutter
 import UserNotifications
 import PushKit
+import CallKit
 import CoreImage
 
 // Module-wide shadow for project-owned Swift.print calls. Diagnostics remain
@@ -27,10 +28,12 @@ func print(
     private var handledMsgKeys = Set<String>()
     private var handledVoipInviteIds = Set<String>()
     private var reportingVoipInviteIds = Set<String>()
+    private var duplicateVoipPushCompletions: [String: [() -> Void]] = [:]
     private var activeVoipInviteId: String?
     private var systemCallKitPresentationSucceeded: Bool?
     private var systemCallKitPresentationInFlight = false
     private var voipPresentationGeneration = 0
+    private var incomingCallExpiryWorkItem: DispatchWorkItem?
     private let voipQueue = DispatchQueue(label: "chat99.voip.push")
     private let handledVoipInviteDefaultsKey = "voip_handled_invite_ids"
     private let handledMsgKeysDefaultsKey = "im_handled_msg_keys"
@@ -456,13 +459,7 @@ func print(
                 }
                 result(nil)
             case "cacheCallNotificationEnabled":
-                if let args = call.arguments as? [String: Any] {
-                    let enabled = args["enabled"] as? Bool ?? true
-                    UserDefaults.standard.set(
-                        enabled,
-                        forKey: self.callNotificationEnabledDefaultsKey
-                    )
-                }
+                UserDefaults.standard.set(true, forKey: self.callNotificationEnabledDefaultsKey)
                 result(nil)
             case "cacheSystemMessageAlertPreferences":
                 if let args = call.arguments as? [String: Any] {
@@ -941,6 +938,8 @@ func print(
     private func configureSelfHostedCallKit() {
         let callKit = SelfHostedVoipCallKit.shared
         callKit.onAccept = { [weak self] inviteId, uuid in
+            self?.incomingCallExpiryWorkItem?.cancel()
+            self?.incomingCallExpiryWorkItem = nil
             print("SelfHostedVoipCallKit: user answered inviteId=\(inviteId ?? "")")
             self?.tuicallChannel?.invokeMethod(
                 "voipChangeAccept",
@@ -1254,22 +1253,34 @@ func print(
         print("VoIP push received keys=\(Array(data.keys))")
 
         if shouldEndVoipCall(data) {
-            print("VoIP push end/cancel received")
+            // Older server versions sent terminal events through PushKit. iOS
+            // still requires this *push* to be reported to CallKit before its
+            // completion callback, even though the previous call has ended.
             endVoipCallKit(inviteId: readVoipInviteId(from: data))
-            if let channel = pushChannel {
-                channel.invokeMethod("onVoipPush", arguments: data)
-            } else {
-                pendingVoipPush = data
+            let discardId = "discard-\(UUID().uuidString)"
+            reportSelfHostedIncomingCall(data: data, inviteId: discardId) { [weak self] error in
+                if error == nil {
+                    SelfHostedVoipCallKit.shared.endCall(inviteId: discardId, reason: .remoteEnded)
+                }
+                if let channel = self?.pushChannel {
+                    channel.invokeMethod("onVoipPush", arguments: data)
+                } else {
+                    self?.pendingVoipPush = data
+                }
+                completion()
             }
-            completion()
             return
         }
 
         guard shouldPresentVoipCall(data) else {
-            // 仍须完成 completion；无法合法展示时立刻结束，避免拖死系统。
-            // 反复「收 Push 却不报 CallKit」会被 iOS 停掉 VoIP 唤醒。
-            print("VoIP push present guard failed — fulfilling PushKit without UI")
-            completion()
+            // A malformed/foreign legacy VoIP payload must still be reported.
+            let discardId = "discard-\(UUID().uuidString)"
+            reportSelfHostedIncomingCall(data: data, inviteId: discardId) { error in
+                if error == nil {
+                    SelfHostedVoipCallKit.shared.endCall(inviteId: discardId, reason: .failed)
+                }
+                completion()
+            }
             return
         }
 
@@ -1302,13 +1313,19 @@ func print(
 
         let alreadyHandled = inviteId.map { isVoipInviteHandled($0) } ?? false
         if alreadyHandled {
-            print("VoIP push ignored: invite already handled inviteId=\(inviteId ?? "")")
-            completion()
+            let discardId = "discard-\(UUID().uuidString)"
+            reportSelfHostedIncomingCall(data: data, inviteId: discardId) { error in
+                if error == nil {
+                    SelfHostedVoipCallKit.shared.endCall(inviteId: discardId, reason: .unanswered)
+                }
+                completion()
+            }
             return
         }
         if let inviteId = inviteId, reportingVoipInviteIds.contains(inviteId) {
-            print("VoIP push ignored: report already in flight inviteId=\(inviteId)")
-            completion()
+            // Wait for the first report to reach CallKit before completing a
+            // duplicate PushKit delivery for the same invitation.
+            duplicateVoipPushCompletions[inviteId, default: []].append(completion)
             return
         }
 
@@ -1333,6 +1350,8 @@ func print(
             let succeeded = error == nil
             if let inviteId = inviteId {
                 self.reportingVoipInviteIds.remove(inviteId)
+                let duplicates = self.duplicateVoipPushCompletions.removeValue(forKey: inviteId) ?? []
+                duplicates.forEach { $0() }
             }
             let isCurrentPresentation =
                 presentationGeneration == self.voipPresentationGeneration
@@ -1348,6 +1367,7 @@ func print(
                 self.markVoipInviteHandled(inviteId)
                 if isCurrentPresentation {
                     self.activeVoipInviteId = inviteId
+                    self.scheduleIncomingCallExpiry(inviteId: inviteId, data: data)
                 }
             }
             if let channel = self.pushChannel {
@@ -1383,7 +1403,13 @@ func print(
             callerId: callerId,
             callerName: callerName,
             hasVideo: hasVideo,
-            completion: completion
+            completion: { error in
+                if Thread.isMainThread {
+                    completion(error)
+                } else {
+                    DispatchQueue.main.async { completion(error) }
+                }
+            }
         )
     }
 
@@ -1415,10 +1441,7 @@ func print(
     }
 
     private func isCallNotificationEnabled() -> Bool {
-        if UserDefaults.standard.object(forKey: callNotificationEnabledDefaultsKey) == nil {
-            return true
-        }
-        return UserDefaults.standard.bool(forKey: callNotificationEnabledDefaultsKey)
+        return true
     }
 
     private func boolDefaultTrue(forKey key: String) -> Bool {
@@ -1568,9 +1591,32 @@ func print(
         return true
     }
 
+    private func scheduleIncomingCallExpiry(inviteId: String, data: [String: Any]) {
+        incomingCallExpiryWorkItem?.cancel()
+        let timeout = Int(stringValue(data["timeoutSec"])) ?? 60
+        let delay = TimeInterval(min(max(timeout, 1), 300) + 5)
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self, self.activeVoipInviteId == inviteId else { return }
+            self.endVoipCallKit(inviteId: inviteId, reason: .unanswered)
+            let expired: [String: Any] = [
+                "type": "lk_call",
+                "action": "timeout",
+                "inviteId": inviteId,
+            ]
+            if let channel = self.pushChannel {
+                channel.invokeMethod("onVoipPush", arguments: expired)
+            } else {
+                self.pendingVoipPush = expired
+            }
+        }
+        incomingCallExpiryWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
     private func endVoipCallKit(
         inviteId: String? = nil,
-        keepAudioSession: Bool = false
+        keepAudioSession: Bool = false,
+        reason: CXCallEndedReason = .remoteEnded
     ) {
         let targetInviteId = inviteId?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let targetInviteId = targetInviteId,
@@ -1579,14 +1625,18 @@ func print(
            targetInviteId != activeVoipInviteId {
             SelfHostedVoipCallKit.shared.endCall(
                 inviteId: targetInviteId,
+                reason: reason,
                 keepAudioSession: keepAudioSession
             )
             return
         }
         SelfHostedVoipCallKit.shared.endCall(
             inviteId: targetInviteId?.isEmpty == false ? targetInviteId : activeVoipInviteId,
+            reason: reason,
             keepAudioSession: keepAudioSession
         )
+        incomingCallExpiryWorkItem?.cancel()
+        incomingCallExpiryWorkItem = nil
         voipPresentationGeneration += 1
         activeVoipInviteId = nil
         systemCallKitPresentationSucceeded = nil

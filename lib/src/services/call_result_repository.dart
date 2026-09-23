@@ -16,10 +16,12 @@ class CallResultRepository {
 
   static const String _legacyPrefsKey = 'call_result_canonical_v1';
   static const String _prefsKeyPrefix = 'call_result_canonical_v1_';
+  static const String _clearAtPrefsKeyPrefix = 'call_bubble_cleared_at_v1_';
   static const int _maxRecords = 128;
 
   final Map<String, Map<String, CallResultRecord>> _recordsByOwner =
       <String, Map<String, CallResultRecord>>{};
+  final Map<String, Map<String, int>> _bubbleClearedAtByOwner = {};
   final Set<String> _loadedOwners = <String>{};
   final Map<String, Future<void>> _loadTasks = <String, Future<void>>{};
 
@@ -43,7 +45,8 @@ class CallResultRepository {
     }
     final list = (_recordsByOwner[_ownerForCurrentSession()]?.values ??
             const <CallResultRecord>[])
-        .where((record) => record.conversationId.trim() == id)
+        .where((record) =>
+            record.conversationId.trim() == id && isBubbleVisible(record))
         .toList();
     list.sort((a, b) => b.endedAtMs.compareTo(a.endedAtMs));
     return list;
@@ -66,6 +69,9 @@ class CallResultRepository {
           !MessageConversationId.sameConversation(recordConv, id)) {
         continue;
       }
+      if (!isBubbleVisible(record)) {
+        continue;
+      }
       if (latest == null || record.endedAtMs > latest.endedAtMs) {
         latest = record;
       }
@@ -85,6 +91,9 @@ class CallResultRepository {
     if (!_isCurrentOrGuest(identity)) {
       return 0;
     }
+    final clearAt = DateTime.now().toUtc().millisecondsSinceEpoch;
+    _bubbleClearedAtByOwner.putIfAbsent(owner, () => <String, int>{})[id] =
+        clearAt;
     final records = _recordsByOwner[owner] ?? <String, CallResultRecord>{};
     final toRemove = <String>[];
     for (final entry in records.entries) {
@@ -97,15 +106,32 @@ class CallResultRepository {
         toRemove.add(entry.key);
       }
     }
-    if (toRemove.isEmpty) {
-      return 0;
-    }
     for (final key in toRemove) {
       records.remove(key);
     }
     revision.value++;
     await _persist(owner, identity);
     return toRemove.length;
+  }
+
+  /// A clear only hides older calls from this chat; the recent-calls API is
+  /// independent and remains available.
+  bool isBubbleVisible(CallResultRecord record) {
+    if (!record.effectiveStatus.isTerminal) return true;
+    final owner = _ownerForCurrentSession();
+    final clearAt = _bubbleClearedAtByOwner[owner] ?? const <String, int>{};
+    final timestamp =
+        record.endedAtMs > 0 ? record.endedAtMs : record.startedAtMs;
+    for (final entry in clearAt.entries) {
+      if (MessageConversationId.sameConversation(
+            entry.key,
+            record.conversationId,
+          ) &&
+          (timestamp == 0 || timestamp <= entry.value)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /// Merge one observation into the canonical callId record.
@@ -126,13 +152,20 @@ class CallResultRepository {
     if (id.isEmpty) {
       return;
     }
+    if (!isBubbleVisible(record)) {
+      return;
+    }
     final existing = records[id];
     final incomingStatus = record.effectiveStatus;
     if (existing != null) {
       final currentStatus = existing.effectiveStatus;
-      if (incomingStatus.rank < currentStatus.rank) return;
+      if (incomingStatus.rank < currentStatus.rank) {
+        return;
+      }
       if (incomingStatus.rank == currentStatus.rank &&
-          existing.source.priority > record.source.priority) return;
+          existing.source.priority > record.source.priority) {
+        return;
+      }
     }
     if (existing != null &&
         incomingStatus.rank == existing.effectiveStatus.rank) {
@@ -206,6 +239,27 @@ class CallResultRepository {
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final clearAtRaw = prefs.getString(_clearAtPrefsKeyForOwner(owner));
+      if (clearAtRaw != null) {
+        try {
+          final decodedClearAt = jsonDecode(clearAtRaw);
+          if (decodedClearAt is Map) {
+            final clearAt = _bubbleClearedAtByOwner.putIfAbsent(
+              owner,
+              () => <String, int>{},
+            );
+            for (final entry in decodedClearAt.entries) {
+              final timestamp = entry.value;
+              if (timestamp is int && timestamp > 0) {
+                final key = entry.key.toString();
+                if (timestamp > (clearAt[key] ?? 0)) {
+                  clearAt[key] = timestamp;
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      }
       final raw = prefs.getString(_prefsKeyForOwner(owner));
       if (!_isCurrentOrGuest(identity)) {
         return;
@@ -259,6 +313,10 @@ class CallResultRepository {
         return;
       }
       await prefs.setString(_prefsKeyForOwner(owner), jsonEncode(payload));
+      await prefs.setString(
+        _clearAtPrefsKeyForOwner(owner),
+        jsonEncode(_bubbleClearedAtByOwner[owner] ?? const <String, int>{}),
+      );
     } catch (_) {}
   }
 
@@ -268,10 +326,12 @@ class CallResultRepository {
       return;
     }
     _recordsByOwner.remove(_ownerForUserId(owner));
+    _bubbleClearedAtByOwner.remove(_ownerForUserId(owner));
     _loadedOwners.remove(_ownerForUserId(owner));
     revision.value++;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsKeyForOwner(owner));
+    await prefs.remove(_clearAtPrefsKeyForOwner(owner));
     // The old key was global and cannot be attributed safely. It must never
     // be read by a logged-in account, so remove it at the next account purge.
     await prefs.remove(_legacyPrefsKey);
@@ -304,6 +364,10 @@ class CallResultRepository {
 
   String _prefsKeyForOwner(String owner) {
     return '$_prefsKeyPrefix${ContactSocialCacheStore.accountScopeForUserId(owner)}';
+  }
+
+  String _clearAtPrefsKeyForOwner(String owner) {
+    return '$_clearAtPrefsKeyPrefix${ContactSocialCacheStore.accountScopeForUserId(owner)}';
   }
 
   bool _isCurrent(SessionIdentity identity) {

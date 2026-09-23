@@ -14,6 +14,7 @@ import 'contactPage.dart';
 import 'pages/privacy/privacy_webview.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/app_dialog.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class About extends StatefulWidget {
   const About({Key? key}) : super(key: key);
@@ -112,6 +113,7 @@ class AboutState extends State<About> {
     final i18n = AppI18n.of(context);
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         iconTheme: IconThemeData(
           color: theme.primaryColor ?? const Color(0xFF1E90FF),
         ),

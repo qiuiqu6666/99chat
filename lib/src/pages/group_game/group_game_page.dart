@@ -8,6 +8,7 @@ import 'package:tencent_cloud_chat_demo/src/utils/group_game_url_builder.dart';
 import 'package:tencent_cloud_chat_demo/utils/app_material_theme.dart';
 import 'package:tencent_cloud_chat_demo/utils/theme.dart';
 import 'package:provider/provider.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class GroupGamePage extends StatelessWidget {
   const GroupGamePage({
@@ -40,6 +41,7 @@ class GroupGamePage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: theme.weakBackgroundColor,
         appBar: AppBar(
+          leading: const AppBackButton(),
           title: Text(title),
           backgroundColor: theme.appbarBgColor,
           foregroundColor: theme.appbarTextColor,

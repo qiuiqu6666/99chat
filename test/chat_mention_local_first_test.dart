@@ -21,6 +21,7 @@ import 'package:tencent_cloud_chat_demo/utils/chat_id_mention_nav.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_mention_local_lookup.dart';
 import 'package:tencent_cloud_chat_demo/utils/group_privacy_guard.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_member_full_info.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_user_full_info.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/services/group_member_store.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 
@@ -126,6 +127,38 @@ void main() {
           home: const Scaffold(body: SizedBox(key: Key('entry'))),
         ),
       );
+
+  testWidgets('standalone add-friend details has no more action',
+      (tester) async {
+    final originalHandler = FlutterError.onError;
+    try {
+      await tester.pumpWidget(MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: theme),
+          ChangeNotifierProvider.value(value: presence),
+        ],
+        child: MaterialApp(
+          home: AddFriendPage(
+            userID: 'profile-preview',
+            nickname: 'Preview',
+            useLocalProfile: true,
+            initialUserInfo: V2TimUserFullInfo(
+              userID: 'profile-preview',
+              nickName: 'Preview',
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+      FlutterError.onError = originalHandler;
+      expect(find.byType(AddFriendPage), findsOneWidget);
+      expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
+    } finally {
+      FlutterError.onError = originalHandler;
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    }
+  });
 
   test('disk friend lookup and exact joined alias need no network', () async {
     await friends.clearSession();

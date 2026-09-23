@@ -25,6 +25,7 @@ import 'package:tencent_cloud_chat_demo/src/services/account_session_service.dar
 import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
 import '../config.dart';
 import 'package:dio/dio.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 class CancelAccount extends StatelessWidget {
   final TUISelfInfoViewModel _selfInfoViewModel =
@@ -118,6 +119,7 @@ class CancelAccount extends StatelessWidget {
     final option1 = _selfInfoViewModel.loginInfo?.userID;
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         iconTheme: IconThemeData(
           color: theme.primaryColor ?? const Color(0xFF1E90FF),
         ),

@@ -20,6 +20,7 @@ import 'red_packet_member.dart';
 import 'paged_group_recipient_picker.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/wallet/widgets/wallet_page_colors.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
 Future<RedPacketMember?> pickRedPacketMember(
   BuildContext context, {
@@ -170,6 +171,7 @@ class _RedPacketMemberPickerPageState extends State<RedPacketMemberPickerPage> {
       Scaffold(
         backgroundColor: theme.weakBackgroundColor ?? Colors.white,
         appBar: AppBar(
+          leading: const AppBackButton(),
           centerTitle: true,
           elevation: 0,
           shadowColor: Colors.transparent,
