@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -147,16 +149,13 @@ class ContactConversationPeek {
     final i18n = AppI18n.of(context);
     try {
       await MeFriendApi.instance.deleteFriend(userId);
-      try {
-        await serviceLocator<ConversationService>().deleteConversation(
-          conversationID: 'c2c_$userId',
-        );
-      } catch (_) {}
-      try {
-        final friendship = serviceLocator<TUIFriendShipViewModel>();
-        await friendship.loadContactListData();
-        await friendship.loadContactApplicationData();
-      } catch (_) {}
+      unawaited(() async {
+        try {
+          await serviceLocator<ConversationService>().deleteConversation(
+            conversationID: 'c2c_$userId',
+          );
+        } catch (_) {}
+      }());
       ConversationRefreshBus.instance.requestRefresh(reason: 'friend_deleted');
       ToastUtils.toast(i18n.t(
         zhHans: '好友删除成功',

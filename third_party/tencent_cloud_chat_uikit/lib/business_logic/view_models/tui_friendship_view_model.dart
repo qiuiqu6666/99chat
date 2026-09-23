@@ -121,6 +121,23 @@ class TUIFriendShipViewModel extends ChangeNotifier {
     return updated;
   }
 
+  /// 乐观删除后立刻从通讯录快照拿掉该好友，避免等协议同步才消失。
+  void removeFriendLocally(String userID) {
+    final uid = _rawUserUid(userID);
+    if (uid.isEmpty || _friendList == null) {
+      return;
+    }
+    final next = _friendList!
+        .where((item) => _rawUserUid(item.userID) != uid)
+        .toList();
+    if (next.length == _friendList!.length) {
+      return;
+    }
+    _friendList = next;
+    _friendListRevision++;
+    notifyListeners();
+  }
+
   /// 与 app 侧 ChatIdFormat.rawUserUid 对齐：去首尾空白与前导 @。
   static String _rawUserUid(String? input) {
     final trimmed = input?.trim() ?? '';
@@ -270,12 +287,14 @@ class TUIFriendShipViewModel extends ChangeNotifier {
         _applyFriendAdds(users);
       },
       onFriendListDeleted: (userList) async {
-        if (SelfHostedFriendshipBridge.enabled) {
-          await ImSdkRelationshipReconcileService.instance
-              .refreshConfirmedFriends(reason: 'sdk_friend_removed_hint');
-          return;
-        }
         ImSdkRelationshipDirectory.instance.applyFriendRemoves(userList);
+        for (final userID in userList) {
+          removeFriendLocally(userID);
+        }
+        if (SelfHostedFriendshipBridge.enabled) {
+          unawaited(ImSdkRelationshipReconcileService.instance
+              .refreshConfirmedFriends(reason: 'sdk_friend_removed_hint'));
+        }
       },
       onBlackListAdd: (infoList) async {
         await loadBlockListData();

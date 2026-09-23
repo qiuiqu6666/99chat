@@ -30,6 +30,7 @@ class MeFriendApi {
   final Map<String, _CachedFriendRelation> _relationCache =
       <String, _CachedFriendRelation>{};
   final Map<String, SessionIdentity> _relationRequestIdentities = {};
+  final Map<String, Future<void>> _deleteFriendInFlight = <String, Future<void>>{};
 
   Dio get _dio => ApiClient.instance.dio;
 
@@ -261,6 +262,22 @@ class MeFriendApi {
   Future<void> deleteFriend(String friendUserId) async {
     final id = ChatIdFormat.rawUserUid(friendUserId);
     if (id.isEmpty) return;
+    final existing = _deleteFriendInFlight[id];
+    if (existing != null) {
+      return existing;
+    }
+    final future = _deleteFriendInternal(id);
+    _deleteFriendInFlight[id] = future;
+    try {
+      await future;
+    } finally {
+      if (identical(_deleteFriendInFlight[id], future)) {
+        _deleteFriendInFlight.remove(id);
+      }
+    }
+  }
+
+  Future<void> _deleteFriendInternal(String id) async {
     final identity = SessionIdentityService.instance.capture();
     await _dio.delete('/me/friends/$id');
     if (!SessionIdentityService.instance.isCurrent(identity)) return;

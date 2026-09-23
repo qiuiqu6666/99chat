@@ -292,11 +292,11 @@ class FriendApplicationHelper {
     String? faceUrl,
   }) async {
     try {
-      await _refreshFriendListAfterAccept(
+      unawaited(_refreshFriendListAfterAccept(
         peerUserId: peerUserId,
         nickname: nickname,
         faceUrl: faceUrl,
-      );
+      ));
       unawaited(
         FriendBecameFriendsNotifier.notifyIfBecameFriends(
           peerUserId: peerUserId,

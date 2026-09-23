@@ -399,8 +399,9 @@ class FriendSyncService {
     String? friendNickname,
     String? friendAvatarUrl,
     String remark = '',
-  }) =>
-      _syncConfirmedContacts('friend_added_hint');
+  }) async {
+    unawaited(_syncConfirmedContacts('friend_added_hint'));
+  }
 
   /// 成友提示仅触发权威同步，确认当前关系后才执行会话副作用。
   Future<void> onBecameFriends({
@@ -416,12 +417,27 @@ class FriendSyncService {
     if (id.isEmpty) {
       return;
     }
-    await applyOptimisticAdd(
-      friendUserId: id,
-      friendNickname: nickname,
-      friendAvatarUrl: avatarUrl,
+    unawaited(_runBecameFriendsAfterSync(
+      owner: owner,
+      generation: generation,
+      id: id,
+      nickname: nickname,
+      avatarUrl: avatarUrl,
       remark: remark,
-    );
+      reason: reason,
+    ));
+  }
+
+  Future<void> _runBecameFriendsAfterSync({
+    required String owner,
+    required int generation,
+    required String id,
+    String? nickname,
+    String? avatarUrl,
+    required String remark,
+    required String reason,
+  }) async {
+    await _syncConfirmedContacts('friend_added_hint');
     if (owner != _ownerUserId() ||
         generation != SessionIdentityService.instance.generation) {
       return;
@@ -448,7 +464,7 @@ class FriendSyncService {
     } catch (e) {
       _log('ensureC2cConversationVisible failed: $e');
     }
-    await refreshUIKitLists(force: true);
+    unawaited(refreshUIKitLists(force: true));
     onBecameFriendsCompleted?.call(reason);
     PeerProfileRefreshBus.instance.notify(id);
     ConversationRefreshBus.instance.requestRefresh(
@@ -595,7 +611,24 @@ class FriendSyncService {
     if (id.isEmpty) return;
     MeFriendApi.instance.invalidateRelation(id);
     C2cFriendMessageGuard.invalidate(id, clearTrusted: true);
-    await _syncConfirmedContacts('friend_deleted');
+    final owner = _ownerUserId();
+    if (owner.isNotEmpty) {
+      try {
+        await FriendLocalStore.instance.delete(
+          ownerUserId: owner,
+          friendUserId: id,
+          force: true,
+        );
+      } catch (e) {
+        _log('optimistic local delete failed: $e');
+      }
+    }
+    ImSdkRelationshipDirectory.instance.applyFriendRemoves([id]);
+    try {
+      serviceLocator<TUIFriendShipViewModel>().removeFriendLocally(id);
+    } catch (_) {}
+    PeerProfileRefreshBus.instance.notify(id);
+    unawaited(_syncConfirmedContacts('friend_deleted'));
     try {
       serviceLocator<TUISearchViewModel>().invalidateGlobalSearchContext();
     } catch (_) {}
@@ -632,7 +665,6 @@ class FriendSyncService {
       return;
     }
     await applyListChanged(event);
-    await refreshUIKitLists(force: true);
   }
 
   Future<void> clearSession({String? ownerUserId}) async {

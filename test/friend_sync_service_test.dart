@@ -231,7 +231,7 @@ void main() {
     expect(syncReasons, ['friend_added_hint']);
   });
 
-  test('friend-delete hint waits for confirmed sync before removing live contacts',
+  test('friend-delete hint removes live contacts immediately then confirms',
       () async {
     final directory = ImSdkRelationshipDirectory.instance;
     directory.reset();
@@ -255,7 +255,11 @@ void main() {
 
     await FriendSyncService.instance.applyOptimisticDelete(peerUserId);
 
-    expect(directory.friend(peerUserId)?.displayName, '小明');
+    expect(directory.friend(peerUserId), isNull);
+    expect(
+      await FriendLocalStore.instance.readAll(ownerUserId: ownerUserId),
+      isEmpty,
+    );
     expect(syncReasons, ['friend_deleted']);
   });
 

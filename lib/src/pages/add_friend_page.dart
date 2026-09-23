@@ -890,16 +890,16 @@ class _AddFriendPageState extends State<AddFriendPage> {
       if (!mounted) return;
 
       if (result.isAutoAccepted || result.isRestored) {
-        await FriendSyncService.instance.onBecameFriends(
+        unawaited(FriendSyncService.instance.onBecameFriends(
           peerUserId: widget.userID,
           nickname: _getShowName(),
           avatarUrl: _getSdkFaceUrl(),
           reason:
               result.isRestored ? 'friend_restored' : 'friend_auto_accepted',
-        );
-        await FriendBecameFriendsNotifier.notifyIfBecameFriends(
+        ));
+        unawaited(FriendBecameFriendsNotifier.notifyIfBecameFriends(
           peerUserId: widget.userID,
-        );
+        ));
         unawaited(
           FriendApplicationHelper.recordBecameFriendsHistory(
             userID: widget.userID,

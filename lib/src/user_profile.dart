@@ -444,22 +444,18 @@ class UserProfileState extends State<UserProfile> {
 
   Future<void> _handleDeleteFriend() async {
     if (_deletingFriend) {
-      _toastProcessing();
       return;
     }
     _deletingFriend = true;
     try {
       await MeFriendApi.instance.deleteFriend(widget.userID);
-      try {
-        await serviceLocator<ConversationService>().deleteConversation(
-          conversationID: 'c2c_${widget.userID}',
-        );
-      } catch (_) {}
-      try {
-        final friendship = serviceLocator<TUIFriendShipViewModel>();
-        await friendship.loadContactListData();
-        await friendship.loadContactApplicationData();
-      } catch (_) {}
+      unawaited(() async {
+        try {
+          await serviceLocator<ConversationService>().deleteConversation(
+            conversationID: 'c2c_${widget.userID}',
+          );
+        } catch (_) {}
+      }());
       ConversationRefreshBus.instance.requestRefresh(
         reason: 'friend_deleted',
       );
@@ -634,16 +630,16 @@ class UserProfileState extends State<UserProfile> {
       if (resultCode == 0) {
         final friendInfo = _getProfileModel()?.userProfile?.friendInfo;
         final profile = friendInfo?.userProfile;
-        await FriendSyncService.instance.onBecameFriends(
+        unawaited(FriendSyncService.instance.onBecameFriends(
           peerUserId: widget.userID,
           nickname: profile?.nickName,
           avatarUrl: profile?.faceUrl,
           remark: friendInfo?.friendRemark ?? '',
           reason: 'friend_add_success',
-        );
-        await FriendBecameFriendsNotifier.notifyIfBecameFriends(
+        ));
+        unawaited(FriendBecameFriendsNotifier.notifyIfBecameFriends(
           peerUserId: widget.userID,
-        );
+        ));
         ToastUtils.toast(AppI18n.of(context).t(
           zhHans: '好友添加成功',
           zhHant: '好友新增成功',

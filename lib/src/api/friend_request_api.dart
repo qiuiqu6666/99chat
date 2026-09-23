@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:tencent_cloud_chat_demo/src/services/friend_local/contacts_protocol_sync_service.dart';
 import 'package:dio/dio.dart';
 import 'package:tencent_cloud_chat_demo/src/models/friend_request_record.dart';
@@ -41,8 +43,8 @@ class FriendRequestApi {
     });
     final result = FriendRequestCreateResult.fromJson(_payloadMap(res.data));
     if (SessionIdentityService.instance.isCurrent(identity)) {
-      await ContactsProtocolSyncService.instance
-          .sync(reason: 'friend_request_created');
+      unawaited(ContactsProtocolSyncService.instance
+          .sync(reason: 'friend_request_created'));
     }
     return result;
   }
@@ -185,8 +187,8 @@ class FriendRequestApi {
     final identity = SessionIdentityService.instance.capture();
     await _dio.post('/friend-requests/$requestId/accept');
     if (SessionIdentityService.instance.isCurrent(identity)) {
-      await ContactsProtocolSyncService.instance
-          .sync(reason: 'friend_request_accepted');
+      unawaited(ContactsProtocolSyncService.instance
+          .sync(reason: 'friend_request_accepted'));
     }
   }
 
