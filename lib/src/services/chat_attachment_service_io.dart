@@ -1,3 +1,5 @@
+import 'package:tencent_cloud_chat_uikit/data_services/message/outgoing_message_send_queue.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_send_perf.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_history_refresh_bus.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -228,11 +230,14 @@ class ChatAttachmentService extends ChangeNotifier {
       {required String path,
       required ChatAttachmentTarget target,
       required String nativeMessageKind,
+      String? mediaBatchId,
+      int? mediaBatchIndex,
       String? name,
       String? snapshotPath,
       int? durationMs,
       int? width,
-      int? height}) async {
+      int? height,
+      void Function()? onQueued}) async {
     if (!_platformSupported()) {
       throw const ChatAttachmentException(
           'ATTACHMENT_DISABLED', '当前平台暂不支持发送大附件');
@@ -269,6 +274,8 @@ class ChatAttachmentService extends ChangeNotifier {
         mimeType: mime,
         sizeBytes: size,
         createdAt: DateTime.now().millisecondsSinceEpoch,
+        mediaBatchId: mediaBatchId,
+        mediaBatchIndex: mediaBatchIndex,
         snapshotPath: snapshotPath,
         durationMs: durationMs,
         width: width ?? posterSize?.width.round(),
@@ -277,6 +284,7 @@ class ChatAttachmentService extends ChangeNotifier {
     _check(owner, generation);
     _tasks[task.taskId] = task;
     await _save(task);
+    onQueued?.call();
     ChatAttachmentDiagnostics.event('task_created', {
       'nativeMessageKind': nativeMessageKind,
       'sizeBytes': size,
@@ -310,6 +318,9 @@ class ChatAttachmentService extends ChangeNotifier {
 
   Future<void> _run(
       ChatAttachmentTask task, int generation, CancelToken token) async {
+    final perf = MediaSendPerf.begin(task.taskId);
+    perf.record('sizeOriginal', task.sizeBytes);
+    perf.record('sizeSend', task.sizeBytes);
     void check() => _check(task.ownerUserId, generation, token);
     final boundaryWatch = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_owner() != task.ownerUserId || _generation() != generation) {
@@ -350,13 +361,19 @@ class ChatAttachmentService extends ChangeNotifier {
         task.state = 'preparing';
         task.error = '';
         await _save(task);
-        final staged = await store.stageSource(
-            task.ownerUserId, task.taskId, task.sourcePath);
+        final staged = await perf.measure('staging', () => store.stageSource(
+            task.ownerUserId, task.taskId, task.sourcePath));
         check();
         task.sourcePath = staged.path;
         task.state = 'uploading';
         await _save(task);
-        await transfer.upload(task,
+        final queued = Stopwatch()..start();
+        await OutgoingMessageSendQueue.instance.runMedia(
+          task.nativeMessageKind == 'image' ? 'image' : task.kind == 'video' ? 'video' : 'file',
+          () async {
+            perf.record('uploadQueueWaitMs', queued.elapsedMilliseconds);
+            check();
+            await perf.measure('upload', () => transfer.upload(task,
             maxParallelParts: policy.maxParallelPartsPerUpload,
             cancelToken: token,
             checkSession: check,
@@ -369,7 +386,8 @@ class ChatAttachmentService extends ChangeNotifier {
                 if (!_nativeStatusDisposed && task.ownerUserId == _owner())
                   notifyListeners();
               }
-            });
+            }));
+          }, dispatchTimeout: Duration.zero);
         check();
         await store.registerLocal(task.ownerUserId, task.attachmentId!, staged,
             expectedSize: task.sizeBytes);
@@ -443,6 +461,7 @@ class ChatAttachmentService extends ChangeNotifier {
         _watchNativeStatus();
       }
       boundaryWatch.cancel();
+      perf.finish(task.state);
     }
   }
 
@@ -794,8 +813,13 @@ class ChatAttachmentService extends ChangeNotifier {
       return const ExternalMessageSendResult(
           state: ExternalMessageSendState.blocked, description: '附件消息创建失败');
     }
+    if (task.mediaBatchId != null && task.mediaBatchIndex != null) {
+      applyChatMediaBatchToMessage(created!.messageInfo!,
+          batchId: task.mediaBatchId!, batchIndex: task.mediaBatchIndex!);
+    }
     return ChatExternalMessageSender.sendCreatedMessageDetailed(
         messageInfo: created!.messageInfo,
+        localCustomData: created.messageInfo!.localCustomData,
         receiverUserId: task.target.isGroup ? '' : task.target.id,
         groupId: task.target.isGroup ? task.target.id : '',
         reason: 'chat_attachment_sent');

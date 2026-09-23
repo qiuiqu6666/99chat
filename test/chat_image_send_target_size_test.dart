@@ -26,8 +26,8 @@ void main() {
       sourceWidth: 4032,
       sourceHeight: 3024,
     );
-    expect(target.width, 3072);
-    expect(target.height, 2304);
+    expect(target.width, 2560);
+    expect(target.height, 1920);
   });
 
   test('narrow source is not upscaled', () {

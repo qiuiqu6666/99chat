@@ -17,7 +17,7 @@ void main() {
     expect(model.contains('String? existingOptimisticId'), isTrue);
     expect(panel.contains('model.beginOptimisticVideoPlaceholder'), isTrue);
     expect(
-        panel.contains('final metadata = await Future.wait<Object?>'), isTrue);
+        panel.contains('Future.wait<Object?>'), isTrue);
     expect(panel.contains('cancelOptimisticMediaPlaceholder'), isTrue);
     expect(panel.contains('_hasUsableConversation([String? convID]) => true'),
         isTrue);
@@ -61,7 +61,7 @@ void main() {
       customMarker,
     );
     final customStage = panel.indexOf(
-      'stageImageForChatSend(resolved.filePath)',
+      'final stagedPath = resolved.filePath.trim();',
       customMarker,
     );
     expect(customMarker, greaterThanOrEqualTo(0));
@@ -91,7 +91,7 @@ void main() {
     expect(panel.contains('requestInitialPin: false'), isTrue);
     expect(model.contains('if (requestInitialPin)'), isTrue);
     expect(panel.contains('probeSizeSynchronously: false'), isTrue);
-    expect(panel.contains('OutgoingMediaWorkQueue.sends.run('), isTrue);
+    expect(panel.contains('OutgoingMediaWorkQueue.sends.run('), isFalse);
     final trace = File(
       'third_party/tencent_cloud_chat_uikit/lib/ui/utils/gallery_send_perf_trace.dart',
     ).readAsStringSync().replaceAll('\r\n', '\n');
@@ -405,7 +405,7 @@ void main() {
     expect(entry.contains('_prepareAndDispatchGalleryVideo'), isTrue);
 
     // Prepared items enter the shared bounded queue immediately.
-    expect(panel.contains('OutgoingMediaWorkQueue.sends.run('), isTrue);
+    expect(panel.contains('OutgoingMediaWorkQueue.sends.run('), isFalse);
     expect(panel.contains('final index = nextIndex++;'), isTrue);
     expect(panel.contains('existingOptimisticId: item.optimisticId'), isTrue);
     expect(model.contains('...optimisticMessages.reversed'), isTrue);
@@ -451,7 +451,7 @@ void main() {
     expect(picker.contains('cloudTimeout'), isTrue);
     expect(picker.contains('retries = 2'), isTrue);
     expect(panel.contains('resolve_categorized_failure'), isTrue);
-    expect(panel.contains('stage_failed'), isTrue);
+    expect(panel.contains('system_resolve_failed'), isTrue);
     expect(panel.contains('resolve_cancelled_conversation_changed'), isTrue);
   });
 }

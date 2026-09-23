@@ -329,7 +329,7 @@ class GroupMembershipSyncService {
     if (owner.isEmpty || id.isEmpty) {
       return;
     }
-    if (isJoinedGroup(id)) {
+    if (isJoinedGroup(id) && !isExplicitlyRemovedGroup(id)) {
       return;
     }
     final hasSelf = memberUserIds
@@ -349,6 +349,10 @@ class GroupMembershipSyncService {
     required bool hasSelfInCallback,
     required String reason,
   }) async {
+    final identity = SessionIdentityService.instance.capture();
+    final generation = _syncGeneration;
+    bool isCurrent() => SessionIdentityService.instance.isCurrent(identity) &&
+        generation == _syncGeneration;
     var isMember = hasSelfInCallback;
     if (!isMember) {
       // Native GroupTips callbacks may strip the current user from
@@ -361,6 +365,7 @@ class GroupMembershipSyncService {
             Duration(milliseconds: attempt == 1 ? 250 : 750),
           );
         }
+        if (!isCurrent()) return;
         for (final candidate in ChatIdFormat.imGroupIdCandidates(groupId)) {
           try {
             final result = await TencentImSDKPlugin.v2TIMManager
@@ -382,7 +387,7 @@ class GroupMembershipSyncService {
         }
       }
     }
-    if (!isMember) {
+    if (!isMember || !isCurrent()) {
       return;
     }
     await _admitSdkMembershipHint(groupId, reason: reason);
@@ -397,6 +402,7 @@ class GroupMembershipSyncService {
         groupId: groupId,
         groupName: '',
         avatarUrl: '',
+        confirmedMembership: true,
       );
       // The optimized list is store-driven; the legacy UIKit group list still
       // needs an explicit reload after a new SDK-only membership callback.
@@ -3054,10 +3060,13 @@ class GroupMembershipSyncService {
 
   /// IM 已推送群会话/入群 tip，但本地成员库尚未写入时：先写入乐观成员壳上屏，
   /// 再拉详情校验；网络失败时保留壳（与杀进程重开一致，依赖后续 syncFull）。
+  /// [confirmedMembership] is reserved for self-join tips or SDK-verified
+  /// membership; cached conversation rows must leave it false.
   Future<bool> admitGroupMembershipFromImHint({
     required String groupId,
     String groupName = '',
     String avatarUrl = '',
+    bool confirmedMembership = false,
   }) async {
     final owner = _ownerUserId();
     final id = ChatIdFormat.normalizeGroupId(groupId);
@@ -3074,6 +3083,19 @@ class GroupMembershipSyncService {
         'admit_reject_forbidden_id',
         extras: <String, Object?>{'groupId': id},
       );
+      return false;
+    }
+    if (confirmedMembership) {
+      final identity = SessionIdentityService.instance.capture();
+      final generation = _syncGeneration;
+      await _removalWork.prepareRejoin(_removalWorkKey(id));
+      if (!SessionIdentityService.instance.isCurrent(identity) ||
+          generation != _syncGeneration) {
+        return false;
+      }
+      _clearExplicitGroupRemoval(id);
+    } else if (isExplicitlyRemovedGroup(id)) {
+      // A cached conversation is not proof that the user rejoined.
       return false;
     }
     final active = _admitFromImInFlight[id];

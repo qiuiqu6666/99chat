@@ -227,13 +227,14 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('auto hides playing controls but keeps pause and loading visible',
+  testWidgets('playing, paused and loading controls remain visible',
       (tester) async {
     final player = GlobalKey<TIMUIKitVideoPlayerState>();
     final chrome = GlobalKey<MediaPreviewVideoChromeState>();
     await mount(tester, playerKey: player, chromeKey: chrome);
-    await tester.pump(const Duration(seconds: 4));
-    expect(opacity(tester), 0);
+    await tester.pump(const Duration(seconds: 30));
+    expect(opacity(tester), 1);
+    expect(find.byType(Slider).hitTestable(), findsOneWidget);
     await mount(tester, playerKey: player, chromeKey: chrome, playing: false);
     await tester.pump(const Duration(seconds: 10));
     expect(opacity(tester), 1);
@@ -245,7 +246,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('menu suspends hide timer and starts a full delay on return',
+  testWidgets('controls remain visible during and after the menu',
       (tester) async {
     final player = GlobalKey<TIMUIKitVideoPlayerState>();
     final chrome = GlobalKey<MediaPreviewVideoChromeState>();
@@ -263,8 +264,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 2));
     expect(opacity(tester), 1);
-    await tester.pump(const Duration(seconds: 2));
-    expect(opacity(tester), 0);
+    await tester.pump(const Duration(seconds: 30));
+    expect(opacity(tester), 1);
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -290,7 +291,7 @@ void main() {
     expect(player.sought, isNotNull);
     expect(player.starts, 1);
     await tester.pump(const Duration(seconds: 4));
-    expect(opacity(tester), 0);
+    expect(opacity(tester), 1);
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -360,7 +361,8 @@ void main() {
     for (final action in ['forward', 'save', 'delete']) {
       final button = find.byKey(ValueKey('video-inline-$action'));
       expect(button, findsOneWidget);
-      expect(tester.widget<MediaPreviewReferenceButton>(button).icon, isNotNull);
+      expect(
+          tester.widget<MediaPreviewReferenceButton>(button).icon, isNotNull);
       final tooltip = tester.widget<Tooltip>(
           find.ancestor(of: button, matching: find.byType(Tooltip)).first);
       expect(tooltip.message, isNotEmpty);
@@ -607,6 +609,43 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
   }
+
+  testWidgets('time seek and playback sit together immediately above actions',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var played = 0;
+    var saved = 0;
+    await mount(tester,
+      playerKey: GlobalKey<TIMUIKitVideoPlayerState>(),
+      chromeKey: GlobalKey<MediaPreviewVideoChromeState>(),
+      playing: true,
+      insets: const EdgeInsets.only(top: 47, bottom: 34),
+      onToggle: () => played++,
+      onSave: () async { saved++; },
+    );
+    final action = find.byKey(const ValueKey('video-inline-save'));
+    final actionTop = tester.getRect(action).top;
+    final play = find.widgetWithIcon(IconButton, Icons.pause_rounded);
+    final slider = find.byType(Slider);
+    final time = find.text('00:32 / 02:18');
+    // Verify actual rendered positions, not just the parent bottom offset.
+    expect(tester.getRect(time).top, greaterThanOrEqualTo(actionTop - 44));
+    expect(tester.getCenter(play).dy, greaterThanOrEqualTo(actionTop - 24));
+    expect(tester.getCenter(slider).dy, greaterThanOrEqualTo(actionTop - 10));
+    expect(tester.getRect(slider).bottom, lessThanOrEqualTo(actionTop));
+    expect(tester.getRect(play).bottom, lessThanOrEqualTo(actionTop));
+    await tester.tap(play);
+    await tester.pump();
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    expect(played, 1);
+    expect(saved, 1);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('portrait control layout visual receipt', (tester) async {
     tester.view.devicePixelRatio = 1;

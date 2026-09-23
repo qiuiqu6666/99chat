@@ -51,7 +51,7 @@ void main() {
     expect(picker.contains('retries = 2'), isTrue);
     expect(panel.contains('resolve_categorized_failure'), isTrue);
     expect(panel.contains('outcome=oversize'), isTrue);
-    expect(panel.contains('stage_failed'), isTrue);
+    expect(panel.contains('system_resolve_failed'), isTrue);
     expect(
       File(
         'third_party/tencent_cloud_chat_uikit/lib/ui/utils/image_edit/'
@@ -125,6 +125,6 @@ void main() {
     expect(gridBuilder.contains('_imageProvider.evict()'), isFalse);
     expect(wide.contains('GallerySendPerfTrace'), isTrue);
     expect(panel.contains('desktop_file_picker_open'), isTrue);
-    expect(panel.contains('camera_photo_pick_begin'), isTrue);
+    expect(panel.contains('camera_capture_page_open'), isTrue);
   });
 }

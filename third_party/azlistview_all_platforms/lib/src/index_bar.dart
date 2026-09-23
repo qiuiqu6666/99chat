@@ -110,7 +110,7 @@ class IndexBarOptions {
   /// indexHintOffset
   /// localImages
   const IndexBarOptions({
-    this.needRebuild = false,
+    this.needRebuild = true,
     this.ignoreDragCancel = false,
     this.hapticFeedback = false,
     this.color,

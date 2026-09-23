@@ -17,6 +17,7 @@ import 'package:tencent_cloud_chat_uikit/data_services/group/group_member_feedba
 import 'package:tencent_cloud_chat_uikit/data_services/group/self_hosted_group_invite_bridge.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_directory.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
+import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/screen_utils.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/group_member/group_member_picker_search_bar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitSearch/conversation_search_utils.dart';
@@ -76,8 +77,10 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
   bool _inviteMetaReady = true;
   Set<String> _pendingReviewUserIds = <String>{};
   Set<String> _existingMemberUserIds = <String>{};
+  final Set<String> _verifiedMembershipUserIds = <String>{};
+  bool _contactsLoaded = false;
   int _existingResolveGeneration = 0;
-  bool _membershipLoading = true;
+  bool _membershipLoading = false;
   bool _membershipError = false;
   StreamSubscription<({String groupID, Set<String> userIDs})>? _removals;
 
@@ -134,7 +137,8 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
   void dispose() {
     _existingResolveGeneration++;
     _removals?.cancel();
-    ImSdkRelationshipDirectory.instance.removeListener(_onFriendDirectoryChange);
+    ImSdkRelationshipDirectory.instance
+        .removeListener(_onFriendDirectoryChange);
     widget.model.removeListener(_onGroupModelChanged);
     _searchController.dispose();
     super.dispose();
@@ -146,9 +150,16 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
 
   void _onFriendDirectoryChange(RelationshipDirectoryChange change) {
     if (change.kind != RelationshipListKind.friends) return;
+    if (change.addedIds.isNotEmpty || change.removedIds.isNotEmpty) {
+      // An in-flight response must not verify a removed/re-added friendship.
+      _existingResolveGeneration++;
+      _verifiedMembershipUserIds
+        ..removeAll(change.addedIds.map(_membershipUid))
+        ..removeAll(change.removedIds.map(_membershipUid));
+    }
     _syncContactsFromDirectory();
-    if (change.addedIds.isNotEmpty && !_membershipLoading && !_membershipError) {
-      unawaited(_resolveExistingMembersFromContacts());
+    if (change.addedIds.isNotEmpty && !_membershipLoading) {
+      unawaited(_loadContactMembership());
     }
   }
 
@@ -175,17 +186,22 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
   String _membershipUid(String? id) => ChatIdFormat.rawUserUid(id);
 
   Future<void> _loadContactMembership() async {
-    if (!mounted) return;
+    if (!mounted || _membershipLoading) return;
     setState(() {
       _membershipLoading = true;
       _membershipError = false;
     });
     try {
-      await widget.model.loadContactsForPicker();
-      if (mounted) {
+      if (!_contactsLoaded) {
+        // The live directory already owns a complete local friend snapshot.
+        if (!ImSdkRelationshipDirectory.instance.hasCompleteFriendSnapshot) {
+          await widget.model.loadContactsForPicker();
+        }
+        if (!mounted) return;
         _syncContactsFromDirectory();
-        await _resolveExistingMembersFromContacts();
+        _contactsLoaded = true;
       }
+      await _resolveExistingMembersFromContacts();
     } catch (_) {
       _membershipError = true;
     } finally {
@@ -194,31 +210,25 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
   }
 
   Future<void> _resolveExistingMembersFromContacts() async {
-    final generation = ++_existingResolveGeneration;
-    final candidates = widget.model.contactList
-        .map((item) => _membershipUid(item.userID))
-        .where((id) => id.isNotEmpty)
-        .toSet()
-        .toList(growable: false);
-    if (candidates.isEmpty) {
-      return;
-    }
     const batchSize = 50;
-    for (var start = 0; start < candidates.length; start += batchSize) {
-      if (!mounted || generation != _existingResolveGeneration) {
-        return;
-      }
-      final end = start + batchSize > candidates.length
-          ? candidates.length
-          : start + batchSize;
-      final batch = candidates.sublist(start, end);
+    while (mounted) {
+      final generation = _existingResolveGeneration;
+      // Re-read the directory between batches to include live friend changes.
+      // A retry resumes here without refetching already verified contacts.
+      final batch = widget.model.contactList
+          .map((item) => _membershipUid(item.userID))
+          .where(
+              (id) => id.isNotEmpty && !_verifiedMembershipUserIds.contains(id))
+          .toSet()
+          .take(batchSize)
+          .toList(growable: false);
+      if (batch.isEmpty) return;
       final loader = widget.existingMemberUserIdsLoader;
       final found = loader != null
           ? await loader(batch)
           : await widget.model.existingMemberUserIdsAmong(batch);
-      if (!mounted || generation != _existingResolveGeneration) {
-        return;
-      }
+      if (!mounted) return;
+      if (generation != _existingResolveGeneration) continue;
       final merged = <String>{
         ..._existingMemberUserIds.where((id) => !batch.contains(id)),
         ...found.map(_membershipUid).where((id) =>
@@ -226,9 +236,12 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
             !GroupMemberStore.instance
                 .isRemovalTombstoned(widget.model.groupID, id)),
       };
-      _safeSetState(() {
+      setState(() {
         _existingMemberUserIds = merged;
+        _verifiedMembershipUserIds.addAll(batch);
       });
+      // Paint this batch before starting more IO, including synchronous caches.
+      await WidgetsBinding.instance.endOfFrame;
     }
   }
 
@@ -279,8 +292,26 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
   }
 
   List<V2TimFriendInfo> _filteredContacts() {
-    return filterFriendsByKeyword(widget.model.contactList, _keyword);
+    return filterFriendsByKeyword(
+      widget.model.contactList
+          .where((friend) => _verifiedMembershipUserIds
+              .contains(_membershipUid(friend.userID)))
+          .toList(growable: false),
+      _keyword,
+    );
   }
+
+  bool get _canSubmitSelection =>
+      !_submitting &&
+      selectedContacts.isNotEmpty &&
+      selectedContacts.every((friend) =>
+          _verifiedMembershipUserIds.contains(_membershipUid(friend.userID)) &&
+          !_isExistingMemberUser(friend.userID) &&
+          !_isPendingReviewUser(friend.userID));
+
+  bool get _showContactList =>
+      _verifiedMembershipUserIds.isNotEmpty ||
+      (_contactsLoaded && !_membershipLoading && !_membershipError);
 
   bool _isPendingReviewUser(String userId) {
     final id = _membershipUid(userId);
@@ -299,13 +330,23 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
   }
 
   bool get _allSelectableSelected {
-    final state = _contactListKey.currentState;
-    if (state?.areAllSelectableSelected ?? false) {
+    if (selectedContacts.length >= kContactListMaxGroupSelection) {
       return true;
     }
-    // ContactList caps select-all at 100. Treat that capped selection as the
-    // toggled state so the next tap clears it instead of trying to add again.
-    return selectedContacts.length >= kContactListMaxGroupSelection;
+    // The child still has the previous batch during the parent's build.
+    // Compute from current contacts so the label does not lag behind new IO.
+    final selectedIds =
+        selectedContacts.map((item) => item.userID.trim()).toSet();
+    var hasSelectable = false;
+    for (final friend in _filteredContacts()) {
+      if (_isExistingMemberUser(friend.userID) ||
+          _isPendingReviewUser(friend.userID)) {
+        continue;
+      }
+      hasSelectable = true;
+      if (!selectedIds.contains(friend.userID.trim())) return false;
+    }
+    return hasSelectable;
   }
 
   void _toggleSelectAll() {
@@ -313,8 +354,7 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
     if (state == null) {
       return;
     }
-    if (state.areAllSelectableSelected ||
-        selectedContacts.length >= kContactListMaxGroupSelection) {
+    if (_allSelectableSelected) {
       state.clearSelection();
     } else {
       state.selectAllSelectable();
@@ -488,10 +528,7 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
   }
 
   Future<void> submitAdd() async {
-    if (_submitting ||
-        _membershipLoading ||
-        _membershipError ||
-        selectedContacts.isEmpty) {
+    if (!_canSubmitSelection) {
       return;
     }
     setState(() => _submitting = true);
@@ -632,10 +669,7 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
   }
 
   Widget _confirmButton(TUITheme theme) {
-    final enabled = !_submitting &&
-        !_membershipLoading &&
-        !_membershipError &&
-        selectedContacts.isNotEmpty;
+    final enabled = _canSubmitSelection;
     final color = enabled
         ? (theme.appbarTextColor ?? theme.darkTextColor ?? Colors.black)
         : (theme.weakTextColor ?? const Color(0xFFB0B0B0));
@@ -651,7 +685,9 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
               ),
             )
           : Text(
-              TIM_t("确定"),
+              selectedContacts.isEmpty
+                  ? TIM_t("确定")
+                  : '${TIM_t("确定")} (${selectedContacts.length})',
               style: TextStyle(
                 color: color,
                 fontSize: 16,
@@ -683,17 +719,47 @@ class _AddGroupMemberPageState extends TIMUIKitState<AddGroupMemberPage> {
         children: [
           _approvalHintBanner(theme),
           _searchBox(theme),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    AppI18n.of(context).t(
+                      zhHans: '已选成员',
+                      zhHant: '已選成員',
+                      en: 'Selected',
+                      ja: '選択済み',
+                      ko: '선택됨',
+                    ),
+                    style: TextStyle(color: theme.weakTextColor, fontSize: 13),
+                  ),
+                ),
+                Text(
+                  '${selectedContacts.length}/$kContactListMaxGroupSelection',
+                  style: TextStyle(color: theme.weakTextColor, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
           Expanded(
-            child: _membershipError
-                ? Center(
-                    child: TextButton(
-                    onPressed: _loadContactMembership,
-                    child: Text(TIM_t('群成员加载失败，点击重试')),
-                  ))
-                : _inviteMetaReady && !_membershipLoading
-                    ? _contactList(theme)
+            child: _showContactList
+                ? _contactList(theme)
+                : _membershipError
+                    ? Center(
+                        child: TextButton(
+                        onPressed: _loadContactMembership,
+                        child: Text(TIM_t('群成员加载失败，点击重试')),
+                      ))
                     : _inviteContactListSkeleton(theme),
           ),
+          if (_showContactList && _membershipLoading)
+            const LinearProgressIndicator(minHeight: 2),
+          if (_showContactList && _membershipError)
+            TextButton(
+              onPressed: _loadContactMembership,
+              child: Text(TIM_t('群成员加载失败，点击重试')),
+            ),
         ],
       ),
     );

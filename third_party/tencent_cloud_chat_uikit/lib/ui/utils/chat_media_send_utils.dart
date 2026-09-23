@@ -67,7 +67,7 @@ String nextChatMediaUniqueToken() {
 }
 
 /// 聊天图片发送：普通图最长边上限（像素）。
-const int kChatImageMaxLongEdge = 3072;
+const int kChatImageMaxLongEdge = 2560;
 
 /// 超长竖图（海报/规则长图）最长边上限；需保留足够宽度供文字阅读。
 const int kChatImageUltraTallMaxLongEdge = 8192;
@@ -79,7 +79,7 @@ const double kChatImageUltraTallAspectRatio = 0.45;
 const int kChatImageUltraTallPreserveMinWidth = 1280;
 
 /// 聊天图片发送：JPEG 质量（0–100）。文字图适当提高，减轻块效应。
-const int kChatImageJpegQuality = 94;
+const int kChatImageJpegQuality = 88;
 
 /// 已是较小 JPEG 且无需重编码时跳过压缩（字节）。
 const int kChatImageSkipCompressBelowBytes = 1200 * 1024;
@@ -803,9 +803,10 @@ Future<String?> prepareImageForChatSend(
     }
   } catch (_) {}
 
-  final tempDir = await getTemporaryDirectory();
+  // The encoded file is also the durable SDK/retry/recovery source.
+  final sendDir = await _createChatMediaStagingDirectory('image');
   final targetPath =
-      '${tempDir.path}/chat_send_${nextChatMediaUniqueToken()}.jpg';
+      '${sendDir.path}/chat_send_${nextChatMediaUniqueToken()}.jpg';
 
   // flutter_image_compress 的 minWidth/minHeight 是目标尺寸提示；先按比例
   // 计算目标框。超长竖图单独保宽度，普通图限制最长边。
@@ -839,14 +840,11 @@ Future<String?> prepareImageForChatSend(
     }
   } catch (_) {}
 
+  // Encoding failure must keep the original format and reuse its stable file.
   try {
-    await source.copy(targetPath);
-    if (File(targetPath).existsSync()) {
-      return targetPath;
-    }
+    await sendDir.delete(recursive: true);
   } catch (_) {}
-
-  return null;
+  return trimmed;
 }
 
 /// 相机拍摄图发送前：快速复制到稳定路径（压缩在 sendImageMessage 后台进行）。

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:extended_text_field/extended_text_field.dart';
@@ -367,6 +368,145 @@ void main() {
         await frame(tester, 2000);
         await tester.runAsync(() => directory.delete(recursive: true));
         SqfliteLifecycleGuard.instance.debugReset();
+      }
+    });
+  }
+
+  for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+    uiTest(
+      '${platform.name}: manual latest settlement never paints a replacement back label',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = platform;
+        try {
+          await mount(tester);
+          await away(tester);
+          await receive(tester, 101, 2);
+          await frame(tester, 250);
+          expect(find.text('showUnread:2').hitTestable(), findsOneWidget);
+          // Model the contiguous tail becoming available before the final drag.
+          global.flushDeferredIncomingMessages(getConv(), userInitiated: true);
+          await frame(tester);
+          global.setChatListUserScrolling(true);
+          scroll.jumpTo(scroll.position.minScrollExtent);
+          global.settleAtTrueLatestEnd(getConv());
+          for (var i = 0; i < 100; i++) {
+            await frame(tester, 8);
+            final replacement = find.text('toLatest:0');
+            if (replacement.evaluate().isNotEmpty) {
+              final fades = find.ancestor(
+                of: replacement,
+                matching: find.byType(FadeTransition),
+              );
+              expect(
+                tester.widget<FadeTransition>(fades.first).opacity.value,
+                0,
+                reason:
+                    'frame $i: hidden controls must not repaint a new label while fading',
+              );
+            }
+          }
+          global.setChatListUserScrolling(false);
+          expect(global.remainingLiveIncomingCountFor(getConv()), 0);
+          expect(find.text('showUnread:2').hitTestable(), findsNothing);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+  }
+
+  uiTest('outgoing unread capsule cannot intercept a newly visible return button',
+      (tester) async {
+    await mount(tester);
+    await away(tester);
+    await receive(tester, 101, 2);
+    await frame(tester, 250);
+    global.flushDeferredIncomingMessages(getConv(), userInitiated: true);
+    await frame(tester);
+    global.setChatListUserScrolling(true);
+    scroll.jumpTo(scroll.position.minScrollExtent);
+    global.settleAtTrueLatestEnd(getConv());
+    await frame(tester, 8);
+    scroll.jumpTo(1200);
+    global.setFollowingLatest(getConv(), false, notify: true);
+    await frame(tester, 8);
+    await frame(tester, 32);
+    expect(find.text('showUnread:2'), findsOneWidget);
+    expect(find.text('showUnread:2').hitTestable(), findsNothing);
+    expect(find.text('toLatest:0').hitTestable(), findsOneWidget);
+    global.setChatListUserScrolling(false);
+  });
+
+  uiTest('a live message at the latest edge never flashes an unread capsule',
+      (tester) async {
+    await mount(tester);
+    await away(tester);
+    await receive(tester, 101, 2);
+    global.flushDeferredIncomingMessages(getConv(), userInitiated: true);
+    await frame(tester);
+    global.setChatListUserScrolling(true);
+    scroll.jumpTo(scroll.position.minScrollExtent);
+    global.settleAtTrueLatestEnd(getConv());
+    global.setChatListUserScrolling(false);
+    await frame(tester, 8);
+    expect(scroll.offset, closeTo(0, 1));
+    final arrival = global.applyAppRealtimeMessage(row(103),
+        ingressEventID: '${getConv()}-event-103', ingressSequence: 103);
+    for (var i = 0; i < 80; i++) {
+      await frame(tester, 8);
+      expect(scroll.offset, closeTo(0, 1),
+          reason: 'frame $i: followed viewport must remain at the latest edge');
+      final unread = find.text('showUnread:1');
+      for (final element in unread.evaluate()) {
+        final fades = find.ancestor(
+          of: find.byElementPredicate((candidate) => candidate == element),
+          matching: find.byType(FadeTransition),
+        );
+        expect(tester.widget<FadeTransition>(fades.first).opacity.value, 0,
+            reason: 'frame $i: a followed arrival must not flash a capsule');
+      }
+    }
+    await arrival;
+    expect(scroll.offset, closeTo(0, 1));
+  });
+
+  uiTest('a followed layout displacement does not expose the return capsule',
+      (tester) async {
+    await mount(tester);
+    expect(global.isFollowingLatest(getConv()), isTrue);
+    // A newly laid out bubble can temporarily move the reverse list away
+    // from zero before the following-latest pin corrects its position.
+    scroll.jumpTo(360);
+    await frame(tester, 8);
+    expect(global.isFollowingLatest(getConv()), isTrue);
+    expect(find.text('toLatest:0').hitTestable(), findsNothing);
+    global.setChatListUserScrolling(true);
+    await frame(tester, 8);
+    expect(find.text('toLatest:0').hitTestable(), findsNothing);
+    global.setChatListUserScrolling(false);
+  });
+
+  for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+    uiTest('${platform.name}: reaching a loaded edge with 40 buffered messages completes the return',
+        (tester) async {
+      debugDefaultTargetPlatformOverride = platform;
+      try {
+        await mount(tester);
+        await away(tester);
+        await receive(tester, 101, 40);
+        expect(global.deferredIncomingBufferedCount(getConv()), 40);
+        await tester.drag(
+            find.byKey(const Key('history')), const Offset(0, -1500));
+        for (var i = 0; i < 120; i++) {
+          await frame(tester, 20);
+          if (global.deferredIncomingBufferedCount(getConv()) == 0 &&
+              global.isFollowingLatest(getConv())) break;
+        }
+        expect(global.deferredIncomingBufferedCount(getConv()), 0);
+        expect(global.rawMessageList(getConv())!.first.seq, '140');
+        expect(global.isFollowingLatest(getConv()), isTrue);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
       }
     });
   }

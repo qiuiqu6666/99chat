@@ -4470,6 +4470,7 @@ class ConversationSyncService {
       groupId: groupId,
       groupName: pending?.showName?.trim() ?? '',
       avatarUrl: pending?.faceUrl?.trim() ?? '',
+      confirmedMembership: true,
     );
   }
 

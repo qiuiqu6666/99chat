@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_send_perf.dart';
 // ignore_for_file: deprecated_member_use
 
 import 'dart:async';
@@ -51,6 +52,8 @@ import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'message_web_history_loader_stub.dart'
     if (dart.library.html) 'message_web_history_loader_web.dart';
 import 'outgoing_message_send_queue.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_media_send_utils.dart'
+    show kChatMediaBatchIdKey, kChatMediaBatchIndexKey;
 import 'typing_status_send_queue.dart';
 
 class _MessageDownloadFlight {
@@ -1010,7 +1013,10 @@ class MessageServiceImpl extends MessageService {
     );
     final convKey = '${sendIdentity.ownerUserId}|'
         '${sendIdentity.generation}|$rawConvKey';
-    return OutgoingMessageSendQueue.instance.runSerial(convKey, () {
+    final perf = MediaSendPerf.lookup(id);
+    final uploadQueued = Stopwatch()..start();
+    Future<V2TimValueCallback<V2TimMessage>> dispatch() {
+      perf?.record('uploadQueueWaitMs', uploadQueued.elapsedMilliseconds);
       if (!SessionIdentityService.instance.isCurrent(sendIdentity)) {
         return Future<V2TimValueCallback<V2TimMessage>>.value(
           V2TimValueCallback<V2TimMessage>(
@@ -1019,7 +1025,7 @@ class MessageServiceImpl extends MessageService {
           ),
         );
       }
-      return _sendMessageNow(
+      Future<V2TimValueCallback<V2TimMessage>> send() => _sendMessageNow(
         id: id,
         receiver: receiver,
         groupID: groupID,
@@ -1034,7 +1040,33 @@ class MessageServiceImpl extends MessageService {
         toOfficialAccount: toOfficialAccount,
         onSyncMsgID: onSyncMsgID,
       );
-    });
+      return perf == null ? send() : perf.measure('sdkUploadAndSend', send);
+    }
+
+    // Only locally selected media with a valid display order may overlap.
+    // Text, single sends and malformed metadata keep the serial path.
+    String? batchId;
+    String? mediaKind;
+    try {
+      final data = jsonDecode(localCustomData ?? '');
+      if (data is Map && const ['image', 'video', 'file'].contains(data['mediaSendKind'])) {
+        mediaKind = data['mediaSendKind'] as String;
+      }
+      if (data is Map &&
+          data[kChatMediaBatchIdKey] is String &&
+          data[kChatMediaBatchIndexKey] is int &&
+          (data[kChatMediaBatchIndexKey] as int) >= 0) {
+        final id = (data[kChatMediaBatchIdKey] as String).trim();
+        if (id.isNotEmpty) batchId = id;
+      }
+    } catch (_) {
+      // Non-JSON local metadata is valid for ordinary SDK messages.
+    }
+    final queue = OutgoingMessageSendQueue.instance;
+    if (mediaKind != null) return queue.runMedia(mediaKind, dispatch);
+    return batchId == null
+        ? queue.runSerial(convKey, dispatch)
+        : queue.runMediaBatch(convKey, batchId, dispatch);
   }
 
   Future<V2TimValueCallback<V2TimMessage>> _sendMessageNow({

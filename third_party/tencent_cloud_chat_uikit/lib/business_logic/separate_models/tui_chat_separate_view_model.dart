@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_send_perf.dart';
 import 'package:tencent_cloud_chat_demo/src/services/device_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/models/chat_attachment.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_attachment_service.dart';
@@ -5531,6 +5532,24 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     if (messageInfo != null) {
       setLoadingMessageMap(convID, messageInfo);
     }
+    final mediaKind = switch (messageInfo?.elemType) {
+      MessageElemType.V2TIM_ELEM_TYPE_IMAGE => 'image',
+      MessageElemType.V2TIM_ELEM_TYPE_VIDEO => 'video',
+      MessageElemType.V2TIM_ELEM_TYPE_FILE => 'file',
+      _ => null,
+    };
+    if (mediaKind != null) {
+      final raw = localCustomData ?? messageInfo?.localCustomData;
+      try {
+        final decoded = raw == null || raw.isEmpty ? <String, dynamic>{} : jsonDecode(raw);
+        if (decoded is Map) {
+          localCustomData = jsonEncode({...decoded, 'mediaSendKind': mediaKind});
+          messageInfo?.localCustomData = localCustomData;
+        }
+      } catch (_) {
+        // Preserve opaque metadata; it keeps the legacy serial admission.
+      }
+    }
     final coordinatedSend = await ImOutgoingSendCoordinator.instance.send(
       messageService: _messageService,
       sdkLocalId: id,
@@ -6635,6 +6654,8 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     required String nativeKind,
     required String convID,
     required ConvType convType,
+    String? batchId,
+    int? batchIndex,
     dynamic inputElement,
     String? name,
     String? snapshotPath,
@@ -6654,20 +6675,30 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     final prefix = group ? 'group_' : 'c2c_';
     final targetID = effectiveID.startsWith(prefix)
         ? effectiveID.substring(prefix.length) : effectiveID;
-    if (existingOptimisticId != null) {
-      if (nativeKind == 'video') {
-        retireBackendVideoPlaceholder(convID: effectiveID, clientId: existingOptimisticId);
-      } else {
-        _removeOutgoingMessage(convID: effectiveID, clientId: existingOptimisticId);
+    var handedOff = false;
+    void onQueued() {
+      handedOff = true;
+      if (!canSendCapturedMedia) return;
+      if (existingOptimisticId != null) {
+        if (nativeKind == 'video') {
+          retireBackendVideoPlaceholder(convID: effectiveID, clientId: existingOptimisticId);
+        } else {
+          _removeOutgoingMessage(convID: effectiveID, clientId: existingOptimisticId);
+        }
       }
     }
     try {
       await attachments.start(path: path,
           target: ChatAttachmentTarget(isGroup: group, id: targetID),
+          mediaBatchId: batchId, mediaBatchIndex: batchIndex,
           nativeMessageKind: nativeKind, name: name, snapshotPath: snapshotPath,
-          durationMs: durationMs, width: width, height: height);
+          durationMs: durationMs, width: width, height: height, onQueued: onQueued);
     } catch (error) {
       if (canSendCapturedMedia) {
+        if (!handedOff && existingOptimisticId != null) {
+          markOptimisticMediaPlaceholderFailed(
+            convID: effectiveID, clientId: existingOptimisticId);
+        }
         _notifyCreateMessageFailed(error is ChatAttachmentException
             ? error.userMessage : '附件发送失败，请重试');
       }
@@ -6702,13 +6733,31 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         batchIndex: batchIndex,
       );
     }
+    // Publish the local row before any file probe, copy or backend routing.
+    if (existingOptimisticId == null && inputElement == null &&
+        !PlatformUtils().isWeb && (imagePath?.trim().isNotEmpty ?? false) &&
+        canSendCapturedMedia) {
+      final ids = beginOptimisticImagePlaceholders(
+        convID: convID,
+        inputs: [OptimisticImagePlaceholderInput(
+          imagePath: imagePath!, imageWidth: imageWidth, imageHeight: imageHeight,
+          batchId: batchId, batchIndex: batchIndex,
+        )],
+        probeSizeSynchronously: false,
+      );
+      if (ids.isNotEmpty) existingOptimisticId = ids.first;
+    }
+    final perf = MediaSendPerf.begin(existingOptimisticId);
+    var perfOutcome = 'interrupted';
     DeviceSyncService.instance
         .beginForegroundMediaWork(reason: 'sendImageMessage');
     try {
       if (await _trySendBackendAttachment(path: imagePath, nativeKind: 'image',
           convID: convID, convType: convType, inputElement: inputElement,
+          batchId: batchId, batchIndex: batchIndex,
           name: imageName, width: imageWidth, height: imageHeight,
           existingOptimisticId: existingOptimisticId)) {
+        perfOutcome = 'backend_attachment';
         return null;
       }
       if (!canSendCapturedMedia ||
@@ -6732,22 +6781,13 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       final existingId = existingOptimisticId?.trim();
       String? optimisticId =
           (existingId != null && existingId.isNotEmpty) ? existingId : null;
-      if (workingPath.isNotEmpty &&
-          inputElement == null &&
-          !PlatformUtils().isWeb) {
-        final staged = await stageImageForChatSend(workingPath);
-        if (staged != null && staged.isNotEmpty) {
-          workingPath = staged;
-        }
-      }
-
       if (!canSendCapturedMedia) return null;
       Size? knownLayoutSize;
       if (hasKnownSize) {
         knownLayoutSize = Size(imageWidth!.toDouble(), imageHeight!.toDouble());
       }
       if (knownLayoutSize == null && workingPath.isNotEmpty) {
-        knownLayoutSize = await probeLocalImageSize(workingPath);
+        knownLayoutSize = await perf.measure('probe', () => readLocalImageSizeFromHeader(workingPath));
       }
 
       var uploadPath = workingPath;
@@ -6764,14 +6804,17 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
             imageSize: knownLayoutSize,
           );
         }
+        final compressionQueued = Stopwatch()..start();
         final prepared =
             await OutgoingMediaWorkQueue.imagePreparation.run(() async {
+          perf.record('compressQueueWaitMs', compressionQueued.elapsedMilliseconds);
           if (!canSendCapturedMedia ||
               _isOutgoingMediaCancelled(optimisticId)) {
             return null;
           }
-          return prepareImageForChatSend(workingPath,
-              knownSourceSize: knownLayoutSize);
+          knownLayoutSize ??= await perf.measure('probe', () => probeLocalImageSize(workingPath));
+          return perf.measure('compress', () => prepareImageForChatSend(workingPath,
+              knownSourceSize: knownLayoutSize));
         });
         if (!canSendCapturedMedia) return null;
         if (_isOutgoingMediaCancelled(optimisticId)) {
@@ -6784,8 +6827,28 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         }
       }
 
+      // Compression already writes a durable file. Small images and failed
+      // encodes are staged once here; prepared paths are returned unchanged.
+      if (uploadPath.isNotEmpty && inputElement == null && !PlatformUtils().isWeb) {
+        final stable = await perf.measure('staging', () => stageImageForChatSend(uploadPath));
+        if (stable == null) {
+          if (optimisticId != null) markOptimisticMediaPlaceholderFailed(
+              convID: effectiveConvID, clientId: optimisticId);
+          perfOutcome = 'staging_failed';
+          return null;
+        }
+        uploadPath = stable;
+      }
       final effectivePath =
           uploadPath.isNotEmpty ? uploadPath : imagePath?.trim();
+      if (!PlatformUtils().isWeb && uploadPath.isNotEmpty) {
+        try {
+          perf.record('sizeSend', await File(uploadPath).length());
+          if (!perf.metrics.containsKey('sizeOriginal')) {
+            perf.record('sizeOriginal', await File(workingPath).length());
+          }
+        } catch (_) {}
+      }
       if (!canSendCapturedMedia) return null;
       final createFuture = _messageService.createImageMessage(
         imageName: imageName,
@@ -6806,6 +6869,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       }
 
       final clientId = imageMessageInfo.id as String;
+      perf.bind(clientId);
       if (_isOutgoingMediaCancelled(clientId) ||
           _isOutgoingMediaCancelled(optimisticId)) {
         _markOutgoingMediaSendFailed(
@@ -6920,8 +6984,10 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           identity: _outgoingMediaIdentity!,
         ));
       }
+      perfOutcome = sendResult?.code == 0 ? 'success' : 'failed_or_unknown';
       return sendResult;
     } finally {
+      perf.finish(perfOutcome);
       DeviceSyncService.instance
           .endForegroundMediaWork(reason: 'sendImageMessage');
     }
@@ -6965,6 +7031,8 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         existingOptimisticId: existingOptimisticId,
       );
     }
+    final perf = MediaSendPerf.begin(existingOptimisticId);
+    var outcome = 'interrupted';
     DeviceSyncService.instance
         .beginForegroundMediaWork(reason: 'sendVideoMessage');
     try {
@@ -6972,6 +7040,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           convID: convID, convType: convType, inputElement: inputElement,
           snapshotPath: snapshotPath, durationMs: duration == null ? null : duration * 1000,
           existingOptimisticId: existingOptimisticId)) {
+        outcome = 'backend_attachment';
         return null;
       }
       if (!canSendCapturedMedia ||
@@ -6994,14 +7063,20 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           existingId != null && existingId.isNotEmpty ? existingId : null;
 
       if (inputElement == null && !PlatformUtils().isWeb && videoPath != null) {
-        videoPath = await stageVideoForChatSend(videoPath) ?? videoPath;
+        final source = videoPath;
+        videoPath = await perf.measure('staging', () => stageVideoForChatSend(source)) ?? source;
+        try {
+          final bytes = await File(videoPath).length();
+          perf.record('sizeOriginal', bytes);
+          perf.record('sizeSend', bytes);
+        } catch (_) {}
         if (!canSendCapturedMedia) return null;
       }
 
-      final resolvedSnapshotPath = await ensureVideoSnapshotForSend(
+      final resolvedSnapshotPath = await perf.measure('snapshot', () => ensureVideoSnapshotForSend(
         videoPath: videoPath,
         snapshotPath: snapshotPath,
-      );
+      ));
       if (!canSendCapturedMedia) return null;
 
       final videoMessageInfo = await _messageService.createVideoMessage(
@@ -7025,6 +7100,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       }
 
       final clientId = videoMessageInfo.id as String;
+      perf.bind(clientId);
       if (_isOutgoingMediaCancelled(clientId) ||
           _isOutgoingMediaCancelled(optimisticId)) {
         _markOutgoingMediaSendFailed(
@@ -7088,7 +7164,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         );
         return null;
       }
-      return await _sendMessage(
+      final result = await _sendMessage(
         convID: effectiveConvID,
         messageInfo: messageInfoWithSender,
         id: clientId,
@@ -7100,7 +7176,10 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         ),
         preserveTargetGroupID: true,
       );
+      outcome = result.code == 0 ? 'success' : 'failed_or_unknown';
+      return result;
     } finally {
+      perf.finish(outcome);
       DeviceSyncService.instance
           .endForegroundMediaWork(reason: 'sendVideoMessage');
     }

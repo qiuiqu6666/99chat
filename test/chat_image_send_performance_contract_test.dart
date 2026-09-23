@@ -9,8 +9,8 @@ void main() {
       'chat_media_send_utils.dart',
     ).readAsStringSync().replaceAll('\r\n', '\n');
 
-    expect(source.contains('kChatImageMaxLongEdge = 3072'), isTrue);
-    expect(source.contains('kChatImageJpegQuality = 94'), isTrue);
+    expect(source.contains('kChatImageMaxLongEdge = 2560'), isTrue);
+    expect(source.contains('kChatImageJpegQuality = 88'), isTrue);
     expect(
       source.contains('kChatImageSkipCompressBelowBytes = 1200 * 1024'),
       isTrue,
@@ -20,7 +20,7 @@ void main() {
     expect(source.contains('minHeight: targetHeight'), isTrue);
   });
 
-  test('gallery image sends use the shared queue and async file length', () {
+  test('gallery does not occupy upload slots during preparation', () {
     final source = File(
       'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/'
       'TIMUIKitTextField/tim_uikit_more_panel.dart',
@@ -32,7 +32,7 @@ void main() {
     );
     expect(
       source.contains('OutgoingMediaWorkQueue.sends.run('),
-      isTrue,
+      isFalse,
     );
     expect(
       source.contains('pending.length < maxWorkers'),

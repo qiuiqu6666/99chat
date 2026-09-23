@@ -12,6 +12,8 @@ class ChatAttachmentTask {
     required this.mimeType,
     required this.sizeBytes,
     required this.createdAt,
+    this.mediaBatchId,
+    this.mediaBatchIndex,
     this.snapshotPath,
     this.durationMs,
     this.width,
@@ -29,6 +31,8 @@ class ChatAttachmentTask {
   final String taskId, ownerUserId, name, kind, nativeMessageKind, mimeType;
   final ChatAttachmentTarget target;
   final int sizeBytes, createdAt;
+  final String? mediaBatchId;
+  final int? mediaBatchIndex;
   String sourcePath;
   String? snapshotPath;
   final int? durationMs, width, height;
@@ -68,6 +72,8 @@ class ChatAttachmentTask {
         'mimeType': mimeType,
         'sizeBytes': sizeBytes,
         'createdAt': createdAt,
+        if (mediaBatchId != null) 'mediaBatchId': mediaBatchId,
+        if (mediaBatchIndex != null) 'mediaBatchIndex': mediaBatchIndex,
         'snapshotPath': snapshotPath,
         'durationMs': durationMs,
         'width': width,
@@ -97,6 +103,11 @@ class ChatAttachmentTask {
         mimeType: attachmentString(j['mimeType']),
         sizeBytes: attachmentInt(j['sizeBytes']),
         createdAt: attachmentInt(j['createdAt']),
+        mediaBatchId: attachmentOptionalString(j['mediaBatchId']),
+        mediaBatchIndex: j['mediaBatchIndex'] is int &&
+                (j['mediaBatchIndex'] as int) >= 0
+            ? j['mediaBatchIndex'] as int
+            : null,
         snapshotPath: attachmentOptionalString(j['snapshotPath']),
         durationMs: attachmentPositiveInt(j['durationMs']),
         width: attachmentPositiveInt(j['width']),

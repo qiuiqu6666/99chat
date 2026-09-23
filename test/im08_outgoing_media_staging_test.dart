@@ -36,7 +36,8 @@ void main() {
     final image = await _file(source, 'picked.jpg', 'image');
     final video = await _file(source, 'picked.mp4', 'video');
     final snapshot = File(p.join(source.path, 'snapshot.jpg'));
-    await snapshot.writeAsBytes([0xff, 0xd8, 0xff, ...List.filled(256, 0), 0xff, 0xd9]);
+    await snapshot
+        .writeAsBytes([0xff, 0xd8, 0xff, ...List.filled(256, 0), 0xff, 0xd9]);
     final sound = await _file(source, 'picked.m4a', 'sound');
     final document = await _file(source, 'picked.pdf', 'file');
     final message = _message()
@@ -93,6 +94,64 @@ void main() {
           .existsSync(),
       isFalse,
     );
+  });
+
+  test('durable media is reused by SDK recovery and retry without byte copies',
+      () async {
+    final live = Directory(p.join(support.path, 'im_media_staging', 'image_1'));
+    await live.create(recursive: true);
+    final image = await _file(live, 'chat_send_1.jpg', 'encoded-image');
+    final message = _message()..imageElem = V2TimImageElem(path: image.path);
+    final first =
+        await stager.stageMessage(message: message, operationId: 'first');
+    final second =
+        await stager.stageMessage(message: message, operationId: 'retry');
+    expect(first.succeeded && second.succeeded, isTrue);
+    expect(message.imageElem!.path, image.path);
+    for (final root in [first.rootPath!, second.rootPath!]) {
+      final files = Directory(root).listSync().whereType<File>().toList();
+      expect(files.map((f) => p.basename(f.path)), ['media_refs.json']);
+    }
+    // Account-local orphan scans cannot release another account's references.
+    await stager.cleanupOrphans(activeRootPaths: [], minimumAge: Duration.zero);
+    await stager.cleanupLiveOrphans(minimumAge: Duration.zero);
+    expect(image.existsSync(), isTrue);
+    await stager.cleanup(first.rootPath);
+    await stager.cleanupLiveOrphans(minimumAge: Duration.zero);
+    expect(image.existsSync(), isTrue);
+    await stager.cleanup(second.rootPath);
+    await stager.cleanupLiveOrphans();
+    expect(image.existsSync(), isTrue); // success keeps a grace period
+    await stager.cleanupLiveOrphans(minimumAge: Duration.zero);
+    expect(image.existsSync(), isFalse);
+  });
+
+  test('managed symlink escaping the root is copied, never borrowed', () async {
+    final live = Directory(p.join(support.path, 'im_media_staging', 'image_2'));
+    await live.create(recursive: true);
+    final outside = await _file(source, 'outside.jpg', 'original');
+    final link = Link(p.join(live.path, 'alias.jpg'));
+    await link.create(outside.path);
+    final message = _message()..imageElem = V2TimImageElem(path: link.path);
+    final result =
+        await stager.stageMessage(message: message, operationId: 'link');
+    expect(result.succeeded, isTrue);
+    expect(p.isWithin(result.rootPath!, message.imageElem!.path!), isTrue);
+    await stager.cleanup(result.rootPath);
+    expect(outside.existsSync(), isTrue);
+  });
+
+  test('unreadable reference manifest fails closed during live cleanup',
+      () async {
+    final live = Directory(p.join(support.path, 'im_media_staging', 'image_3'));
+    await live.create(recursive: true);
+    final image = await _file(live, 'keep.jpg', 'encoded');
+    final message = _message()..imageElem = V2TimImageElem(path: image.path);
+    final result =
+        await stager.stageMessage(message: message, operationId: 'corrupt');
+    await File(p.join(result.rootPath!, 'media_refs.json')).writeAsString('{');
+    await stager.cleanupLiveOrphans(minimumAge: Duration.zero);
+    expect(image.existsSync(), isTrue);
   });
 
   test('cleanup ignores paths outside the owned media root', () async {

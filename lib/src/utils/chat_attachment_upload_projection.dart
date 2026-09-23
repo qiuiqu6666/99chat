@@ -4,6 +4,7 @@ import 'package:tencent_cloud_chat_demo/src/models/chat_attachment_task.dart';
 import 'package:tencent_cloud_chat_demo/src/services/local_message_overlay_store.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_elem_type.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_media_send_utils.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 
@@ -73,6 +74,10 @@ V2TimMessage attachmentUploadOverlay(ChatAttachmentTask task) {
     'attachmentId': task.attachmentId,
     'referenceId': task.referenceId,
   });
+  if (task.mediaBatchId != null && task.mediaBatchIndex != null) {
+    applyChatMediaBatchToMessage(message,
+        batchId: task.mediaBatchId!, batchIndex: task.mediaBatchIndex!);
+  }
   return message;
 }
 

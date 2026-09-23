@@ -7,6 +7,8 @@ class GroupRemovalWork {
   final Duration delay;
   final Map<String, Future<void>> _visible = {};
   final Map<String, Object> _tokens = {};
+  final Map<String, Future<void>> _cleaning = {};
+  final Map<String, Future<void>> _rejoining = {};
 
   Future<void> run({
     required String key,
@@ -31,7 +33,15 @@ class GroupRemovalWork {
         await hide();
         ready.complete();
         await Future<void>.delayed(delay);
-        if (valid()) await cleanup(valid);
+        if (valid()) {
+          final task = Future<void>.sync(() => cleanup(valid));
+          _cleaning[key] = task;
+          try {
+            await task;
+          } finally {
+            if (identical(_cleaning[key], task)) _cleaning.remove(key);
+          }
+        }
       } catch (error, stack) {
         if (!ready.isCompleted) ready.completeError(error, stack);
         if (identical(_tokens[key], token)) {
@@ -42,6 +52,28 @@ class GroupRemovalWork {
       }
     }());
     return ready.future;
+  }
+
+  /// Stop deferred cleanup, but let an already-started hide finish before a
+  /// rejoin writes the replacement membership/conversation.
+  Future<void> prepareRejoin(String key) {
+    final existing = _rejoining[key];
+    if (existing != null) return existing;
+    final pending = [_visible[key], _cleaning[key]];
+    invalidate(key);
+    final task = () async {
+      for (final work in pending) {
+        try {
+          if (work != null) await work;
+        } catch (_) {
+          // A failed removal must not prevent a confirmed rejoin.
+        }
+      }
+    }();
+    _rejoining[key] = task;
+    return task.whenComplete(() {
+      if (identical(_rejoining[key], task)) _rejoining.remove(key);
+    });
   }
 
   void invalidate(String key) {

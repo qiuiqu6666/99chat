@@ -9,8 +9,8 @@ import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_video_progress
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_chrome.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_preview_video_utils.dart';
 
-/// Shared by single-video and mixed-media previews. Only the controls fade;
-/// the video texture stays outside this subtree.
+/// Shared by single-video and mixed-media previews. Controls stay visible until
+/// manually hidden; the video texture stays outside this subtree.
 class MediaPreviewVideoChrome extends StatefulWidget {
   const MediaPreviewVideoChrome({
     super.key,
@@ -56,20 +56,15 @@ class MediaPreviewVideoChrome extends StatefulWidget {
 
 class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
     with WidgetsBindingObserver {
-  Timer? _hideTimer;
   bool _visible = true;
   bool _scrubbing = false;
   bool _menuOpen = false;
   bool _saving = false;
-  bool _foreground = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    final lifecycle = WidgetsBinding.instance.lifecycleState;
-    _foreground = lifecycle == null || lifecycle == AppLifecycleState.resumed;
-    _scheduleHide();
   }
 
   @override
@@ -88,43 +83,22 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
         oldWidget.active != widget.active ||
         oldWidget.playerKey != widget.playerKey) {
       if (!widget.isPlaying || !widget.isReady) _visible = true;
-      _scheduleHide();
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    _foreground = state == AppLifecycleState.resumed;
-    if (_foreground) showControls();
-    _scheduleHide();
+    if (state == AppLifecycleState.resumed) showControls();
   }
 
   void showControls() {
     if (!mounted) return;
     if (!_visible) setState(() => _visible = true);
-    _scheduleHide();
   }
 
   void toggleControls() {
     if (!mounted || _scrubbing || _menuOpen || !widget.active) return;
     setState(() => _visible = !_visible);
-    _scheduleHide();
-  }
-
-  void _scheduleHide() {
-    _hideTimer?.cancel();
-    if (!_visible ||
-        !_foreground ||
-        !widget.active ||
-        !widget.isReady ||
-        !widget.isPlaying ||
-        _scrubbing ||
-        _menuOpen) {
-      return;
-    }
-    _hideTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted) setState(() => _visible = false);
-    });
   }
 
   void _onScrubbingChanged(bool scrubbing) {
@@ -167,7 +141,6 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
 
   @override
   void dispose() {
-    _hideTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -248,7 +221,7 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                 left: insets.left + 8,
                 right: insets.right + 20,
                 bottom:
-                    insets.bottom + (compact ? 8 : 18) + (hasActions ? 56 : 0),
+                    insets.bottom + (hasActions ? 56 : (compact ? 4 : 8)),
                 child: Row(
                   children: [
                     _VideoButton(
@@ -328,17 +301,21 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 160),
         child: saving
-            ? Material(
+            ? Transform.scale(
                 key: const ValueKey('video-save-loading'),
-                color: Colors.black.withValues(alpha: 0.45),
-                shape: const CircleBorder(),
-                child: const SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Center(
-                    child: CupertinoActivityIndicator(
-                      radius: 9,
-                      color: Colors.white,
+                scale: MediaPreviewReferenceButton.visualScale,
+                transformHitTests: false,
+                child: Material(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  shape: const CircleBorder(),
+                  child: const SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Center(
+                      child: CupertinoActivityIndicator(
+                        radius: 9,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -373,7 +350,8 @@ class _VideoButton extends StatelessWidget {
         iconSize: 32,
         color: Colors.white,
         disabledColor: Colors.white38,
-        constraints: const BoxConstraints(minWidth: 56, minHeight: 56),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        constraints: const BoxConstraints(minWidth: 56, minHeight: 44),
         onPressed: onPressed,
       );
 }
@@ -399,7 +377,10 @@ Future<void> showMediaPreviewVideoActions({
           );
       return CupertinoTheme(
         data: CupertinoTheme.of(sheetContext).copyWith(
-          primaryColor: CupertinoColors.activeBlue,
+          primaryColor: const CupertinoDynamicColor.withBrightness(
+            color: Color(0xFF616161),
+            darkColor: Color(0xFFD1D1D6),
+          ),
         ),
         child: CupertinoActionSheet(
           actions: [

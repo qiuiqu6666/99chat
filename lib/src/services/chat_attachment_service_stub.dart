@@ -16,11 +16,14 @@ class ChatAttachmentService extends ChangeNotifier {
           {required String path,
           required ChatAttachmentTarget target,
           required String nativeMessageKind,
+          String? mediaBatchId,
+          int? mediaBatchIndex,
           String? name,
           String? snapshotPath,
           int? durationMs,
           int? width,
-          int? height}) async =>
+          int? height,
+      void Function()? onQueued}) async =>
       throw const ChatAttachmentException('ATTACHMENT_DISABLED', '请在新版手机端查看附件');
   Future<void> resume(ChatAttachmentTask task) async {}
   Future<void> pause(ChatAttachmentTask task) async {}

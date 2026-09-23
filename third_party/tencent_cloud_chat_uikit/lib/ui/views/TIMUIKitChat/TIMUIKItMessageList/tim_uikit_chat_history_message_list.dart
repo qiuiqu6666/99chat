@@ -14599,6 +14599,10 @@ class _TIMUIKitHistoryMessageListState
                   _setUserScrolling(true);
                   _setCompactHistoryCacheExtent(true);
                   _cancelForcePinScroll();
+                  // A drag can start and end between two vsyncs. Retire the
+                  // ticker and queued integration now; checking the transient
+                  // user-scrolling flag on the next frame misses that handoff.
+                  _finishContinuousViewportPush(reachedBottom: false);
                   // 只取消上推 generation，不要 snap/jump，否则会掐断用户拖动且可能丢 ScrollEnd。
                   if (_viewportInsert.viewportInsertSlideActive) {
                     _viewportInsert.viewportInsertSlideGeneration++;

@@ -9,6 +9,9 @@ class MediaPreviewReferenceButton extends StatelessWidget {
     super.key,
   });
 
+  // Shrink the artwork while preserving the existing 40-unit tap target.
+  static const double visualScale = 0.85;
+
   final IconData icon;
   final String label;
   final VoidCallback? onPressed;
@@ -22,16 +25,20 @@ class MediaPreviewReferenceButton extends StatelessWidget {
           enabled: onPressed != null,
           child: Opacity(
             opacity: onPressed == null ? 0.35 : 1,
-            child: Material(
-              color: Colors.black.withValues(alpha: 0.45),
-              shape: const CircleBorder(),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onPressed,
-                child: SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: CustomPaint(painter: _ReferenceIconPainter(icon)),
+            child: Transform.scale(
+              scale: visualScale,
+              transformHitTests: false,
+              child: Material(
+                color: Colors.black.withValues(alpha: 0.45),
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onPressed,
+                  child: SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: CustomPaint(painter: _ReferenceIconPainter(icon)),
+                  ),
                 ),
               ),
             ),

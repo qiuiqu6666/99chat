@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_send_perf.dart';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -116,6 +118,13 @@ class OutgoingMediaStager {
         ));
       }
       final staged = <({String path, void Function(String) set})>[];
+      final borrowed = <String>{};
+      final perf = MediaSendPerf.lookup(message?.id);
+      final copyWatch = Stopwatch()..start();
+      var copiedBytes = 0;
+      final managed = Directory(p.join(support.path, 'im_media_staging'));
+      final managedRoot =
+          await managed.exists() ? await managed.resolveSymbolicLinks() : null;
       for (final copy in copies) {
         final source = File(copy.source);
         if (!_isUsableSource(
@@ -125,7 +134,17 @@ class OutgoingMediaStager {
         )) {
           throw FileSystemException('media is missing or invalid');
         }
+        final canonical = await source.resolveSymbolicLinks();
+        // Only borrow files inside our real durable root, never picker paths or
+        // symlinks that escape the root. Keep a small reference manifest so
+        // recovery cleanup protects files for every account, including retries.
+        if (managedRoot != null && p.isWithin(managedRoot, canonical)) {
+          borrowed.add(canonical);
+          staged.add((path: copy.source, set: copy.set));
+          continue;
+        }
         final target = await source.copy(p.join(root.path, copy.name));
+        copiedBytes += await target.length();
         if (!_isUsableSource(
           target,
           maxBytes: copy.maxBytes,
@@ -135,6 +154,12 @@ class OutgoingMediaStager {
         }
         staged.add((path: target.path, set: copy.set));
       }
+      if (borrowed.isNotEmpty) {
+        await File(p.join(root.path, 'media_refs.json'))
+            .writeAsString(jsonEncode(borrowed.toList()), flush: true);
+      }
+      perf?.record('recoveryStagingMs', copyWatch.elapsedMilliseconds);
+      perf?.record('copyBytes', copiedBytes);
       for (final item in staged) {
         item.set(item.path);
       }
@@ -162,7 +187,25 @@ class OutgoingMediaStager {
       final mediaRoot = p.join(support.path, 'im_outbox_media');
       if (!p.isWithin(mediaRoot, candidate)) return;
       final directory = Directory(candidate);
-      if (directory.existsSync()) await directory.delete(recursive: true);
+      if (directory.existsSync()) {
+        final refs = File(p.join(directory.path, 'media_refs.json'));
+        if (await refs.exists()) {
+          final paths = jsonDecode(await refs.readAsString()) as List;
+          final liveRoot = Directory(p.join(support.path, 'im_media_staging'));
+          final canonicalRoot = await liveRoot.resolveSymbolicLinks();
+          for (final path in paths.cast<String>()) {
+            final file = File(path);
+            if (!await file.exists()) continue;
+            final canonical = await file.resolveSymbolicLinks();
+            if (!p.isWithin(canonicalRoot, canonical)) continue;
+            // Refresh directory mtime without changing the media bytes.
+            final marker = File(p.join(p.dirname(canonical), '.retained'));
+            if (await marker.exists()) await marker.delete();
+            await marker.writeAsString('', flush: true);
+          }
+        }
+        await directory.delete(recursive: true);
+      }
     } catch (_) {}
   }
 
@@ -215,7 +258,13 @@ class OutgoingMediaStager {
       await for (final entity in mediaRoot.list(followLinks: false)) {
         if (entity is! Directory) continue;
         final candidate = p.normalize(p.absolute(entity.path));
-        if (!p.isWithin(mediaRoot.path, candidate) || active.contains(candidate)) {
+        if (!p.isWithin(mediaRoot.path, candidate) ||
+            active.contains(candidate)) {
+          continue;
+        }
+        // A manifest can belong to another signed-out account. Only explicit
+        // delivery cleanup may release it; an account-local scan is insufficient.
+        if (await File(p.join(entity.path, 'media_refs.json')).exists()) {
           continue;
         }
         final stat = await entity.stat();
@@ -233,9 +282,23 @@ class OutgoingMediaStager {
           getApplicationSupportDirectory());
       final root = Directory(p.join(support.path, 'im_media_staging'));
       if (!root.existsSync()) return;
+      final protected = <String>{};
+      final outbox = Directory(p.join(support.path, 'im_outbox_media'));
+      if (await outbox.exists()) {
+        await for (final operation in outbox.list(followLinks: false)) {
+          if (operation is! Directory) continue;
+          final refs = File(p.join(operation.path, 'media_refs.json'));
+          if (!await refs.exists()) continue;
+          final paths = jsonDecode(await refs.readAsString()) as List;
+          for (final path in paths.cast<String>()) {
+            protected.add(p.dirname(path));
+          }
+        }
+      }
       final cutoff = DateTime.now().subtract(minimumAge);
       await for (final entity in root.list(followLinks: false)) {
         if (entity is! Directory) continue;
+        if (protected.contains(await entity.resolveSymbolicLinks())) continue;
         final stat = await entity.stat();
         if (stat.modified.isAfter(cutoff)) continue;
         await entity.delete(recursive: true);
@@ -266,9 +329,7 @@ bool _isUsableSource(
     }
     handle.setPositionSync(length - 2);
     final trailer = handle.readSync(2);
-    return trailer.length == 2 &&
-        trailer[0] == 0xff &&
-        trailer[1] == 0xd9;
+    return trailer.length == 2 && trailer[0] == 0xff && trailer[1] == 0xd9;
   } catch (_) {
     return false;
   } finally {

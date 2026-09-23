@@ -371,6 +371,7 @@ class _ResultRow extends StatelessWidget {
   Color? _attributeColor(BuildContext context, int index, String value) {
     switch (index) {
       case 3: // 单双
+      case 7: // 合单双
         return switch (value) { '单' => _blue, '双' => _red, _ => null };
       case 4: // 大小
         return switch (value) { '小' => _blue, '大' => _red, _ => null };

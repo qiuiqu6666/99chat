@@ -52,6 +52,12 @@ Map<String, dynamic> liveFixture(String path, {int window = 40}) => {
               : {
                   'window': window,
                   'mode': 'published',
+                  'page': 1,
+                  'pageSize': 20,
+                  'totalCount': 1,
+                  'totalPages': 1,
+                  'hasMore': false,
+                  'returnedCount': 1,
                   'items': [
                     {
                       'issue': '20260921004',
@@ -70,6 +76,56 @@ Map<String, dynamic> liveFixture(String path, {int window = 40}) => {
                   ]
                 },
     };
+
+Map<String, dynamic> predictionPageFixture({
+  int window = 40,
+  int page = 1,
+  int totalCount = 45,
+  int generation = 0,
+  String mode = 'published',
+}) {
+  const pageSize = 20;
+  final rows = <Map<String, dynamic>>[
+    for (var index = (page - 1) * pageSize + 1;
+        index <= page * pageSize && index <= totalCount;
+        index++)
+      {
+        'predictionId': 'prediction-$generation-$index',
+        // One cycle can cross dates; neither dates nor sequence are page IDs.
+        'issue':
+            '202609${index <= 10 ? '22' : '21'}${index.toString().padLeft(3, '0')}',
+        'issueLabel': index.toString().padLeft(3, '0'),
+        'sequence': 10000 - index,
+        'generatedAt': 1790000000000,
+        'publishedAt': 1790000000000,
+        'predictionState': 'published',
+        'drawState': 'pending',
+        'actual': null,
+        'items': [
+          {
+            'attribute': 'special',
+            'values': ['01'],
+            'result': 'pending',
+          },
+        ],
+      },
+  ];
+  return {
+    ...liveFixture('/predictions', window: window),
+    'data': {
+      'snapshotId': 'snapshot-$generation-$page',
+      'window': window,
+      'mode': mode,
+      'page': page,
+      'pageSize': pageSize,
+      'totalCount': totalCount,
+      'totalPages': (totalCount / pageSize).ceil(),
+      'hasMore': page * pageSize < totalCount,
+      'returnedCount': rows.length,
+      'items': rows,
+    },
+  };
+}
 
 class FakeLotteryApi extends LotteryLiveApi {
   FakeLotteryApi()

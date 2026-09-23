@@ -7,7 +7,7 @@ class OutgoingMediaWorkQueue {
   OutgoingMediaWorkQueue({this.maxConcurrent = 3}) : assert(maxConcurrent > 0);
 
   static final sends = OutgoingMediaWorkQueue();
-  static final imagePreparation = OutgoingMediaWorkQueue(maxConcurrent: 1);
+  static final imagePreparation = OutgoingMediaWorkQueue(maxConcurrent: 2);
 
   final int maxConcurrent;
   final Queue<Future<void> Function()> _pending = Queue();

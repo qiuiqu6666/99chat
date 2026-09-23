@@ -1,8 +1,8 @@
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_send_perf.dart';
 // ignore_for_file: unused_field, avoid_print, unused_import
 
 import 'dart:async';
 import 'package:tencent_cloud_chat_demo/src/services/chat_attachment_service.dart';
-import 'package:tencent_cloud_chat_uikit/data_services/message/outgoing_media_work_queue.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:tencent_cloud_chat_demo/src/chat/chat_camerawesome_capture_page.dart';
@@ -399,23 +399,10 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
         !_isCapturedConversationCurrent(convID, convType)) {
       return;
     }
-    var resolvedWidth = imageWidth;
-    var resolvedHeight = imageHeight;
-    if ((resolvedWidth == null ||
-            resolvedHeight == null ||
-            resolvedWidth <= 0 ||
-            resolvedHeight <= 0) &&
-        filePath.trim().isNotEmpty) {
-      final layoutSize = readLocalImageSizeSync(filePath);
-      if (layoutSize != null) {
-        resolvedWidth = layoutSize.width.round();
-        resolvedHeight = layoutSize.height.round();
-      }
-    }
     final sendFuture = model.sendImageMessage(
       imagePath: filePath,
-      imageWidth: resolvedWidth,
-      imageHeight: resolvedHeight,
+      imageWidth: imageWidth,
+      imageHeight: imageHeight,
       convID: convID,
       convType: convType,
     );
@@ -629,12 +616,14 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
     perf.log('placeholder_batch_end', count: optimisticIds.length);
     if (optimisticIds.length != imageAssets.length) {
       for (final optimisticId in optimisticIds) {
+        MediaSendPerf.lookup(optimisticId)?.finish('cancelled');
         model.cancelOptimisticMediaPlaceholder(
           convID: convID,
           clientId: optimisticId,
         );
       }
       for (final optimisticId in videoOptimisticIds) {
+        MediaSendPerf.lookup(optimisticId)?.finish('cancelled');
         model.cancelOptimisticMediaPlaceholder(
           convID: convID,
           clientId: optimisticId,
@@ -663,6 +652,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
           );
         }
         for (final optimisticId in videoOptimisticIds) {
+          MediaSendPerf.lookup(optimisticId)?.finish('cancelled');
           model.cancelOptimisticMediaPlaceholder(
             convID: convID,
             clientId: optimisticId,
@@ -687,6 +677,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
       );
       final optimisticId = optimisticIds[i];
       if (resolved == null) {
+        MediaSendPerf.lookup(optimisticId)?.finish('cancelled');
         model.cancelOptimisticMediaPlaceholder(
           convID: convID,
           clientId: optimisticId,
@@ -694,21 +685,10 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
         _showPanelNotice(TIM_t('图片发送失败，请重试'));
         continue;
       }
-      String? staged;
-      try {
-        staged =
-            await stageImageForChatSend(resolved.filePath) ?? resolved.filePath;
-      } catch (error) {
-        model.cancelOptimisticMediaPlaceholder(
-          convID: convID,
-          clientId: optimisticId,
-        );
-        outputLogger.i('stage gallery image failed: $error');
-        perf.log('stage_failed', index: i, detail: 'type=${error.runtimeType}');
-        continue;
-      }
-      final stagedPath = staged?.trim() ?? '';
+      // The pipeline writes the final stable send file; no picker-side copy.
+      final stagedPath = resolved.filePath.trim();
       if (stagedPath.isEmpty) {
+        MediaSendPerf.lookup(optimisticId)?.finish('cancelled');
         model.cancelOptimisticMediaPlaceholder(
           convID: convID,
           clientId: optimisticId,
@@ -811,15 +791,6 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
       );
     }
 
-    // Read only bounded headers asynchronously before committing the batch.
-    // Known dimensions keep the first layout stable without synchronous disk
-    // reads (or six full image decodes) on the picker-return frame.
-    perf.log('image_headers_begin', count: imageFiles.length);
-    final imageSizes = await Future.wait(
-      imageFiles.map((file) => readLocalImageSizeFromHeader(file.path)),
-    );
-    if (!model.canSendCapturedMedia) return;
-    perf.log('image_headers_end', count: imageFiles.length);
     // Insert every row before staging/copying files or starting SDK work.
     final placeholderWatch = Stopwatch()..start();
     perf.log('placeholder_batch_begin', count: imageFiles.length);
@@ -833,8 +804,6 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
                 batchId: batchId,
                 batchIndex: index,
                 imagePath: imageFiles[index].path,
-                imageWidth: imageSizes[index]?.width.round(),
-                imageHeight: imageSizes[index]?.height.round(),
               ),
               growable: false,
             ),
@@ -846,6 +815,9 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
       count: optimisticIds.length,
       detail: 'syncMs=${placeholderWatch.elapsedMilliseconds}',
     );
+    for (final id in optimisticIds) {
+      MediaSendPerf.begin(id).record('uiInsertMs', placeholderWatch.elapsedMilliseconds);
+    }
     if (optimisticIds.isNotEmpty) {
       await ChatGalleryPickUtils.yieldForMediaSend();
       perf.log('placeholder_first_frame_end');
@@ -862,6 +834,17 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
         force: true,
       );
     }
+
+    // The first frame is already visible; bounded header reads can now run.
+    perf.log('image_headers_begin', count: imageFiles.length);
+    final imageSizes = await Future.wait(
+      imageFiles.map((file) => readLocalImageSizeFromHeader(file.path)),
+    );
+    if (!model.canSendCapturedMedia) {
+      for (final id in optimisticIds) { MediaSendPerf.lookup(id)?.finish('session_changed'); }
+      return;
+    }
+    perf.log('image_headers_end', count: imageFiles.length);
 
     // Stream: resolve → stage → enqueue while keeping the captured
     // conversation ID. Leaving the panel must not cancel queued images.
@@ -884,6 +867,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
         final source = File(picked.path);
         if (!await source.exists()) {
           perf.log('system_resolve_missing', index: i);
+          MediaSendPerf.lookup(optimisticId)?.finish('cancelled');
           model.cancelOptimisticMediaPlaceholder(
             convID: convID,
             clientId: optimisticId,
@@ -896,6 +880,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
             type: TIMCallbackType.INFO,
             infoRecommendText: TIM_t("文件大小超出了限制"),
           ));
+          MediaSendPerf.lookup(optimisticId)?.finish('cancelled');
           model.cancelOptimisticMediaPlaceholder(
             convID: convID,
             clientId: optimisticId,
@@ -911,10 +896,8 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
 
         final stageWatch = Stopwatch()..start();
         perf.log('stage_begin', index: i, bytes: bytes);
-        final staged = await stageImageForChatSend(source.path);
-        final sendPath = staged?.trim().isNotEmpty == true
-            ? staged!.trim()
-            : source.path;
+        MediaSendPerf.begin(optimisticId).record('sizeOriginal', bytes);
+        final sendPath = source.path;
         pendingImages.add(_PendingGalleryImageSend(
           filePath: sendPath,
           optimisticId: optimisticId,
@@ -933,6 +916,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
           detail: 'itemMs=${stageWatch.elapsedMilliseconds}',
         );
       } catch (error) {
+        MediaSendPerf.lookup(optimisticId)?.finish('cancelled');
         model.cancelOptimisticMediaPlaceholder(
           convID: convID,
           clientId: optimisticId,
@@ -979,6 +963,8 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
     GallerySendPerfTrace? perf,
   }) async {
     String? optimisticId = existingOptimisticId;
+    final mediaPerf = MediaSendPerf.begin(existingOptimisticId);
+    var dispatched = false;
     try {
       final watch = Stopwatch()..start();
       perf?.log('video_prepare_begin', detail: 'source=system');
@@ -990,7 +976,10 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
         );
         return;
       }
-      final staged = await stageVideoForChatSend(file.path);
+      // Backend attachments own their durable staging; avoid copying twice.
+      final backend = await ChatAttachmentService.instance.handles(file.path, 'video');
+      final staged = backend ? file.path : await mediaPerf.measure(
+          'staging', () => stageVideoForChatSend(file.path));
       perf?.log(
         'video_stage_end',
         bytes: staged == null ? null : await File(staged).length(),
@@ -1016,14 +1005,14 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
         return;
       }
       optimisticId = existingOptimisticId;
-      final metadata = await Future.wait<Object?>([
+      final metadata = await mediaPerf.measure('metadata', () => Future.wait<Object?>([
         _loadVideoDurationSeconds(staged),
         buildVideoSnapshotForSend(
           videoPath: staged,
           devicePixelRatio:
               mounted ? MediaQuery.devicePixelRatioOf(context) : null,
         ),
-      ]);
+      ]));
       perf?.log('video_metadata_end', detail: 'itemMs=${watch.elapsedMilliseconds}');
       final duration = metadata[0] as int;
       final snapshotPath = metadata[1] as String?;
@@ -1041,6 +1030,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
         );
         return;
       }
+      dispatched = true;
       _dispatchVideoSendWithoutAwait(
         model: model,
         convID: convID,
@@ -1062,6 +1052,8 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
       outputLogger.i('prepare system picked video failed: $error');
       perf?.log('video_prepare_failed', detail: 'type=${error.runtimeType}');
       _showPanelNotice(TIM_t('视频文件异常'));
+    } finally {
+      if (!dispatched) mediaPerf.finish('preparation_failed');
     }
   }
 
@@ -1100,7 +1092,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
         try {
           final sendWatch = Stopwatch()..start();
           perf.log('send_begin', index: index, count: pending.length);
-          final sendFuture = OutgoingMediaWorkQueue.sends.run(() => model.sendImageMessage(
+          final sendFuture = model.sendImageMessage(
             imagePath: item.filePath,
             imageWidth: item.imageWidth,
             imageHeight: item.imageHeight,
@@ -1109,7 +1101,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
             existingOptimisticId: item.optimisticId,
             batchId: item.batchId,
             batchIndex: item.batchIndex,
-          ));
+          );
           // The send coordinator owns delivery and status updates. Do not
           // bind the batch to this panel's BuildContext after navigation.
           await sendFuture;
@@ -1135,9 +1127,9 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
       }
     }
 
-    // Limit concurrency to keep the UI responsive while allowing multiple
-    // images to compress/upload in parallel. batchIndex preserves ordering.
-    final maxWorkers = 3;
+    // Preparation and SDK upload have separate bounded pools.
+    // All accepted jobs may wait for preparation without occupying upload slots.
+    final maxWorkers = ChatGalleryPickUtils.maxSelectedAssets;
     final workerCount =
         pending.length < maxWorkers ? pending.length : maxWorkers;
     perf.log(
@@ -1965,21 +1957,15 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
               return null;
             }
 
-            perf.log('camera_prepare_begin');
-            final stablePath = await prepareCameraImageForChatSend(imagePath);
-            perf.log('camera_prepare_end');
-            if (stablePath == null || stablePath.isEmpty) {
-              _showPanelNotice(TIM_t('图片文件不可用'));
-              return null;
-            }
-            final displaySize = readLocalImageSizeSync(stablePath);
+            // The sending pipeline owns file preparation after local UI insert.
+            final stablePath = imagePath;
 
             return _CameraMediaPrepared(
               convID: convID,
               convType: convType,
               imagePath: stablePath,
-              imageWidth: displaySize?.width.round(),
-              imageHeight: displaySize?.height.round(),
+              imageWidth: null,
+              imageHeight: null,
             );
           }
 

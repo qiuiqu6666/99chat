@@ -16,6 +16,40 @@ Finder letter(String tag) => find.descendant(
     of: find.byType(IndexBar), matching: find.text(tag));
 
 void main() {
+  testWidgets('dragging the alphabet repaints the selected letter immediately',
+      (tester) async {
+    final rows = List.generate(40, (i) => RowTag('ABCD'[i ~/ 10]));
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: SizedBox(
+          height: 320,
+          child: AzListView(
+            data: rows,
+            itemCount: rows.length,
+            itemBuilder: (_, i) => SizedBox(height: 60, child: Text('row-$i')),
+            indexBarData: const ['A', 'B', 'C', 'D'],
+            indexBarItemHeight: 30,
+            indexBarOptions: const IndexBarOptions(
+              textStyle: TextStyle(color: Colors.grey),
+              selectTextStyle: TextStyle(color: Colors.white),
+              selectItemDecoration: BoxDecoration(color: Colors.blue),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    final drag = await tester.startGesture(tester.getCenter(letter('A')));
+    await drag.moveBy(const Offset(0, 31));
+    await tester.pump();
+    await drag.moveTo(tester.getCenter(letter('D')));
+    await tester.pump();
+    expect(tester.widget<Text>(letter('D')).style!.color, Colors.white);
+    expect(tester.widget<Text>(letter('A')).style!.color, Colors.grey);
+    await drag.up();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('scroll selection persists with both pressed and selected styles',
       (tester) async {
     final controller = ItemScrollController();

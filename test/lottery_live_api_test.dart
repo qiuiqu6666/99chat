@@ -66,11 +66,13 @@ void main() {
       () async {
     final api = LotteryLiveApi();
     const machine = '@x#%23+a/b';
+    final calls = <RequestOptions>[];
+    addTearDown(api.dio.close);
     api.dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
-      expect(options.path, '/api/v1/lotteries/mark-six-demo/predictions');
-      expect(options.uri.queryParameters['machineCode'], machine);
-      expect(options.queryParameters,
-          {'machineCode': machine, 'limit': 100, 'window': 12});
+      calls.add(options);
+      expect(options.uri.path, startsWith('/api/v1/lotteries/mark-six-demo/'));
+      expect(options.uri.queryParameters['machineCode'],
+          options.queryParameters['machineCode']);
       expect(options.headers.keys.map((v) => v.toLowerCase()),
           isNot(contains('authorization')));
       expect(options.headers.keys.map((v) => v.toLowerCase()),
@@ -82,9 +84,74 @@ void main() {
           data: liveFixture(options.path, window: 12)));
     }));
     await api.get('predictions', machine, window: 12);
-    expect(api.socketUri(machine, 12).queryParameters['machineCode'], machine);
+    expect(calls.last.uri.origin, Uri.parse(api.dio.options.baseUrl).origin);
+    expect(calls.last.queryParameters,
+        {'machineCode': machine, 'limit': 20, 'window': 12, 'page': 1});
+    await api.get('predictions', machine, window: 12, query: {'page': 2});
+    expect(calls.last.queryParameters,
+        {'machineCode': machine, 'limit': 20, 'window': 12, 'page': 2});
+    await api.get('draws', machine);
+    expect(calls.last.uri.origin, 'http://47.242.90.129');
+    expect(calls.last.uri.path, '/api/v1/lotteries/mark-six-demo/draws');
+    expect(calls.last.queryParameters, {'machineCode': machine, 'limit': 100});
+    await api.get('draws', 'GZKH-DJ3M-VKSB', query: {'limit': 12});
+    expect(calls.last.uri.queryParameters,
+        {'machineCode': 'GZKH-DJ3M-VKSB', 'limit': '12'});
+    expect(calls.last.uri.origin, 'http://47.242.90.129');
+    expect(api.socketUri(machine, 12).queryParameters,
+        {'machineCode': machine, 'window': '12', 'limit': '20'});
     api.dio.options.baseUrl = 'https://example.test';
     expect(api.socketUri(machine, 40).scheme, 'wss');
+  });
+  testWidgets(
+      'draws retains 100 historical results alongside the current round',
+      (tester) async {
+    final api = FakeLotteryApi();
+    addTearDown(api.dio.close);
+    RequestOptions? drawsRequest;
+    api.dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+      final body = liveFixture(options.path);
+      if (options.uri.path.endsWith('/draws')) {
+        drawsRequest = options;
+        final rows = body['data']['items'] as List;
+        final current = {
+          ...rows[0] as Map,
+          'issue': 'current',
+          'sequence': 101
+        };
+        final history = [
+          for (var sequence = 101 - (options.queryParameters['limit'] as int);
+              sequence <= 100;
+              sequence++)
+            {
+              ...rows[1] as Map,
+              'issue': 'history-$sequence',
+              'sequence': sequence,
+            },
+        ];
+        body['data'] = {
+          'items': [...history, current, history.last],
+        };
+      }
+      handler.resolve(Response(requestOptions: options, data: body));
+    }));
+    final session = LotteryLiveSession(api, 'history-machine');
+    session.attach();
+    try {
+      await tester.pumpAndSettle();
+      expect(drawsRequest?.uri.origin, 'http://47.242.90.129');
+      expect(drawsRequest?.uri.queryParameters,
+          {'machineCode': 'history-machine', 'limit': '100'});
+      expect(session.ready, isTrue);
+      expect(session.draws, hasLength(101));
+      expect(session.draws.where((row) => row['status'] == 'drawn'),
+          hasLength(100));
+      expect(session.draws.first['issue'], 'current');
+      expect(session.draws.last['issue'], 'history-1');
+    } finally {
+      session.detach();
+      await tester.pump();
+    }
   });
   testWidgets(
       'HTTP initialization, push, heartbeat, window switch and lifecycle',

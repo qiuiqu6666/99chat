@@ -140,9 +140,7 @@ class _LotteryDashboard extends StatefulWidget {
 
 class _LotteryDashboardState extends State<_LotteryDashboard> {
   List<_MarkSixResult> get _results => widget.results;
-  final ScrollController _scrollController = ScrollController();
-  int _visiblePredictions = 20;
-  bool _predictionPageArmed = true;
+  static const _visiblePredictions = 100;
   int tab = 3;
   int window = 40;
   String attribute = '特码';
@@ -158,7 +156,6 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_loadMorePredictions);
     if (!widget.previewOnly) {
       unawaited(_loadDownloadUrl());
     }
@@ -191,26 +188,6 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
     } catch (_) {
       if (mounted) ToastUtils.toast('复制失败，请重试', context: context);
     }
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _loadMorePredictions() {
-    if (tab != 0 || !_scrollController.hasClients || !_predictionPageArmed) {
-      return;
-    }
-    final total = widget.live?.predictions.length ?? _results.length + 1;
-    if (_visiblePredictions >= total ||
-        _scrollController.position.extentAfter > 120) {
-      return;
-    }
-    final next = _visiblePredictions + 20;
-    _predictionPageArmed = false;
-    setState(() => _visiblePredictions = next > total ? total : next);
   }
 
   static const attributes = [
@@ -438,435 +415,413 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
       style: TextStyle(
           color: lotteryThemeColor(
               context, const Color(0xFF17243D), AppTokens.textPrimaryDark)),
-      child: NotificationListener<ScrollStartNotification>(
-          onNotification: (notification) {
-            if (notification.depth == 0 && notification.dragDetails != null) {
-              _predictionPageArmed = true;
-            }
-            return false;
-          },
-          child: ListView(
-              controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(10, 6, 10, 12),
-              children: [
-                latestCard,
-                const SizedBox(height: 10),
-                Container(
-                    key: const ValueKey('lottery-tab-bar'),
-                    padding: const EdgeInsets.all(2),
+      child: ListView(
+          padding: const EdgeInsets.fromLTRB(10, 6, 10, 12),
+          children: [
+            latestCard,
+            const SizedBox(height: 10),
+            Container(
+                key: const ValueKey('lottery-tab-bar'),
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                    color: lotteryThemeColor(context, const Color(0xFFF0F6FF),
+                        AppTokens.surfaceAltDark),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(
+                        color: lotteryThemeColor(context,
+                            const Color(0xFFDEE9FB), AppTokens.borderDark))),
+                child: Row(children: [
+                  // Hide omission (1) and temperature (2) entries only.
+                  // Their panels and data-loading logic remain available.
+                  for (final i in [3, 0, 4, 5])
+                    Expanded(
+                        child: Padding(
+                            padding: EdgeInsets.zero,
+                            child: DecoratedBox(
+                                key: ValueKey('lottery-tab-background-$i'),
+                                decoration: BoxDecoration(
+                                  gradient: tab == i
+                                      ? const LinearGradient(colors: [
+                                          Color(0xFF3A91FA),
+                                          Color(0xFF1976F3),
+                                        ])
+                                      : null,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                      minimumSize: const Size(0, 34),
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 6),
+                                      backgroundColor: Colors.transparent,
+                                      elevation: 0,
+                                      foregroundColor: tab == i
+                                          ? Colors.white
+                                          : lotteryThemeColor(
+                                              context,
+                                              const Color(0xFF526077),
+                                              AppTokens.textSecondaryDark),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12))),
+                                  onPressed: () {
+                                    setState(() {
+                                      tab = i;
+                                    });
+                                    if (i == 1 || i == 2) {
+                                      widget.live
+                                          ?.loadStatistics(_statisticsKey);
+                                    }
+                                  },
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (i == 5)
+                                          Image.asset(
+                                            'assets/lhc/declaration_megaphone.png',
+                                            key: const ValueKey(
+                                                'lottery-declaration-tab-icon'),
+                                            width: 18,
+                                            height: 18,
+                                            color:
+                                                tab == i ? Colors.white : null,
+                                            colorBlendMode: BlendMode.srcIn,
+                                          )
+                                        else
+                                          Icon(
+                                            [
+                                              Icons.auto_awesome_rounded,
+                                              Icons.pending_actions_rounded,
+                                              Icons
+                                                  .local_fire_department_outlined,
+                                              Icons.access_time_rounded,
+                                              Icons.bar_chart_rounded,
+                                            ][i],
+                                            size: 16,
+                                          ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          [
+                                            '智能预测',
+                                            '遗漏',
+                                            '冷热',
+                                            '开奖历史',
+                                            '已开统计',
+                                            '本群宣言'
+                                          ][i],
+                                          maxLines: 1,
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ))))
+                ])),
+            const SizedBox(height: 8),
+            if (tab == 5) ...[
+              _panel(Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Image.asset('assets/lhc/declaration_megaphone.png',
+                        key: const ValueKey('lottery-declaration-header-icon'),
+                        width: 32,
+                        height: 32),
+                    const SizedBox(width: 8),
+                    const Text('本群宣言',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                        child: Text('真实 · 公平 · 安全 · 稳定',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: lotteryThemeColor(
+                                    context,
+                                    const Color(0xFF8291A8),
+                                    AppTokens.textSecondaryDark)))),
+                  ]),
+                  const SizedBox(height: 10),
+                  Divider(
+                      height: 1,
+                      color: lotteryThemeColor(context, const Color(0xFFE5EEFC),
+                          AppTokens.borderDark)),
+                  const SizedBox(height: 10),
+                  Container(
+                    key: const ValueKey('lottery-declaration-quote'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(15, 14, 15, 22),
                     decoration: BoxDecoration(
                         color: lotteryThemeColor(context,
-                            const Color(0xFFF0F6FF), AppTokens.surfaceAltDark),
-                        borderRadius: BorderRadius.circular(13),
-                        border: Border.all(
-                            color: lotteryThemeColor(
-                                context,
-                                const Color(0xFFDEE9FB),
-                                AppTokens.borderDark))),
-                    child: Row(children: [
-                      // Hide omission (1) and temperature (2) entries only.
-                      // Their panels and data-loading logic remain available.
-                      for (final i in [3, 0, 4, 5])
-                        Expanded(
-                            child: Padding(
-                                padding: EdgeInsets.zero,
-                                child: DecoratedBox(
-                                    key: ValueKey('lottery-tab-background-$i'),
-                                    decoration: BoxDecoration(
-                                      gradient: tab == i
-                                          ? const LinearGradient(colors: [
-                                              Color(0xFF3A91FA),
-                                              Color(0xFF1976F3),
-                                            ])
-                                          : null,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: FilledButton.tonal(
-                                      style: FilledButton.styleFrom(
-                                          minimumSize: const Size(0, 34),
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 6),
-                                          backgroundColor: Colors.transparent,
-                                          elevation: 0,
-                                          foregroundColor: tab == i
-                                              ? Colors.white
-                                              : lotteryThemeColor(
-                                                  context,
-                                                  const Color(0xFF526077),
-                                                  AppTokens.textSecondaryDark),
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12))),
-                                      onPressed: () {
-                                        setState(() {
-                                          if (i == 0 && tab != 0) {
-                                            _visiblePredictions = 20;
-                                            _predictionPageArmed = true;
-                                          }
-                                          tab = i;
-                                        });
-                                        if (i == 1 || i == 2) {
-                                          widget.live
-                                              ?.loadStatistics(_statisticsKey);
-                                        }
-                                      },
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (i == 5)
-                                              Image.asset(
-                                                'assets/lhc/declaration_megaphone.png',
-                                                key: const ValueKey(
-                                                    'lottery-declaration-tab-icon'),
-                                                width: 18,
-                                                height: 18,
-                                                color: tab == i
-                                                    ? Colors.white
-                                                    : null,
-                                                colorBlendMode: BlendMode.srcIn,
-                                              )
-                                            else
-                                              Icon(
-                                                [
-                                                  Icons.auto_awesome_rounded,
-                                                  Icons.pending_actions_rounded,
-                                                  Icons
-                                                      .local_fire_department_outlined,
-                                                  Icons.access_time_rounded,
-                                                  Icons.bar_chart_rounded,
-                                                ][i],
-                                                size: 16,
-                                              ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              [
-                                                '智能预测',
-                                                '遗漏',
-                                                '冷热',
-                                                '开奖历史',
-                                                '已开统计',
-                                                '本群宣言'
-                                              ][i],
-                                              maxLines: 1,
-                                              style:
-                                                  const TextStyle(fontSize: 12),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ))))
-                    ])),
-                const SizedBox(height: 8),
-                if (tab == 5) ...[
-                  _panel(Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(children: [
-                        Image.asset('assets/lhc/declaration_megaphone.png',
-                            key: const ValueKey(
-                                'lottery-declaration-header-icon'),
-                            width: 32,
-                            height: 32),
-                        const SizedBox(width: 8),
-                        const Text('本群宣言',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w800)),
-                        const SizedBox(width: 6),
-                        Expanded(
-                            child: Text('真实 · 公平 · 安全 · 稳定',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                    fontSize: 10,
-                                    color: lotteryThemeColor(
-                                        context,
-                                        const Color(0xFF8291A8),
-                                        AppTokens.textSecondaryDark)))),
-                      ]),
-                      const SizedBox(height: 10),
-                      Divider(
-                          height: 1,
-                          color: lotteryThemeColor(context,
-                              const Color(0xFFE5EEFC), AppTokens.borderDark)),
-                      const SizedBox(height: 10),
-                      Container(
-                        key: const ValueKey('lottery-declaration-quote'),
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(15, 14, 15, 22),
-                        decoration: BoxDecoration(
-                            color: lotteryThemeColor(
-                                context,
-                                const Color(0xFFF2F8FF),
-                                AppTokens.surfaceAltDark),
-                            borderRadius: BorderRadius.circular(12)),
-                        child: Stack(children: [
-                          Positioned(
-                              right: 0,
-                              bottom: -38,
-                              child: IgnorePointer(
-                                  child: Text('”',
+                            const Color(0xFFF2F8FF), AppTokens.surfaceAltDark),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Stack(children: [
+                      Positioned(
+                          right: 0,
+                          bottom: -38,
+                          child: IgnorePointer(
+                              child: Text('”',
+                                  style: TextStyle(
+                                      color: lotteryThemeColor(
+                                          context,
+                                          const Color(0xFFDDEBFF),
+                                          const Color(0xFF34506E)),
+                                      fontSize: 86,
+                                      fontWeight: FontWeight.w800)))),
+                      const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '全天候直播开奖(用户实时亲眼所见)！\n'
+                              '公平骰子！公开发包！无任何套路！\n'
+                              '杜绝一切不透明开奖！\n'
+                              '上下分不卡分！快速！红包不回收！\n'
+                              '全部是真实用户在亲身参与点包！',
+                              style: TextStyle(fontSize: 14, height: 1.55),
+                            ),
+                            SizedBox(height: 16),
+                            Text('十一年口碑！诚信经营！安全稳定！',
+                                style: TextStyle(fontSize: 14, height: 1.55)),
+                          ]),
+                    ]),
+                  ),
+                  const SizedBox(height: 14),
+                  Material(
+                    color: lotteryThemeColor(context, const Color(0xFFF2F8FF),
+                        AppTokens.surfaceAltDark),
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      key: const ValueKey('lottery-app-download-link'),
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: _downloadUrlLoading ? null : _copyDownloadUrl,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        child: Row(children: [
+                          const Icon(Icons.download_rounded,
+                              color: _blue, size: 23),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('下载 App',
                                       style: TextStyle(
-                                          color: lotteryThemeColor(
-                                              context,
-                                              const Color(0xFFDDEBFF),
-                                              const Color(0xFF34506E)),
-                                          fontSize: 86,
-                                          fontWeight: FontWeight.w800)))),
-                          const Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '全天候直播开奖(用户实时亲眼所见)！\n'
-                                  '公平骰子！公开发包！无任何套路！\n'
-                                  '杜绝一切不透明开奖！\n'
-                                  '上下分不卡分！快速！红包不回收！\n'
-                                  '全部是真实用户在亲身参与点包！',
-                                  style: TextStyle(fontSize: 14, height: 1.55),
-                                ),
-                                SizedBox(height: 16),
-                                Text('十一年口碑！诚信经营！安全稳定！',
-                                    style:
-                                        TextStyle(fontSize: 14, height: 1.55)),
-                              ]),
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    _downloadUrlLoading
+                                        ? '正在获取下载链接…'
+                                        : _downloadUrl.isEmpty
+                                            ? '暂无下载链接，点击重试'
+                                            : _downloadUrl,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: _downloadUrl.isEmpty
+                                            ? lotteryThemeColor(
+                                                context,
+                                                const Color(0xFF8291A8),
+                                                AppTokens.textSecondaryDark)
+                                            : _blue),
+                                  ),
+                                ]),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(Icons.copy_rounded,
+                              size: 18,
+                              color: lotteryThemeColor(
+                                  context,
+                                  const Color(0xFF6B84A8),
+                                  AppTokens.textSecondaryDark)),
                         ]),
                       ),
-                      const SizedBox(height: 14),
-                      Material(
-                        color: lotteryThemeColor(context,
-                            const Color(0xFFF2F8FF), AppTokens.surfaceAltDark),
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
-                          key: const ValueKey('lottery-app-download-link'),
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: _downloadUrlLoading ? null : _copyDownloadUrl,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 12),
-                            child: Row(children: [
-                              const Icon(Icons.download_rounded,
-                                  color: _blue, size: 23),
-                              const SizedBox(width: 10),
-                              Expanded(
+                    ),
+                  ),
+                ],
+              )),
+              const SizedBox(height: 22),
+              Center(
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(
+                      width: 22,
+                      height: 1,
+                      color: lotteryThemeColor(context, const Color(0xFFB7C9E4),
+                          AppTokens.borderDark)),
+                  const SizedBox(width: 7),
+                  Text('公平公开 · 真实可靠',
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: lotteryThemeColor(
+                              context,
+                              const Color(0xFF8B9BB2),
+                              AppTokens.textSecondaryDark))),
+                  const SizedBox(width: 7),
+                  Container(
+                      width: 22,
+                      height: 1,
+                      color: lotteryThemeColor(context, const Color(0xFFB7C9E4),
+                          AppTokens.borderDark)),
+                ]),
+              ),
+            ],
+            if (tab == 4) ..._openedStatistics(),
+            if (tab == 0)
+              _panel(Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Container(
+                          width: 3,
+                          height: 19,
+                          decoration: BoxDecoration(
+                              color: _blue,
+                              borderRadius: BorderRadius.circular(3))),
+                      const SizedBox(width: 9),
+                      const Expanded(
+                          child: Text('逐期预测',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.w800))),
+                      const Icon(Icons.bar_chart_rounded,
+                          size: 16, color: _blue),
+                      const SizedBox(width: 4),
+                      const Text('数据分析 · 智能推荐',
+                          style: TextStyle(fontSize: 11, color: _blue)),
+                    ]),
+                    const SizedBox(height: 10),
+                    ..._attributeControls(),
+                    if (tab == 0)
+                      InkWell(
+                        borderRadius: BorderRadius.circular(11),
+                        onTap: () => setState(() => combined = !combined),
+                        child: Container(
+                          key: const ValueKey('prediction-combined-panel'),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: lotteryThemeColor(
+                                context,
+                                const Color(0xFFF2F7FF),
+                                AppTokens.surfaceAltDark),
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                          child: Row(children: [
+                            const Expanded(
                                 child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Text('下载 App',
-                                          style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w700)),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        _downloadUrlLoading
-                                            ? '正在获取下载链接…'
-                                            : _downloadUrl.isEmpty
-                                                ? '暂无下载链接，点击重试'
-                                                : _downloadUrl,
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            color: _downloadUrl.isEmpty
-                                                ? lotteryThemeColor(
-                                                    context,
-                                                    const Color(0xFF8291A8),
-                                                    AppTokens.textSecondaryDark)
-                                                : _blue),
-                                      ),
-                                    ]),
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(Icons.copy_rounded,
-                                  size: 18,
-                                  color: lotteryThemeColor(
-                                      context,
-                                      const Color(0xFF6B84A8),
-                                      AppTokens.textSecondaryDark)),
-                            ]),
-                          ),
-                        ),
-                      ),
-                    ],
-                  )),
-                  const SizedBox(height: 22),
-                  Center(
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Container(
-                          width: 22,
-                          height: 1,
-                          color: lotteryThemeColor(context,
-                              const Color(0xFFB7C9E4), AppTokens.borderDark)),
-                      const SizedBox(width: 7),
-                      Text('公平公开 · 真实可靠',
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: lotteryThemeColor(
-                                  context,
-                                  const Color(0xFF8B9BB2),
-                                  AppTokens.textSecondaryDark))),
-                      const SizedBox(width: 7),
-                      Container(
-                          width: 22,
-                          height: 1,
-                          color: lotteryThemeColor(context,
-                              const Color(0xFFB7C9E4), AppTokens.borderDark)),
-                    ]),
-                  ),
-                ],
-                if (tab == 4) ..._openedStatistics(),
-                if (tab == 0)
-                  _panel(Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Container(
-                              width: 3,
-                              height: 19,
-                              decoration: BoxDecoration(
-                                  color: _blue,
-                                  borderRadius: BorderRadius.circular(3))),
-                          const SizedBox(width: 9),
-                          const Expanded(
-                              child: Text('逐期预测',
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w800))),
-                          const Icon(Icons.bar_chart_rounded,
-                              size: 16, color: _blue),
-                          const SizedBox(width: 4),
-                          const Text('数据分析 · 智能推荐',
-                              style: TextStyle(fontSize: 11, color: _blue)),
-                        ]),
-                        const SizedBox(height: 10),
-                        ..._attributeControls(),
-                        if (tab == 0)
-                          InkWell(
-                            borderRadius: BorderRadius.circular(11),
-                            onTap: () => setState(() => combined = !combined),
-                            child: Container(
-                              key: const ValueKey('prediction-combined-panel'),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: lotteryThemeColor(
-                                    context,
-                                    const Color(0xFFF2F7FF),
-                                    AppTokens.surfaceAltDark),
-                                borderRadius: BorderRadius.circular(11),
-                              ),
-                              child: Row(children: [
-                                const Expanded(
-                                    child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                      Text('综合预测 · 全部属性',
-                                          style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w700)),
-                                      SizedBox(height: 2),
-                                      Text('基于历史数据，AI智能分析仅供参考',
-                                          style: TextStyle(
-                                              fontSize: 10,
-                                              color: Color(0xFF74839B))),
-                                    ])),
-                                Column(children: [
-                                  SizedBox(
-                                    width: 56,
-                                    height: 30,
-                                    child: FittedBox(
-                                      fit: BoxFit.contain,
-                                      child: GroupSettingsSwitch(
-                                        activeColor: AppColors.primaryBlue,
-                                        value: combined,
-                                        onChanged: (enabled) =>
-                                            setState(() => combined = enabled),
-                                      ),
-                                    ),
-                                  ),
-                                  Text(combined ? '已开启' : '已关闭',
+                                  Text('综合预测 · 全部属性',
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700)),
+                                  SizedBox(height: 2),
+                                  Text('基于历史数据，AI智能分析仅供参考',
                                       style: TextStyle(
                                           fontSize: 10,
-                                          color: lotteryThemeColor(
-                                              context,
-                                              const Color(0xFF74839B),
-                                              AppTokens.textSecondaryDark))),
-                                ]),
-                              ]),
-                            ),
-                          ),
-                        if (widget.live == null)
-                          Text(
-                              combined
-                                  ? '每期同时预测 9 项，分别核对开奖结果'
-                                  : attribute == '特码'
-                                      ? '特码 · 每期预测 18 码，命中任一码即为中'
-                                      : '$attribute · 每期以前 $window 期的最高频项作为预测',
-                              style: TextStyle(
-                                  color: lotteryThemeColor(
-                                      context,
-                                      const Color(0xFF7D8797),
-                                      AppTokens.textSecondaryDark),
-                                  fontSize: 12)),
-                        const SizedBox(height: 12),
-                        widget.live != null
-                            ? _livePredictions()
-                            : combined
-                                ? _combinedHistory()
-                                : _predictionHistory(),
-                        const SizedBox(height: 12),
-                        if (widget.live == null)
-                          Text(
-                              '演示回测，并非已发布预测。特码18码、生肖5肖、尾数4尾、头数3头、五行3个。仅使用该期之前的数据；并列按固定顺序选取，样本不足不判定。',
-                              style: TextStyle(
-                                  color: lotteryThemeColor(
-                                      context,
-                                      const Color(0xFF7D8797),
-                                      AppTokens.textSecondaryDark),
-                                  fontSize: 12)),
-                        const SizedBox(height: 10),
-                        Center(
-                            child: Text('理性参考 · 快乐参与',
-                                style: TextStyle(
-                                    color: lotteryThemeColor(
-                                        context,
-                                        const Color(0xFF74839B),
-                                        AppTokens.textSecondaryDark),
-                                    fontSize: 11))),
-                      ])),
-                if ((tab == 1 || tab == 2) && widget.live != null)
-                  _serverStatisticsPanel()
-                else if (tab == 1 && widget.live?.statisticsComplete == false)
-                  _panel(Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _sectionHeader('当前遗漏'),
-                        const Text('历史期次不连续，暂不计算遗漏和长龙。'),
-                      ]))
-                else if (tab == 1)
-                  _omissionPanel(omissions, sample.length),
-                if (tab == 2 && widget.live == null)
-                  _temperaturePanel(counts, ranked, sample.length),
-                if (tab == 3) ...[
-                  Container(
-                    height: 540,
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(
-                      color: lotteryThemeColor(
-                          context, Colors.white, AppTokens.surfaceDark),
-                      borderRadius: BorderRadius.circular(13),
-                      border: Border.all(
-                          color: lotteryThemeColor(context,
-                              const Color(0xFFDFE9F8), AppTokens.borderDark)),
-                    ),
-                    child: _ResultTable(results: _results),
-                  ),
-                ],
-                const SizedBox(height: 24),
-              ])),
+                                          color: Color(0xFF74839B))),
+                                ])),
+                            Column(children: [
+                              SizedBox(
+                                width: 56,
+                                height: 30,
+                                child: FittedBox(
+                                  fit: BoxFit.contain,
+                                  child: GroupSettingsSwitch(
+                                    activeColor: AppColors.primaryBlue,
+                                    value: combined,
+                                    onChanged: (enabled) =>
+                                        setState(() => combined = enabled),
+                                  ),
+                                ),
+                              ),
+                              Text(combined ? '已开启' : '已关闭',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: lotteryThemeColor(
+                                          context,
+                                          const Color(0xFF74839B),
+                                          AppTokens.textSecondaryDark))),
+                            ]),
+                          ]),
+                        ),
+                      ),
+                    if (widget.live == null)
+                      Text(
+                          combined
+                              ? '每期同时预测 9 项，分别核对开奖结果'
+                              : attribute == '特码'
+                                  ? '特码 · 每期预测 18 码，命中任一码即为中'
+                                  : '$attribute · 每期以前 $window 期的最高频项作为预测',
+                          style: TextStyle(
+                              color: lotteryThemeColor(
+                                  context,
+                                  const Color(0xFF7D8797),
+                                  AppTokens.textSecondaryDark),
+                              fontSize: 12)),
+                    const SizedBox(height: 12),
+                    widget.live != null
+                        ? _livePredictions()
+                        : combined
+                            ? _combinedHistory()
+                            : _predictionHistory(),
+                    const SizedBox(height: 12),
+                    if (widget.live == null)
+                      Text(
+                          '演示回测，并非已发布预测。特码18码、生肖5肖、尾数4尾、头数3头、五行3个。仅使用该期之前的数据；并列按固定顺序选取，样本不足不判定。',
+                          style: TextStyle(
+                              color: lotteryThemeColor(
+                                  context,
+                                  const Color(0xFF7D8797),
+                                  AppTokens.textSecondaryDark),
+                              fontSize: 12)),
+                    const SizedBox(height: 10),
+                    Center(
+                        child: Text('理性参考 · 快乐参与',
+                            style: TextStyle(
+                                color: lotteryThemeColor(
+                                    context,
+                                    const Color(0xFF74839B),
+                                    AppTokens.textSecondaryDark),
+                                fontSize: 11))),
+                  ])),
+            if ((tab == 1 || tab == 2) && widget.live != null)
+              _serverStatisticsPanel()
+            else if (tab == 1 && widget.live?.statisticsComplete == false)
+              _panel(Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionHeader('当前遗漏'),
+                    const Text('历史期次不连续，暂不计算遗漏和长龙。'),
+                  ]))
+            else if (tab == 1)
+              _omissionPanel(omissions, sample.length),
+            if (tab == 2 && widget.live == null)
+              _temperaturePanel(counts, ranked, sample.length),
+            if (tab == 3) ...[
+              Container(
+                height: 540,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: lotteryThemeColor(
+                      context, Colors.white, AppTokens.surfaceDark),
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                      color: lotteryThemeColor(context, const Color(0xFFDFE9F8),
+                          AppTokens.borderDark)),
+                ),
+                child: _ResultTable(results: _results),
+              ),
+            ],
+            const SizedBox(height: 24),
+          ]),
     );
   }
 
@@ -1873,7 +1828,7 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (live.predictionMode == 'backtest') const Text('回测结果，并非开奖前已发布预测'),
-      for (final row in live.predictions.take(_visiblePredictions))
+      for (final row in live.predictions)
         Builder(builder: (context) {
           final issue = '${row['issue']}';
           final draw = live.draws.firstWhere(
@@ -2022,6 +1977,44 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
             ]),
           );
         }),
+      Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: live.predictionsLoadingMore
+              ? const SizedBox(
+                  key: ValueKey('prediction-page-loading'),
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : live.predictionsPageError != null
+                  ? Column(
+                      key: const ValueKey('prediction-page-error'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(live.predictionsPageError!),
+                        TextButton(
+                          key: const ValueKey('prediction-page-retry'),
+                          onPressed: live.loadAllPredictions,
+                          child: const Text('重试'),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      live.predictionsHasMore ? '正在加载预测…' : '已全部加载',
+                      key: ValueKey(live.predictionsHasMore
+                          ? 'prediction-page-more'
+                          : 'prediction-page-end'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: lotteryThemeColor(
+                            context,
+                            const Color(0xFF74839B),
+                            AppTokens.textSecondaryDark),
+                      ),
+                    ),
+        ),
+      ),
     ]);
   }
 

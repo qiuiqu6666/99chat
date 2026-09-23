@@ -50,17 +50,24 @@ class LotteryLiveApi {
             ));
   final Dio dio;
   static const path = '/api/v1/lotteries/mark-six-demo';
+  static const drawsBaseUrl = 'http://47.242.90.129';
   Future<Map<String, dynamic>> get(String resource, String machine,
       {int window = 40, Map<String, dynamic> query = const {}}) async {
     if (machine.trim().isEmpty) throw ArgumentError('机器码不能为空');
-    final uri = Uri.parse(dio.options.baseUrl).resolve('$path/$resource');
+    final requestPath =
+        resource == 'draws' ? '$drawsBaseUrl$path/draws' : '$path/$resource';
+    final uri = Uri.parse(dio.options.baseUrl).resolve(requestPath);
     _lotteryHttpLog('request_start', uri: uri);
     Response? response;
     try {
-      response = await dio.get('$path/$resource', queryParameters: {
+      response = await dio.get(requestPath, queryParameters: {
         'machineCode': machine,
-        if (resource == 'draws' || resource == 'predictions') 'limit': 100,
-        if (resource == 'predictions') 'window': window,
+        if (resource == 'draws') 'limit': 100,
+        if (resource == 'predictions') ...{
+          'limit': 20,
+          'window': window,
+          'page': 1,
+        },
         ...query,
       });
       _lotteryHttpLog('response', uri: response.realUri, response: response);
@@ -93,7 +100,7 @@ class LotteryLiveApi {
         queryParameters: {
           'machineCode': machine,
           'window': '$window',
-          'limit': '100',
+          'limit': '20',
         },
         fragment: '');
   }
@@ -119,15 +126,53 @@ LotteryLiveSession lotteryLiveSession(String machine) {
       key, () => LotteryLiveSession(lotteryLiveApi, machine));
 }
 
+class _LotteryPredictionPage {
+  const _LotteryPredictionPage({
+    required this.rows,
+    required this.page,
+    required this.pageSize,
+    required this.totalCount,
+    required this.hasMore,
+    required this.mode,
+  });
+
+  final List<Map<String, dynamic>> rows;
+  final int page;
+  final int pageSize;
+  final int totalCount;
+  final bool hasMore;
+  final String mode;
+
+  static Object identity(Map<String, dynamic> row) =>
+      row['predictionId'] ?? row['issue'];
+
+  bool sameHead(_LotteryPredictionPage other) =>
+      pageSize == other.pageSize &&
+      totalCount == other.totalCount &&
+      mode == other.mode &&
+      listEquals(
+          rows.map(identity).toList(), other.rows.map(identity).toList());
+}
+
 /// Shared between preview and full screen; stops network work with no viewers.
 class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
-  LotteryLiveSession(this.api, this.machine);
+  LotteryLiveSession(this.api, this.machine, {this.autoLoadPredictions = true});
+  final bool autoLoadPredictions;
+  int? _predictionBatchEpoch;
+  int _drawHistoryGeneration = 0;
   final LotteryLiveApi api;
   final String machine;
   Map<String, dynamic>? config;
   LotteryNumberMappings? mappings;
   List<Map<String, dynamic>> draws = [];
   List<Map<String, dynamic>> predictions = [];
+  int predictionPage = 1;
+  int predictionTotalCount = 0;
+  bool predictionsHasMore = false;
+  bool predictionsLoadingMore = false;
+  String? predictionsPageError;
+  int _predictionGeneration = 0;
+  _LotteryPredictionPage? _firstPredictionPage;
   final statistics = <String, LotteryStatistics>{};
   String? statisticsError;
   String? _statisticsAttribute;
@@ -247,6 +292,7 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _stop() {
+    _invalidatePredictionRequest();
     _statisticsGeneration++;
     statisticsLoading = false;
     _epoch++;
@@ -270,7 +316,7 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
   void selectWindow(int value) {
     if (window == value) return;
     window = value;
-    predictions = [];
+    _resetPredictions();
     statistics.clear();
     statisticsError = null;
     _stop();
@@ -347,10 +393,49 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
     result
         .sort((a, b) => (b['sequence'] as int).compareTo(a['sequence'] as int));
     final seen = <String>{};
-    return result
-        .where((row) => seen.add(row['issue'] as String))
-        .take(100)
+    // The endpoint's limit bounds historical draws; a current round can be
+    // returned in addition, so do not trim a history row to make room for it.
+    return result.where((row) => seen.add(row['issue'] as String)).toList();
+  }
+
+  /// Draw history currently uses a cumulative limit, not offset pagination.
+  /// Replace each batch with its authoritative snapshot so a cleared cycle
+  /// cannot be padded with rows retained from the previous request.
+  Future<List<Map<String, dynamic>>> _loadDrawHistory(
+      Map<String, dynamic> first, int epoch) async {
+    var envelope = first;
+    var rows = _parseDraws(envelope['data']);
+    final group = first['groupUid'];
+    for (var limit = 20; limit < 100; limit += 20) {
+      final count = rows.where((row) => row['status'] == 'drawn').length;
+      if (count < limit || count >= 100 || epoch != _epoch || !active) break;
+      envelope = await api.get('draws', machine, query: {'limit': limit + 20});
+      if (epoch != _epoch || !active) return [];
+      if (envelope['groupUid'] != group) {
+        throw const FormatException('开奖实例不匹配');
+      }
+      rows = _parseDraws(envelope['data']);
+    }
+    var historicalCount = 0;
+    return rows
+        .where((row) => row['status'] != 'drawn' || historicalCount++ < 100)
         .toList();
+  }
+
+  Future<void> _expandPushedDrawHistory(
+      Map<String, dynamic> message, int epoch, int generation) async {
+    try {
+      final history = await _loadDrawHistory(message, epoch);
+      if (!active || epoch != _epoch || generation != _drawHistoryGeneration) {
+        return;
+      }
+      draws = history;
+      notifyListeners();
+    } catch (_) {
+      if (active && epoch == _epoch && generation == _drawHistoryGeneration) {
+        _disconnected(epoch);
+      }
+    }
   }
 
   void _syncClock(Map<String, dynamic> envelope) {
@@ -385,6 +470,177 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
     return rows.take(100).toList();
   }
 
+  _LotteryPredictionPage _parsePredictionPage(dynamic data, int expectedPage) {
+    if (data is! Map ||
+        data['window'] != window ||
+        data['page'] != expectedPage ||
+        data['pageSize'] is! int ||
+        data['pageSize'] < 1 ||
+        data['pageSize'] > 20 ||
+        data['totalCount'] is! int ||
+        data['totalCount'] < 0 ||
+        data['hasMore'] is! bool ||
+        data['mode'] is! String) {
+      throw const FormatException('预测分页格式错误');
+    }
+    final rows = _parsePredictions(data);
+    if (rows.length > data['pageSize'] ||
+        data['returnedCount'] != rows.length) {
+      throw const FormatException('预测分页条数错误');
+    }
+    return _LotteryPredictionPage(
+      rows: rows,
+      page: expectedPage,
+      pageSize: data['pageSize'] as int,
+      totalCount: data['totalCount'] as int,
+      hasMore: data['hasMore'] as bool,
+      mode: data['mode'] as String,
+    );
+  }
+
+  void _invalidatePredictionRequest() {
+    _predictionGeneration++;
+    predictionsLoadingMore = false;
+  }
+
+  void _resetPredictions() {
+    _invalidatePredictionRequest();
+    _firstPredictionPage = null;
+    predictions = [];
+    predictionPage = 1;
+    predictionTotalCount = 0;
+    predictionsHasMore = false;
+    predictionsPageError = null;
+  }
+
+  void _applyFirstPredictionPage(_LotteryPredictionPage first,
+      {bool preserveHistory = true}) {
+    final previous = _firstPredictionPage;
+    if (preserveHistory && previous != null && previous.sameHead(first)) {
+      predictions = [...first.rows, ...predictions.skip(previous.rows.length)];
+      // hasMore belongs to the last loaded page, not the pushed first page.
+      if (predictionPage == 1) predictionsHasMore = first.hasMore;
+    } else {
+      _invalidatePredictionRequest();
+      predictions = first.rows;
+      predictionPage = 1;
+      predictionsHasMore = first.hasMore;
+      predictionsPageError = null;
+    }
+    _firstPredictionPage = first;
+    predictionTotalCount = first.totalCount;
+    predictionMode = first.mode;
+  }
+
+  /// The HTTP API caps each page at 20; fetch the whole current cycle without
+  /// requiring scrolling. Keep the existing page validation and deduplication.
+  Future<void> loadAllPredictions() async {
+    final epoch = _epoch;
+    if (!active ||
+        loading ||
+        predictionsLoadingMore ||
+        _predictionBatchEpoch == epoch) {
+      return;
+    }
+    _predictionBatchEpoch = epoch;
+    predictionsPageError = null;
+    try {
+      // Bound retries if the published head keeps changing during the batch.
+      var attempts = 0;
+      while (active &&
+          epoch == _epoch &&
+          !loading &&
+          predictionsHasMore &&
+          predictions.length < 100 &&
+          predictionsPageError == null &&
+          attempts++ < 10) {
+        await loadMorePredictions();
+      }
+      if (active &&
+          epoch == _epoch &&
+          predictionsHasMore &&
+          predictions.length < 100 &&
+          predictionsPageError == null &&
+          !loading) {
+        predictionsPageError = '预测列表更新中，请重试';
+        notifyListeners();
+      }
+    } finally {
+      if (_predictionBatchEpoch == epoch) _predictionBatchEpoch = null;
+    }
+  }
+
+  Future<void> loadMorePredictions() async {
+    final first = _firstPredictionPage;
+    if (!active ||
+        loading ||
+        predictionsLoadingMore ||
+        !predictionsHasMore ||
+        first == null ||
+        groupUid == null) {
+      return;
+    }
+    final epoch = _epoch;
+    final generation = ++_predictionGeneration;
+    final requestedWindow = window;
+    final requestedGroup = groupUid;
+    final nextPage = predictionPage + 1;
+    bool isCurrent() =>
+        active && epoch == _epoch && generation == _predictionGeneration;
+    predictionsLoadingMore = true;
+    predictionsPageError = null;
+    notifyListeners();
+    try {
+      final response = await api.get('predictions', machine,
+          window: requestedWindow, query: {'page': nextPage});
+      if (!isCurrent()) return;
+      if (response['groupUid'] != requestedGroup) {
+        throw const FormatException('预测实例不匹配');
+      }
+      final next = _parsePredictionPage(response['data'], nextPage);
+
+      // Offset pages can move while WS is delayed. Read the head AFTER the
+      // next page to detect new predictions or a cleared cycle, even at 100.
+      // snapshotId is not documented as a cycle ID and cannot serve this role.
+      final check =
+          await api.get('predictions', machine, window: requestedWindow);
+      if (!isCurrent()) return;
+      if (check['groupUid'] != requestedGroup) {
+        throw const FormatException('预测实例不匹配');
+      }
+      final head = _parsePredictionPage(check['data'], 1);
+      if (!first.sameHead(head)) {
+        _applyFirstPredictionPage(head);
+        notifyListeners();
+        return;
+      }
+      if (next.totalCount != head.totalCount ||
+          next.pageSize != head.pageSize ||
+          next.mode != head.mode) {
+        throw const FormatException('预测列表已变化，请重试');
+      }
+      // Use HTTP settlement updates unless WS replaced the head while loading.
+      if (identical(_firstPredictionPage, first)) {
+        _applyFirstPredictionPage(head);
+      }
+      final seen = predictions.map(_LotteryPredictionPage.identity).toSet();
+      predictions = [
+        ...predictions,
+        ...next.rows
+            .where((row) => seen.add(_LotteryPredictionPage.identity(row))),
+      ];
+      predictionPage = next.page;
+      predictionsHasMore = next.hasMore;
+    } catch (_) {
+      if (isCurrent()) predictionsPageError = '预测加载失败，请重试';
+    } finally {
+      if (isCurrent()) {
+        predictionsLoadingMore = false;
+        notifyListeners();
+      }
+    }
+  }
+
   bool get statisticsComplete {
     final sample =
         draws.where((r) => r['status'] == 'drawn').take(window).toList();
@@ -399,6 +655,7 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> refresh() async {
     if (!active || loading) return;
+    _invalidatePredictionRequest();
     loading = true;
     final epoch = ++_epoch;
     // HTTP and socket must never race to overwrite each other.
@@ -429,7 +686,7 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final responses = await Future.wait([
         api.get('config', machine),
-        api.get('draws', machine),
+        api.get('draws', machine, query: {'limit': 20}),
         api.get('predictions', machine, window: window),
       ]);
       trace('http_complete');
@@ -447,7 +704,8 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
       trace('success');
       stage = 'draws_parse';
       trace('start', 'dataShape={${shape(responses[1]['data'])}}');
-      final newDraws = _parseDraws(responses[1]['data']);
+      final newDraws = await _loadDrawHistory(responses[1], epoch);
+      if (epoch != _epoch || !active) return;
       trace('success', 'count=${newDraws.length}');
       stage = 'predictions_parse';
       trace('start', 'dataShape={${shape(responses[2]['data'])}}');
@@ -455,14 +713,14 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
       if (predictionData['window'] != window) {
         throw const FormatException('预测窗口不一致');
       }
-      final newPredictions = _parsePredictions(predictionData);
-      trace('success', 'count=${newPredictions.length}');
+      final newPredictions = _parsePredictionPage(predictionData, 1);
+      trace('success', 'count=${newPredictions.rows.length}');
       stage = 'apply_state';
       config = newConfig;
       mappings = newMappings;
       draws = newDraws;
-      predictions = newPredictions;
-      predictionMode = '${predictionData['mode']}';
+      _applyFirstPredictionPage(newPredictions,
+          preserveHistory: groupUid == group);
       groupUid = group;
       error = null;
       stage = 'clock_sync';
@@ -494,7 +752,7 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
         config = null;
         mappings = null;
         draws = [];
-        predictions = [];
+        _resetPredictions();
         statistics.clear();
         groupUid = null;
       }
@@ -508,6 +766,7 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
           }
         });
         notifyListeners();
+        if (autoLoadPredictions && ready) unawaited(loadAllPredictions());
       }
     }
   }
@@ -544,12 +803,25 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
               config = data;
               mappings = parsed;
             case 'draws':
-              draws = _parseDraws(message['data']);
+              final incoming = _parseDraws(message['data']);
+              final generation = ++_drawHistoryGeneration;
+              final count =
+                  incoming.where((row) => row['status'] == 'drawn').length;
+              if (count >= 20 && count < 100) {
+                // Keep the last complete history until the replacement is
+                // ready. Current-round status still updates immediately.
+                draws = [
+                  ...incoming.where((row) => row['status'] != 'drawn'),
+                  ...draws.where((row) => row['status'] == 'drawn'),
+                ];
+                unawaited(_expandPushedDrawHistory(message, epoch, generation));
+              } else {
+                draws = incoming;
+              }
             case 'predictions':
               final data = message['data'] as Map;
               if (data['window'] != window) return;
-              predictions = _parsePredictions(data);
-              predictionMode = '${data['mode']}';
+              _applyFirstPredictionPage(_parsePredictionPage(data, 1));
             case 'statistics':
               final data = message['data'] as Map;
               if (data['window'] != window) return;
@@ -575,6 +847,11 @@ class LotteryLiveSession extends ChangeNotifier with WidgetsBindingObserver {
           }
           error = null;
           notifyListeners();
+          if (autoLoadPredictions &&
+              message['eventType'] == 'predictions' &&
+              predictionsPageError == null) {
+            unawaited(loadAllPredictions());
+          }
         } catch (_) {
           _disconnected(epoch);
         }

@@ -984,6 +984,15 @@ class TIMUIKitHistoryMessageListTongueContainerState
     if (widget.model.isLoadingChatHistory || widget.messageList.length <= 1) {
       return false;
     }
+    // Incoming layout may briefly move the reverse list away from zero while
+    // FOLLOW is still active. That movement is not a user leave action.
+    if (globalModel.isFollowingLatest(widget.model.conversationID) &&
+        globalModel.remainingLiveIncomingCountFor(
+                widget.model.conversationID) ==
+            0 &&
+        !_hasMissingNewer) {
+      return false;
+    }
     if (_atTrueLatestEndNow()) {
       _userLeftBottomIntentionally = false;
       return false;
@@ -1112,7 +1121,10 @@ class TIMUIKitHistoryMessageListTongueContainerState
       }
       final conversationID = widget.model.conversationID;
       if (globalModel.deferredIncomingBufferedCount(conversationID) > 0) {
-        widget.model.revealBufferedIncomingTowardLatest(skipCooldown: true);
+        // The finger reached the edge of the loaded window. Revealing only a
+        // small page creates another temporary bottom and needs another swipe.
+        // Use the same complete return transaction as the capsule tap.
+        unawaited(scrollToLatestAndDismissUnreadCapsule());
         return;
       }
       if (!_commitOverallFollowIfReady()) return;
@@ -1422,28 +1434,43 @@ class TIMUIKitHistoryMessageListTongueContainerState
   }) {
     return IgnorePointer(
       ignoring: !visible,
-      child: AnimatedOpacity(
-        opacity: visible ? 1 : 0,
+      child: AnimatedSwitcher(
         duration: _capsuleFadeDuration,
-        curve: Curves.easeOutCubic,
-        child: AnimatedSlide(
-          offset: visible ? Offset.zero : const Offset(0, 0.25),
-          duration: _capsuleFadeDuration,
-          curve: Curves.easeOutCubic,
-          child: SafeArea(
-            top: false,
-            left: false,
-            child: _buildTongue(
-              previousCount: displayUnreadCount,
-              unreadCount: displayUnreadCount,
-              onClick: () {
-                onTap();
-              },
-              atNum: atNum,
-              valueType: valueType,
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeOutCubic,
+        layoutBuilder: (current, outgoing) =>
+            AnimatedSwitcher.defaultLayoutBuilder(
+              current,
+              outgoing.map((child) => IgnorePointer(child: child)).toList(),
             ),
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.25),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
           ),
         ),
+        // Keep the outgoing unread label intact while it fades. Rebuilding
+        // it with count=0 would briefly paint "back to bottom" at opacity=1.
+        child: visible
+            ? SafeArea(
+                key: const ValueKey('visible-bottom-capsule'),
+                top: false,
+                left: false,
+                child: _buildTongue(
+                  previousCount: displayUnreadCount,
+                  unreadCount: displayUnreadCount,
+                  onClick: () {
+                    onTap();
+                  },
+                  atNum: atNum,
+                  valueType: valueType,
+                ),
+              )
+            : const SizedBox.shrink(),
       ),
     );
   }
@@ -1527,8 +1554,12 @@ class TIMUIKitHistoryMessageListTongueContainerState
             }
           }
         }
+        final followedLayoutShift = selectorData.followingLatest &&
+            liveUnreadCount == 0 &&
+            !missingNewer;
         final showScrolledUpBottomCapsule = !isAtTongue &&
             !presentationBottomLocked &&
+            !followedLayoutShift &&
             !_isProgrammaticScrollToBottomActive() &&
             BackToBottomCapsulePolicy.shouldShow(
               atTrueLatestEnd: atTrueLatestEnd,

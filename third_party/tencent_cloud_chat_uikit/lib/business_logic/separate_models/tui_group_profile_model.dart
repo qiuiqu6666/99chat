@@ -2166,25 +2166,21 @@ class TUIGroupProfileModel extends ChangeNotifier {
     if (candidates.isEmpty || _groupID.trim().isEmpty) {
       return const <String>{};
     }
-    try {
-      final res = await _groupServices.getGroupMembersInfo(
-        groupID: _groupID,
-        memberList: candidates.toList(growable: false),
-      );
-      if (res.code != 0 || res.data == null) {
-        return const <String>{};
-      }
-      final out = <String>{};
-      for (final member in res.data!) {
-        final uid = ChatIdFormat.rawUserUid(member.userID);
-        if (uid.isNotEmpty) {
-          out.add(uid);
-        }
-      }
-      return out;
-    } catch (_) {
-      return const <String>{};
+    final res = await _groupServices.getGroupMembersInfo(
+      groupID: _groupID,
+      memberList: candidates.toList(growable: false),
+    );
+    if (res.code != 0 || res.data == null) {
+      throw StateError('Unable to verify group membership: ${res.desc}');
     }
+    final out = <String>{};
+    for (final member in res.data!) {
+      final uid = ChatIdFormat.rawUserUid(member.userID);
+      if (uid.isNotEmpty) {
+        out.add(uid);
+      }
+    }
+    return out;
   }
 
   Future<V2TimValueCallback<List<V2TimGroupMemberOperationResult>>>

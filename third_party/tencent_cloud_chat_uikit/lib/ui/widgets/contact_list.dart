@@ -111,6 +111,7 @@ class ContactList extends StatefulWidget {
 class ContactListState extends TIMUIKitState<ContactList> {
   final Set<String> _selectedUserIds = {};
   final List<String> _selectedUserIdOrder = [];
+  Set<String> _normalizedDisabledUserIds = const {};
   final TUIFriendShipViewModel friendShipViewModel =
       serviceLocator<TUIFriendShipViewModel>();
 
@@ -227,19 +228,16 @@ class ContactListState extends TIMUIKitState<ContactList> {
   }
 
   bool _isExtraDisabled(String userId) {
-    final disabled = widget.disabledUserIds;
-    if (disabled == null || disabled.isEmpty) {
-      return false;
-    }
     final target = _membershipUid(userId);
-    if (target.isEmpty) {
-      return false;
-    }
-    final normalized = disabled
+    return target.isNotEmpty && _normalizedDisabledUserIds.contains(target);
+  }
+
+  void _cacheDisabledUserIds() {
+    // Normalize once per widget update, not once per row/select-all candidate.
+    _normalizedDisabledUserIds = (widget.disabledUserIds ?? const <String>{})
         .map(_membershipUid)
         .where((id) => id.isNotEmpty)
         .toSet();
-    return normalized.contains(target);
   }
 
   bool _isSelectable(V2TimFriendInfo item) {
@@ -343,6 +341,7 @@ class ContactListState extends TIMUIKitState<ContactList> {
   @override
   void initState() {
     super.initState();
+    _cacheDisabledUserIds();
     _seedInitialSelection();
     _schedulePresenceLoad();
   }
@@ -381,6 +380,7 @@ class ContactListState extends TIMUIKitState<ContactList> {
   @override
   void didUpdateWidget(ContactList oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _cacheDisabledUserIds();
     if (oldWidget.contactList != widget.contactList ||
         oldWidget.selectionContactList != widget.selectionContactList) {
       _reconcileSelectionWithContactList();

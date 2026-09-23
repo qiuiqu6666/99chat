@@ -34,7 +34,10 @@ class _LotteryCardCountdownState extends State<_LotteryCardCountdown> {
       _ => '状态待更新',
     };
     if (status == 'open' && closeAt is int) {
-      final remaining = closeAt - widget.now().millisecondsSinceEpoch;
+      // Delay the displayed countdown by two seconds; server status wins.
+      final remaining = closeAt +
+          const Duration(seconds: 2).inMilliseconds -
+          widget.now().millisecondsSinceEpoch;
       if (remaining <= 0) {
         label = '封盘待确认';
       } else {

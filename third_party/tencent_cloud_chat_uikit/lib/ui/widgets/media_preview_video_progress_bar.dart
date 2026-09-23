@@ -316,9 +316,10 @@ class _MediaPreviewVideoProgressBarState
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     const timeShadow = <Shadow>[
+      Shadow(color: Colors.black, blurRadius: 2),
       Shadow(
-        color: Color(0x8A000000),
-        blurRadius: 3,
+        color: Color(0xCC000000),
+        blurRadius: 4,
         offset: Offset(0, 1),
       ),
     ];
@@ -333,7 +334,7 @@ class _MediaPreviewVideoProgressBarState
     final totalTime = _formatDuration(duration);
     final speed = widget.playerKey.currentState?.playbackSpeed ?? 1.0;
     final timeline = SizedBox(
-      height: 56,
+      height: 44,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -342,7 +343,7 @@ class _MediaPreviewVideoProgressBarState
               Text(
                 '$currentTime / $totalTime',
                 style: const TextStyle(
-                  color: Colors.white70,
+                  color: Colors.white,
                   fontSize: 13,
                   fontFeatures: [FontFeature.tabularFigures()],
                   shadows: timeShadow,
@@ -355,7 +356,7 @@ class _MediaPreviewVideoProgressBarState
                     ? () => unawaited(_cyclePlaybackSpeed())
                     : null,
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.white70,
+                  foregroundColor: Colors.white,
                   disabledForegroundColor: Colors.white38,
                   minimumSize: const Size(48, 28),
                   padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -363,7 +364,7 @@ class _MediaPreviewVideoProgressBarState
                 ),
                 child: Text(
                   '${speed.toStringAsFixed(1)}×',
-                  style: const TextStyle(fontSize: 13),
+                  style: const TextStyle(fontSize: 13, shadows: timeShadow),
                 ),
               ),
             ],
@@ -376,12 +377,12 @@ class _MediaPreviewVideoProgressBarState
                     enabledThumbRadius: _isDragging ? 7 : 4),
                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
                 activeTrackColor: Colors.white,
-                inactiveTrackColor: Colors.white38,
-                secondaryActiveTrackColor: Colors.white60,
+                inactiveTrackColor: const Color(0xFF303030),
+                secondaryActiveTrackColor: const Color(0xFF48484A),
                 disabledActiveTrackColor: Colors.white38,
                 disabledInactiveTrackColor: Colors.white24,
                 thumbColor: Colors.white,
-                overlayColor: Colors.white24,
+                overlayColor: Colors.white12,
               ),
               child: Slider(
                 value: sliderValue,
@@ -407,7 +408,7 @@ class _MediaPreviewVideoProgressBarState
     return Positioned(
       left: 16,
       right: 16,
-      bottom: bottomInset + 74,
+      bottom: bottomInset + 56,
       child: timeline,
     );
   }
