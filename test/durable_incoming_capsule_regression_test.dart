@@ -483,7 +483,7 @@ void main() {
     expect(find.text('showUnread:2').hitTestable(), findsOneWidget);
   });
 
-  uiTest('SQL ACK preserves live identities until actual viewport confirmation',
+  uiTest('visible SQL ACK retires the same identity from the capsule ledger',
       (tester) async {
     await mount(tester);
     await beginVisit(tester);
@@ -503,10 +503,8 @@ void main() {
             global.acknowledgeVisibleHistoryMessages(getConv(), [row(101)],
                 isCurrent: () => true)),
         isTrue);
-    expect(global.remainingLiveIncomingCountFor(getConv()), 2,
-        reason: 'SQL ACK alone is not the live capsule viewport proof');
-    global.markLiveIncomingSeen(
-        conversationID: getConv(), ids: ['${getConv()}-101']);
+    expect(global.remainingLiveIncomingCountFor(getConv()), 1,
+        reason: 'one verified receipt must update both SQL and the capsule');
     expect(global.remainingLiveIncomingIdsFor(getConv()), {'${getConv()}-102'});
     expect((await sqlState(tester)).unreadCount, 1);
     await receive(tester, 101, 1);

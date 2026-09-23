@@ -420,8 +420,19 @@ void main() {
     expect(global.rawMessageList(getConv())!.first.seq, '102');
     expect(verifyLatestVisible(), isFalse);
     expect(visible.value, isTrue, reason: 'the older-frame notifier is stale');
-    expect(global.receivedNewMessageCountFor(getConv()), 0,
-        reason: '4px row geometry is not the product gate; true latest end settles');
+    expect(global.receivedNewMessageCountFor(getConv()), 2,
+        reason: 'a stale visible flag cannot acknowledge an unpainted latest row');
+    expect(model.readReports, 0);
+
+    holdVisibilityNotification = false;
+    newestTranslation.value = 0;
+    sdk.duringRead = null;
+    sdk.newest = List.generate(50, (i) => row(102 - i));
+    await frame(tester);
+    await tester.tap(find.text('showUnread:2'));
+    await settleReturn(tester);
+    expect(verifyLatestVisible(), isTrue);
+    expect(global.receivedNewMessageCountFor(getConv()), 0);
     expect(model.readReports, greaterThanOrEqualTo(1));
   });
 

@@ -561,116 +561,17 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
   Future<void> _returnToLatestAfterInput({
     required bool allowKeyboardReturn,
   }) async {
-    final convId = widget.conversationID;
-    final model = widget.model;
+    if (_hasActiveTextComposition ||
+        (!allowKeyboardReturn &&
+            KeyboardViewportTransitionCoordinator.active?.isAnimating == true)) {
+      return;
+    }
     final token = ++_bottomReturnToken;
-    _bottomReturnConversation = convId;
-    final ownsConversation = globalModel.captureMessageOwnerFence(convId);
-    bool isCurrent() => mounted && token == _bottomReturnToken &&
-        widget.conversationID == convId && identical(widget.model, model) &&
-        ownsConversation();
-    bool missingNewer() => model.haveMoreLatestData ||
-        globalModel.memoryWindowMissingNewer(convId) ||
-        globalModel.hasDurableHistoryDeferred(convId);
+    _bottomReturnConversation = widget.conversationID;
     try {
-      if (missingNewer()) {
-        final loaded = await model.reloadNewestMessageWindow(
-          allowWhileReadingHistory: true,
-        );
-        if (!isCurrent() || !loaded || missingNewer()) return;
-        await WidgetsBinding.instance.endOfFrame;
-        if (!isCurrent()) return;
-      }
-      globalModel.flushPendingIncomingMessagesForUserBottom(convId);
-      if (missingNewer()) return;
-      // A tap on the input explicitly requests latest, even if its asynchronous
-      // page load completes after the IME has opened. Passive keyboard geometry
-      // and outgoing-send callbacks retain their existing occupancy guard.
-      if (!allowKeyboardReturn &&
-          KeyboardViewportTransitionCoordinator.active?.isAnimating == true) {
-        return;
-      }
-      globalModel.requestPinToBottom(convId, force: true);
-
-      // Outgoing insertion can alter the extent. Verify the new layout
-      // before acknowledging the latest edge. Active composition stays guarded.
-      // Input/quote may only snap once: chasing minScrollExtent across IME
-      // frames fights the keyboard and reads as a whole-list shake.
-      var didJump = false;
-      for (var frame = 0; frame < 3; frame++) {
-        if (!isCurrent() || missingNewer()) return;
-        if (_hasActiveTextComposition) {
-          return;
-        }
-        if (KeyboardViewportTransitionCoordinator.active?.isAnimating == true) {
-          if (!allowKeyboardReturn) {
-            return;
-          }
-        }
-        final controller = widget.scrollController;
-        if (controller == null || !controller.hasClients ||
-            controller.positions.length != 1) return;
-        final position = controller.position;
-        if (!position.hasPixels || !position.hasContentDimensions) return;
-        final viewportBefore = position.viewportDimension;
-        final minBefore = position.minScrollExtent;
-        final insetBefore =
-            KeyboardViewportTransitionCoordinator.active?.effectiveInset.value;
-        if ((allowKeyboardReturn ||
-                KeyboardViewportTransitionCoordinator.active?.isAnimating != true) &&
-            !didJump &&
-            (position.pixels - position.minScrollExtent).abs() > 0.5) {
-          controller.jumpTo(position.minScrollExtent);
-          didJump = true;
-        }
-        await WidgetsBinding.instance.endOfFrame;
-        if (!isCurrent() || missingNewer() || _hasActiveTextComposition) return;
-        if (!controller.hasClients || controller.positions.length != 1 ||
-            !identical(controller.position, position)) return;
-        // Once the requested edge survives a layout, no further correction is
-        // needed. Keep the bounded retries when insertion/IME changes geometry.
-        if (allowKeyboardReturn && didJump) {
-          break;
-        }
-        if (position.hasContentDimensions &&
-            position.viewportDimension == viewportBefore &&
-            position.minScrollExtent == minBefore &&
-            KeyboardViewportTransitionCoordinator.active?.effectiveInset.value ==
-                insetBefore &&
-            (position.pixels - position.minScrollExtent).abs() <= 0.5) {
-          break;
-        }
-      }
-      if (!isCurrent() || missingNewer()) return;
-      final controller = widget.scrollController;
-      if (controller == null || !controller.hasClients ||
-          controller.positions.length != 1) return;
-      final position = controller.position;
-      if (!position.hasPixels || !position.hasContentDimensions ||
-          (position.pixels - position.minScrollExtent).abs() > 1) return;
-      final entryUnread = model.initialUnreadCount ?? 0;
-      model.resumeVisibleLiveWindow();
-      globalModel.unlockEntryUnreadForTongue(
-        conversationID: convId,
-        notify: false,
-      );
-      globalModel.clearReceivedUnreadState(
-        conversationID: convId,
-        notify: false,
-      );
-      globalModel.clearUnreadTongueMetrics(convId, notify: false);
-      globalModel.markEntryUnreadTongueDismissed(
-        conversationID: convId,
-        unreadCount: entryUnread,
-        notify: true,
-      );
-      globalModel.setMessageListPosition(
-        convId,
-        HistoryMessagePosition.bottom,
-      );
-      unawaited(model.markMessageAsRead(force: true));
+      await widget.model.requestLatestViewportReturn();
     } catch (_) {
-      // A failed latest-window load leaves the unread reminders available.
+      // The shared viewport transaction preserves unread state for retry.
     } finally {
       if (token == _bottomReturnToken) _bottomReturnConversation = null;
     }

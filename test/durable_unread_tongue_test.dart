@@ -498,12 +498,15 @@ void main() {
     expect(sdk.calls, 1);
     expect(scroll.offset, closeTo(0, 1));
     expect(global.rawMessageList(getConv())!.length, lessThanOrEqualTo(222));
-    expect(global.rawMessageList(getConv())!.first.seq, '222');
-    expect(global.receivedNewMessageCountFor(getConv()), 122);
+    expect(global.rawMessageList(getConv())!.first.seq, '220');
+    expect(global.receivedNewMessageCountFor(getConv()), 4,
+        reason: 'the painted edge consumes through 220, never the missing 221–224');
+    expect(global.remainingLiveIncomingIdsFor(getConv()),
+        {for (var seq = 221; seq <= 224; seq++) '${getConv()}-$seq'});
     expect(global.canRevealDurableIncomingAfterLatestReturn(getConv()), isFalse);
     expect(global.isFollowingLatest(getConv()), isFalse);
     expect(model.readReports, 0);
-    expect(find.text('showUnread:122').hitTestable(), findsOneWidget);
+    expect(find.text('showUnread:4').hitTestable(), findsOneWidget);
   });
 
   uiTest('storage-only delivery revokes reveal instead of allowing a later gap',
@@ -524,9 +527,11 @@ void main() {
     await settleReturn(tester);
     expect(global.rawMessageList(getConv())!.first.seq, '103');
     expect(global.canRevealDurableIncomingAfterLatestReturn(getConv()), isFalse);
-    expect(global.receivedNewMessageCountFor(getConv()), 3);
+    expect(global.receivedNewMessageCountFor(getConv()), 2);
+    expect(global.remainingLiveIncomingIdsFor(getConv()),
+        {'${getConv()}-104', '${getConv()}-105'});
     expect(model.readReports, 0);
-    expect(find.text('showUnread:3').hitTestable(), findsOneWidget);
+    expect(find.text('showUnread:2').hitTestable(), findsOneWidget);
   });
 
   uiTest('stalled return times out and ignores late SDK publication', (tester) async {
@@ -770,12 +775,11 @@ void main() {
         expect(global.hasDurableHistoryDeferred(getConv()), isTrue);
         expect(find.text('showUnread:2').hitTestable(), findsOneWidget);
       } else {
-        // The successful SDK page has acknowledged its covered arrivals, but
-        // failing to reveal/scroll must not dismiss the unread entry or mark
-        // that history as read. The return button remains actionable.
-        expect(global.receivedNewMessageCountFor(getConv()), 0);
+        // A loaded page is not a visible receipt. Failed presentation retains
+        // both live arrivals and the entry reminder until a successful retry.
+        expect(global.receivedNewMessageCountFor(getConv()), 2);
         expect(global.getUnreadTongueRemaining(getConv()), 100);
-        expect(find.text('toLatest:0').hitTestable(), findsOneWidget);
+        expect(find.text('showUnread:2').hitTestable(), findsOneWidget);
       }
 
       failTransition = false;
