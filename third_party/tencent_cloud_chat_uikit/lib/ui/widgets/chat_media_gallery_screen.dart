@@ -1667,6 +1667,9 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
             onBack: _close,
             onTogglePlayback: _togglePlayback,
             onMore: _showVideoActions,
+            onForward: item.forwardFn,
+            onSave: _handleDownload,
+            onDelete: item.deleteFn == null ? null : _handleDelete,
           );
         }
         if (!_chromeVisible) return const SizedBox.shrink();

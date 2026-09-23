@@ -351,15 +351,17 @@ Future<File> downloadVideoForGallery(String url, Directory directory,
     final response = await request.close().timeout(const Duration(seconds: 30));
     final mime = response.headers.contentType?.mimeType ?? '';
     if (response.statusCode != HttpStatus.ok ||
-        (mime.isNotEmpty && !mime.startsWith('video/') &&
-         mime != 'application/octet-stream')) {
+        (mime.isNotEmpty &&
+            !mime.startsWith('video/') &&
+            mime != 'application/octet-stream')) {
       throw const HttpException('Invalid video response');
     }
     final extension = mime == 'video/quicktime' ? 'mov' : 'mp4';
     file = File('${directory.path}/video.$extension');
     await response.timeout(const Duration(seconds: 60)).pipe(file.openWrite());
     final size = await file.length();
-    if (size == 0 || (response.contentLength >= 0 && size != response.contentLength)) {
+    if (size == 0 ||
+        (response.contentLength >= 0 && size != response.contentLength)) {
       throw const HttpException('Incomplete video response');
     }
     return file;
@@ -421,21 +423,67 @@ Future<void> saveNetworkVideoFile(
     }
   }
 
+  if (!context.mounted) return;
+  OverlayEntry? loadingEntry;
+  void hideLoading() {
+    loadingEntry?.remove();
+    loadingEntry?.dispose();
+    loadingEntry = null;
+  }
+
+  final overlay = Overlay.maybeOf(context, rootOverlay: true);
+  if (overlay != null) {
+    loadingEntry = OverlayEntry(
+        builder: (_) => Stack(children: [
+              const ModalBarrier(dismissible: false, color: Colors.black26),
+              Center(
+                  child: Material(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(14),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(strokeWidth: 2.5)),
+                    const SizedBox(height: 16),
+                    Text(TIM_t('正在保存视频…')),
+                  ]),
+                ),
+              )),
+            ]));
+    overlay.insert(loadingEntry!);
+  }
+  final loadingStartedAt = DateTime.now();
+  Future<void> finishLoading() async {
+    final remaining = const Duration(milliseconds: 400) -
+        DateTime.now().difference(loadingStartedAt);
+    if (remaining > Duration.zero) {
+      await Future<void>.delayed(remaining);
+    }
+    hideLoading();
+  }
+
   Directory? downloadDirectory;
   try {
+    await WidgetsBinding.instance.endOfFrame;
     var savePath = videoUrl;
     if (!isAsset) {
       final local = message.videoElem?.localVideoUrl;
       final cached = message.msgID == null ||
               model.getMessageProgress(message.msgID!) != 100
-          ? '' : model.getFileMessageLocation(message.msgID!);
+          ? ''
+          : model.getFileMessageLocation(message.msgID!);
       if (local != null && local.isNotEmpty && File(local).existsSync()) {
         savePath = local;
       } else if (cached.isNotEmpty && File(cached).existsSync()) {
         savePath = cached;
       } else {
         final resolvedUrl = resolveChatMediaNetworkUrl(videoUrl);
-        debugPrint('[VideoSave] stage=download scheme=${Uri.tryParse(resolvedUrl)?.scheme}');
+        debugPrint(
+            '[VideoSave] stage=download scheme=${Uri.tryParse(resolvedUrl)?.scheme}');
         downloadDirectory = await (await getTemporaryDirectory())
             .createTemp('chat-video-save-');
         final file = await downloadVideoForGallery(
@@ -449,15 +497,22 @@ Future<void> saveNetworkVideoFile(
     if (!context.mounted) return;
     debugPrint('[VideoSave] stage=photos_write');
     final result = await ImageGallerySaverPlus.saveFile(savePath);
-    debugPrint('[VideoSave] stage=complete success=${saveVideoResultSuccess(result)}');
+    debugPrint(
+        '[VideoSave] stage=complete success=${saveVideoResultSuccess(result)}');
+    if (!context.mounted) return;
+    await finishLoading();
     if (!context.mounted) return;
     notifySaveVideoResult(context, success: saveVideoResultSuccess(result));
   } catch (error) {
+    await finishLoading();
     debugPrint('Video save failed: ${error.runtimeType}');
     if (context.mounted) notifySaveVideoResult(context, success: false);
   } finally {
+    hideLoading();
     if (downloadDirectory != null) {
-      try { await downloadDirectory.delete(recursive: true); } catch (_) {}
+      try {
+        await downloadDirectory.delete(recursive: true);
+      } catch (_) {}
     }
   }
 }

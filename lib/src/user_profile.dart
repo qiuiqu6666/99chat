@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_demo/src/widgets/star_burst_button.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
@@ -1194,7 +1195,8 @@ class UserProfileState extends State<UserProfile> {
               builder: (context, _) {
                 final starred =
                     StarredFriendProvider.shared.isStarred(widget.userID);
-                return IconButton(
+                return StarBurstButton(
+                  starred: starred,
                   tooltip: AppI18n.of(context).t(
                       zhHans: starred ? '取消特别关注' : '设为特别关注',
                       zhHant: starred ? '取消特別關注' : '設為特別關注',
@@ -1202,11 +1204,8 @@ class UserProfileState extends State<UserProfile> {
                       ja: 'スター',
                       ko: '즐겨찾기'),
                   onPressed: _handleToggleStarFriend,
-                  style: IconButton.styleFrom(backgroundColor: accountBgColor),
-                  icon: Icon(
-                      starred ? Icons.star_rounded : Icons.star_outline_rounded,
-                      color: starred ? AppTokens.warning : weakTextColor,
-                      size: 26),
+                  backgroundColor: accountBgColor,
+                  color: starred ? AppTokens.warning : weakTextColor,
                 );
               },
             ),

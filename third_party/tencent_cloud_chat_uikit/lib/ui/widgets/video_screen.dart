@@ -959,6 +959,11 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
           onBack: _close,
           onTogglePlayback: _togglePlayback,
           onMore: _showVideoActionMenu,
+          onForward: _currentItem.forwardFn ?? widget.forwardFn,
+          onSave: _saveVideo,
+          onDelete: (_currentItem.deleteFn ?? widget.deleteFn) == null
+              ? null
+              : _handleDelete,
         );
       },
     );

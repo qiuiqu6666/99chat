@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_videoplayer.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_chrome.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_video_chrome.dart';
 
 class _Controller extends ChangeNotifier {
@@ -66,10 +68,16 @@ void main() {
     if (fontRoot != null) {
       for (final font in {
         'Roboto': 'roboto-regular.ttf',
-        'MaterialIcons': 'materialicons-regular.otf'
+        'MaterialIcons': 'materialicons-regular.otf',
+        'CupertinoSystemText': 'roboto-regular.ttf',
+        'CupertinoSystemDisplay': 'roboto-regular.ttf',
       }.entries) {
+        final cjkFont = Platform.environment['VIDEO_PREVIEW_CJK_FONT'];
+        final path = font.key.startsWith('Cupertino') && cjkFont != null
+            ? cjkFont
+            : '$fontRoot/${font.value}';
         await (FontLoader(font.key)
-              ..addFont(File('$fontRoot/${font.value}')
+              ..addFont(File(path)
                   .readAsBytes()
                   .then((bytes) => ByteData.sublistView(bytes))))
             .load();
@@ -86,59 +94,77 @@ void main() {
     bool ready = true,
     VoidCallback? onToggle,
     Future<void> Function()? onMore,
+    Future<void> Function()? onForward,
+    Future<void> Function()? onSave,
+    Future<void> Function()? onDelete,
     EdgeInsets insets = EdgeInsets.zero,
     double textScale = 1,
+    Brightness brightness = Brightness.light,
     GlobalKey? captureKey,
   }) async {
-    await tester.pumpWidget(MaterialApp(
-      theme: ThemeData(fontFamily: 'Roboto'),
-      home: MediaQuery(
-        data: MediaQueryData(
-          size: tester.view.physicalSize / tester.view.devicePixelRatio,
-          viewPadding: insets,
-          padding: insets,
-          textScaler: TextScaler.linear(textScale),
-        ),
-        child: Material(
-          color: Colors.black,
-          child: RepaintBoundary(
-            key: captureKey,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => chromeKey.currentState?.toggleControls(),
-                    child: const Center(
-                      child: AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: ColoredBox(color: Color(0xFF243738)),
+    await tester.pumpWidget(RepaintBoundary(
+        key: const ValueKey('video-preview-root'),
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(fontFamily: 'Roboto', brightness: brightness),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              padding: insets,
+              viewPadding: insets,
+              textScaler: TextScaler.linear(textScale),
+            ),
+            child: child!,
+          ),
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: tester.view.physicalSize / tester.view.devicePixelRatio,
+              viewPadding: insets,
+              padding: insets,
+              textScaler: TextScaler.linear(textScale),
+            ),
+            child: Material(
+              color: Colors.black,
+              child: RepaintBoundary(
+                key: captureKey,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => chromeKey.currentState?.toggleControls(),
+                        child: const Center(
+                          child: AspectRatio(
+                            aspectRatio: 16 / 9,
+                            child: ColoredBox(color: Color(0xFF243738)),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    _Player(key: playerKey),
+                    Positioned.fill(
+                      child: MediaPreviewVideoChrome(
+                        key: chromeKey,
+                        playerKey: playerKey,
+                        title: 'Family group',
+                        subtitle: 'Today 12:30',
+                        galleryIndicator: '3 / 8',
+                        isPlaying: playing,
+                        isReady: ready,
+                        active: active,
+                        onBack: () {},
+                        onTogglePlayback: onToggle ?? () {},
+                        onMore: onMore ?? () async {},
+                        onForward: onForward,
+                        onSave: onSave,
+                        onDelete: onDelete,
+                      ),
+                    ),
+                  ],
                 ),
-                _Player(key: playerKey),
-                Positioned.fill(
-                  child: MediaPreviewVideoChrome(
-                    key: chromeKey,
-                    playerKey: playerKey,
-                    title: 'Family group',
-                    subtitle: 'Today 12:30',
-                    galleryIndicator: '3 / 8',
-                    isPlaying: playing,
-                    isReady: ready,
-                    active: active,
-                    onBack: () {},
-                    onTogglePlayback: onToggle ?? () {},
-                    onMore: onMore ?? () async {},
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-    ));
+        )));
     await tester.pump(const Duration(milliseconds: 300));
   }
 
@@ -276,6 +302,109 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('inline video actions use round buttons and keep their callbacks',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final called = <String>[];
+    await mount(
+      tester,
+      playerKey: GlobalKey<TIMUIKitVideoPlayerState>(),
+      chromeKey: GlobalKey<MediaPreviewVideoChromeState>(),
+      playing: false,
+      insets: const EdgeInsets.only(top: 47, bottom: 34),
+      onForward: () async => called.add('forward'),
+      onSave: () async => called.add('save'),
+      onDelete: () async => called.add('delete'),
+    );
+
+    for (final action in ['forward', 'save', 'delete']) {
+      final button = find.byKey(ValueKey('video-inline-$action'));
+      expect(button, findsOneWidget);
+      expect(tester.widget<MediaPreviewCircleButton>(button).icon, isNotNull);
+      final tooltip = tester.widget<Tooltip>(
+          find.ancestor(of: button, matching: find.byType(Tooltip)).first);
+      expect(tooltip.message, isNotEmpty);
+      final material = tester.widget<Material>(
+          find.descendant(of: button, matching: find.byType(Material)).first);
+      expect(material.shape, isA<CircleBorder>());
+      expect(material.color, Colors.black.withValues(alpha: 0.45));
+      expect(tester.getSize(button), const Size(40, 40));
+      expect(tester.getRect(button).bottom, lessThanOrEqualTo(810));
+      await tester.tap(button);
+      await tester.pump();
+    }
+    final forwardCenter =
+        tester.getCenter(find.byKey(const ValueKey('video-inline-forward')));
+    final saveCenter =
+        tester.getCenter(find.byKey(const ValueKey('video-inline-save')));
+    final deleteCenter =
+        tester.getCenter(find.byKey(const ValueKey('video-inline-delete')));
+    expect(saveCenter.dx - forwardCenter.dx, closeTo(44, 1));
+    expect(deleteCenter.dx - saveCenter.dx, closeTo(44, 1));
+    expect(
+        tester.getRect(find.byKey(const ValueKey('video-inline-delete'))).right,
+        closeTo(378, 1));
+    expect(called, ['forward', 'save', 'delete']);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('landscape video actions stay inside the right safe area',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(812, 375);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await mount(
+      tester,
+      playerKey: GlobalKey<TIMUIKitVideoPlayerState>(),
+      chromeKey: GlobalKey<MediaPreviewVideoChromeState>(),
+      playing: false,
+      insets: const EdgeInsets.only(left: 44, right: 44, bottom: 21),
+      onForward: () async {},
+      onSave: () async {},
+      onDelete: () async {},
+    );
+    final deleteButton = find.byKey(const ValueKey('video-inline-delete'));
+    expect(tester.getRect(deleteButton).right, closeTo(756, 1));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('video save animates while waiting for completion',
+      (tester) async {
+    final save = Completer<void>();
+    var calls = 0;
+    await mount(
+      tester,
+      playerKey: GlobalKey<TIMUIKitVideoPlayerState>(),
+      chromeKey: GlobalKey<MediaPreviewVideoChromeState>(),
+      onSave: () {
+        calls++;
+        return save.future;
+      },
+    );
+
+    await tester.tap(find.byKey(const ValueKey('video-inline-save')));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(calls, 1);
+    expect(find.byKey(const ValueKey('video-save-loading')), findsOneWidget);
+    expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
+    await tester.pump(const Duration(seconds: 4));
+    expect(opacity(tester), 1);
+
+    save.complete();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byKey(const ValueKey('video-save-loading')), findsNothing);
+    expect(find.byKey(const ValueKey('video-inline-save')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets(
       'video menu retains save forward speed and confirmed-delete callbacks',
       (tester) async {
@@ -306,12 +435,21 @@ void main() {
     );
     for (final target in [
       find.text('1.5×'),
-      find.byIcon(Icons.download_outlined),
-      find.byIcon(Icons.reply_outlined),
-      find.byIcon(Icons.delete_outline_rounded)
+      find.byKey(const ValueKey('video-action-save')),
+      find.byKey(const ValueKey('video-action-forward')),
+      find.byKey(const ValueKey('video-action-delete')),
     ]) {
       await tester.tap(find.byIcon(Icons.more_horiz_rounded));
       await tester.pumpAndSettle();
+      expect(find.byType(CupertinoActionSheet), findsOneWidget);
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(
+        tester
+            .widget<CupertinoActionSheetAction>(
+                find.byKey(const ValueKey('video-action-delete')))
+            .isDestructiveAction,
+        isTrue,
+      );
       expect(target, findsOneWidget);
       await tester.ensureVisible(target);
       await tester.tap(target);
@@ -324,6 +462,117 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
+
+  for (final cancelFromBarrier in [false, true]) {
+    testWidgets(
+        'iOS sheet cancel keeps preview open (barrier=$cancelFromBarrier)',
+        (tester) async {
+      var commands = 0;
+      await mount(
+        tester,
+        playerKey: GlobalKey<TIMUIKitVideoPlayerState>(),
+        chromeKey: GlobalKey<MediaPreviewVideoChromeState>(),
+        onMore: () => showMediaPreviewVideoActions(
+          context: tester.element(find.byType(MediaPreviewVideoChrome)),
+          playbackSpeed: 1.5,
+          onDownload: () async {
+            commands++;
+          },
+          onSpeedChanged: (_) async {
+            commands++;
+          },
+        ),
+      );
+      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('video-action-delete')), findsNothing);
+      expect(find.byKey(const ValueKey('video-action-forward')), findsNothing);
+      expect(
+          tester
+              .widget<CupertinoSlidingSegmentedControl<double>>(
+                  find.byType(CupertinoSlidingSegmentedControl<double>))
+              .groupValue,
+          1.5);
+      await tester.pump(const Duration(seconds: 5));
+      expect(opacity(tester), 1);
+      if (cancelFromBarrier) {
+        await tester.tapAt(const Offset(10, 10));
+      } else {
+        await tester.tap(find.byKey(const ValueKey('video-action-cancel')));
+      }
+      await tester.pumpAndSettle();
+      expect(find.byType(CupertinoActionSheet), findsNothing);
+      expect(find.byType(MediaPreviewVideoChrome), findsOneWidget);
+      expect(commands, 0);
+      expect(opacity(tester), 1);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  for (final landscape in [false, true]) {
+    testWidgets(
+        'iOS action sheet fits safe areas and large text (landscape=$landscape)',
+        (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize =
+          landscape ? const Size(812, 375) : const Size(390, 844);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var openedMedia = 0;
+      await mount(
+        tester,
+        playerKey: GlobalKey<TIMUIKitVideoPlayerState>(),
+        chromeKey: GlobalKey<MediaPreviewVideoChromeState>(),
+        brightness: landscape ? Brightness.dark : Brightness.light,
+        textScale: landscape ? 1.6 : 1,
+        insets: landscape
+            ? const EdgeInsets.only(left: 44, right: 44, bottom: 21)
+            : const EdgeInsets.only(top: 47, bottom: 34),
+        onMore: () => showMediaPreviewVideoActions(
+          context: tester.element(find.byType(MediaPreviewVideoChrome)),
+          playbackSpeed: 1,
+          onDownload: () async {},
+          onForward: () async {},
+          onDelete: () async {},
+          onSpeedChanged: (_) async {},
+          onOpenMedia: () {
+            openedMedia++;
+          },
+        ),
+      );
+      for (final action in ['media']) {
+        await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        final cancelRect =
+            tester.getRect(find.byKey(const ValueKey('video-action-cancel')));
+        expect(cancelRect.bottom,
+            lessThanOrEqualTo(tester.view.physicalSize.height));
+        if (action == 'media' &&
+            Platform.environment['CAPTURE_VIDEO_ACTIONS'] == '1') {
+          final boundary = tester.renderObject<RenderRepaintBoundary>(
+              find.byKey(const ValueKey('video-preview-root')));
+          await tester.runAsync(() async {
+            final image = await boundary.toImage();
+            final bytes =
+                await image.toByteData(format: ui.ImageByteFormat.png);
+            await File(
+                    'artifacts/video-ios-actions-${landscape ? 'landscape' : 'portrait'}.png')
+                .writeAsBytes(bytes!.buffer.asUint8List());
+            image.dispose();
+          });
+        }
+        final target = find.byKey(ValueKey('video-action-$action'));
+        await tester.ensureVisible(target);
+        await tester.pumpAndSettle();
+        await tester.tap(target);
+        await tester.pumpAndSettle();
+      }
+      expect(openedMedia, 1);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
 
   testWidgets('portrait control layout visual receipt', (tester) async {
     tester.view.devicePixelRatio = 1;

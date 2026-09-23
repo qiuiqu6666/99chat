@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:tencent_cloud_chat_demo/src/services/call_bubble_insert_service.dart';
 import 'package:tencent_cloud_chat_demo/src/api/call_record_api.dart';
 import 'package:tencent_cloud_chat_demo/src/api/livekit_call_api.dart';
 import 'package:tencent_cloud_chat_demo/src/services/call_result_record.dart';
@@ -35,14 +36,13 @@ class CallResultEnrichmentService {
       return;
     }
     final existing = CallResultRepository.instance.get(record.callId);
-    final session = LiveKitCallSession.instance;
-    final isOngoing =
-        (session.isBusy && session.callId == record.callId) ||
-        (existing != null && !existing.effectiveStatus.isTerminal);
-    // Recent-call result projections may already say missed/failed while
-    // the actual session is still ringing. Confirm terminal state through
-    // the session endpoint before poisoning the monotonic result cache.
-    if (isOngoing && record.effectiveStatus.isTerminal && item.status == null) {
+    // A result row can arrive before the invite response/local session exists.
+    // Without an explicit session status it cannot establish a new terminal
+    // fact. Verify it even on cold start; never manufacture a missed bubble.
+    final terminalKnown = existing?.effectiveStatus.isTerminal == true;
+    if (!terminalKnown &&
+        record.effectiveStatus.isTerminal &&
+        item.status == null) {
       unawaited(reconcileStatus(
         record.callId,
         conversationId: record.conversationId,
@@ -51,7 +51,7 @@ class CallResultEnrichmentService {
       ));
       return;
     }
-    CallResultRepository.instance.save(record, identity: identity);
+    CallBubbleInsertService.instance.accept(record, identity: identity);
   }
 
   /// Ensure we have a server result for [callId]. No-ops if already `server`.
@@ -187,7 +187,7 @@ class CallResultEnrichmentService {
       final snapshot =
           await LiveKitCallApi.instance.fetchStatus(callId: callId);
       if (!_isCurrent(identity)) return null;
-      if (snapshot == null || snapshot.callId.isEmpty) {
+      if (snapshot == null || snapshot.callId != callId) {
         return CallResultRepository.instance.get(callId);
       }
       final current = CallResultRepository.instance.get(callId);
@@ -212,7 +212,7 @@ class CallResultEnrichmentService {
         startedAtMs: snapshot.startedAtMs,
         acceptedAtMs: snapshot.acceptedAtMs,
       );
-      CallResultRepository.instance.save(record, identity: identity);
+      CallBubbleInsertService.instance.accept(record, identity: identity);
       if (kDebugMode) {
         debugPrint(
             '[CallStore] status callId=$callId status=${snapshot.status.wireName}');

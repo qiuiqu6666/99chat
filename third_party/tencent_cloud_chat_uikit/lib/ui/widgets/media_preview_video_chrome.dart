@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_videoplayer.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_video_progress_bar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_chrome.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_preview_video_utils.dart';
 
 /// Shared by single-video and mixed-media previews. Only the controls fade;
 /// the video texture stays outside this subtree.
@@ -19,6 +21,9 @@ class MediaPreviewVideoChrome extends StatefulWidget {
     required this.onBack,
     required this.onTogglePlayback,
     required this.onMore,
+    this.onForward,
+    this.onSave,
+    this.onDelete,
     this.attachmentChanges,
     this.galleryIndicator,
     this.opacity = 1,
@@ -37,6 +42,9 @@ class MediaPreviewVideoChrome extends StatefulWidget {
   final VoidCallback onBack;
   final VoidCallback onTogglePlayback;
   final Future<void> Function() onMore;
+  final Future<void> Function()? onForward;
+  final Future<void> Function()? onSave;
+  final Future<void> Function()? onDelete;
 
   @override
   State<MediaPreviewVideoChrome> createState() =>
@@ -49,6 +57,7 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
   bool _visible = true;
   bool _scrubbing = false;
   bool _menuOpen = false;
+  bool _saving = false;
   bool _foreground = true;
 
   @override
@@ -66,6 +75,10 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
     if (oldWidget.playerKey != widget.playerKey) {
       _scrubbing = false;
       _visible = true;
+    }
+    if (oldWidget.playerKey != widget.playerKey ||
+        oldWidget.galleryIndicator != widget.galleryIndicator) {
+      _saving = false;
     }
     if (oldWidget.isPlaying != widget.isPlaying ||
         oldWidget.isReady != widget.isReady ||
@@ -119,17 +132,33 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
 
   Future<void> showActions() => _showMore();
 
-  Future<void> _showMore() async {
+  Future<void> _showMore() => _runAction(widget.onMore);
+
+  Future<void> _runAction(Future<void> Function() action) async {
     if (_menuOpen) return;
     _menuOpen = true;
     showControls();
     try {
-      await widget.onMore();
+      await action();
     } finally {
       if (mounted) {
         _menuOpen = false;
         showControls();
       }
+    }
+  }
+
+  Future<void> _runSave(Future<void> Function() action) async {
+    if (_menuOpen || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await _runAction(action);
+    } catch (error) {
+      debugPrint(
+          '[VideoSave] stage=preview_action_failed type=${error.runtimeType}');
+      if (mounted) notifySaveVideoResult(context, success: false);
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -144,6 +173,9 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
   Widget build(BuildContext context) {
     final insets = MediaQuery.viewPaddingOf(context);
     final compact = MediaQuery.sizeOf(context).height < 450;
+    final hasActions = widget.onForward != null ||
+        widget.onSave != null ||
+        widget.onDelete != null;
     return IgnorePointer(
       ignoring: !widget.active || !_visible || widget.opacity < 0.96,
       child: Opacity(
@@ -194,7 +226,9 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                 left: 0,
                 right: 0,
                 bottom: 0,
-                height: insets.bottom + (compact ? 88 : 126),
+                height: insets.bottom +
+                    (compact ? 88 : 126) +
+                    (hasActions ? 56 : 0),
                 child: const IgnorePointer(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -210,7 +244,8 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
               Positioned(
                 left: insets.left + 8,
                 right: insets.right + 20,
-                bottom: insets.bottom + (compact ? 8 : 18),
+                bottom:
+                    insets.bottom + (compact ? 8 : 18) + (hasActions ? 56 : 0),
                 child: Row(
                   children: [
                     _VideoButton(
@@ -234,9 +269,79 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                   ],
                 ),
               ),
+              if (hasActions)
+                Positioned(
+                  left: insets.left + 12,
+                  right: insets.right + 12,
+                  bottom: insets.bottom + 16,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 4,
+                    children: [
+                      if (widget.onForward != null)
+                        _actionButton(
+                          id: 'forward',
+                          icon: Icons.ios_share_rounded,
+                          label: TIM_t('转发'),
+                          action: widget.onForward!,
+                        ),
+                      if (widget.onSave != null)
+                        _actionButton(
+                          id: 'save',
+                          icon: Icons.download_rounded,
+                          label: TIM_t('保存'),
+                          action: widget.onSave!,
+                        ),
+                      if (widget.onDelete != null)
+                        _actionButton(
+                          id: 'delete',
+                          icon: Icons.delete_outline_rounded,
+                          label: TIM_t('删除'),
+                          action: widget.onDelete!,
+                        ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required String id,
+    required IconData icon,
+    required String label,
+    required Future<void> Function() action,
+  }) {
+    final saving = id == 'save' && _saving;
+    return Tooltip(
+      message: saving ? TIM_t('正在保存视频…') : label,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 160),
+        child: saving
+            ? Material(
+                key: const ValueKey('video-save-loading'),
+                color: Colors.black.withValues(alpha: 0.45),
+                shape: const CircleBorder(),
+                child: const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Center(
+                    child: CupertinoActivityIndicator(
+                      radius: 9,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              )
+            : MediaPreviewCircleButton(
+                key: ValueKey('video-inline-$id'),
+                icon: icon,
+                onPressed: () => unawaited(
+                    id == 'save' ? _runSave(action) : _runAction(action)),
+              ),
       ),
     );
   }
@@ -275,90 +380,63 @@ Future<void> showMediaPreviewVideoActions({
   Future<void> Function()? onPictureInPicture,
   VoidCallback? onOpenMedia,
 }) async {
-  const foreground = Color(0xFFEDEDED);
-  final action = await showModalBottomSheet<String>(
+  const speeds = [1.0, 1.5, 2.0];
+  final action = await showCupertinoModalPopup<String>(
     context: context,
-    backgroundColor: const Color(0xFF202020),
-    barrierColor: Colors.black54,
-    showDragHandle: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
+    semanticsDismissible: true,
     builder: (sheetContext) {
-      Widget item(String action, IconData icon, String label,
-              {bool destructive = false}) =>
-          ListTile(
-            minTileHeight: 52,
-            leading: Icon(icon,
-                color: destructive ? const Color(0xFFFF6B6B) : foreground),
-            title: Text(label,
-                style: TextStyle(
-                  color: destructive ? const Color(0xFFFF6B6B) : foreground,
-                  fontSize: 16,
-                )),
-            onTap: () => Navigator.pop(sheetContext, action),
+      Widget item(String action, String label, {bool destructive = false}) =>
+          CupertinoActionSheetAction(
+            key: ValueKey('video-action-$action'),
+            isDestructiveAction: destructive,
+            onPressed: () => Navigator.pop(sheetContext, action),
+            child: Text(label),
           );
-      return SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: Row(
-                  children: [
-                    Text(TIM_t('播放速度'),
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 13)),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Wrap(
-                        alignment: WrapAlignment.end,
-                        spacing: 8,
-                        children: [
-                          for (final speed in [1.0, 1.5, 2.0])
-                            ChoiceChip(
-                              label: Text('${speed == 1 ? '1.0' : speed}×'),
-                              selected: playbackSpeed == speed,
-                              showCheckmark: false,
-                              backgroundColor: const Color(0xFF303030),
-                              selectedColor: Colors.white,
-                              side: BorderSide.none,
-                              labelStyle: TextStyle(
-                                  color: playbackSpeed == speed
-                                      ? Colors.black
-                                      : foreground),
-                              onSelected: (_) =>
-                                  Navigator.pop(sheetContext, 'speed_$speed'),
-                            ),
-                        ],
-                      ),
+      return CupertinoTheme(
+        data: CupertinoTheme.of(sheetContext).copyWith(
+          primaryColor: CupertinoColors.activeBlue,
+        ),
+        child: CupertinoActionSheet(
+          title: Text(TIM_t('播放速度')),
+          message: SizedBox(
+            width: double.infinity,
+            child: CupertinoSlidingSegmentedControl<double>(
+              groupValue: speeds.contains(playbackSpeed) ? playbackSpeed : null,
+              children: {
+                for (final speed in speeds)
+                  speed: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    child: Text(
+                      '${speed.toStringAsFixed(1)}×',
+                      maxLines: 1,
+                      style: CupertinoTheme.of(sheetContext)
+                          .textTheme
+                          .textStyle
+                          .copyWith(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
                     ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1, color: Colors.white12),
-              item('save', Icons.download_outlined, TIM_t('保存视频')),
-              if (onForward != null)
-                item('forward', Icons.reply_outlined, TIM_t('转发')),
-              if (onOpenMedia != null)
-                item('media', Icons.grid_view_outlined, TIM_t('查看全部媒体')),
-              if (onPictureInPicture != null)
-                item('pip', Icons.picture_in_picture_outlined, TIM_t('画中画')),
-              if (onDelete != null)
-                item('delete', Icons.delete_outline_rounded, TIM_t('删除'),
-                    destructive: true),
-              const Divider(height: 1, color: Colors.white12),
-              TextButton(
-                onPressed: () => Navigator.pop(sheetContext),
-                style: TextButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    foregroundColor: foreground),
-                child: Text(TIM_t('取消')),
-              ),
-            ],
+                  ),
+              },
+              onValueChanged: (speed) {
+                if (speed != null) Navigator.pop(sheetContext, 'speed_$speed');
+              },
+            ),
+          ),
+          actions: [
+            item('save', TIM_t('保存视频')),
+            if (onForward != null) item('forward', TIM_t('转发')),
+            if (onOpenMedia != null) item('media', TIM_t('查看全部媒体')),
+            if (onDelete != null)
+              item('delete', TIM_t('删除'), destructive: true),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            key: const ValueKey('video-action-cancel'),
+            isDefaultAction: true,
+            onPressed: () => Navigator.pop(sheetContext),
+            child: Text(TIM_t('取消')),
           ),
         ),
       );

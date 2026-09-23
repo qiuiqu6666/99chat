@@ -111,7 +111,7 @@ void main() {
     expect(session.statistics['special']!.snapshotId, 's2');
   });
   testWidgets(
-      'no draws still allows statistics tabs and full zero-sample candidates',
+      'no draws keeps opened statistics available and legacy tabs hidden',
       (tester) async {
     final api = FakeLotteryApi();
     lotteryLiveApi = api;
@@ -133,13 +133,11 @@ void main() {
           }
         }));
     await tester.pump();
-    await tester.tap(find.text('遗漏'));
+    expect(find.text('遗漏'), findsNothing);
+    expect(find.text('冷热'), findsNothing);
+    await tester.tap(find.text('已开统计'));
     await tester.pumpAndSettle();
-    expect(find.text('暂无样本'), findsNWidgets(49));
-    expect(find.text('≥0期'), findsNothing);
-    await tester.tap(find.text('冷热'));
-    await tester.pumpAndSettle();
-    expect(find.text('暂无样本'), findsNWidgets(49));
+    expect(find.textContaining('基本类型'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 }

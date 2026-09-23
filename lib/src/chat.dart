@@ -102,7 +102,6 @@ import 'package:tencent_cloud_chat_demo/src/services/call_lifecycle_service.dart
     if (dart.library.html) 'package:tencent_cloud_chat_demo/src/services/call_lifecycle_service_web.dart';
 import 'package:tencent_cloud_chat_demo/src/services/call_result_repository.dart';
 import 'package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart';
-import 'package:tencent_cloud_chat_demo/src/services/conversation_refresh_bus.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_deleted_bus.dart';
 import 'package:tencent_cloud_chat_demo/src/services/local_message_overlay_store.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/conversation_profile_pin_bar.dart';
@@ -435,7 +434,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   MessageItemBuilder? _messageItemBuilder;
   String? _messageItemBuilderConvKey;
   late final ChatLifeCycle _chatLifeCycle;
-  Timer? _callBubbleRefreshTimer;
   Timer? _reconnectRecoveryTimer;
   LocalSetting? _localSetting;
   ConnectStatus? _lastConnectStatus;
@@ -4299,7 +4297,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     }
     // 列表已经揭开并 signal 过：不要二次 begin 抬 epoch，否则会把已亮的历史闪没。
     if (ChatHistoryOpenLayoutReady.isReady(convKey)) {
-      CallBubbleDedupe.endOpenHold(convKey);
       return;
     }
     // 作废 prepare/tip 期间可能发出的假 signal，再等几何 ready。
@@ -4314,7 +4311,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       convKey,
       timeout: const Duration(milliseconds: 300),
     );
-    CallBubbleDedupe.endOpenHold(convKey);
     if (!ready) {
       ChatOpenPerfLog.mark(
         'history_open_ready_timeout',
@@ -9114,12 +9110,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       conversationId: convKey,
       messageCount: count,
     );
-    if (_hasMultipleCallMessagesForMount(messages)) {
-      CallBubbleDedupe.scheduleDedupeConversation(
-        convKey,
-        reason: 'model_multi_call',
-      );
-    }
   }
 
   /// 第一帧只接受 Collection 锁定的那份 snapshot，拒绝 lastMessage 半成品。
@@ -9220,11 +9210,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     }
     ChatImageMessagePrefetch.bindPageScope(_pageScope);
     final openConvKey = _getConvID()?.trim() ?? '';
-    if (openConvKey.isNotEmpty) {
-      CallBubbleDedupe.beginOpenHold(openConvKey);
-    } else if (openedConversationId.isNotEmpty) {
-      CallBubbleDedupe.beginOpenHold(openedConversationId);
-    }
     final openPreview = widget.selectedConversation.lastMessage;
     final openGlobal = serviceLocator<TUIChatGlobalModel>();
     final openWarm = openConvKey.isEmpty
@@ -9353,18 +9338,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     _schedulePostOpenFailedMessageRetry();
     final convId = _getConvID()?.trim() ?? '';
     if (convId.isNotEmpty) {
-      // 进页首帧先渲染；全局去重放到路由 settle（~1.2s）之后，
-      // 且只排一次（resolvedId 与 convId 归一化后常是同一 key），
-      // 避免 settle 窗内两次 setMessageList 打爆 Sliver。
-      CallBubbleDedupe.scheduleDedupeConversation(
-        convId,
-        reason: 'chat_open',
-        scheduleSlot: 'chat_open',
-        delay: const Duration(milliseconds: 1400),
-        callOnly: true,
-      );
-    }
-    if (convId.isNotEmpty) {
       PushFocusService.instance.enterChat(
         conversationType: _getConvType(),
         peerOrGroupId: convId,
@@ -9398,16 +9371,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
               includeSelf: true,
             ),
           );
-        }
-        if (_isCallSignalMessage(message) &&
-            _shouldDisplayCallMessageInHistory(message)) {
-          _removeLocalCallBubblePlaceholder(
-            callId: _extractCallSignalInviteId(message),
-          );
-          final convKey = _getConvID()?.trim() ?? '';
-          if (convKey.isNotEmpty) {
-            _dedupeCallBubblesForConversation(convKey);
-          }
         }
         return message;
       },
@@ -9535,9 +9498,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     );
     CallResultRepository.instance.revision.addListener(
       _onCallResultRepositoryChanged,
-    );
-    CallLifecycleService.instance.chatHistoryRefreshRevision.addListener(
-      _onCallHistoryRefreshRequested,
     );
     ChatHistoryRefreshBus.instance.revision.addListener(
       _onExternalChatHistoryRefreshRequested,
@@ -9855,9 +9815,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     CallResultRepository.instance.revision.removeListener(
       _onCallResultRepositoryChanged,
     );
-    CallLifecycleService.instance.chatHistoryRefreshRevision.removeListener(
-      _onCallHistoryRefreshRequested,
-    );
     ChatHistoryRefreshBus.instance.revision.removeListener(
       _onExternalChatHistoryRefreshRequested,
     );
@@ -9867,14 +9824,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     GroupSyncService.instance.lastChanged.removeListener(
       _onGroupRealtimeChanged,
     );
-    _callBubbleRefreshTimer?.cancel();
     _reconnectRecoveryTimer?.cancel();
     _groupMemberAvatarRefreshDebounce?.cancel();
     _postOpenScheduler.dispose();
-    CallBubbleDedupe.endOpenHold(_getConvID()?.trim() ?? '');
-    CallBubbleDedupe.endOpenHold(_resolvedConversationID());
-    CallBubbleDedupe.cancelScheduled(_getConvID()?.trim() ?? '');
-    CallBubbleDedupe.cancelScheduled(_resolvedConversationID());
     _releaseSangongRealtimeSubscription();
     _localSetting?.removeListener(_onLocalSettingChanged);
     // registry leave + UI flush already ran earlier (chat_dispose_leave_early);
@@ -9897,50 +9849,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  void _onCallHistoryRefreshRequested() {
-    final convId = _resolvedConversationID();
-    if (!mounted ||
-        convId.isEmpty ||
-        !MessageConversationId.sameConversation(
-          ActiveChatRegistry.instance.activeConversationId,
-          convId,
-        )) {
-      return;
-    }
-    final generation = _chatOpenGeneration;
-    final commitToken = _mobileCommitGuard.begin(
-      'call-history-refresh',
-      key: convId,
-    );
-    _callBubbleRefreshTimer?.cancel();
-    _callBubbleRefreshTimer = Timer(const Duration(milliseconds: 60), () {
-      if (!_isChatOpenGenerationCurrent(generation, convId) ||
-          !_mobileCommitGuard.canCommit(commitToken)) {
-        return;
-      }
-      unawaited(_refreshChatHistoryAfterCallEnd());
-    });
-  }
-
   void _onCallResultRepositoryChanged() {
     if (!mounted) return;
-    final convKey = _getConvID()?.trim() ?? '';
-    final convId = _resolvedConversationID();
-    if (convKey.isEmpty && convId.isEmpty) return;
-    if (convId.isNotEmpty) {
-      CallBubbleInsertService.instance.ensureConversationBubbles(
-        convId,
-        reason: 'call_result_repo',
-      );
-    }
-    // Server/device result cache updated — dedupe + repaint.
-    if (convKey.isNotEmpty) {
-      CallBubbleDedupe.scheduleDedupeConversation(
-        convKey,
-        reason: 'call_result_repo',
-        delay: Duration.zero,
-      );
-    }
     _clearMountedDisplayListCache();
     if (mounted) {
       setState(() {});
@@ -10351,19 +10261,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     return _localCallBubbleMarker(message) != null;
   }
 
-  bool _hasMultipleCallMessagesForMount(List<V2TimMessage> messages) {
-    var count = 0;
-    for (final message in messages) {
-      if (_messageLooksLikeCallForMount(message)) {
-        count++;
-        if (count > 1) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
   bool _mountedDisplayListsShareInstances(
     List<V2TimMessage> current,
     List<V2TimMessage> cached,
@@ -10425,20 +10322,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
           .sublist(sorted.length -
               ConversationPerfFlags.groupHistoryMemoryWindowLimit)
           .toList(growable: false);
-    }
-    final callCountBefore = canonicalText
-        ? 0
-        : messageList.where(_messageLooksLikeCallForMount).length;
-    final callCountAfter =
-        canonicalText ? 0 : sorted.where(_messageLooksLikeCallForMount).length;
-    if (callCountAfter < callCountBefore) {
-      final convKey = _getConvID()?.trim() ?? '';
-      if (convKey.isNotEmpty) {
-        CallBubbleDedupe.scheduleDedupeConversation(
-          convKey,
-          reason: 'mount_dedupe',
-        );
-      }
     }
     _mountedDisplayListCache = List<V2TimMessage>.from(sorted);
     _mountedDisplayInputCache = List<V2TimMessage>.of(messageList);
@@ -10569,15 +10452,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     return 0;
   }
 
-  void _dedupeCallBubblesForConversation(String convKey) {
-    final key = convKey.trim();
-    if (key.isEmpty) {
-      return;
-    }
-    CallBubbleDedupe.scheduleDedupeConversation(key, reason: 'chat_mount');
-    _clearMountedDisplayListCache();
-  }
-
   _LocalCallBubbleMarker? _localCallBubbleMarker(V2TimMessage message) {
     final raw = message.localCustomData?.trim() ?? '';
     if (raw.isEmpty) {
@@ -10677,122 +10551,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       return _shouldDisplayCallMessageInHistory(message);
     }
     return true;
-  }
-
-  void _removeLocalCallBubblePlaceholder({String? callId}) {
-    final convKey = _getConvID()?.trim() ?? '';
-    if (convKey.isEmpty) {
-      return;
-    }
-    final globalModel = serviceLocator<TUIChatGlobalModel>();
-    final existing = List<V2TimMessage>.from(
-      globalModel.messageListMap[convKey] ?? const [],
-    );
-    if (existing.isEmpty) {
-      return;
-    }
-    final targetCallId = callId?.trim();
-    final removedIds = <String>[];
-    var matchedAny = false;
-    for (final item in existing) {
-      final marker = _localCallBubbleMarker(item);
-      if (marker == null) {
-        continue;
-      }
-      if (marker.conversationId != _resolvedConversationID()) {
-        continue;
-      }
-      if (targetCallId != null &&
-          targetCallId.isNotEmpty &&
-          marker.callId != targetCallId) {
-        continue;
-      }
-      matchedAny = true;
-      final id = item.msgID?.trim() ?? '';
-      if (id.isNotEmpty) {
-        removedIds.add(id);
-      }
-    }
-    if (!matchedAny) {
-      return;
-    }
-    globalModel.commitMessageDelta(
-      MessageDelta<V2TimMessage>(
-        conversationKey: convKey,
-        eventID:
-            'call_bubble_remove_${targetCallId ?? "all"}:${DateTime.now().microsecondsSinceEpoch}',
-        kind: MessageDeltaKind.delete,
-        source: MessageDeltaSource.userAction,
-        generation: globalModel.messageDeltaGenerationFor(convKey),
-        clearEpoch: globalModel.messageDeltaClearEpochFor(convKey),
-        explicitDeletes: removedIds,
-      ),
-    );
-  }
-
-  Future<void> _refreshChatHistoryAfterCallEnd() async {
-    final convId = _resolvedConversationID();
-    if (convId.isNotEmpty) {
-      CallBubbleInsertService.instance.ensureConversationBubbles(
-        convId,
-        reason: 'call_history_refresh',
-      );
-    }
-    const retryDelays = <Duration>[
-      Duration.zero,
-      Duration(milliseconds: 450),
-      Duration(milliseconds: 1000),
-    ];
-    for (final delay in retryDelays) {
-      if (delay > Duration.zero) {
-        await Future<void>.delayed(delay);
-      }
-      final convId = _resolvedConversationID();
-      if (!mounted ||
-          convId.isEmpty ||
-          !MessageConversationId.sameConversation(
-            ActiveChatRegistry.instance.activeConversationId,
-            convId,
-          )) {
-        return;
-      }
-      try {
-        final model = _chatController.model;
-        if (model == null) {
-          await _chatController.refreshCurrentHistoryList();
-          continue;
-        }
-        final anchorId = _latestRealVisibleMessageId();
-        if (anchorId.isNotEmpty) {
-          await model.loadChatRecord(
-            count: 20,
-            lastMsgID: anchorId,
-            direction: LoadDirection.latest,
-          );
-        } else {
-          await model.loadChatRecord(
-            count: 20,
-            getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
-          );
-          await model.loadChatRecord(
-            count: 20,
-            getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
-          );
-        }
-      } catch (_) {
-        try {
-          await _chatController.refreshCurrentHistoryList();
-        } catch (_) {}
-      }
-    }
-    final convKey = _getConvID()?.trim() ?? '';
-    if (convKey.isNotEmpty) {
-      _dedupeCallBubblesForConversation(convKey);
-    }
-    ConversationRefreshBus.instance.requestRefresh(
-      reason: 'call_history_message',
-      debounce: Duration.zero,
-    );
   }
 
   @override
