@@ -1,3 +1,4 @@
+import 'media_preview_reference_button.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
@@ -248,10 +249,7 @@ class MediaPreviewBottomBar extends StatelessWidget {
               ),
               if (onOpenMedia != null) ...[
                 const SizedBox(width: actionSpacing),
-                _BottomAction(
-                  icon: Icons.grid_view_rounded,
-                  onPressed: onOpenMedia,
-                ),
+                MediaPreviewGalleryButton(onPressed: onOpenMedia!),
               ],
               if (!showPreviewTools) ...[
                 const SizedBox(width: actionSpacing),
@@ -368,6 +366,18 @@ class MediaPreviewDesktopOverlayChrome extends StatelessWidget {
   }
 }
 
+class MediaPreviewGalleryButton extends StatelessWidget {
+  const MediaPreviewGalleryButton({required this.onPressed, super.key});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => MediaPreviewReferenceButton(
+        icon: Icons.grid_view_rounded,
+        label: TIM_t('图集'),
+        onPressed: onPressed,
+      );
+}
 class _BottomAction extends StatelessWidget {
   const _BottomAction({
     required this.icon,
@@ -379,7 +389,19 @@ class _BottomAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onPressed != null;
+    final labels = <IconData, String>{
+      Icons.ios_share_rounded: TIM_t('转发'),
+      Icons.title_rounded: TIM_t('编辑'),
+      Icons.download_rounded: TIM_t('保存'),
+      Icons.delete_outline_rounded: TIM_t('删除'),
+    };
+    if (labels.containsKey(icon)) {
+      return MediaPreviewReferenceButton(
+        icon: icon,
+        label: labels[icon]!,
+        onPressed: onPressed,
+      );
+    }    final enabled = onPressed != null;
     return Opacity(
       opacity: enabled ? 1.0 : 0.35,
       child: Material(

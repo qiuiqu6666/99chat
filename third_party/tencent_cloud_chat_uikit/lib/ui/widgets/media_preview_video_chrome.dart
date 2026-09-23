@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'media_preview_reference_button.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,7 @@ class MediaPreviewVideoChrome extends StatefulWidget {
     this.onForward,
     this.onSave,
     this.onDelete,
+    this.onOpenMedia,
     this.attachmentChanges,
     this.galleryIndicator,
     this.opacity = 1,
@@ -45,6 +47,7 @@ class MediaPreviewVideoChrome extends StatefulWidget {
   final Future<void> Function()? onForward;
   final Future<void> Function()? onSave;
   final Future<void> Function()? onDelete;
+  final VoidCallback? onOpenMedia;
 
   @override
   State<MediaPreviewVideoChrome> createState() =>
@@ -175,7 +178,8 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
     final compact = MediaQuery.sizeOf(context).height < 450;
     final hasActions = widget.onForward != null ||
         widget.onSave != null ||
-        widget.onDelete != null;
+        widget.onDelete != null ||
+        widget.onOpenMedia != null;
     return IgnorePointer(
       ignoring: !widget.active || !_visible || widget.opacity < 0.96,
       child: Opacity(
@@ -199,7 +203,6 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                       subtitle: widget.subtitle,
                       galleryIndicator: widget.galleryIndicator,
                       onBack: widget.onBack,
-                      onMore: _showMore,
                     ),
                   ],
                 ),
@@ -292,6 +295,10 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                           label: TIM_t('保存'),
                           action: widget.onSave!,
                         ),
+                      if (widget.onOpenMedia != null)
+                        MediaPreviewGalleryButton(
+                          onPressed: widget.onOpenMedia!,
+                        ),
                       if (widget.onDelete != null)
                         _actionButton(
                           id: 'delete',
@@ -336,9 +343,10 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                   ),
                 ),
               )
-            : MediaPreviewCircleButton(
+            : MediaPreviewReferenceButton(
                 key: ValueKey('video-inline-$id'),
                 icon: icon,
+                label: label,
                 onPressed: () => unawaited(
                     id == 'save' ? _runSave(action) : _runAction(action)),
               ),

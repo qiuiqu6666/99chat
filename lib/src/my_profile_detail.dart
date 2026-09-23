@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_demo/src/widgets/app_qr_icon.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
@@ -1500,8 +1501,7 @@ class MyProfileDetailState extends State<MyProfileDetail> {
                   style: TextStyle(fontSize: 14, color: emptyColor),
                 ),
                 const SizedBox(width: 8),
-                Icon(
-                  Icons.qr_code_2_rounded,
+                AppQrIcon(
                   size: 20,
                   color: emptyColor,
                 ),
@@ -1697,7 +1697,8 @@ class MyProfileDetailState extends State<MyProfileDetail> {
           ja: 'マイQRコード',
           ko: '내 QR 코드',
         ),
-        trailing: Icon(Icons.qr_code_2_rounded, size: 22, color: valueColor),
+        trailing: AppQrIcon(
+          size: 22, color: valueColor),
         onTap: () => _openQrCodePage(context),
       ),
       _buildProfileRow(

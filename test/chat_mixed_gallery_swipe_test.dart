@@ -159,6 +159,55 @@ void main() {
   }
 
   for (final start in [0, 1]) {
+    testWidgets('item $start opens the album and releases playback',
+        (tester) async {
+      final errorHandler = testErrorHandler = FlutterError.onError;
+      addTearDown(() => FlutterError.onError = errorHandler);
+      final recorder = ui.PictureRecorder();
+      Canvas(recorder).drawColor(Colors.red, BlendMode.src);
+      final picture = recorder.endRecording();
+      final bitmap = picture.toImageSync(100, 100);
+      picture.dispose();
+      addTearDown(bitmap.dispose);
+      final media = items(bitmap);
+      final navigator = GlobalKey<NavigatorState>();
+      var opened = 0;
+      await tester.pumpWidget(MaterialApp(
+        navigatorKey: navigator,
+        home: const Scaffold(body: Text('Chat')),
+      ));
+      navigator.currentState!.push(PageRouteBuilder<void>(
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+        pageBuilder: (_, __, ___) => ChatMediaGalleryScreen(
+          items: media,
+          initialIndex: start,
+          sourceMessage: media[start].message,
+          enableHero: false,
+          onOpenMedia: () {
+            opened++;
+            navigator.currentState!.push(MaterialPageRoute<void>(
+              builder: (_) => const Scaffold(body: Text('Conversation album')),
+            ));
+          },
+        ),
+      ));
+      await settle(tester);
+      expect(find.byTooltip('图集'), findsOneWidget);
+      await tester.tap(find.byTooltip('图集'));
+      await settle(tester);
+      expect(opened, 1);
+      expect(find.text('Conversation album'), findsOneWidget);
+      expect(find.byType(ChatMediaGalleryScreen), findsNothing);
+      expect(platform.playing, isEmpty);
+      navigator.currentState!.pop();
+      await settle(tester);
+      expect(find.text('Chat'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await settle(tester);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets(
         'opening item $start can swipe through images and videos in both directions',
         (tester) async {

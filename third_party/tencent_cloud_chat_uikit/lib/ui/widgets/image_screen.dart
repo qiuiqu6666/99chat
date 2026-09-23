@@ -2182,6 +2182,16 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
                 onMore: hasMore ? _showMoreMenu : null,
               ),
               MediaPreviewBottomBar(
+                onOpenMedia: widget.onOpenMedia == null
+                    ? null
+                    : () {
+                        if (_isClosing) return;
+                        final openMedia = widget.onOpenMedia!;
+                        close();
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          openMedia();
+                        });
+                      },
                 downloadOnly: widget.downloadOnly,
                 showPreviewTools: _showWebPreviewTools,
                 onZoomOut: _showWebPreviewTools
