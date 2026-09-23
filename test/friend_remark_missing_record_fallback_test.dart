@@ -43,6 +43,7 @@ void main() {
   }
 
   setUp(() {
+    FriendSyncService.instance.debugProtocolSync = (_) async {};
     DisplayNameStore.instance.clear(notify: false);
     PeerProfileRefreshBus.instance.clear();
     UserProfileLocalService.instance.clearSession();
@@ -50,6 +51,7 @@ void main() {
   });
 
   tearDown(() async {
+    FriendSyncService.instance.debugProtocolSync = null;
     FriendSyncService.instance.debugOwnerUserId = null;
     DisplayNameStore.instance.clear(notify: false);
     PeerProfileRefreshBus.instance.clear();
@@ -66,8 +68,8 @@ void main() {
     );
   });
 
-  group('remark fallback when local record missing', () {
-    test('Test 1: applyOptimisticRemark upserts shell record with remark',
+  group('remark hints cannot invent relationship records', () {
+    test('remark save requests confirmation instead of creating a shell',
         () async {
       final before = await readByOwner(peer);
       expect(before, isNull);
@@ -78,30 +80,22 @@ void main() {
       );
 
       final after = await readByOwner(peer);
-      expect(after, isNotNull);
-      expect(after!.remark, '新备注');
-      expect(DisplayNameStore.instance.c2c(peer), '新备注');
-      expect(
-        UserProfileLocalService.instance.readCached(peer)!.friendRemark,
-        '新备注',
-      );
+      expect(after, isNull);
+      expect(DisplayNameStore.instance.c2c(peer), isNull);
     });
 
-    test('Test 2: remark_updated event upserts from event when missing',
-        () async {
+    test('delayed remark event cannot resurrect a missing friend', () async {
       final changed = await FriendSyncService.instance.applyListChanged(
         _remarkUpdatedEvent(peerUserId: peer, remark: '事件备注'),
       );
 
       expect(changed, isTrue);
       final after = await readByOwner(peer);
-      expect(after, isNotNull);
-      expect(after!.remark, '事件备注');
-      expect(DisplayNameStore.instance.c2c(peer), '事件备注');
+      expect(after, isNull);
+      expect(DisplayNameStore.instance.c2c(peer), isNull);
     });
 
-    test('Test 3: existing record goes through patch without recreation',
-        () async {
+    test('existing relationship waits for versioned confirmation', () async {
       const existingPeer = 'peer_existing';
       final now = DateTime.now().toUtc().millisecondsSinceEpoch;
       final seed = MeFriendRecord(
@@ -127,8 +121,8 @@ void main() {
 
       final after = await readByOwner(existingPeer);
       expect(after, isNotNull);
-      expect(after!.remark, '改名备注');
-      // 走 patch 路径：addedAt 保持原值，未被 shell 重建。
+      expect(after!.remark, '旧备注');
+      // Unconfirmed input cannot overwrite the persisted relationship.
       expect(after.addedAt, now);
       expect(after.friendNickname, '昵称');
     });

@@ -144,8 +144,8 @@ class SyncSnapshotPage {
       opaqueCursor: opaqueCursor,
       hasMore: hasMore,
       items: List<SyncProtocolItem>.unmodifiable(items),
-      estimatedTotal:
-          _optionalInt(json['estimatedTotal'] ?? json['estimated_total']),
+      estimatedTotal: _optionalInt(
+          json['estimatedTotal'] ?? json['estimated_total'] ?? json['total']),
       checksum: _optionalString(json['checksum']),
       serverTime: _optionalInt(json['serverTime'] ?? json['server_time']),
     );

@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_demo/src/services/friend_local/contacts_protocol_sync_service.dart';
 import 'package:dio/dio.dart';
 import 'package:tencent_cloud_chat_demo/src/models/friend_request_record.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
@@ -32,12 +33,18 @@ class FriendRequestApi {
     required String addWording,
     required String addSource,
   }) async {
+    final identity = SessionIdentityService.instance.capture();
     final res = await _dio.post('/friend-requests', data: {
       'targetUserId': targetUserId.trim(),
       'addWording': addWording.trim(),
       'addSource': _normalizeAddSource(addSource),
     });
-    return FriendRequestCreateResult.fromJson(_payloadMap(res.data));
+    final result = FriendRequestCreateResult.fromJson(_payloadMap(res.data));
+    if (SessionIdentityService.instance.isCurrent(identity)) {
+      await ContactsProtocolSyncService.instance
+          .sync(reason: 'friend_request_created');
+    }
+    return result;
   }
 
   /// GET /friend-requests/incoming?limit=100
@@ -49,7 +56,8 @@ class FriendRequestApi {
   }) async {
     final identity = SessionIdentityService.instance.capture();
     final pending = _fetchIncomingInFlight;
-    if (pending != null && _fetchIncomingInFlightLimit == limit &&
+    if (pending != null &&
+        _fetchIncomingInFlightLimit == limit &&
         _fetchIncomingInFlightIdentity == identity) {
       return await pending;
     }
@@ -174,7 +182,12 @@ class FriendRequestApi {
     if (requestId <= 0) {
       throw ArgumentError.value(requestId, 'requestId', 'invalid request id');
     }
+    final identity = SessionIdentityService.instance.capture();
     await _dio.post('/friend-requests/$requestId/accept');
+    if (SessionIdentityService.instance.isCurrent(identity)) {
+      await ContactsProtocolSyncService.instance
+          .sync(reason: 'friend_request_accepted');
+    }
   }
 
   /// POST /friend-requests/{id}/reject
@@ -224,7 +237,9 @@ class FriendRequestApi {
       items: items,
       nextCursor: nextCursor,
       hasMore: map['hasMore'] == true &&
-          nextCursor != null && nextCursor.isNotEmpty && nextCursor != cursor,
+          nextCursor != null &&
+          nextCursor.isNotEmpty &&
+          nextCursor != cursor,
     );
   }
 
@@ -260,7 +275,8 @@ class FriendRequestApi {
 }
 
 class FriendRequestPage {
-  const FriendRequestPage({required this.items, required this.hasMore, this.nextCursor});
+  const FriendRequestPage(
+      {required this.items, required this.hasMore, this.nextCursor});
   final List<FriendRequestRecord> items;
   final bool hasMore;
   final String? nextCursor;

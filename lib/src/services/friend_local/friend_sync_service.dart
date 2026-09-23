@@ -16,7 +16,7 @@ import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_reconci
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_realtime/friend_realtime_event.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/presence_provider.dart';
-import 'package:tencent_cloud_chat_demo/src/utils/friend_display_fields_merge.dart';
+import 'package:tencent_cloud_chat_demo/src/services/friend_local/contacts_protocol_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_demo/utils/friend_display_name.dart';
 import 'package:tencent_cloud_chat_demo/utils/user_avatar.dart';
@@ -302,7 +302,8 @@ class FriendSyncService {
     }
     // An unchanged notification advances the UIKit friendship revision and
     // re-enters contact loading, which itself performs this warmup.
-    if (previousNames.entries.any((entry) => store.c2c(entry.key) != entry.value)) {
+    if (previousNames.entries
+        .any((entry) => store.c2c(entry.key) != entry.value)) {
       store.notifyBatch();
     }
   }
@@ -383,89 +384,24 @@ class FriendSyncService {
     return generation == _syncGeneration && _ownerUserId() == owner;
   }
 
-  String _resolvePeerUserId(FriendRealtimeEvent event) {
-    final peer = ChatIdFormat.rawUserUid(event.peerUserId);
-    if (peer.isNotEmpty) {
-      return peer;
-    }
-    final self = _ownerUserId();
-    final from = ChatIdFormat.rawUserUid(event.fromUserId);
-    final to = ChatIdFormat.rawUserUid(event.toUserId);
-    if (self.isNotEmpty) {
-      if (from.isNotEmpty && from != self) {
-        return from;
-      }
-      if (to.isNotEmpty && to != self) {
-        return to;
-      }
-    }
-    return from.isNotEmpty ? from : to;
-  }
+  // Compatibility entry points now request confirmed, versioned server state.
+  // An old SDK callback or chat tip must never create a local friendship.
+  @visibleForTesting
+  Future<void> Function(String reason)? debugProtocolSync;
+
+  Future<void> _syncConfirmedContacts(String reason) =>
+      debugProtocolSync?.call(reason) ??
+      ContactsProtocolSyncService.instance.sync(reason: reason);
 
   Future<void> applyOptimisticAdd({
     required String friendUserId,
     String? friendNickname,
     String? friendAvatarUrl,
     String remark = '',
-  }) async {
-    final owner = _ownerUserId();
-    final id = ChatIdFormat.rawUserUid(friendUserId);
-    if (owner.isEmpty || id.isEmpty) {
-      return;
-    }
-    final existingList = await FriendLocalStore.instance.readAll(
-      ownerUserId: owner,
-    );
-    MeFriendRecord? existing;
-    for (final item in existingList) {
-      if (ChatIdFormat.rawUserUid(item.friendUserId) == id) {
-        existing = item;
-        break;
-      }
-    }
-    final profile = await UserProfileLocalService.instance.read(id);
-    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final shell = existing ??
-        MeFriendRecord(
-          friendUserId: id,
-          remark: '',
-          friendNickname: '',
-          friendAvatarUrl: '',
-          addedAt: now,
-          peerDeletedMe: false,
-          canMessage: true,
-        );
-    final incoming = shell.copyWith(
-      friendNickname: friendNickname?.trim() ?? '',
-      friendAvatarUrl: friendAvatarUrl?.trim() ?? '',
-      remark: remark.trim(),
-      canMessage: true,
-      inMyFriendList: true,
-      isFriend: true,
-      addedAt: (existing?.addedAt ?? 0) == 0 ? now : existing?.addedAt,
-    );
-    final record = FriendDisplayFieldsMerge.merge(
-      incoming: incoming,
-      previous: existing,
-      profile: profile,
-    );
-    await FriendLocalStore.instance.upsert(ownerUserId: owner, record: record);
-    await UserProfileLocalService.instance.saveFriendRecord(record);
-    await publishFriendRemarkDisplayName(
-      friendUserId: id,
-      remark: record.remark,
-    );
-    // 先 trust 再 notify：打开中的 Chat invalidate 后仍能靠 trust 解锁输入栏。
-    C2cFriendMessageGuard.trustCanSendHint(
-      id,
-      source: C2cFriendMessageGuard.becameFriendsTrustSource,
-    );
-    PeerProfileRefreshBus.instance.notify(id);
-    _syncGeneration++;
-    _log('applyOptimisticAdd peer=$id');
-  }
+  }) =>
+      _syncConfirmedContacts('friend_added_hint');
 
-  /// 已成为好友统一收口：乐观入库 → 刷通讯录 → 通知。
+  /// 成友提示仅触发权威同步，确认当前关系后才执行会话副作用。
   Future<void> onBecameFriends({
     required String peerUserId,
     String? nickname,
@@ -473,6 +409,8 @@ class FriendSyncService {
     String remark = '',
     String reason = 'became_friends',
   }) async {
+    final owner = _ownerUserId();
+    final generation = SessionIdentityService.instance.generation;
     final id = ChatIdFormat.rawUserUid(peerUserId);
     if (id.isEmpty) {
       return;
@@ -483,6 +421,15 @@ class FriendSyncService {
       friendAvatarUrl: avatarUrl,
       remark: remark,
     );
+    if (owner != _ownerUserId() ||
+        generation != SessionIdentityService.instance.generation) {
+      return;
+    }
+    final confirmed = await FriendLocalStore.instance.readByIds(
+      ownerUserId: _ownerUserId(),
+      friendUserIds: [id],
+    );
+    if (confirmed.isEmpty || !confirmed.first.inMyFriendList) return;
     if (debugSkipBecameFriendsSideEffects) {
       return;
     }
@@ -511,283 +458,27 @@ class FriendSyncService {
   }
 
   Future<bool> applyListChanged(FriendRealtimeEvent event) async {
-    final owner = _ownerUserId();
-    if (owner.isEmpty) {
-      return false;
-    }
+    if (_ownerUserId().isEmpty) return false;
     final action = event.action?.trim().toLowerCase() ?? '';
-    final peerUserId = _resolvePeerUserId(event);
-    if (action.isEmpty || peerUserId.isEmpty) {
+    if (!const {
+      'added',
+      'removed',
+      'updated',
+      'profile_updated',
+      'remark_updated'
+    }.contains(action)) {
       return false;
     }
-
-    final seq = event.seq;
-    _log('applyListChanged action=$action peer=$peerUserId seq=$seq');
-
-    var changed = false;
-    switch (action) {
-      case 'added':
-        var addedRecord = MeFriendRecord.fromListChangedEvent(event);
-        if (addedRecord.friendUserId.trim().isEmpty) {
-          addedRecord = addedRecord.copyWith(friendUserId: peerUserId);
-        }
-        final existingAdded = await MeFriendApi.instance.cachedByUserId(
-          peerUserId,
-        );
-        final profileAdded = await UserProfileLocalService.instance.read(
-          peerUserId,
-        );
-        addedRecord = FriendDisplayFieldsMerge.merge(
-          incoming: addedRecord,
-          previous: existingAdded,
-          profile: profileAdded,
-        );
-        await FriendLocalStore.instance.upsert(
-          ownerUserId: owner,
-          record: addedRecord,
-        );
-        await UserProfileLocalService.instance.saveFriendRecord(addedRecord);
-        _seedPresenceFromFriendRecords([addedRecord]);
-        if (addedRecord.remarkKnown) {
-          await publishFriendRemarkDisplayName(
-            friendUserId: peerUserId,
-            remark: addedRecord.remark,
-          );
-        }
-        _publishPeerAvatarLocally(peerUserId, addedRecord.friendAvatarUrl);
-        PeerProfileRefreshBus.instance.notify(peerUserId);
-        await upsertFriendLocallyFromStore(peerUserId);
-        changed = true;
-        break;
-      case 'removed':
-        await FriendLocalStore.instance.delete(
-          ownerUserId: owner,
-          friendUserId: peerUserId,
-        );
-        changed = true;
-        break;
-      case 'updated':
-        await FriendLocalStore.instance.patch(
-          ownerUserId: owner,
-          friendUserId: peerUserId,
-          transform: (current) => current.copyWith(
-            peerDeletedMe: event.peerDeletedMe ?? current.peerDeletedMe,
-            canMessage: event.canMessage ?? current.canMessage,
-            isFriend: event.isFriend ?? current.isFriend,
-            inMyFriendList: event.inMyFriendList ?? current.inMyFriendList,
-            lastActiveAt: event.lastActiveAt ?? current.lastActiveAt,
-            lastActiveVisibility:
-                event.lastActiveVisibility ?? current.lastActiveVisibility,
-          ),
-        );
-        final cached = await FriendLocalStore.instance.readByIds(
-          ownerUserId: owner,
-          friendUserIds: [peerUserId],
-        );
-        for (final item in cached) {
-          if (item.friendUserId == peerUserId) {
-            await UserProfileLocalService.instance.saveFriendRecord(item);
-            _seedPresenceFromFriendRecords([item]);
-            break;
-          }
-        }
-        PeerProfileRefreshBus.instance.notify(peerUserId);
-        ConversationRefreshBus.instance.requestRefresh(
-          reason: 'friend_list_changed',
-          conversationId: 'c2c_$peerUserId',
-        );
-        changed = true;
-        break;
-      case 'profile_updated':
-        await FriendLocalStore.instance.patch(
-          ownerUserId: owner,
-          friendUserId: peerUserId,
-          transform: (current) => current.copyWith(
-            friendNickname: _firstNonEmpty(
-              event.peerNickname,
-              current.friendNickname,
-            ),
-            friendAvatarUrl: _firstNonEmpty(
-              event.peerAvatarUrl,
-              current.friendAvatarUrl,
-            ),
-            remark: event.remark,
-          ),
-        );
-        final cached = await FriendLocalStore.instance.readByIds(
-          ownerUserId: owner,
-          friendUserIds: [peerUserId],
-        );
-        MeFriendRecord? updatedProfile;
-        for (final item in cached) {
-          if (item.friendUserId == peerUserId) {
-            updatedProfile = item;
-            await UserProfileLocalService.instance.saveFriendRecord(item);
-            break;
-          }
-        }
-        if (updatedProfile != null) {
-          if (updatedProfile.remarkKnown) {
-            await publishFriendRemarkDisplayName(
-              friendUserId: peerUserId,
-              remark: updatedProfile.remark,
-            );
-          }
-          // 先灌会话/群成员活头像，再 bus，避免聊天页监听时仍读到旧快照。
-          _publishPeerAvatarLocally(peerUserId, updatedProfile.friendAvatarUrl);
-        }
-        PeerProfileRefreshBus.instance.notify(peerUserId);
-        changed = true;
-        break;
-      case 'remark_updated':
-        final nextRemark = event.remark?.trim() ?? '';
-        final beforeRows = await FriendLocalStore.instance.readByIds(
-          friendUserIds: <String>[peerUserId],
-          ownerUserId: owner,
-        );
-        final hadRow = beforeRows.isNotEmpty;
-        final beforeRemark = hadRow ? beforeRows.first.remark : null;
-        await FriendLocalStore.instance.patch(
-          ownerUserId: owner,
-          friendUserId: peerUserId,
-          transform: (current) => current.copyWith(remark: nextRemark),
-        );
-        var remarkCached = await FriendLocalStore.instance.readByIds(
-          friendUserIds: <String>[peerUserId],
-          ownerUserId: owner,
-        );
-        if (remarkCached.isEmpty) {
-          // 记录缺失时 patch 静默 return：用事件本身构造记录兜底落库，
-          // 避免增量备注事件被静默丢弃（重启也不变）。
-          var fallback = MeFriendRecord.fromListChangedEvent(event);
-          if (fallback.friendUserId.trim().isEmpty) {
-            fallback = fallback.copyWith(friendUserId: peerUserId);
-          }
-          final profile = await UserProfileLocalService.instance.read(
-            peerUserId,
-          );
-          fallback = FriendDisplayFieldsMerge.merge(
-            incoming: fallback.copyWith(remark: nextRemark),
-            profile: profile,
-          );
-          await FriendLocalStore.instance.upsert(
-            ownerUserId: owner,
-            record: fallback,
-          );
-          remarkCached = await FriendLocalStore.instance.readByIds(
-            friendUserIds: <String>[peerUserId],
-            ownerUserId: owner,
-          );
-        }
-        for (final item in remarkCached) {
-          if (item.friendUserId == peerUserId) {
-            await UserProfileLocalService.instance.saveFriendRecord(item);
-            break;
-          }
-        }
-        if (!hadRow || beforeRemark != nextRemark) {
-          await publishFriendRemarkDisplayName(
-            friendUserId: peerUserId,
-            remark: nextRemark,
-          );
-        }
-        changed = true;
-        break;
-      default:
-        return false;
-    }
-
-    return changed;
-  }
-
-  /// 备注写入缺失兜底：本地库查不到该好友记录时，构造最小记录落库。
-  ///
-  /// 返回 `true` 表示新建了 shell 记录；`false` 表示记录已存在（调用方应走
-  /// patch 路径，不得覆盖 patch 职责）。版本闸门保持不变：若该 id 有删除
-  /// 墓碑（tombstone），upsert 的既有版本检查会拒绝写入，不复活已删好友。
-  Future<bool> _upsertRemarkShellRecord({
-    required String owner,
-    required String friendUserId,
-    required String remark,
-  }) async {
-    final id = ChatIdFormat.rawUserUid(friendUserId);
-    if (owner.isEmpty || id.isEmpty) {
-      return false;
-    }
-    // 探测与写入必须用同一显式 owner：cachedByUserId 走默认登录态 owner，
-    // 与 _ownerUserId() 存在解析时机差，会造成误判缺失/误判存在。
-    final existing = await FriendLocalStore.instance.readByIds(
-      friendUserIds: <String>[id],
-      ownerUserId: owner,
-    );
-    if (existing.isNotEmpty) {
-      return false;
-    }
-    final profile = await UserProfileLocalService.instance.read(id);
-    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final record = MeFriendRecord(
-      friendUserId: id,
-      remark: remark,
-      friendNickname: profile?.nickname.trim() ?? '',
-      friendAvatarUrl: profile?.avatarUrl.trim() ?? '',
-      addedAt: now,
-      peerDeletedMe: false,
-      canMessage: true,
-    );
-    await FriendLocalStore.instance.upsert(ownerUserId: owner, record: record);
-    _log('upsertRemarkShell peer=$id remark non-empty=${remark.isNotEmpty}');
+    // Notifications are invalidation hints, not writable relationship snapshots.
+    await _syncConfirmedContacts('friend_list_$action');
     return true;
   }
 
   Future<void> applyOptimisticRemark({
     required String friendUserId,
     required String remark,
-  }) async {
-    final owner = _ownerUserId();
-    final id = friendUserId.trim();
-    if (owner.isEmpty || id.isEmpty) {
-      return;
-    }
-    final nextRemark = remark.trim();
-    final existing = await FriendLocalStore.instance.readByIds(
-      friendUserIds: <String>[id],
-      ownerUserId: owner,
-    );
-    if (existing.isEmpty) {
-      // 记录缺失时 patch 会静默 return，remark 永不落库（重启也不变）。
-      await _upsertRemarkShellRecord(
-        owner: owner,
-        friendUserId: id,
-        remark: nextRemark,
-      );
-    } else {
-      final updated = await FriendLocalStore.instance.updateRemark(
-        ownerUserId: owner,
-        friendUserId: id,
-        remark: nextRemark,
-      );
-      if (!updated) {
-        await FriendLocalStore.instance.patch(
-          ownerUserId: owner,
-          friendUserId: id,
-          transform: (current) => current.copyWith(remark: nextRemark),
-        );
-      }
-    }
-    final cached = await FriendLocalStore.instance.readByIds(
-      friendUserIds: <String>[id],
-      ownerUserId: owner,
-    );
-    if (cached.isNotEmpty) {
-      await UserProfileLocalService.instance.saveFriendRecord(cached.first);
-    }
-    // The remote update and local friend record are the save boundary. The
-    // conversation database patch can wait; holding the editor open for it
-    // makes the save control spin when a conversation coordinator is busy.
-    unawaited(
-      publishFriendRemarkDisplayName(friendUserId: id, remark: nextRemark),
-    );
-  }
+  }) =>
+      _syncConfirmedContacts('friend_remark_saved');
 
   Future<void> publishProtocolFriendProjection({
     required MeFriendRecord after,
@@ -795,6 +486,7 @@ class FriendSyncService {
     required bool nicknameChanged,
     required bool avatarChanged,
   }) async {
+    _seedPresenceFromFriendRecords([after]);
     if (!remarkChanged && !nicknameChanged && !avatarChanged) {
       return;
     }
@@ -898,29 +590,17 @@ class FriendSyncService {
   }
 
   Future<void> applyOptimisticDelete(String friendUserId) async {
-    final owner = _ownerUserId();
     final id = ChatIdFormat.rawUserUid(friendUserId);
-    if (owner.isEmpty || id.isEmpty) {
-      return;
-    }
-    // 删好友行前把备注/昵称保留进资料库，供再加时自动恢复。
-    final existing = await MeFriendApi.instance.cachedByUserId(id);
-    if (existing != null) {
-      await UserProfileLocalService.instance.saveFriendRecord(existing);
-    }
-    await FriendLocalStore.instance.delete(
-      ownerUserId: owner,
-      friendUserId: id,
-      force: true,
-    );
+    if (id.isEmpty) return;
+    MeFriendApi.instance.invalidateRelation(id);
     C2cFriendMessageGuard.invalidate(id, clearTrusted: true);
-    await refreshUIKitLists(force: true);
+    await _syncConfirmedContacts('friend_deleted');
     try {
       serviceLocator<TUISearchViewModel>().invalidateGlobalSearchContext();
     } catch (_) {}
   }
 
-  /// 名单以 IM SNS 为准，不再把自建库单条乐观写入 ViewModel。
+  /// 名单由 contacts 协议统一投影，不接受单条无版本写入。
   Future<void> upsertFriendLocallyFromStore(String peerUserId) async {}
 
   Future<void> refreshUIKitLists({bool force = false}) async {
@@ -965,14 +645,6 @@ class FriendSyncService {
     syncState.value = const ContactSyncState();
     await FriendLocalStore.instance.clearSession();
     await UserProfileLocalService.instance.clearSession();
-  }
-
-  String _firstNonEmpty(String? primary, String fallback) {
-    final value = primary?.trim() ?? '';
-    if (value.isNotEmpty) {
-      return value;
-    }
-    return fallback;
   }
 
   void _seedPresenceFromFriendRecords(List<MeFriendRecord> records) {

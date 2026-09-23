@@ -6,6 +6,7 @@ import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversa
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_gate_log.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/native_bootstrap_perf_flags.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_local/friend_local_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/friend_local/contacts_protocol_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_directory.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_perf.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_sync_anchor.dart';
@@ -18,6 +19,7 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_info.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_group_info.dart';
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/services/display_name_store.dart';
+import 'package:tencent_cloud_chat_uikit/data_services/friendShip/self_hosted_friendship_bridge.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitSearch/conversation_search_utils.dart';
 
 enum ImSdkRelationshipPhase { idle, scheduled, running, completed }
@@ -87,6 +89,10 @@ class ImSdkRelationshipReconcileService {
   Completer<void>? _idleHold;
 
   ImSdkRelationshipDirectory get directory => _directory;
+
+  /// SDK callbacks are hints when the backend owns friendship membership.
+  Future<void> refreshConfirmedFriends({required String reason}) =>
+      ContactsProtocolSyncService.instance.sync(reason: reason);
 
   void onImLoginSuccess() {
     final generation = SessionIdentityService.instance.generation;
@@ -282,6 +288,15 @@ class ImSdkRelationshipReconcileService {
   }
 
   Future<void> _fetchFriends({required String reason}) async {
+    if (_loadFriendsOverride == null && SelfHostedFriendshipBridge.enabled) {
+      // The protocol coordinator serializes hydration and remote changes. A
+      // second SQLite/SDK snapshot writer could replay an older captured list.
+      await ContactsProtocolSyncService.instance.sync(reason: reason);
+      return;
+    }
+    final identity = _loadFriendsOverride == null
+        ? SessionIdentityService.instance.capture()
+        : null;
     final captureId = _directory.beginFriendCapture();
     final started = DateTime.now();
     try {
@@ -295,14 +310,18 @@ class ImSdkRelationshipReconcileService {
       final entries = await _overlayEntries(rawEntries);
       final extractStarted = DateTime.now();
       final ordered = await _orderedIds(entries);
+      if (identity != null &&
+          !SessionIdentityService.instance.isCurrent(identity)) {
+        _directory.dropFriendCapture(captureId);
+        return;
+      }
       ConversationPerfGateLog.log(
         'im_rel.friends.extract_ms',
         extras: <String, Object?>{
           'ms': DateTime.now().difference(extractStarted).inMilliseconds,
           'count': entries.length,
-          'isolate': ImSdkRelationshipPerf.shouldIsolateSort(entries.length)
-              ? 1
-              : 0,
+          'isolate':
+              ImSdkRelationshipPerf.shouldIsolateSort(entries.length) ? 1 : 0,
         },
       );
       _directory.applyFriendSnapshot(
@@ -359,7 +378,8 @@ class ImSdkRelationshipReconcileService {
     }
   }
 
-  Future<List<String>> _orderedIds(List<RelationshipFriendEntry> entries) async {
+  Future<List<String>> _orderedIds(
+      List<RelationshipFriendEntry> entries) async {
     if (entries.isEmpty) {
       return const <String>[];
     }
@@ -388,6 +408,9 @@ class ImSdkRelationshipReconcileService {
   }
 
   Future<void> overlayLocalFriendDisplay({required String reason}) async {
+    if (_loadFriendsOverride == null && SelfHostedFriendshipBridge.enabled) {
+      return;
+    }
     if (!_directory.hasCompleteFriendSnapshot) {
       return;
     }
@@ -420,6 +443,9 @@ class ImSdkRelationshipReconcileService {
   }
 
   Future<void> hydrateViewportFriendDisplay(List<String> userIds) async {
+    if (_loadFriendsOverride == null && SelfHostedFriendshipBridge.enabled) {
+      return;
+    }
     final ids = <String>[
       for (final id in userIds)
         if (id.trim().isNotEmpty) id.trim(),
@@ -596,6 +622,13 @@ class ImSdkRelationshipReconcileService {
     if (override != null) {
       return override();
     }
+    if (SelfHostedFriendshipBridge.enabled) {
+      final records = await FriendLocalStore.instance.readAll();
+      return [
+        for (final record in records)
+          friendEntryFromSdk(record.toV2TimFriendInfo()),
+      ];
+    }
     final res = await TencentImSDKPlugin.v2TIMManager
         .getFriendshipManager()
         .getFriendList();
@@ -740,12 +773,10 @@ class ImSdkRelationshipReconcileService {
     final userId = info.userID.trim();
     final remark = info.friendRemark?.trim() ?? '';
     final rawNick = info.userProfile?.nickName?.trim() ?? '';
-    final nick = DisplayNameStore.isRawUserIdDisplayName(userId, rawNick)
-        ? ''
-        : rawNick;
-    final displayName = remark.isNotEmpty
-        ? remark
-        : (nick.isNotEmpty ? nick : userId);
+    final nick =
+        DisplayNameStore.isRawUserIdDisplayName(userId, rawNick) ? '' : rawNick;
+    final displayName =
+        remark.isNotEmpty ? remark : (nick.isNotEmpty ? nick : userId);
     final faceUrl = info.userProfile?.faceUrl?.trim() ?? '';
     final azTag = memberSuspensionIndexTag(displayName);
     return RelationshipFriendEntry(
@@ -768,15 +799,13 @@ class ImSdkRelationshipReconcileService {
     String? localNickname,
     String? localFaceUrl,
   }) {
-    final remark = entry.remark.isNotEmpty
-        ? entry.remark
-        : (localRemark?.trim() ?? '');
+    final remark =
+        entry.remark.isNotEmpty ? entry.remark : (localRemark?.trim() ?? '');
     final nickname = entry.nickname.isNotEmpty
         ? entry.nickname
         : (localNickname?.trim() ?? '');
-    final faceUrl = entry.faceUrl.isNotEmpty
-        ? entry.faceUrl
-        : (localFaceUrl?.trim() ?? '');
+    final faceUrl =
+        entry.faceUrl.isNotEmpty ? entry.faceUrl : (localFaceUrl?.trim() ?? '');
     final displayName = remark.isNotEmpty
         ? remark
         : (nickname.isNotEmpty ? nickname : entry.userId);
