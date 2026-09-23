@@ -494,8 +494,36 @@ class FriendSyncService {
   Future<void> applyOptimisticRemark({
     required String friendUserId,
     required String remark,
-  }) =>
-      _syncConfirmedContacts('friend_remark_saved');
+  }) async {
+    final id = ChatIdFormat.rawUserUid(friendUserId);
+    if (id.isEmpty) {
+      return;
+    }
+    final owner = _ownerUserId();
+    var updated = false;
+    if (owner.isNotEmpty) {
+      try {
+        updated = await FriendLocalStore.instance.updateRemark(
+          ownerUserId: owner,
+          friendUserId: id,
+          remark: remark,
+        );
+      } catch (e) {
+        _log('optimistic remark local update failed: $e');
+      }
+    }
+    if (updated) {
+      try {
+        await publishFriendRemarkDisplayName(
+          friendUserId: id,
+          remark: remark,
+        );
+      } catch (e) {
+        _log('optimistic remark display publish failed: $e');
+      }
+    }
+    unawaited(_syncConfirmedContacts('friend_remark_saved'));
+  }
 
   Future<void> publishProtocolFriendProjection({
     required MeFriendRecord after,

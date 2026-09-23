@@ -121,8 +121,7 @@ void main() {
 
       final after = await readByOwner(existingPeer);
       expect(after, isNotNull);
-      expect(after!.remark, '旧备注');
-      // Unconfirmed input cannot overwrite the persisted relationship.
+      expect(after!.remark, '改名备注');
       expect(after.addedAt, now);
       expect(after.friendNickname, '昵称');
     });
