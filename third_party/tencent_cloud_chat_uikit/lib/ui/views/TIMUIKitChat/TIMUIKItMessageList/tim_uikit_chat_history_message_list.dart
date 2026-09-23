@@ -5886,11 +5886,13 @@ class _TIMUIKitHistoryMessageListState
         _visibleIncomingProgressSignature = null;
         _pendingVisibleIncomingProgress.clear();
       }
-      // 0.5px 行可见只服务 durable 账本，不得把 tongue N 逐条减掉。
-      // 非真跟随（在看历史）时不走这条消费路径。
-      if (!global.isFollowingLatest(conv) ||
-          global.isGeometryViewportTransitionActive(conv) ||
-          global.receivedNewMessageCountFor(conv) <= 0 ||
+      // Reading a connected history row is valid evidence independently of
+      // FOLLOW. Requiring FOLLOW here deadlocks with latest restoration, which
+      // itself waits for durable unread to be acknowledged. The same painted
+      // edge advances the capsule IDs and queues the durable acknowledgement.
+      if (global.isGeometryViewportTransitionActive(conv) ||
+          (global.receivedNewMessageCountFor(conv) <= 0 &&
+              global.remainingLiveIncomingCountFor(conv) <= 0) ||
           ModalRoute.of(context)?.isCurrent == false ||
           _initialSearchJumpPending ||
           _isSearchJumpStabilizing ||
@@ -5931,12 +5933,21 @@ class _TIMUIKitHistoryMessageListState
       if (readingEdge == null) return;
       final signature = '$conv:${model.historyReadingWindowRevision}:'
           '${global.receivedNewMessageCountFor(conv)}:'
+          '${global.remainingLiveIncomingCountFor(conv)}:'
           '${_messageIdentity(messages[readingEdge]!)}';
       if (signature == _visibleIncomingProgressSignature) {
         _drainVisibleIncomingProgress();
         return;
       }
       _visibleIncomingProgressSignature = signature;
+      // One painted reading edge drives both ledgers. This includes rows
+      // crossed between frames before a bounded window trims their widgets.
+      global.markLiveIncomingSeen(
+        conversationID: conv,
+        ids: messages.skip(readingEdge).whereType<V2TimMessage>()
+            .where(TUIChatGlobalModel.isConfirmedProjectionMessage)
+            .map(TUIChatGlobalModel.liveIncomingIdentity),
+      );
       // A fast drag can cross several rows in one frame. Only rows behind this
       // measured edge in the connected window qualify, never the prefetched
       // newer rows still below it. Exact IDs keep arrival order independent.
@@ -6140,6 +6151,7 @@ class _TIMUIKitHistoryMessageListState
           ModalRoute.of(context)?.isCurrent == false ||
           _unreadWindowJumpInFlight ||
           model.isLoadingChatHistory ||
+          model.globalModel.isUserScrollToBottomInProgress(conv) ||
           _isSearchJumpStabilizing ||
           _shouldCompensateScrollForPagination() ||
           _historyWindowTrimUi.isBusy ||
@@ -6148,7 +6160,8 @@ class _TIMUIKitHistoryMessageListState
           model.globalModel.isContextMenuViewportRestoreActive(conv))
         return false;
       final position = _singleScrollPositionOrNull();
-      return TrueLatestEnd.atListEndFromPosition(position);
+      return TrueLatestEnd.atListEndFromPosition(position) &&
+          _isLatestMessageRowVisible();
     }
 
     if (model.haveMoreLatestData ||

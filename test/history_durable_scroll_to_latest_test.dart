@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 // ignore: depend_on_referenced_packages
@@ -1570,6 +1571,91 @@ void main() {
     }
   });
 
+  testWidgets('arrivals during an iOS bottom bounce remain reachable',
+      (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      await mount(tester);
+      final conv = model.conversationID;
+      final list = find.byType(CustomScrollView);
+      await tester.drag(list, const Offset(0, 1200));
+      await frames(tester);
+      scroll.jumpTo(scroll.position.minScrollExtent + 50);
+      await frames(tester);
+      final gesture = await tester.startGesture(tester.getCenter(list));
+      await gesture.moveBy(const Offset(0, -160));
+      await frame(tester);
+      expect(scroll.position.pixels, lessThan(scroll.position.minScrollExtent));
+      await gesture.up();
+      sdk.newest = 103;
+      admissionsIdle = false;
+      pendingAdmissions = (() async {
+        try {
+          for (var seq = 101; seq <= 103; seq++) {
+            await global.applyAppRealtimeMessage(_message(conv, seq),
+                ingressEventID: 'bounce-$seq', ingressSequence: seq);
+          }
+        } finally {
+          admissionsIdle = true;
+        }
+      })();
+      await waitForRealIO(tester, () => admissionsIdle, 'bounce arrivals');
+      await pendingAdmissions;
+      await frames(tester, 80);
+      final newestVisible = find.text('seq:103').hitTestable().evaluate().isNotEmpty;
+      final reminderVisible =
+          find.textContaining('showUnread:').hitTestable().evaluate().isNotEmpty;
+      expect(newestVisible || reminderVisible, isTrue,
+          reason: 'a rebound must either follow the new tip or retain its reminder');
+      if (!newestVisible) {
+        expect(global.remainingLiveIncomingCountFor(conv), greaterThan(0));
+      }
+    } finally {
+      await close(tester);
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  for (final durable in [false, true]) {
+    testWidgets('near-bottom rebound keeps new arrivals discoverable '
+        '(durable=$durable)', (tester) async {
+      try {
+        if (!durable) HistoryWindowRepositoryProvider.repository = null;
+        await mount(tester);
+        final conv = model.conversationID;
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, 1200));
+        await frames(tester);
+        expect(global.isFollowingLatest(conv), isFalse);
+        // Exercise the settled near-edge part of a rebound without pressing
+        // the capsule. A geometric near-bottom is not yet a latest-row proof.
+        scroll.jumpTo(scroll.position.minScrollExtent + 30);
+        await frames(tester);
+        expect(global.isFollowingLatest(conv), isFalse);
+        sdk.newest = 103;
+        admissionsIdle = false;
+        pendingAdmissions = (() async {
+          try {
+            for (var seq = 101; seq <= 103; seq++) {
+              await global.applyAppRealtimeMessage(_message(conv, seq),
+                  ingressEventID: 'rebound-$seq', ingressSequence: seq);
+            }
+          } finally {
+            admissionsIdle = true;
+          }
+        })();
+        await waitForRealIO(tester, () => admissionsIdle, 'rebound arrivals');
+        await pendingAdmissions;
+        await frames(tester, 50);
+        expect(global.remainingLiveIncomingCountFor(conv), greaterThan(0));
+        expect(find.textContaining('showUnread:').hitTestable(), findsOneWidget,
+            reason: 'unseen arrivals must remain reachable even near the edge');
+        expect(find.text('seq:103').hitTestable(), findsNothing);
+      } finally {
+        await close(tester);
+      }
+    });
+  }
+
   for (final scenario in [
     (deep: false, failFirst: false),
     (deep: true, failFirst: false),
@@ -1695,6 +1781,11 @@ void main() {
         expect(global.hasDurableHistoryDeferred(conv), isFalse);
         expect(global.receivedNewMessageCountFor(conv), 0);
         expect(model.hasCaughtUpToLiveLatest, isTrue);
+        await frames(tester);
+        expect(global.isFollowingLatest(conv), isTrue);
+        expect(global.remainingLiveIncomingCountFor(conv), 0);
+        expect(find.textContaining('showUnread:').hitTestable(), findsNothing);
+        expect(find.textContaining('toLatest:').hitTestable(), findsNothing);
       } finally {
         await close(tester);
       }

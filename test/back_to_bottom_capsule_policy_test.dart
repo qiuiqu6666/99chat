@@ -26,22 +26,22 @@ void main() {
     );
   });
 
-  test('hides within follow-exit band even when N would be positive', () {
+  test('shows unseen arrivals within the follow-exit band', () {
     expect(
       BackToBottomCapsulePolicy.shouldShow(
         atTrueLatestEnd: false,
         hasMissingNewer: false,
-        distanceFromLatestEdge: 30,
+        distanceFromLatestEdge: 12,
         viewportDimension: 800,
         liveUnreadCount: 3,
         presentationBottomLocked: false,
         programmaticScrollToBottom: false,
       ),
-      isFalse,
+      isTrue,
     );
   });
 
-  test('hides between 24px and half viewport even with N', () {
+  test('shows unseen arrivals before the half-viewport threshold', () {
     expect(
       BackToBottomCapsulePolicy.shouldShow(
         atTrueLatestEnd: false,
@@ -52,7 +52,7 @@ void main() {
         presentationBottomLocked: false,
         programmaticScrollToBottom: false,
       ),
-      isFalse,
+      isTrue,
     );
   });
 

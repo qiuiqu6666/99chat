@@ -93,7 +93,8 @@ void main() {
     expect(global.rawMessageList(conv)!.map((m) => m.msgID),
         ticket.after.map((m) => m.msgID));
     expect(global.rawMessageCount(conv), ChatMessageWindowPolicy.targetSize);
-    expect(global.messageWriterRetainedCountForTesting(conv), ChatMessageWindowPolicy.targetSize);
+    expect(global.messageWriterRetainedCountForTesting(conv),
+        ChatMessageWindowPolicy.targetSize);
     expect(global.memoryWindowMissingNewer(conv), isTrue);
     final boundary = global.rawMessageList(conv)!.first;
     final next = await store.readAdjacent(
@@ -155,7 +156,8 @@ void main() {
     }
     expect(recovered, List.generate(1600 - start, (i) => start + i + 1));
     expect(global.rawMessageCount(conv), ChatMessageWindowPolicy.targetSize);
-    expect(global.messageWriterRetainedCountForTesting(conv), ChatMessageWindowPolicy.targetSize);
+    expect(global.messageWriterRetainedCountForTesting(conv),
+        ChatMessageWindowPolicy.targetSize);
   });
 
   test('pending revoke cannot spill before SQL and UI rollback both finish',
@@ -303,7 +305,8 @@ void main() {
     global.setMessageList(conv, [message(601), ...global.rawMessageList(conv)!],
         replace: true, applyMemoryWindow: false);
     expect(await global.rollbackHistoryWindowTrim(ticket), isFalse);
-    expect(global.rawMessageCount(conv), ChatMessageWindowPolicy.targetSize + 1);
+    expect(
+        global.rawMessageCount(conv), ChatMessageWindowPolicy.targetSize + 1);
     expect(global.rawMessageList(conv)!.first.msgID, 'm601');
     expect(global.memoryWindowMissingNewer(conv), isTrue);
     global.finishHistoryWindowTrim(ticket);
@@ -370,7 +373,14 @@ void main() {
         reason: 'durable count');
     expect(global.receivedNewMessageCount, total, reason: 'UI count');
 
-    expect((await store.debugStatistics())['deferred_bodies'], 120);
+    // Durable deferred rows own identities/counts; SDK owns message bodies.
+    // The independent in-memory body buffer above must still retain 120 rows.
+    expect((await store.debugStatistics())['deferred_bodies'], 0);
+    expect(await store.readDeferredTail(scope: scope), isEmpty);
+    await store.closeIfOpen();
+    expect((await store.deferredState(scope)).receivedCount, total,
+        reason: 'all identities survive reopen without duplicate body storage');
+    expect((await store.readDeferredMessageIDs(scope: scope)).length, 120);
     expect(global.flushDeferredIncomingMessages(conv, userInitiated: true),
         isFalse);
     final watermark = await global.beginHistoryWindowReturnToLatest(conv);
@@ -506,7 +516,8 @@ void main() {
             ingressSequence: id);
       }
       expect(global.rawMessageCount(conv), ChatMessageWindowPolicy.targetSize);
-      expect(global.messageWriterRetainedCountForTesting(conv), ChatMessageWindowPolicy.targetSize);
+      expect(global.messageWriterRetainedCountForTesting(conv),
+          ChatMessageWindowPolicy.targetSize);
       expect(global.messageListRevisionFor(conv), revision);
       final restored =
           await global.applyHistoryWindowMutations(conv, [message(1500)]);
