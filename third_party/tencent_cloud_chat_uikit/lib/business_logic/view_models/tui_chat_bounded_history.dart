@@ -847,6 +847,8 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       if (!ownerAndVisitCurrent()) return false;
       final consumed = receipt.acknowledgedMessageIDs;
       if (consumed.isEmpty) return consumedHot;
+      state.remainingLiveIncomingIds.removeAll(consumed);
+      state.seenLiveIncomingIds.addAll(consumed);
       state.receivedCount = max(0, state.receivedCount - consumed.length);
       state.bufferedMessages.removeWhere((message) => consumed.contains(
           (message.msgID?.trim().isNotEmpty ?? false)
@@ -1034,7 +1036,6 @@ extension BoundedChatHistory on TUIChatGlobalModel {
         position.hasPixels &&
         position.hasContentDimensions &&
         !position.outOfRange &&
-        !isPaginationRestoreTransientNearBottom(conversationID, position) &&
         position.pixels <= position.minScrollExtent + 1.0;
     return _boundedHistory.sessions[key]?.revealDeferredAtLatest == true &&
         _isSameConversationID(conversationID, currentSelectedConv) &&
@@ -1115,7 +1116,8 @@ extension BoundedChatHistory on TUIChatGlobalModel {
           ? row.msgID!.trim()
           : row.id?.trim() ?? '';
 
-  Future<int?> beginHistoryWindowReturnToLatest(String conversationID) async {
+  Future<int?> beginHistoryWindowReturnToLatest(String conversationID,
+      {bool replaceWindow = true}) async {
     if (historyWindowScopeFor(conversationID) == null) return null;
     final visitGeneration =
         _inboundUnreadStateFor(conversationID).unreadVisitGeneration;
@@ -1125,10 +1127,12 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       final scope = historyWindowScopeFor(conversationID);
       if (scope == null) throw const HistoryWindowStaleScope();
       final session = _boundedHistory.sessions[scope.conversationID]!;
-      session.revealDeferredAtLatest = false;
-      session.generation++; // cancels old trim/replay before a latest reload
-      session.trim?.release();
-      session.trim = null;
+      if (replaceWindow) {
+        session.revealDeferredAtLatest = false;
+        session.generation++; // cancels old trim/replay before a latest reload
+        session.trim?.release();
+        session.trim = null;
+      }
       final repository = HistoryWindowRepositoryProvider.repository!;
       await _persistCoalescedHistoryDeferred(
           conversationID, state, scope, repository);
@@ -1216,8 +1220,8 @@ extension BoundedChatHistory on TUIChatGlobalModel {
     return allDeleted;
   }
 
-  /// Called only after a successful newest reload and acknowledgement of its
-  /// captured watermark. Opaque history must start a fresh snapshot thereafter.
+  /// A successful newest reload starts a fresh opaque history snapshot.
+  /// Preserve pending receipts until the restored viewport confirms them.
   Future<void> resetHistoryWindowAfterLatest(String conversationID) async {
     await _serializeHistoryDeferred(conversationID, (_) async {
       final key = TUIChatGlobalModel.canonicalHistoryStorageKey(conversationID);
@@ -1238,14 +1242,21 @@ extension BoundedChatHistory on TUIChatGlobalModel {
   }
 
   Future<void> acknowledgeHistoryWindowReturnToLatest(
-      String conversationID, int? throughSequence) async {
+      String conversationID, int? throughSequence,
+      {bool onlyIfAuthoritativelyDeleted = false}) async {
     if (throughSequence == null ||
         historyWindowScopeFor(conversationID) == null) return;
     await _serializeHistoryDeferred(conversationID, (state) async {
       final scope = historyWindowScopeFor(conversationID);
       if (scope == null) throw const HistoryWindowStaleScope();
       final repository = HistoryWindowRepositoryProvider.repository!;
+      if (onlyIfAuthoritativelyDeleted &&
+          !await repository.areDeferredMessagesAuthoritativelyDeleted(
+              scope: scope, throughIngressSequence: throughSequence)) {
+        return;
+      }
       final before = await repository.deferredState(scope);
+      final beforeIDs = await repository.readDeferredMessageIDs(scope: scope);
       await repository.acknowledgeDeferred(
           scope: scope, throughIngressSequence: throughSequence);
       final counts = await repository.deferredState(scope);
@@ -1258,6 +1269,9 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       }.values.toList(growable: false);
       if (!isHistoryWindowScopeCurrent(scope))
         throw const HistoryWindowStaleScope();
+      final consumedIDs = beforeIDs.difference(pendingIDs);
+      state.remainingLiveIncomingIds.removeAll(consumedIDs);
+      state.seenLiveIncomingIds.addAll(consumedIDs);
       // ACK consumes the oldest prefix first, including a previous visit's
       // baseline. A partial/late ACK must not hide new visits' surviving rows.
       state.unreadVisitBaselineReceived = max(

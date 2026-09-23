@@ -170,6 +170,36 @@ class OptimisticImagePlaceholderInput {
 }
 
 class TUIChatSeparateViewModel extends ChangeNotifier {
+  Object? _latestReturnOwner;
+  String? _latestReturnConversation;
+  Future<void> Function()? _latestReturnHandler;
+  int? _latestViewportReturnWatermark;
+  int? _latestViewportReturnGeneration;
+
+  void bindLatestViewportReturn(Object owner, Future<void> Function() handler) {
+    _latestReturnOwner = owner;
+    _latestReturnConversation = conversationID;
+    _latestReturnHandler = handler;
+  }
+
+  void unbindLatestViewportReturn(Object owner) {
+    if (!identical(_latestReturnOwner, owner)) return;
+    _latestReturnOwner = null;
+    _latestReturnConversation = null;
+    _latestReturnHandler = null;
+  }
+
+  /// All user return intents use the mounted viewport's transaction and proof.
+  Future<bool> requestLatestViewportReturn() async {
+    final handler = _latestReturnHandler;
+    if (_disposed || handler == null ||
+        _latestReturnConversation != conversationID) {
+      return false;
+    }
+    await handler();
+    return true;
+  }
+
   /// 禁言诊断。完成后关闭。
   static const bool _muteDebugEnabled = false;
 
@@ -1931,10 +1961,12 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       if (ok) {
         if (!returnIsCurrent()) return false;
         try {
-          if (deferredWatermark != null) {
-            await globalModel.acknowledgeHistoryWindowReturnToLatest(
-                conversationID, deferredWatermark);
-          }
+          // Loading the latest page proves availability, not that its newest
+          // row has reached the viewport. The visible confirmation owns ACK.
+          // Authoritative deletions need no viewport and must not be replayed.
+          await globalModel.acknowledgeHistoryWindowReturnToLatest(
+              conversationID, deferredWatermark,
+              onlyIfAuthoritativelyDeleted: true);
           if (!returnIsCurrent()) return false;
           await globalModel.resetHistoryWindowAfterLatest(conversationID);
           if (!returnOwnerIsCurrent() ||
@@ -1955,6 +1987,8 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
   
         globalModel.clearMemoryWindowMissingNewer(conversationID);
         haveMoreLatestData = false;
+        _latestViewportReturnWatermark = deferredWatermark;
+        _latestViewportReturnGeneration = returnGeneration;
         globalModel.setMessageListPosition(
           conversationID,
           globalModel.hasDurableHistoryDeferred(conversationID)
@@ -9011,6 +9045,9 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _latestReturnOwner = null;
+    _latestReturnConversation = null;
+    _latestReturnHandler = null;
     stopVoiceAutoPlay();
     _chatOpenGeneration++;
     _historyWindowGeneration++;

@@ -399,16 +399,33 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
     late final Future<bool> operation;
     operation = (() async {
       try {
-        final watermark =
-            await globalModel.beginHistoryWindowReturnToLatest(conv);
+        // An explicit reload has a finite captured target. Later traffic must
+        // not move that target and prevent its visible prefix from completing.
+        final usesReturnSnapshot = _latestViewportReturnGeneration == generation;
+        final watermark = usesReturnSnapshot
+            ? _latestViewportReturnWatermark
+            : await globalModel.beginHistoryWindowReturnToLatest(conv,
+                replaceWindow: false);
         if (!current()) return false;
         final covered = await globalModel
             .confirmHistoryWindowReturnCoversDeferred(conv, watermark,
                 visibleMessages: visibleMessages);
         if (!current() || !covered) return false;
+        // Following is an intent, not a receipt. Preserve it while a newer
+        // admission races the visible ACK, without clearing that admission.
+        if (globalModel.canRevealDurableIncomingAfterLatestReturn(conv)) {
+          globalModel.setFollowingLatest(conv, true, absorbUnread: false);
+        }
+        await globalModel.acknowledgeVisibleHistoryMessages(
+            conv, visibleMessages, isCurrent: current);
+        if (!current()) return false;
         await globalModel.acknowledgeHistoryWindowReturnToLatest(
             conv, watermark);
         if (!current()) return false;
+        if (usesReturnSnapshot && _latestViewportReturnGeneration == generation) {
+          _latestViewportReturnWatermark = null;
+          _latestViewportReturnGeneration = null;
+        }
         if (!globalModel.hasDurableHistoryDeferred(conv)) {
           return _commitFollowAfterVisibleLatestConfirm(conv);
         }

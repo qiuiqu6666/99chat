@@ -15011,6 +15011,9 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     _userScrollToBottomConvId = null;
     _userScrollToBottomTransactionActive = false;
     _userScrollToBottomUntilMs = 0;
+    // Visible receipts sampled during the return were gated. Wake the list
+    // after releasing that gate even when the final pixels did not move.
+    _markNeedsNotify();
   }
 
   void requestPinToBottom(String conversationID, {bool force = false, bool immediate = false}) {

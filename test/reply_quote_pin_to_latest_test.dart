@@ -100,7 +100,7 @@ void main() {
     expect(mentionBody.contains('goDownBottom'), isFalse);
   });
 
-  test('occupied keyboard skips jumpTo even when allowKeyboardReturn', () {
+  test('input return delegates to the shared viewport transaction after composition guard', () {
     final field = File(
       'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/'
       'TIMUIKitTextField/tim_uikit_text_field.dart',
@@ -112,32 +112,20 @@ void main() {
     expect(helperEnd, greaterThan(helperStart));
     final helper = field.substring(helperStart, helperEnd);
 
-    final pinAt = helper.indexOf('requestPinToBottom(convId, force: true)');
-    expect(pinAt, greaterThanOrEqualTo(0));
-    final beforePin = helper.substring(0, pinAt);
-    expect(beforePin.contains('!allowKeyboardReturn &&'), isTrue);
+    final dispatchAt = helper.indexOf('await widget.model.requestLatestViewportReturn()');
+    expect(dispatchAt, greaterThanOrEqualTo(0));
+    final beforeDispatch = helper.substring(0, dispatchAt);
+    expect(beforeDispatch.contains('_hasActiveTextComposition'), isTrue);
+    expect(beforeDispatch.contains('!allowKeyboardReturn &&'), isTrue);
     expect(
-      beforePin.contains(
+      beforeDispatch.contains(
         'KeyboardViewportTransitionCoordinator.active?.isAnimating == true',
       ),
       isTrue,
     );
-
-    final loopStart = helper.indexOf('for (var frame = 0; frame < 3; frame++)');
-    expect(loopStart, greaterThan(pinAt));
-    final loop = helper.substring(loopStart);
-    final jumpAt = loop.indexOf('jumpTo(');
-    expect(jumpAt, greaterThanOrEqualTo(0));
-    final jumpGuard = loop.substring(0, jumpAt);
-    expect(
-      jumpGuard.contains(
-        'KeyboardViewportTransitionCoordinator.active?.isAnimating',
-      ),
-      isTrue,
-    );
-    expect(jumpGuard.contains('(!allowKeyboardReturn &&'), isFalse);
-    expect(jumpGuard.contains('!didJump'), isTrue);
-    expect(loop.contains('if (allowKeyboardReturn && didJump)'), isTrue);
+    expect(helper.contains('jumpTo('), isFalse);
+    expect(helper.contains('reloadNewestMessageWindow('), isFalse);
+    expect(helper.contains('acknowledgeHistoryWindowReturnToLatest('), isFalse);
   });
 
   test('tooltip and hover reply do not call goDownBottom directly', () {

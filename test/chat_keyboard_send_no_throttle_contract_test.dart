@@ -7,7 +7,7 @@ void main() {
     final source = File(
       'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/'
       'TIMUIKitTextField/tim_uikit_text_field_layout/narrow.dart',
-    ).readAsStringSync();
+    ).readAsStringSync().replaceAll('\r\n', '\n');
 
     expect(source, isNot(contains('_lastKeyboardSendAtMs')));
     expect(source, isNot(contains('Duration(milliseconds: 120)')));

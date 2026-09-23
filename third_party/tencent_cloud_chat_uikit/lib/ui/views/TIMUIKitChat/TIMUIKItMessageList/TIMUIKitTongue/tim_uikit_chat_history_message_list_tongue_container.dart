@@ -409,7 +409,12 @@ class TIMUIKitHistoryMessageListTongueContainerState
     var transitionStarted = false;
     var transitionFinished = false;
     var newestTargetReached = false;
-    bool latestRenderedEdgeVisible() => _atTrueLatestEndNow();
+    bool latestRenderedEdgeVisible() =>
+        isCurrent() &&
+        _canConfirmVisibleReading() &&
+        _latestRowMaterialized &&
+        TrueLatestEnd.atListEndFromPosition(_singleScrollPositionOrNull()) &&
+        (widget.verifyLatestMessageVisible?.call() ?? true);
     final finishTransition = widget.finishWindowTransition;
     Future<void> performReturn() async {
       final replaceWindow = needsLatestWindow;
@@ -451,12 +456,6 @@ class TIMUIKitHistoryMessageListTongueContainerState
         const maxNewestReloadAttempts = 3;
         var reloadedNewest = false;
         for (var attempt = 0; attempt < maxNewestReloadAttempts; attempt++) {
-          // Capture this attempt's visit IDs before IO. A successful finite
-          // reload retires its request, never arrivals received while waiting.
-          // The SQL pending-tail query is capped and cannot prove this set.
-          final returnLiveIDs =
-              globalModel.remainingLiveIncomingIdsFor(conversationID);
-          final returnVisit = globalModel.unreadVisitGenerationFor(conversationID);
           try {
             reloadedNewest = await model.reloadNewestMessageWindow(
               allowWhileReadingHistory: true,
@@ -474,11 +473,6 @@ class TIMUIKitHistoryMessageListTongueContainerState
               return;
             }
             newestTargetReached = true;
-            if (returnVisit ==
-                globalModel.unreadVisitGenerationFor(conversationID)) {
-              globalModel.markLiveIncomingSeen(
-                conversationID: conversationID, ids: returnLiveIDs);
-            }
             break;
           }
 
@@ -684,9 +678,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
         return;
       }
 
-      if (newestTargetReached &&
-          globalModel
-              .canRevealDurableIncomingAfterLatestReturn(conversationID)) {
+      if (newestTargetReached && latestRenderedEdgeVisible()) {
         final displayedRevision =
             globalModel.messageListRevisionFor(conversationID);
         final displayedVisit = globalModel.unreadVisitGenerationFor(conversationID);
@@ -699,18 +691,15 @@ class TIMUIKitHistoryMessageListTongueContainerState
         await WidgetsBinding.instance.endOfFrame;
         if (!isCurrent()) return;
         try {
-          final consumed = await globalModel.acknowledgeVisibleHistoryMessages(
-            conversationID,
-            displayed,
-            isCurrent: () {
+          await model.confirmVisibleLatestWindow(
+            visibleMessages: displayed,
+            isStillAtLatestEdge: () {
               final position = _singleScrollPositionOrNull();
               return isCurrent() &&
                   _canConfirmVisibleReading() &&
                   globalModel.unreadVisitGenerationFor(conversationID) ==
                       displayedVisit &&
-                  globalModel.canRevealDurableIncomingAfterLatestReturn(
-                    conversationID,
-                  ) &&
+                  latestRenderedEdgeVisible() &&
                   globalModel.messageListRevisionFor(conversationID) ==
                       displayedRevision &&
                   listEquals(
@@ -724,14 +713,6 @@ class TIMUIKitHistoryMessageListTongueContainerState
                   (widget.verifyLatestMessageVisible?.call() ?? true);
             },
           );
-          if (consumed && isCurrent() &&
-              globalModel.unreadVisitGenerationFor(conversationID) ==
-                  displayedVisit) {
-            globalModel.markLiveIncomingSeen(
-              conversationID: conversationID,
-              ids: displayed.map(TUIChatGlobalModel.liveIncomingIdentity),
-            );
-          }
         } catch (_) {
           // Layout/owner changes invalidate this reading proof. The durable
           // ledger remains authoritative and the reminder stays retryable.
@@ -883,6 +864,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
   @override
   void initState() {
     super.initState();
+    widget.model.bindLatestViewportReturn(
+        this, scrollToLatestAndDismissUnreadCapsule);
     _entryUnreadCount = _resolveEntryUnreadCount();
     _attachScrollListeners();
     groupAtInfoList = widget.groupAtInfoList?.reversed.toList();
@@ -901,6 +884,9 @@ class TIMUIKitHistoryMessageListTongueContainerState
                 widget.conversation.conversationID ||
             !identical(oldWidget.model, widget.model);
     if (conversationChanged) {
+      oldWidget.model.unbindLatestViewportReturn(this);
+      widget.model.bindLatestViewportReturn(
+          this, scrollToLatestAndDismissUnreadCapsule);
       final oldConversationID = oldWidget.model.conversationID;
       _cancelBottomReturn(stopScroll: false);
       if (_scrollingToBottomInFlight) {
@@ -1387,7 +1373,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
   }
 
   int _liveCapsuleDisplayCount(_TongueUnreadSelectorData data) {
-    return data.receivedNewMessageCount;
+    return data.remainingLiveIncomingCount;
   }
 
   Future<void> _onBottomCapsuleTap(
@@ -1464,6 +1450,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
 
   @override
   void dispose() {
+    widget.model.unbindLatestViewportReturn(this);
     _cancelBottomReturn(stopScroll: false);
     _conversationWidgetGeneration++;
     _bottomScrollTransactionToken++;
@@ -1480,8 +1467,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
     return Selector<TUIChatGlobalModel, _TongueUnreadSelectorData>(
       builder: (context, selectorData, child) {
         final unreadRemaining = selectorData.unreadRemaining;
-        // The capsule count follows confirmed visible receipts. The identity
-        // ledger still prevents duplicate admissions and stale-page ACKs.
+        // One identity ledger drives both count and visibility. The legacy
+        // scalar may lag SQL receipts and must not resurrect or hide a tip.
         final liveUnreadCount = _liveCapsuleDisplayCount(selectorData);
         final presentationBottomLocked =
             globalModel.isInboundPresentationBottomLocked(
