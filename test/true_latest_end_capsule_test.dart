@@ -97,7 +97,7 @@ void main() {
     );
   });
 
-  test('leaving latest then receiving 3 keeps N while scrolling past painted rows',
+  test('leaving latest counts 3 until their rows are visibly acknowledged',
       () async {
     global.setFollowingLatest(conv, false, notify: false);
     global.setMessageListPosition(
@@ -146,8 +146,8 @@ void main() {
     );
     expect(
       global.remainingLiveIncomingCountFor(conv),
-      3,
-      reason: 'ACK must not change remaining/seen capsule N',
+      0,
+      reason: 'visible receipt must settle the three read identities',
     );
   });
 

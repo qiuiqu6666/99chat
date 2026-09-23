@@ -5,3 +5,11 @@ third_party/*
 third_party/tencent_cloud_chat_uikit/*
 !third_party/tencent_cloud_chat_uikit/lib/
 !third_party/tencent_cloud_chat_uikit/test/
+
+# Packed SDK distributions are opaque dependencies, not application flows.
+# Keep handwritten web bridges indexed. Analyze chat sources with
+# GITNEXUS_MAX_FILE_SIZE=1024 so the large Dart UI/model are included.
+/web/trtc-wrapper.js
+/web/trtc.js
+/web/tim-js-friendship.js
+/web/sdk/tencentcloud-chat.js

@@ -115,9 +115,14 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       return false;
     }
     final scope = historyWindowScopeFor(conversationID);
-    return scope != null &&
-        (_messageListMap[scope.conversationID]?.length ?? 0) >
-            ChatMessageWindowPolicy.targetSize;
+    if (scope == null) return false;
+    final count = _messageListMap[scope.conversationID]?.length ?? 0;
+    if (_hasConnectedHistoryReadingTail(conversationID)) {
+      // Leave room for one older page while the reader is connected to live.
+      // Regular idle compaction at 220 would sever the tail long before 3000.
+      return count >= ChatMessageWindowPolicy.historyReadPaginationHighWater;
+    }
+    return count > ChatMessageWindowPolicy.targetSize;
   }
 
   bool historyWindowPaginationBlocked(String conversationID) {
@@ -125,12 +130,15 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       return false;
     }
     final scope = historyWindowScopeFor(conversationID);
-    return scope != null &&
-        (_boundedHistory.sessions[scope.conversationID]?.trim != null ||
-            (_messageListMap[scope.conversationID]?.length ?? 0) +
-                    _messageReconciliationWriter
-                        .pendingRealtimeCount(scope.conversationID) >=
-                ChatMessageWindowPolicy.paginationHighWater);
+    if (scope == null) return false;
+    final highWater = _hasConnectedHistoryReadingTail(conversationID)
+        ? ChatMessageWindowPolicy.historyReadPaginationHighWater
+        : ChatMessageWindowPolicy.paginationHighWater;
+    return _boundedHistory.sessions[scope.conversationID]?.trim != null ||
+        (_messageListMap[scope.conversationID]?.length ?? 0) +
+                _messageReconciliationWriter
+                    .pendingRealtimeCount(scope.conversationID) >=
+            highWater;
   }
 
   bool historyWindowCanReadNewer(String conversationID) =>
@@ -800,6 +808,8 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       if (visibleHot.isEmpty) return;
       consumedHot = true;
       state.revealedUnreadMessageIDs.removeAll(visibleHot);
+      state.remainingLiveIncomingIds.removeAll(visibleHot);
+      state.seenLiveIncomingIds.addAll(visibleHot);
       state.bufferedMessages.removeWhere((message) => visibleHot.contains(
           (message.msgID?.trim().isNotEmpty ?? false)
               ? message.msgID!.trim() : message.id?.trim() ?? ''));
@@ -808,6 +818,7 @@ extension BoundedChatHistory on TUIChatGlobalModel {
         ..addAll(state.bufferedMessages.map(TUIChatGlobalModel.messageDedupKey));
       state.unreadCount = max(state.lockedEntryUnreadCount,
           state.unreadCount - visibleHot.length);
+      state.receivedCount = max(0, state.receivedCount - visibleHot.length);
       _markNeedsNotify();
     }
     // A pending admission may be moving this same identity from local memory
@@ -839,6 +850,7 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       if (!ownerAndVisitCurrent()) return false;
       final consumed = receipt.acknowledgedMessageIDs;
       if (consumed.isEmpty) return consumedHot;
+      state.receivedCount = max(0, state.receivedCount - consumed.length);
       state.bufferedMessages.removeWhere((message) => consumed.contains(
           (message.msgID?.trim().isNotEmpty ?? false)
               ? message.msgID!.trim()
@@ -897,6 +909,18 @@ extension BoundedChatHistory on TUIChatGlobalModel {
     // Geometry belongs to the mounted route, rather than the SDK's bare peer ID.
     final viewConversation = currentSelectedConv;
     _syncHistoryPositionFromActiveScroll(viewConversation);
+    if (!isFollowingLatest(viewConversation) &&
+        !_isHistoryGapDeferral(viewConversation) &&
+        rawMessageCount(conversation) +
+                _inboundBatchCoalescer.pendingCountFor(
+                    _resolveMessageListStorageKey(conversation)) >=
+            ChatMessageWindowPolicy.historyReadSoftMax) {
+      // Publish the already reserved prefix before opening the gap. Never
+      // evict the reader's row to make space for an unbounded live tail.
+      _inboundBatchCoalescer.flushConversation(
+          _resolveMessageListStorageKey(conversation));
+      markMemoryWindowMissingNewer(viewConversation);
+    }
     if (_chatAppForeground && !_isHistoryGapDeferral(viewConversation)) {
       return false;
     }

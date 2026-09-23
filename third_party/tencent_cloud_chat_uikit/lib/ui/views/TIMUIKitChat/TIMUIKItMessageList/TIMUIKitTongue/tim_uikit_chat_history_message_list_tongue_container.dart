@@ -87,6 +87,7 @@ class _TongueUnreadSelectorData {
   /// 仍在缓冲区、尚未接入可见列表的新消息条数。
   final int bufferedCount;
   final int remainingLiveIncomingCount;
+  final int receivedNewMessageCount;
 
   const _TongueUnreadSelectorData({
     required this.messageListPosition,
@@ -101,6 +102,7 @@ class _TongueUnreadSelectorData {
     required this.dismissedEntryUnread,
     required this.bufferedCount,
     required this.remainingLiveIncomingCount,
+    required this.receivedNewMessageCount,
   });
 }
 
@@ -193,8 +195,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
     );
     final displayedId = _messageIdentity(displayedNewest);
     final rawId = _messageIdentity(rawNewest);
-    final latestConfirmedIdentityInBuiltList = displayedId.isNotEmpty &&
-        (rawId.isEmpty || displayedId == rawId);
+    final latestConfirmedIdentityInBuiltList =
+        displayedId.isNotEmpty && (rawId.isEmpty || displayedId == rawId);
     return TrueLatestEnd.isLatestRowMaterialized(
       latestConfirmedIdentityInBuiltList: latestConfirmedIdentityInBuiltList,
     );
@@ -260,7 +262,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
       final position = _singleScrollPositionOrNull();
       // A drag already owns its activity. Stop only programmatic motion;
       // jumping here during a drag would kill the gesture.
-      if (stopScroll && position != null &&
+      if (stopScroll &&
+          position != null &&
           position.userScrollDirection == ScrollDirection.idle) {
         _cancelScrollActivity(widget.scrollController);
       }
@@ -338,13 +341,14 @@ class TIMUIKitHistoryMessageListTongueContainerState
     _cancelScrollActivity(scrollController);
     final cancellation = Completer<void>();
     _bottomReturnCancellation = cancellation;
-    bool isCurrent() => ownsUI() &&
+    bool isCurrent() =>
+        ownsUI() &&
         transactionToken == _bottomScrollTransactionToken &&
         !cancellation.isCompleted;
     final deadline = Timer(_bottomReturnTimeout, () {
       if (!cancellation.isCompleted) {
-        ChatJitterDiag.logFollowingLatest(action: 'return_to_latest_timeout',
-            conv: conversationID);
+        ChatJitterDiag.logFollowingLatest(
+            action: 'return_to_latest_timeout', conv: conversationID);
         cancellation.complete();
         if (ownsUI() && transactionToken == _bottomScrollTransactionToken) {
           _cancelScrollActivity(scrollController);
@@ -622,7 +626,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
       }
 
       if (newestTargetReached &&
-          globalModel.canRevealDurableIncomingAfterLatestReturn(conversationID)) {
+          globalModel
+              .canRevealDurableIncomingAfterLatestReturn(conversationID)) {
         final displayedRevision =
             globalModel.messageListRevisionFor(conversationID);
         // A raw row may still be excluded by the current page projection.
@@ -705,6 +710,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
       );
       returnedSuccessfully = true;
     }
+
     try {
       await Future.any<void>([performReturn(), cancellation.future]);
     } catch (_) {
@@ -723,8 +729,9 @@ class TIMUIKitHistoryMessageListTongueContainerState
       if (!cancellation.isCompleted) cancellation.complete();
       try {
         if (transitionStarted && !transitionFinished) {
-          await finishTransition?.call().timeout(const Duration(seconds: 1),
-              onTimeout: () {});
+          await finishTransition
+              ?.call()
+              .timeout(const Duration(seconds: 1), onTimeout: () {});
         }
       } finally {
         if (identical(_bottomReturnCancellation, cancellation)) {
@@ -873,6 +880,17 @@ class TIMUIKitHistoryMessageListTongueContainerState
       _detachScrollEndListener();
       _attachScrollListeners();
     }
+    if (!identical(oldWidget.messageList, widget.messageList) ||
+        oldWidget.messageList.length != widget.messageList.length) {
+      // A newer page can change minScrollExtent without changing pixels.
+      // ScrollController listeners then cannot refresh the capsule; wait for
+      // the restored viewport geometry before deriving its visibility.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _applyScrollTick();
+        }
+      });
+    }
   }
 
   void changePositionState(HistoryMessagePosition newPosition) {
@@ -919,7 +937,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
   bool _computeScrollToBottomCapsuleVisible(ScrollPosition position) {
     if (globalModel
             .isInboundPresentationBottomLocked(widget.model.conversationID) ||
-        globalModel.isOpenChatBottomCapsuleLocked(widget.model.conversationID)) {
+        globalModel
+            .isOpenChatBottomCapsuleLocked(widget.model.conversationID)) {
       return false;
     }
     if (_isProgrammaticScrollToBottomActive()) {
@@ -991,7 +1010,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
     if (_isProgrammaticScrollToBottomActive() ||
         globalModel
             .isInboundPresentationBottomLocked(widget.model.conversationID) ||
-        globalModel.isOpenChatBottomCapsuleLocked(widget.model.conversationID)) {
+        globalModel
+            .isOpenChatBottomCapsuleLocked(widget.model.conversationID)) {
       _setScrollToBottomCapsuleVisible(false);
       return;
     }
@@ -1139,7 +1159,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
       _setScrollToBottomCapsuleVisible(false);
       return;
     }
-    if (globalModel.isOpenChatBottomCapsuleLocked(widget.model.conversationID)) {
+    if (globalModel
+        .isOpenChatBottomCapsuleLocked(widget.model.conversationID)) {
       _setScrollToBottomCapsuleVisible(false);
       return;
     }
@@ -1233,8 +1254,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
     });
   }
 
-  int _resolveDisplayUnreadCount(
-      int unreadRemaining, int liveUnreadCount) {
+  int _resolveDisplayUnreadCount(int unreadRemaining, int liveUnreadCount) {
     var result = unreadRemaining;
     if (UnreadTonguePolicy.isLiveNewMessageTongueEnabled(
           unreadCount: liveUnreadCount,
@@ -1314,7 +1334,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
   }
 
   int _liveCapsuleDisplayCount(_TongueUnreadSelectorData data) {
-    return data.remainingLiveIncomingCount;
+    return data.receivedNewMessageCount;
   }
 
   Future<void> _onBottomCapsuleTap(
@@ -1407,13 +1427,14 @@ class TIMUIKitHistoryMessageListTongueContainerState
     return Selector<TUIChatGlobalModel, _TongueUnreadSelectorData>(
       builder: (context, selectorData, child) {
         final unreadRemaining = selectorData.unreadRemaining;
-        // All live presentation uses the visit's unseen identity ledger.
-        // The durable/legacy received scalar belongs to data acknowledgement.
+        // The capsule count follows confirmed visible receipts. The identity
+        // ledger still prevents duplicate admissions and stale-page ACKs.
         final liveUnreadCount = _liveCapsuleDisplayCount(selectorData);
-        final presentationBottomLocked = globalModel
-                .isInboundPresentationBottomLocked(widget.model.conversationID) ||
-            globalModel
-                .isOpenChatBottomCapsuleLocked(widget.model.conversationID);
+        final presentationBottomLocked =
+            globalModel.isInboundPresentationBottomLocked(
+                    widget.model.conversationID) ||
+                globalModel
+                    .isOpenChatBottomCapsuleLocked(widget.model.conversationID);
         final logicalPosition = presentationBottomLocked
             ? HistoryMessagePosition.bottom
             : selectorData.messageListPosition;
@@ -1483,8 +1504,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
                   : 0,
               capsuleCurrentlyVisible: _showScrollToBottomCapsule,
               presentationBottomLocked: presentationBottomLocked,
-              programmaticScrollToBottom:
-                  _isProgrammaticScrollToBottomActive(),
+              programmaticScrollToBottom: _isProgrammaticScrollToBottomActive(),
             );
         final diagnosticState = '${valueType.name}|'
             '${selectorData.messageListPosition.name}|'
@@ -1607,11 +1627,14 @@ class TIMUIKitHistoryMessageListTongueContainerState
           bufferedCount: model.deferredIncomingBufferedCount(conversationID),
           remainingLiveIncomingCount:
               model.remainingLiveIncomingCountFor(conversationID),
+          receivedNewMessageCount:
+              model.receivedNewMessageCountFor(conversationID),
         );
       },
       shouldRebuild: (previous, next) =>
           previous.remainingLiveIncomingCount !=
               next.remainingLiveIncomingCount ||
+          previous.receivedNewMessageCount != next.receivedNewMessageCount ||
           previous.bufferedCount != next.bufferedCount ||
           previous.followingLatest != next.followingLatest ||
           previous.messageListPosition != next.messageListPosition ||

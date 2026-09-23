@@ -19,13 +19,17 @@ class ChatMessageWindowPolicy {
   static const int paginationHighWater = targetSize + 40;
 
   /// 阅读历史时也不能无限堆积。超过后仍按阅读锚点裁剪页面 projection。
-  static const int historyReadSoftMax = 300;
+  static const int historyReadSoftMax = 3000;
 
   /// 文档/断言参考；不强制填充。
   static const int softMin = 80;
 
   /// 与 [HistoryMessageDartConstant.getCount] 对齐。
   static const int loadBatch = 40;
+
+  /// 连续阅读窗口为下一页历史记录预留的裁剪触发点。
+  static const int historyReadPaginationHighWater =
+      historyReadSoftMax - loadBatch;
 
   /// 锚点向更新侧（newest-first 数组头部方向）至少保留。
   static const int keepNewerSide = 40;
