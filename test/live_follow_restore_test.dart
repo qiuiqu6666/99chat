@@ -64,7 +64,7 @@ void main() {
     model.dispose();
   });
 
-  test('buffer records remaining; ACK does not change it', () async {
+  test('visible ACK settles the buffered identity without changing receive generation', () async {
     final first = _message(conv, 2);
     await global.applyAppRealtimeMessage(first);
     await waitUntil(() => global.remainingLiveIncomingCountFor(conv) == 1);
@@ -77,7 +77,7 @@ void main() {
       [first],
       isCurrent: () => true,
     );
-    expect(global.remainingLiveIncomingCountFor(conv), 1);
+    expect(global.remainingLiveIncomingCountFor(conv), 0);
     expect(global.liveReceiveGenerationFor(conv), gen);
   });
 

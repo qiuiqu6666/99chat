@@ -2105,8 +2105,11 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   int _unreadTongueMetricsVersion = 0;
   final Map<String, bool> _followingLatestByConversation = <String, bool>{};
   final Set<String> _historyReadingWindowByConversation = <String>{};
-  final Map<String, void Function()> _freezeHistoryReadingWindowByConversation =
-      <String, void Function()>{};
+  final Map<String, ({
+    void Function() freeze,
+    bool Function()? canAppend,
+    void Function(List<V2TimMessage>)? didAppend,
+  })> _freezeHistoryReadingWindowByConversation = {};
   bool _attachingBufferedTowardLatest = false;
   int _attachingBufferedTowardLatestUntilMs = 0;
   static const int _attachBufferedTowardLatestHoldMs = 300;
@@ -4145,12 +4148,18 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     Set<String> coveredIds,
   ) {
     final state = _inboundUnreadStateFor(conversationID);
-    for (final id in coveredIds) {
+    for (final id in <String>{...coveredIds, ...state.seenLiveIncomingIds}) {
       if (id.isEmpty) {
         continue;
       }
       if (state.remainingLiveIncomingIds.remove(id)) {
         state.seenLiveIncomingIds.add(id);
+      }
+      // Only consume the confirmed snapshot. Arrivals after it, including a
+      // durable return transaction's new tail, keep their own accounting.
+      if (state.revealedUnreadMessageIDs.remove(id)) {
+        state.receivedCount = max(0, state.receivedCount - 1);
+        state.unreadCount = max(state.lockedEntryUnreadCount, state.unreadCount - 1);
       }
     }
     // This is the synchronous commit of a proven latest window, not a
@@ -4206,7 +4215,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     );
     if (!following) {
       _inboundUnreadStateFor(convId).trueLatestEndAbsorbed = false;
-      _freezeHistoryReadingWindowByConversation[convId]?.call();
+      _freezeHistoryReadingWindowByConversation[convId]?.freeze();
     }
     if (following && absorbUnread) {
       clearReceivedUnreadState(conversationID: convId, notify: false);
@@ -4255,12 +4264,18 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   void bindHistoryLiveWindowFreeze({
     required String conversationID,
     required void Function() freezeIfNeeded,
+    bool Function()? canAppendIncoming,
+    void Function(List<V2TimMessage>)? didAppendIncoming,
   }) {
     final convId = _inboundStateKey(conversationID);
     if (convId.isEmpty) {
       return;
     }
-    _freezeHistoryReadingWindowByConversation[convId] = freezeIfNeeded;
+    _freezeHistoryReadingWindowByConversation[convId] = (
+      freeze: freezeIfNeeded,
+      canAppend: canAppendIncoming,
+      didAppend: didAppendIncoming,
+    );
   }
 
   void clearHistoryLiveWindowFreeze({String? conversationID}) {
@@ -4712,7 +4727,16 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     if (_wasAtBottomBeforeKeyboardViewportChange(convID)) {
       return false;
     }
-    if (!isFollowingLatest(convID) || isHistoryReadingWindowActive(convID)) {
+    // Reading position controls scrolling, not admission to a connected tail.
+    // A held delivery must still be filled first; appending across it would
+    // silently turn this list into two disconnected history segments.
+    if ((!isFollowingLatest(convID) &&
+            _inboundUnreadStateFor(convID, create: false).bufferedMessages.isNotEmpty) ||
+        (!isFollowingLatest(convID) &&
+            _freezeHistoryReadingWindowByConversation[_inboundStateKey(convID)]
+                ?.canAppend == null) ||
+        _freezeHistoryReadingWindowByConversation[_inboundStateKey(convID)]
+                ?.canAppend?.call() == false) {
       return true;
     }
     return false;
@@ -4862,6 +4886,12 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     }
 
     final result = _upsertIncomingMessageBatch(storageKey, needsUpsert);
+    // Returning to the latest edge can flush rows while a history reading
+    // cursor is still frozen. Admit the drained tail to that same window
+    // before notifying the list; otherwise the raw rows exist but remain
+    // hidden behind its old newest cursor.
+    _freezeHistoryReadingWindowByConversation[_inboundStateKey(convID)]
+        ?.didAppend?.call(pending);
     if (result.inserted) {
       _bumpMessageListRevisionFor(storageKey, reason: 'flush_deferred_batch');
     }
@@ -8901,6 +8931,16 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       isActuallyNearBottom: isActuallyNearBottom,
     );
     final following = isFollowingLatest(convID);
+    if (!shouldDefer && !following) {
+      // These rows already belong to the Writer; release their presentation
+      // fence, then use the same admission/counting path as ordinary batches.
+      _revealDeferredProjectionAcrossAliases(convID, messages);
+      _freezeHistoryReadingWindowByConversation[_inboundStateKey(convID)]
+          ?.didAppend?.call(messages);
+      _recordVisibleLiveIncoming(convID, messages);
+      _applyInboundMessageBatch(convID, messages);
+      return;
+    }
     for (final message in messages) {
       if (message.isSelf == true) {
         if (shouldDefer || !following) {
@@ -9007,8 +9047,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
             convID,
             position: position,
             isActuallyNearBottom: isActuallyNearBottom,
-          ) ||
-          !isFollowing) {
+          )) {
         _bufferIncomingWhileReadingAway(
           convID,
           message,
@@ -9021,8 +9060,10 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
         continue;
       }
 
-      _storeHistoryMessagePosition(convID, HistoryMessagePosition.bottom);
-      if (!clearedUnreadState && lockedEntryUnreadCountFor(convID) == 0) {
+      if (isFollowing) {
+        _storeHistoryMessagePosition(convID, HistoryMessagePosition.bottom);
+      }
+      if (isFollowing && !clearedUnreadState && lockedEntryUnreadCountFor(convID) == 0) {
         flushDeferredIncomingMessages(convID, notify: false);
         clearReceivedUnreadState(conversationID: convID, notify: false);
         clearedUnreadState = true;
@@ -9031,6 +9072,13 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     }
 
     final upsertResult = _upsertIncomingMessageBatch(convID, messagesToUpsert);
+    if (upsertResult.insertedMessages.isNotEmpty) {
+      _freezeHistoryReadingWindowByConversation[_inboundStateKey(convID)]
+          ?.didAppend?.call(upsertResult.insertedMessages);
+    }
+    if (!isFollowing) {
+      _recordVisibleLiveIncoming(convID, upsertResult.insertedMessages);
+    }
     if (upsertResult.inserted) {
       listDirty = true;
       enterAnimationCandidate = upsertResult.lastInserted;
@@ -9040,7 +9088,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       _bumpMessageListRevisionFor(convID, reason: 'inbound_batch_active');
     }
 
-    if (enterAnimationCandidate != null) {
+    if (isFollowing && enterAnimationCandidate != null) {
       _markIncomingMessageEnterAnimation(enterAnimationCandidate);
     }
 
@@ -9102,6 +9150,21 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       },
     );
     _markNeedsNotify();
+  }
+
+  void _recordVisibleLiveIncoming(String convID, List<V2TimMessage> messages) {
+    final state = _inboundUnreadStateFor(convID);
+    for (final message in messages) {
+      final id = liveIncomingIdentity(message);
+      // Publication is not a read. Retry and history replay do not create
+      // another reminder; measured visible coverage consumes this ledger.
+      if (message.isSelf == true || id.isEmpty ||
+          state.seenLiveIncomingIds.contains(id) ||
+          !state.revealedUnreadMessageIDs.add(id)) continue;
+      state.unreadCount++;
+      state.receivedCount++;
+      _recordBufferedLiveIncoming(state, message);
+    }
   }
 
   bool _syncSelfSentMessage(
@@ -11248,6 +11311,18 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
         position == HistoryMessagePosition.notShowLatest;
   }
 
+  bool _hasConnectedHistoryReadingTail(String conversationID) {
+    if (isFollowingLatest(conversationID) ||
+        _isHistoryGapDeferral(conversationID)) {
+      return false;
+    }
+    return _freezeHistoryReadingWindowByConversation[
+                _inboundStateKey(conversationID)]
+            ?.canAppend
+            ?.call() ==
+        true;
+  }
+
   /// 内存窗口闸门：只裁 `_messageListMap`，绝不删 DB/SDK 存储。
   List<V2TimMessage> _applyMessageMemoryWindow(
     String conversationID,
@@ -11278,7 +11353,8 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     }
     if (!forceWhileReadingHistory &&
         !overHistoryBudget &&
-        _shouldFreezeMemoryWindowTrimWhileReadingHistory(conversationID)) {
+        (_shouldFreezeMemoryWindowTrimWhileReadingHistory(conversationID) ||
+            _hasConnectedHistoryReadingTail(conversationID))) {
       ChatJitterDiag.log(
         'memory_window',
         conv: conversationID,

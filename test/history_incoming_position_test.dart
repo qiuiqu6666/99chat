@@ -736,10 +736,10 @@ void main() {
       expect(await global.acknowledgeVisibleHistoryMessages(
           conv, [message(1 + step)], isCurrent: () => true), isTrue);
       expect(global.receivedNewMessageCountFor(conv), 3 - step);
-      expect(global.remainingLiveIncomingCountFor(conv), remainingBeforeAck);
+      expect(global.remainingLiveIncomingCountFor(conv), remainingBeforeAck - 1);
       expect(await global.acknowledgeVisibleHistoryMessages(
           conv, [message(1 + step)], isCurrent: () => true), isFalse);
-      expect(global.remainingLiveIncomingCountFor(conv), remainingBeforeAck);
+      expect(global.remainingLiveIncomingCountFor(conv), remainingBeforeAck - 1);
       expect(global.isFollowingLatest(conv), isFalse);
       expect(global.pinToBottomRequestSeq, pin);
       expect(

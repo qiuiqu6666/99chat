@@ -115,9 +115,14 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       return false;
     }
     final scope = historyWindowScopeFor(conversationID);
-    return scope != null &&
-        (_messageListMap[scope.conversationID]?.length ?? 0) >
-            ChatMessageWindowPolicy.targetSize;
+    if (scope == null) return false;
+    final count = _messageListMap[scope.conversationID]?.length ?? 0;
+    if (_hasConnectedHistoryReadingTail(conversationID)) {
+      // Leave room for one older page while the reader is connected to live.
+      // Regular idle compaction at 220 would sever the tail long before 3000.
+      return count >= ChatMessageWindowPolicy.historyReadPaginationHighWater;
+    }
+    return count > ChatMessageWindowPolicy.targetSize;
   }
 
   bool historyWindowPaginationBlocked(String conversationID) {
@@ -125,12 +130,15 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       return false;
     }
     final scope = historyWindowScopeFor(conversationID);
-    return scope != null &&
-        (_boundedHistory.sessions[scope.conversationID]?.trim != null ||
-            (_messageListMap[scope.conversationID]?.length ?? 0) +
-                    _messageReconciliationWriter
-                        .pendingRealtimeCount(scope.conversationID) >=
-                ChatMessageWindowPolicy.paginationHighWater);
+    if (scope == null) return false;
+    final highWater = _hasConnectedHistoryReadingTail(conversationID)
+        ? ChatMessageWindowPolicy.historyReadPaginationHighWater
+        : ChatMessageWindowPolicy.paginationHighWater;
+    return _boundedHistory.sessions[scope.conversationID]?.trim != null ||
+        (_messageListMap[scope.conversationID]?.length ?? 0) +
+                _messageReconciliationWriter
+                    .pendingRealtimeCount(scope.conversationID) >=
+            highWater;
   }
 
   bool historyWindowCanReadNewer(String conversationID) =>
@@ -798,6 +806,8 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       consumedHot = true;
       state.receivedCount = max(0, state.receivedCount - visibleHot.length);
       state.revealedUnreadMessageIDs.removeAll(visibleHot);
+      state.remainingLiveIncomingIds.removeAll(visibleHot);
+      state.seenLiveIncomingIds.addAll(visibleHot);
       state.bufferedMessages.removeWhere((message) => visibleHot.contains(
           (message.msgID?.trim().isNotEmpty ?? false)
               ? message.msgID!.trim() : message.id?.trim() ?? ''));
@@ -837,6 +847,7 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       if (!ownerAndVisitCurrent()) return false;
       final consumed = receipt.acknowledgedMessageIDs;
       if (consumed.isEmpty) return consumedHot;
+      state.receivedCount = max(0, state.receivedCount - consumed.length);
       state.bufferedMessages.removeWhere((message) => consumed.contains(
           (message.msgID?.trim().isNotEmpty ?? false)
               ? message.msgID!.trim()
@@ -895,6 +906,18 @@ extension BoundedChatHistory on TUIChatGlobalModel {
     // Geometry belongs to the mounted route, rather than the SDK's bare peer ID.
     final viewConversation = currentSelectedConv;
     _syncHistoryPositionFromActiveScroll(viewConversation);
+    if (!isFollowingLatest(viewConversation) &&
+        !_isHistoryGapDeferral(viewConversation) &&
+        rawMessageCount(conversation) +
+                _inboundBatchCoalescer.pendingCountFor(
+                    _resolveMessageListStorageKey(conversation)) >=
+            ChatMessageWindowPolicy.historyReadSoftMax) {
+      // Publish the already reserved prefix before opening the gap. Never
+      // evict the reader's row to make space for an unbounded live tail.
+      _inboundBatchCoalescer.flushConversation(
+          _resolveMessageListStorageKey(conversation));
+      markMemoryWindowMissingNewer(viewConversation);
+    }
     if (_chatAppForeground && !_isHistoryGapDeferral(viewConversation)) {
       return false;
     }
@@ -999,6 +1022,20 @@ extension BoundedChatHistory on TUIChatGlobalModel {
   /// window, background state, context menu, or a reader who left the bottom.
   bool canRevealDurableIncomingAfterLatestReturn(String conversationID) {
     final key = TUIChatGlobalModel.canonicalHistoryStorageKey(conversationID);
+    final controller =
+        _activeChatScrollControllerMap[_inboundStateKey(conversationID)];
+    final position = controller == null
+        ? null
+        : _singleScrollPositionOrNull(controller);
+    // A post-snapshot arrival keeps the logical position at notShowLatest
+    // until its own visible receipt. That flag must not hide its body when the
+    // reader is physically at the latest window restored by this session.
+    final atRestoredViewportEdge = position != null &&
+        position.hasPixels &&
+        position.hasContentDimensions &&
+        !position.outOfRange &&
+        !isPaginationRestoreTransientNearBottom(conversationID, position) &&
+        position.pixels <= position.minScrollExtent + 1.0;
     return _boundedHistory.sessions[key]?.revealDeferredAtLatest == true &&
         _isSameConversationID(conversationID, currentSelectedConv) &&
         _chatAppForeground &&
@@ -1011,7 +1048,9 @@ extension BoundedChatHistory on TUIChatGlobalModel {
         !isHistoryReadingWindowActive(conversationID) &&
         (isUserScrollToBottomInProgress(conversationID) ||
             isFollowingLatest(conversationID) ||
-            getMessageListPosition(conversationID) == HistoryMessagePosition.bottom);
+            getMessageListPosition(conversationID) ==
+                HistoryMessagePosition.bottom ||
+            atRestoredViewportEdge);
   }
 
   /// Publish one bounded snapshot received after a successful latest reload.

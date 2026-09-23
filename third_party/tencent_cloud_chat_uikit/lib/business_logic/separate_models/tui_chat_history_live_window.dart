@@ -12,6 +12,20 @@ class _HistoryLiveWindow {
 }
 
 extension HistoryLiveWindow on TUIChatSeparateViewModel {
+  /// A frozen reading cursor can still be connected to the live tail.
+  /// Geometry/follow state never decides whether that connection exists.
+  bool canAppendIncomingToReadingWindow() =>
+      !haveMoreLatestData &&
+      !_historyKnownTipMissing &&
+      !globalModel.memoryWindowMissingNewer(conversationID) &&
+      !globalModel.isSearchJumpPending(conversationID);
+
+  void didAppendIncomingToReadingWindow(List<V2TimMessage> messages) {
+    if (canAppendIncomingToReadingWindow()) {
+      _acceptHistoryNewerPage(messages);
+    }
+  }
+
   bool get hasHistoryReadingWindow =>
       _historyLiveWindow.conversationID == conversationID &&
       _historyLiveWindow.newerCursor != null;
@@ -253,6 +267,9 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
     globalModel.setFollowingLatest(conv, true, notify: false, absorbUnread: false);
     globalModel.setMessageListPosition(conv, HistoryMessagePosition.bottom,
         notify: false);
+    // The latest edge and every outstanding identity were proved visible for
+    // this receive generation. Retire the reading visit's residual counter.
+    globalModel.settleAtTrueLatestEnd(conv, notify: false);
     _notify();
     globalModel.notifyListeners();
     return true;
@@ -371,6 +388,11 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
         isStillAtLatestEdge() &&
         !globalModel.isSearchJumpPending(conv);
     if (!globalModel.hasDurableHistoryDeferred(conv)) {
+      final projectedIDs = visibleMessages
+          .map(TUIChatGlobalModel.liveIncomingIdentity).toSet();
+      if (!projectedIDs.containsAll(globalModel.remainingLiveIncomingIdsFor(conv))) {
+        return Future<bool>.value(false);
+      }
       if (!current()) return Future<bool>.value(false);
       return Future<bool>.value(_commitFollowAfterVisibleLatestConfirm(conv));
     }

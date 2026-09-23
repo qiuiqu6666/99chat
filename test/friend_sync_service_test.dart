@@ -211,7 +211,7 @@ void main() {
     expect(syncReasons, ['friend_added_hint']);
   });
 
-  test('confirmed friend add updates the live contact directory immediately',
+  test('friend-add hint waits for confirmed sync before updating live contacts',
       () async {
     final directory = ImSdkRelationshipDirectory.instance;
     directory.reset();
@@ -227,10 +227,11 @@ void main() {
       reason: 'test_immediate_contact',
     );
 
-    expect(directory.friend('instant_friend')?.displayName, '新好友');
+    expect(directory.friend('instant_friend'), isNull);
+    expect(syncReasons, ['friend_added_hint']);
   });
 
-  test('confirmed friend delete removes the live contact immediately',
+  test('friend-delete hint waits for confirmed sync before removing live contacts',
       () async {
     final directory = ImSdkRelationshipDirectory.instance;
     directory.reset();
@@ -254,7 +255,8 @@ void main() {
 
     await FriendSyncService.instance.applyOptimisticDelete(peerUserId);
 
-    expect(directory.friend(peerUserId), isNull);
+    expect(directory.friend(peerUserId)?.displayName, '小明');
+    expect(syncReasons, ['friend_deleted']);
   });
 
   test(

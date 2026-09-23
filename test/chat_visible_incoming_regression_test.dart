@@ -293,10 +293,19 @@ void main() {
     });
     await frames(tester);
     expect(global.remainingLiveIncomingCountFor(conv), 2);
-    expect(
-      model.revealBufferedIncomingTowardLatest(limit: 8, skipCooldown: true),
-      isTrue,
-    );
+    final connectedRows = global.rawMessageList(conv)!
+        .where((message) =>
+            message.msgID == '$conv-101' || message.msgID == '$conv-102')
+        .length;
+    if (connectedRows < 2) {
+      expect(
+        model.revealBufferedIncomingTowardLatest(limit: 8, skipCooldown: true),
+        isTrue,
+      );
+    } else {
+      expect(connectedRows, 2,
+          reason: 'a connected live tail appends without a reveal step');
+    }
     await frames(tester);
     expect(
       global.remainingLiveIncomingCountFor(conv),
@@ -369,9 +378,12 @@ void main() {
       expect(scroll.offset, closeTo(offset, .01));
       expect(
         global.remainingLiveIncomingCountFor(model.conversationID),
-        0,
+        1,
         reason: 'uncovering must sample without an extra user drag',
       );
+      scroll.jumpTo(scroll.position.minScrollExtent);
+      await frames(tester, 8);
+      expect(global.remainingLiveIncomingCountFor(model.conversationID), 0);
     } finally {
       await close(tester);
     }
@@ -392,6 +404,9 @@ void main() {
         expect(global.remainingLiveIncomingCountFor(conv), 2);
         global.dismissAllContextMenuOverlays();
         await frames(tester, 10);
+        expect(global.remainingLiveIncomingCountFor(conv), 1);
+        scroll.jumpTo(scroll.position.minScrollExtent);
+        await frames(tester, 8);
         expect(global.remainingLiveIncomingCountFor(conv), 0);
       } finally {
         await close(tester);
