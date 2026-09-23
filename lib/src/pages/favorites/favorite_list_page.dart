@@ -30,6 +30,127 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
   bool _loading = true;
   String? _loadError;
   bool _editing = false;
+  String _query = '';
+  FavoriteMessageType? _filter;
+  bool _newestFirst = true;
+
+  String _label(String zh, String en) =>
+      AppI18n.of(context).t(zhHans: zh, zhHant: zh, en: en, ja: en, ko: en);
+
+  List<FavoriteMessageItem> get _visibleItems {
+    final query = _query.trim().toLowerCase();
+    final result = _items
+        .where((item) =>
+            (_filter == null || item.type == _filter) &&
+            (query.isEmpty ||
+                '${item.listPreview} ${item.sourceSenderName ?? ''} ${item.sourceConvLabel ?? ''}'
+                    .toLowerCase()
+                    .contains(query)))
+        .toList();
+    result.sort((a, b) => _newestFirst
+        ? b.favoritedAt.compareTo(a.favoritedAt)
+        : a.favoritedAt.compareTo(b.favoritedAt));
+    return result;
+  }
+
+  Widget _buildFilters(bool dark) {
+    Widget chip(FavoriteMessageType? type, String label, IconData? icon) {
+      final selected = _filter == type;
+      final count = type == null
+          ? _items.length
+          : _items.where((e) => e.type == type).length;
+      return Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: ChoiceChip(
+              selected: selected,
+              showCheckmark: false,
+              onSelected: (_) => setState(() => _filter = type),
+              side: BorderSide.none,
+              shape: const StadiumBorder(),
+              selectedColor:
+                  dark ? const Color(0xFF20344D) : const Color(0xFFEAF2FF),
+              backgroundColor:
+                  dark ? const Color(0xFF292D35) : const Color(0xFFF2F4F8),
+              label: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 16, color: AppColors.subText(dark: dark)),
+                  const SizedBox(width: 6)
+                ],
+                Text(label,
+                    style: TextStyle(
+                        color: selected
+                            ? AppColors.primaryBlue
+                            : AppColors.subText(dark: dark))),
+                const SizedBox(width: 6),
+                Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                        color: selected
+                            ? AppColors.primaryBlue
+                            : (dark
+                                ? const Color(0xFF3A404B)
+                                : const Color(0xFFE6EBF2)),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Text('$count',
+                        style: TextStyle(
+                            color: selected
+                                ? Colors.white
+                                : AppColors.subText(dark: dark),
+                            fontSize: 12))),
+              ])));
+    }
+
+    return ColoredBox(
+        color: AppColors.card(dark: dark),
+        child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+            child: Column(children: [
+              TextField(
+                  onChanged: (value) => setState(() => _query = value),
+                  decoration: InputDecoration(
+                      hintText: _label('搜索收藏内容', 'Search favorites'),
+                      prefixIcon: Icon(Icons.search_rounded,
+                          color: AppColors.subText(dark: dark)),
+                      filled: true,
+                      fillColor: dark
+                          ? const Color(0xFF252A33)
+                          : const Color(0xFFF2F4F8),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none))),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(
+                    child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(children: [
+                          chip(null, _label('全部', 'All'), null),
+                          chip(FavoriteMessageType.text, _label('文字', 'Text'),
+                              Icons.description_rounded),
+                          chip(FavoriteMessageType.image,
+                              _label('图片', 'Images'), Icons.image_rounded),
+                          if (_items
+                              .any((e) => e.type == FavoriteMessageType.video))
+                            chip(FavoriteMessageType.video,
+                                _label('视频', 'Videos'), Icons.videocam_rounded),
+                        ]))),
+                IconButton(
+                    tooltip: _newestFirst
+                        ? _label('最新优先', 'Newest first')
+                        : _label('最早优先', 'Oldest first'),
+                    onPressed: () =>
+                        setState(() => _newestFirst = !_newestFirst),
+                    icon: Icon(
+                        _newestFirst
+                            ? Icons.south_rounded
+                            : Icons.north_rounded,
+                        color: AppColors.primaryBlue))
+              ]),
+            ])));
+  }
+
   final Set<String> _selectedIds = <String>{};
 
   @override
@@ -121,13 +242,14 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
     });
     try {
       await FavoriteMessageApi.instance.delete(item.id);
-      if (mounted) ToastUtils.toast(AppI18n.of(context).t(
-        zhHans: '已删除',
-        zhHant: '已刪除',
-        en: 'Deleted',
-        ja: '削除しました',
-        ko: '삭제됨',
-      ));
+      if (mounted)
+        ToastUtils.toast(AppI18n.of(context).t(
+          zhHans: '已删除',
+          zhHant: '已刪除',
+          en: 'Deleted',
+          ja: '削除しました',
+          ko: '삭제됨',
+        ));
     } on DioError catch (e) {
       if (!mounted) return;
       setState(() {
@@ -243,12 +365,12 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
       context: context,
       builder: (ctx) => CupertinoActionSheet(
         title: Text(AppI18n.of(context).t(
-        zhHans: '添加收藏',
-        zhHant: '新增收藏',
-        en: 'Add Favorite',
-        ja: 'お気に入りに追加',
-        ko: '즐겨찾기 추가',
-      )),
+          zhHans: '添加收藏',
+          zhHant: '新增收藏',
+          en: 'Add Favorite',
+          ja: 'お気に入りに追加',
+          ko: '즐겨찾기 추가',
+        )),
         actions: [
           CupertinoActionSheetAction(
             onPressed: () {
@@ -256,12 +378,12 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
               _openCreate(FavoriteMessageType.text);
             },
             child: Text(AppI18n.of(context).t(
-        zhHans: '笔记',
-        zhHant: '筆記',
-        en: 'Note',
-        ja: 'メモ',
-        ko: '메모',
-      )),
+              zhHans: '笔记',
+              zhHant: '筆記',
+              en: 'Note',
+              ja: 'メモ',
+              ko: '메모',
+            )),
           ),
           CupertinoActionSheetAction(
             onPressed: () {
@@ -269,12 +391,12 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
               _openCreate(FavoriteMessageType.image);
             },
             child: Text(AppI18n.of(context).t(
-        zhHans: '图片',
-        zhHant: '圖片',
-        en: 'Image',
-        ja: '画像',
-        ko: '이미지',
-      )),
+              zhHans: '图片',
+              zhHant: '圖片',
+              en: 'Image',
+              ja: '画像',
+              ko: '이미지',
+            )),
           ),
           CupertinoActionSheetAction(
             onPressed: () {
@@ -282,23 +404,23 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
               _openCreate(FavoriteMessageType.video);
             },
             child: Text(AppI18n.of(context).t(
-        zhHans: '视频',
-        zhHant: '影片',
-        en: 'Video',
-        ja: '動画',
-        ko: '동영상',
-      )),
+              zhHans: '视频',
+              zhHant: '影片',
+              en: 'Video',
+              ja: '動画',
+              ko: '동영상',
+            )),
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.pop(ctx),
           child: Text(AppI18n.of(context).t(
-        zhHans: '取消',
-        zhHant: '取消',
-        en: 'Cancel',
-        ja: 'キャンセル',
-        ko: '취소',
-      )),
+            zhHans: '取消',
+            zhHant: '取消',
+            en: 'Cancel',
+            ja: 'キャンセル',
+            ko: '취소',
+          )),
         ),
       ),
     );
@@ -315,12 +437,12 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
               _openEdit(item);
             },
             child: Text(AppI18n.of(context).t(
-        zhHans: '编辑',
-        zhHant: '編輯',
-        en: 'Edit',
-        ja: '編集',
-        ko: '편집',
-      )),
+              zhHans: '编辑',
+              zhHant: '編輯',
+              en: 'Edit',
+              ja: '編集',
+              ko: '편집',
+            )),
           ),
           CupertinoActionSheetAction(
             isDestructiveAction: true,
@@ -329,23 +451,23 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
               _confirmDelete(item);
             },
             child: Text(AppI18n.of(context).t(
-        zhHans: '删除',
-        zhHant: '刪除',
-        en: 'Delete',
-        ja: '削除',
-        ko: '삭제',
-      )),
+              zhHans: '删除',
+              zhHant: '刪除',
+              en: 'Delete',
+              ja: '削除',
+              ko: '삭제',
+            )),
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.pop(ctx),
           child: Text(AppI18n.of(context).t(
-        zhHans: '取消',
-        zhHant: '取消',
-        en: 'Cancel',
-        ja: 'キャンセル',
-        ko: '취소',
-      )),
+            zhHans: '取消',
+            zhHant: '取消',
+            en: 'Cancel',
+            ja: 'キャンセル',
+            ko: '취소',
+          )),
         ),
       ),
     );
@@ -369,12 +491,12 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
         ),
         title: Text(
           AppI18n.of(context).t(
-        zhHans: '收藏',
-        zhHant: '收藏',
-        en: 'Favorites',
-        ja: 'お気に入り',
-        ko: '즐겨찾기',
-      ),
+            zhHans: '收藏',
+            zhHant: '收藏',
+            en: 'Favorites',
+            ja: 'お気に入り',
+            ko: '즐겨찾기',
+          ),
           style: TextStyle(
             color: AppColors.text(dark: dark),
             fontSize: 17,
@@ -386,118 +508,116 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
             TextButton(
               onPressed: _toggleEditMode,
               child: Text(
-                _editing ? AppI18n.of(context).t(
-        zhHans: '完成',
-        zhHant: '完成',
-        en: 'Done',
-        ja: '完了',
-        ko: '완료',
-      ) : AppI18n.of(context).t(
-        zhHans: '编辑',
-        zhHant: '編輯',
-        en: 'Edit',
-        ja: '編集',
-        ko: '편집',
-      ),
+                _editing
+                    ? AppI18n.of(context).t(
+                        zhHans: '完成',
+                        zhHant: '完成',
+                        en: 'Done',
+                        ja: '完了',
+                        ko: '완료',
+                      )
+                    : AppI18n.of(context).t(
+                        zhHans: '编辑',
+                        zhHant: '編輯',
+                        en: 'Edit',
+                        ja: '編集',
+                        ko: '편집',
+                      ),
                 style: const TextStyle(
                   color: AppColors.primaryBlue,
                   fontSize: 16,
                 ),
               ),
             ),
-          if (!_editing)
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline),
-              color: AppColors.primaryBlue,
-              onPressed: _showAddSheet,
-              tooltip: AppI18n.of(context).t(
-        zhHans: '添加',
-        zhHant: '新增',
-        en: 'Add',
-        ja: '追加',
-        ko: '추가',
-      ),
-            ),
+
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-          : _loadError != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _loadError!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.subText(dark: dark),
+      body: Column(children: [
+        _buildFilters(dark),
+        Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                : _loadError != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _loadError!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: AppColors.subText(dark: dark),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextButton(
+                                onPressed: _load,
+                                child: Text(AppI18n.of(context).t(
+                                  zhHans: '重试',
+                                  zhHant: '重試',
+                                  en: 'Retry',
+                                  ja: '再試行',
+                                  ko: '다시 시도',
+                                )),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        TextButton(
-                          onPressed: _load,
-                          child: Text(AppI18n.of(context).t(
-        zhHans: '重试',
-        zhHant: '重試',
-        en: 'Retry',
-        ja: '再試行',
-        ko: '다시 시도',
-      )),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : _items.isEmpty
-              ? Column(
-                  children: [
-                    Expanded(
-                      child: AppEmptyState(message: AppI18n.of(context).t(
-        zhHans: '暂无收藏',
-        zhHant: '暫無收藏',
-        en: 'No favorites yet',
-        ja: 'お気に入りはありません',
-        ko: '즐겨찾기 없음',
-      )),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: _showAddSheet,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primaryBlue,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: Text(AppI18n.of(context).t(
-        zhHans: '添加收藏',
-        zhHant: '新增收藏',
-        en: 'Add Favorite',
-        ja: 'お気に入りに追加',
-        ko: '즐겨찾기 추가',
-      )),
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.only(bottom: 88),
-                    children: _buildGroupedList(dark),
-                  ),
-                ),
+                      )
+                    : _items.isEmpty
+                        ? Column(
+                            children: [
+                              Expanded(
+                                child: AppEmptyState(
+                                    message: AppI18n.of(context).t(
+                                  zhHans: '暂无收藏',
+                                  zhHant: '暫無收藏',
+                                  en: 'No favorites yet',
+                                  ja: 'お気に入りはありません',
+                                  ko: '즐겨찾기 없음',
+                                )),
+                              ),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton(
+                                    onPressed: _showAddSheet,
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.primaryBlue,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
+                                    ),
+                                    child: Text(AppI18n.of(context).t(
+                                      zhHans: '添加收藏',
+                                      zhHant: '新增收藏',
+                                      en: 'Add Favorite',
+                                      ja: 'お気に入りに追加',
+                                      ko: '즐겨찾기 추가',
+                                    )),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _load,
+                            child: ListView(
+                              padding: const EdgeInsets.only(bottom: 88),
+                              children: _buildGroupedList(dark),
+                            ),
+                          ))
+      ]),
       floatingActionButton: _items.isEmpty || _editing
           ? null
           : FloatingActionButton(
               onPressed: _showAddSheet,
               backgroundColor: AppColors.primaryBlue,
-              child: const Icon(Icons.add, color: Colors.white),
+              shape: const CircleBorder(),
+              child: const Icon(Icons.add, color: Colors.white, size: 32),
             ),
       bottomNavigationBar: _editing
           ? SafeArea(
@@ -506,8 +626,7 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
                 child: SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed:
-                        _selectedIds.isEmpty ? null : _deleteSelected,
+                    onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFFE64340),
                       disabledBackgroundColor: AppColors.line(dark: dark),
@@ -516,20 +635,20 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
                     child: Text(
                       _selectedIds.isEmpty
                           ? AppI18n.of(context).t(
-        zhHans: '删除',
-        zhHant: '刪除',
-        en: 'Delete',
-        ja: '削除',
-        ko: '삭제',
-      )
+                              zhHans: '删除',
+                              zhHant: '刪除',
+                              en: 'Delete',
+                              ja: '削除',
+                              ko: '삭제',
+                            )
                           : AppI18n.of(context).format(
-        zhHans: '删除({count})',
-        zhHant: '刪除({count})',
-        en: 'Delete ({count})',
-        ja: '削除({count})',
-        ko: '삭제({count})',
-        vars: {'count': '${_selectedIds.length}'},
-      ),
+                              zhHans: '删除({count})',
+                              zhHant: '刪除({count})',
+                              en: 'Delete ({count})',
+                              ja: '削除({count})',
+                              ko: '삭제({count})',
+                              vars: {'count': '${_selectedIds.length}'},
+                            ),
                     ),
                   ),
                 ),
@@ -540,41 +659,33 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
   }
 
   List<Widget> _buildGroupedList(bool dark) {
-    final groups = _groupByDate(_items);
+    final groups = _groupByDate(_visibleItems);
     final children = <Widget>[];
-
     for (final entry in groups.entries) {
       children.add(_SectionHeader(label: entry.key, dark: dark));
-      for (var i = 0; i < entry.value.length; i++) {
-        final item = entry.value[i];
-        final isLast = i == entry.value.length - 1;
-        children.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+      for (final item in entry.value) {
+        children.add(Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
             child: _buildListTile(
-              item: item,
-              dark: dark,
-              showBottomRadius: isLast,
-              showTopRadius: i == 0,
-            ),
-          ),
-        );
-        if (!isLast) {
-          children.add(
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Divider(
-                height: 0.6,
-                thickness: 0.6,
-                indent: item.type == FavoriteMessageType.text ? 16 : 72,
-                color: AppColors.line(dark: dark),
-              ),
-            ),
-          );
-        }
+                item: item,
+                dark: dark,
+                showTopRadius: true,
+                showBottomRadius: true)));
       }
-      children.add(const SizedBox(height: 12));
     }
+    children.add(Padding(
+        padding: const EdgeInsets.fromLTRB(16, 32, 16, 24),
+        child: Column(children: [
+          AppEmptyState(
+              imageWidth: 100,
+              padding: const EdgeInsets.all(12),
+              message: groups.isEmpty
+                  ? _label('没有匹配的收藏', 'No matching favorites')
+                  : _label('没有更多了', 'No more favorites')),
+          Text(_label('已显示全部收藏内容', 'All favorites shown'),
+              style: TextStyle(
+                  fontSize: 13, color: AppColors.subText(dark: dark))),
+        ])));
     return children;
   }
 
@@ -592,20 +703,20 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
       String label;
       if (day == today) {
         label = AppI18n.of(context).t(
-        zhHans: '今天',
-        zhHant: '今天',
-        en: 'Today',
-        ja: '今日',
-        ko: '오늘',
-      );
+          zhHans: '今天',
+          zhHant: '今天',
+          en: 'Today',
+          ja: '今日',
+          ko: '오늘',
+        );
       } else if (day == yesterday) {
         label = AppI18n.of(context).t(
-        zhHans: '昨天',
-        zhHant: '昨天',
-        en: 'Yesterday',
-        ja: '昨日',
-        ko: '어제',
-      );
+          zhHans: '昨天',
+          zhHant: '昨天',
+          en: 'Yesterday',
+          ja: '昨日',
+          ko: '어제',
+        );
       } else if (now.difference(day).inDays < 7) {
         final appLocale = AppI18n.of(context).locale;
         final weekdayLocale = switch (appLocale) {
@@ -655,8 +766,7 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
           _openDetail(item);
         }
       },
-      onLongPress:
-          _editing ? null : () => _showItemActions(item),
+      onLongPress: _editing ? null : () => _showItemActions(item),
     );
 
     if (_editing) {
@@ -672,9 +782,8 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
         decoration: BoxDecoration(
           color: const Color(0xFFE64340),
           borderRadius: BorderRadius.vertical(
-            top: showTopRadius ? const Radius.circular(12) : Radius.zero,
-            bottom:
-                showBottomRadius ? const Radius.circular(12) : Radius.zero,
+            top: showTopRadius ? const Radius.circular(16) : Radius.zero,
+            bottom: showBottomRadius ? const Radius.circular(16) : Radius.zero,
           ),
         ),
         child: const Icon(Icons.delete_outline, color: Colors.white),
@@ -735,8 +844,8 @@ class _FavoriteListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.vertical(
-      top: showTopRadius ? const Radius.circular(12) : Radius.zero,
-      bottom: showBottomRadius ? const Radius.circular(12) : Radius.zero,
+      top: showTopRadius ? const Radius.circular(16) : Radius.zero,
+      bottom: showBottomRadius ? const Radius.circular(16) : Radius.zero,
     );
 
     return Material(
@@ -753,9 +862,7 @@ class _FavoriteListTile extends StatelessWidget {
             children: [
               if (editing) ...[
                 Icon(
-                  selected
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
+                  selected ? Icons.check_circle : Icons.radio_button_unchecked,
                   color: selected
                       ? AppColors.primaryBlue
                       : AppColors.subText(dark: dark),
@@ -763,19 +870,47 @@ class _FavoriteListTile extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
               ],
+              if (item.type == FavoriteMessageType.text) ...[
+                Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                        color: dark
+                            ? const Color(0xFF20344D)
+                            : const Color(0xFFECF2FF),
+                        borderRadius: BorderRadius.circular(9)),
+                    child: const Icon(Icons.title_rounded,
+                        size: 27, color: Color(0xFF568EFF))),
+                const SizedBox(width: 16),
+              ],
               if (item.type != FavoriteMessageType.text) ...[
                 _Thumb(item: item, dark: dark),
                 const SizedBox(width: 12),
               ],
-              Expanded(child: _Content(item: item, dark: dark)),
-              const SizedBox(width: 8),
-              Text(
-                _timeLabel(item.favoritedAt),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.subText(dark: dark),
-                ),
-              ),
+              Expanded(
+                  child: Stack(children: [
+                _Content(item: item, dark: dark),
+                Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text(_timeLabel(item.favoritedAt),
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.subText(dark: dark))),
+                      SizedBox(
+                          width: 28,
+                          height: 24,
+                          child: IconButton(
+                              padding: EdgeInsets.zero,
+                              tooltip: MaterialLocalizations.of(context)
+                                  .moreButtonTooltip,
+                              onPressed: onLongPress,
+                              icon: Icon(Icons.more_horiz,
+                                  size: 21,
+                                  color: AppColors.subText(dark: dark)))),
+                    ])),
+              ])),
             ],
           ),
         ),
@@ -803,13 +938,13 @@ class _Thumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const size = 52.0;
+    const size = 72.0;
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(10),
           child: SizedBox(
             width: size,
             height: size,
@@ -825,7 +960,7 @@ class _Thumb extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.28),
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(10),
               ),
               alignment: Alignment.center,
               child: const Icon(
@@ -886,20 +1021,23 @@ class _Content extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          preview,
-          maxLines: item.type == FavoriteMessageType.text ? 3 : 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: item.type == FavoriteMessageType.text ? 16 : 15,
-            height: 1.35,
-            fontWeight: item.type == FavoriteMessageType.text
-                ? FontWeight.w400
-                : FontWeight.w500,
-            color: AppColors.text(dark: dark),
+        Padding(
+          padding: const EdgeInsets.only(right: 62),
+          child: Text(
+            preview,
+            maxLines: item.type == FavoriteMessageType.text ? 4 : 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: item.type == FavoriteMessageType.text ? 16 : 15,
+              height: 1.35,
+              fontWeight: item.type == FavoriteMessageType.text
+                  ? FontWeight.w400
+                  : FontWeight.w500,
+              color: AppColors.text(dark: dark),
+            ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 9),
         Text(
           source,
           maxLines: 1,

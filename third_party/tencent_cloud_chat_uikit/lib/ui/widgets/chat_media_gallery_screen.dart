@@ -1683,6 +1683,7 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
             onMore: _showVideoActions,
             onForward: item.forwardFn,
             onSave: _handleDownload,
+            onOpenMedia: widget.onOpenMedia == null ? null : _handleOpenMedia,
             onDelete: item.deleteFn == null ? null : _handleDelete,
           );
         }
@@ -1740,7 +1741,7 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
                 onDownload: item.downloadFn == null && !isVideo
                     ? null
                     : _handleDownload,
-                onOpenMedia: isVideo && widget.onOpenMedia != null
+                onOpenMedia: widget.onOpenMedia != null
                     ? _handleOpenMedia
                     : null,
                 onDelete: item.deleteFn == null ? null : _handleDelete,

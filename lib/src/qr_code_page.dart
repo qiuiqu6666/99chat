@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_demo/src/widgets/app_qr_icon.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/wallet/wallet_share_service.dart';
 import 'dart:async';
 import 'dart:ui' as ui;
@@ -632,8 +633,7 @@ class _QRCodePageState extends State<QRCodePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.qr_code_2_rounded,
+              AppQrIcon(
                 size: 48,
                 color: palette.disabledIcon,
               ),

@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_reference_button.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -11,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_videoplayer.dart';
-import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_chrome.dart';
+
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_video_chrome.dart';
 
 class _Controller extends ChangeNotifier {
@@ -251,7 +252,11 @@ void main() {
     final menu = Completer<void>();
     await mount(tester,
         playerKey: player, chromeKey: chrome, onMore: () => menu.future);
-    await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+    expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
+    unawaited(tester
+        .state<MediaPreviewVideoChromeState>(
+            find.byType(MediaPreviewVideoChrome))
+        .showActions());
     await tester.pump(const Duration(seconds: 8));
     expect(opacity(tester), 1);
     menu.complete();
@@ -355,7 +360,7 @@ void main() {
     for (final action in ['forward', 'save', 'delete']) {
       final button = find.byKey(ValueKey('video-inline-$action'));
       expect(button, findsOneWidget);
-      expect(tester.widget<MediaPreviewCircleButton>(button).icon, isNotNull);
+      expect(tester.widget<MediaPreviewReferenceButton>(button).icon, isNotNull);
       final tooltip = tester.widget<Tooltip>(
           find.ancestor(of: button, matching: find.byType(Tooltip)).first);
       expect(tooltip.message, isNotEmpty);
@@ -464,7 +469,11 @@ void main() {
       find.byKey(const ValueKey('video-action-forward')),
       find.byKey(const ValueKey('video-action-delete')),
     ]) {
-      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
+      unawaited(tester
+          .state<MediaPreviewVideoChromeState>(
+              find.byType(MediaPreviewVideoChrome))
+          .showActions());
       await tester.pumpAndSettle();
       expect(find.byType(CupertinoActionSheet), findsOneWidget);
       expect(find.byType(BottomSheet), findsNothing);
@@ -506,7 +515,11 @@ void main() {
           },
         ),
       );
-      await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+      expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
+      unawaited(tester
+          .state<MediaPreviewVideoChromeState>(
+              find.byType(MediaPreviewVideoChrome))
+          .showActions());
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('video-action-delete')), findsNothing);
       expect(find.byKey(const ValueKey('video-action-forward')), findsNothing);
@@ -558,7 +571,11 @@ void main() {
         ),
       );
       for (final action in ['media']) {
-        await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+        expect(find.byIcon(Icons.more_horiz_rounded), findsNothing);
+        unawaited(tester
+            .state<MediaPreviewVideoChromeState>(
+                find.byType(MediaPreviewVideoChrome))
+            .showActions());
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         final cancelRect =

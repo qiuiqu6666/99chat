@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_uikit/ui/widgets/message_action_reference_icon.dart';
 // ignore_for_file: non_constant_identifier_names, avoid_print
 
 import 'dart:async';
@@ -432,6 +433,9 @@ class TIMUIKitMessageTooltipState
     Set<String> defaultTipsIds,
     Color color,
   ) {
+    if (MessageActionReferenceIcon.supports(item.id)) {
+      return MessageActionReferenceIcon(action: item.id, color: color);
+    }
     if (item.icon != null) {
       return Icon(item.icon, size: 22, color: color);
     }
@@ -462,8 +466,9 @@ class TIMUIKitMessageTooltipState
     TUITheme theme,
     Set<String> defaultTipsIds,
   ) {
-    // 对齐微信：深色菜单内删除也用浅色，靠文案区分危险操作。
-    final color = item.iconColor ?? const Color(0xFFFFFFFF);
+    final color = item.id == 'delete'
+        ? const Color(0xFFFF747C)
+        : item.iconColor ?? const Color(0xFFFFFFFF);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,

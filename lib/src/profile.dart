@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_demo/src/widgets/app_qr_icon.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -1308,8 +1309,7 @@ class _ProfileState extends State<MyProfile> {
               borderRadius: BorderRadius.circular(8),
               child: Padding(
                 padding: const EdgeInsets.all(4),
-                child: Icon(
-                  Icons.qr_code_2_rounded,
+                child: AppQrIcon(
                   size: 20,
                   color: AppTokens.accent,
                 ),

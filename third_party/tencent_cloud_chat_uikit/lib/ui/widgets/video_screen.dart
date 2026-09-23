@@ -955,6 +955,16 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
           onMore: _showVideoActionMenu,
           onForward: _currentItem.forwardFn ?? widget.forwardFn,
           onSave: _saveVideo,
+          onOpenMedia: widget.onOpenMedia == null
+              ? null
+              : () {
+                  if (_closing) return;
+                  final openMedia = widget.onOpenMedia!;
+                  _close();
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    openMedia();
+                  });
+                },
           onDelete: (_currentItem.deleteFn ?? widget.deleteFn) == null
               ? null
               : _handleDelete,

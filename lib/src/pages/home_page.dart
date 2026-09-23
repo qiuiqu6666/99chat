@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_demo/src/widgets/home_quick_action_tile.dart';
 // ignore_for_file: prefer_typing_uninitialized_variables, avoid_print
 
 import 'dart:async';
@@ -1053,38 +1054,21 @@ class HomePageState extends State<HomePage> {
     }
   }
 
-  Widget _buildTooltipIcon(Map e, theme) {
-    final icon = e["icon"];
-    if (icon is IconData) {
-      return Icon(
-        icon,
-        size: 21,
-        color: theme.primaryColor ?? AppTokens.accent,
-      );
-    }
-    return ColorFiltered(
-      colorFilter: ColorFilter.mode(
-        theme.primaryColor ?? AppTokens.accent,
-        BlendMode.srcATop,
-      ),
-      child: Image.asset(e["asset"]!, width: 21, height: 21),
-    );
-  }
-
   List<PopupMenuEntry<String>> _getTooltipMenus(BuildContext context, theme) {
     List toolTipList = currentIndex == 2
         ? _contactTooltip(context)
         : _conversationTooltip(context);
 
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return toolTipList.map((e) {
       return PopupMenuItem<String>(
-        value: e["id"]!,
-        child: Row(
-          children: [
-            _buildTooltipIcon(e, theme),
-            const SizedBox(width: 12),
-            Text(e['label']!, style: TextStyle(color: theme.darkTextColor)),
-          ],
+        value: e['id']!,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: HomeQuickActionTile(
+          id: e['id']!,
+          title: e['label']!,
+          divider: e != toolTipList.last,
+          dark: dark,
         ),
       );
     }).toList();
@@ -1119,27 +1103,29 @@ class HomePageState extends State<HomePage> {
     final RenderBox overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero, ancestor: overlay);
+    final media = MediaQuery.of(context);
+    final menuConstraints = homeQuickMenuConstraints(media.copyWith(size: overlay.size));
+    final menuWidth = menuConstraints.maxWidth;
+    final rightInset = media.padding.right + 8;
+    final menuLeft = overlay.size.width - menuWidth - rightInset;
     final selected = await showMenu<String>(
       context: context,
-      color: theme.selectPanelBgColor ??
-          theme.conversationItemBgColor ??
-          theme.appbarBgColor ??
-          AppColors.card(dark: menuIsDark),
-      shadowColor: Colors.black.withValues(alpha: 0.16),
+      color: menuIsDark ? const Color(0xFF202228) : Colors.white,
+      elevation: 12,
+      shadowColor: const Color(0x260E2345),
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTokens.rLg),
-        side: BorderSide(
-          color: theme.weakDividerColor ?? AppColors.line(dark: menuIsDark),
-        ),
+      menuPadding: const EdgeInsets.only(top: 10, bottom: 4),
+      constraints: menuConstraints,
+      shape: HomeQuickMenuShape(
+        arrowX: offset.dx + button.size.width / 2 - menuLeft,
+        borderColor: menuIsDark ? const Color(0xFF383A40) : const Color(0xFFE9EAEE),
       ),
       position: RelativeRect.fromLTRB(
-        offset.dx,
-        offset.dy + button.size.height + 6,
-        overlay.size.width - offset.dx - button.size.width,
+        menuLeft,
+        offset.dy + button.size.height + 2,
+        rightInset,
         0,
-      ),
-      items: _getTooltipMenus(context, theme),
+      ),      items: _getTooltipMenus(context, theme),
     );
     if (!mounted) return;
     _rotatePlusIconClockwise();
@@ -1260,7 +1246,10 @@ class HomePageState extends State<HomePage> {
         ),
         _buildHeaderIconButton(
           color: actionIconColor,
-          icon: Icons.notifications_none_rounded,
+          customIcon: CustomPaint(
+            size: Size.square(context.isDesktopFormFactor ? 22 : 24),
+            painter: _WalletBellIconPainter(actionIconColor),
+          ),
           onPressed: () {
             Navigator.push(
               context,
@@ -1278,7 +1267,10 @@ class HomePageState extends State<HomePage> {
       return [
         _buildHeaderIconButton(
           color: actionIconColor,
-          icon: Icons.settings_outlined,
+          customIcon: CustomPaint(
+            size: Size.square(context.isDesktopFormFactor ? 22 : 24),
+            painter: _SettingsGearIconPainter(actionIconColor),
+          ),
           onPressed: () {
             Navigator.push(
               context,
@@ -1633,59 +1625,159 @@ class _WalletScanIconPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 28, size.height / 28);
     final stroke = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.078
-      ..strokeCap = StrokeCap.round;
-    final w = size.width;
-    final h = size.height;
-    final corner = w * 0.29;
-    final inset = w * 0.12;
-
-    canvas.drawLine(Offset(inset, corner), Offset(inset, inset), stroke);
-    canvas.drawLine(Offset(inset, inset), Offset(corner, inset), stroke);
-    canvas.drawLine(
-      Offset(w - corner, inset),
-      Offset(w - inset, inset),
+      ..strokeWidth = 2.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(
+      Path()
+        ..moveTo(8.4, 3)
+        ..lineTo(5.2, 3)
+        ..quadraticBezierTo(3, 3, 3, 5.4)
+        ..lineTo(3, 8.6)
+        ..moveTo(19.6, 3)
+        ..lineTo(22.8, 3)
+        ..quadraticBezierTo(25, 3, 25, 5.4)
+        ..lineTo(25, 8.6)
+        ..moveTo(3, 19)
+        ..lineTo(3, 22.2)
+        ..quadraticBezierTo(3, 24.4, 5.2, 24.4)
+        ..lineTo(8.4, 24.4)
+        ..moveTo(19.6, 24.4)
+        ..lineTo(22.8, 24.4)
+        ..quadraticBezierTo(25, 24.4, 25, 22.2)
+        ..lineTo(25, 19)
+        ..moveTo(8, 13.8)
+        ..lineTo(20, 13.8),
       stroke,
     );
-    canvas.drawLine(
-      Offset(w - inset, inset),
-      Offset(w - inset, corner),
-      stroke,
-    );
-    canvas.drawLine(
-      Offset(w - inset, h - corner),
-      Offset(w - inset, h - inset),
-      stroke,
-    );
-    canvas.drawLine(
-      Offset(w - inset, h - inset),
-      Offset(w - corner, h - inset),
-      stroke,
-    );
-    canvas.drawLine(
-      Offset(corner, h - inset),
-      Offset(inset, h - inset),
-      stroke,
-    );
-    canvas.drawLine(
-      Offset(inset, h - inset),
-      Offset(inset, h - corner),
-      stroke,
-    );
-    canvas.drawLine(
-      Offset(w * 0.36, h * 0.50),
-      Offset(w * 0.64, h * 0.50),
-      stroke,
-    );
+    canvas.restore();
   }
 
   @override
   bool shouldRepaint(covariant _WalletScanIconPainter oldDelegate) {
     return oldDelegate.color != color;
   }
+}
+
+/// Rounded bell silhouette and detached clapper from the supplied artwork.
+class _WalletBellIconPainter extends CustomPainter {
+  const _WalletBellIconPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 28, size.height / 28);
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(
+      Path()
+        ..moveTo(12.4, 3.6)
+        ..cubicTo(12.4, 1.5, 15.6, 1.5, 15.6, 3.6)
+        ..moveTo(6.4, 16.8)
+        ..lineTo(6.4, 11)
+        ..cubicTo(6.4, 6.5, 9.8, 3.9, 14, 3.9)
+        ..cubicTo(18.2, 3.9, 21.6, 6.5, 21.6, 11)
+        ..lineTo(21.6, 16.8)
+        ..lineTo(23.6, 20.1)
+        ..lineTo(4.4, 20.1)
+        ..close(),
+      stroke,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(10, 22.6)
+        ..lineTo(18, 22.6)
+        ..cubicTo(17.3, 27, 10.7, 27, 10, 22.6)
+        ..close(),
+      Paint()..color = color,
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_WalletBellIconPainter oldDelegate) => oldDelegate.color != color;
+}
+
+/// Six rounded teeth with a transparent annulus and solid center.
+class _SettingsGearIconPainter extends CustomPainter {
+  const _SettingsGearIconPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 600, size.height / 600);
+    canvas.translate(-325, -310);
+    final silhouette = Path()
+      ..moveTo(583, 326)
+      ..lineTo(667, 326)
+      ..cubicTo(688, 326, 698, 340, 701, 359)
+      ..lineTo(707, 398)
+      ..cubicTo(709, 413, 719, 420, 747, 435)
+      ..cubicTo(760, 443, 767, 442, 780, 437)
+      ..lineTo(814, 423)
+      ..cubicTo(832, 415, 845, 423, 855, 439)
+      ..lineTo(895, 508)
+      ..cubicTo(905, 525, 901, 539, 886, 552)
+      ..lineTo(856, 576)
+      ..cubicTo(846, 584, 843, 590, 843, 604)
+      ..lineTo(843, 629)
+      ..cubicTo(843, 642, 848, 649, 858, 657)
+      ..lineTo(886, 678)
+      ..cubicTo(902, 691, 904, 705, 895, 722)
+      ..lineTo(855, 790)
+      ..cubicTo(844, 808, 829, 809, 812, 801)
+      ..lineTo(779, 787)
+      ..cubicTo(766, 781, 758, 782, 746, 789)
+      ..lineTo(722, 804)
+      ..cubicTo(710, 811, 706, 818, 704, 833)
+      ..lineTo(699, 868)
+      ..cubicTo(696, 886, 684, 897, 664, 897)
+      ..lineTo(584, 897)
+      ..cubicTo(563, 897, 552, 885, 549, 868)
+      ..lineTo(543, 831)
+      ..cubicTo(542, 817, 536, 810, 524, 803)
+      ..lineTo(499, 787)
+      ..cubicTo(490, 780, 483, 779, 471, 785)
+      ..lineTo(438, 800)
+      ..cubicTo(420, 809, 406, 806, 395, 789)
+      ..lineTo(355, 722)
+      ..cubicTo(344, 704, 345, 690, 361, 677)
+      ..lineTo(392, 654)
+      ..cubicTo(402, 647, 405, 638, 405, 625)
+      ..lineTo(405, 604)
+      ..cubicTo(405, 590, 402, 582, 392, 574)
+      ..lineTo(363, 550)
+      ..cubicTo(349, 538, 346, 525, 355, 509)
+      ..lineTo(398, 438)
+      ..cubicTo(408, 421, 420, 415, 439, 424)
+      ..lineTo(473, 438)
+      ..cubicTo(486, 443, 494, 439, 505, 433)
+      ..lineTo(528, 419)
+      ..cubicTo(540, 412, 543, 403, 545, 390)
+      ..lineTo(550, 358)
+      ..cubicTo(553, 339, 565, 326, 583, 326)
+      ..close()
+      ..fillType = PathFillType.evenOdd
+      ..addOval(Rect.fromCircle(center: const Offset(623, 618), radius: 140));
+    final paint = Paint()..color = color;
+    canvas.drawPath(silhouette, paint);
+    canvas.drawCircle(const Offset(622, 620), 85.5, paint);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_SettingsGearIconPainter oldDelegate) => oldDelegate.color != color;
 }
 
 class NavigationBarData {

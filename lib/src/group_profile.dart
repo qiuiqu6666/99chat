@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_demo/src/widgets/app_qr_icon.dart';
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
@@ -706,9 +707,8 @@ class GroupProfilePage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
                       padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.qr_code_2_rounded,
-                        color: iconColor,
+                      child: AppQrIcon(
+                  color: iconColor,
                         size: 22,
                       ),
                     ),

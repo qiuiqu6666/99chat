@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'wallet_action_artwork.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:tencent_cloud_chat_demo/utils/toast.dart';
@@ -39,7 +41,6 @@ const double _walletInviteBgHeight = 344;
 const double _walletInviteBgAspectRatio =
     _walletInviteBgWidth / _walletInviteBgHeight;
 const double _walletInviteCardHeightScale = 0.76;
-const int _walletActionIconSourcePx = 256;
 
 int walletPromoCacheWidth({
   required double logicalWidth,
@@ -283,10 +284,11 @@ class _WalletView extends StatelessWidget {
   Widget _buildWalletScrollContent({
     required BuildContext context,
   }) {
-    final actionBarHeight = 150.h;
+
     final cardGap = 18.h;
     final horizontalPadding = 16.w;
     final cardWidth = MediaQuery.sizeOf(context).width - horizontalPadding * 2;
+    final actionBarHeight = (cardWidth * 0.18).clamp(76.0, 124.0);
     final headerBgHeight = cardWidth / _walletHeaderBgAspectRatio;
     final headerSectionHeight = headerBgHeight + cardGap + actionBarHeight;
     final inviteCardHeight =
@@ -731,10 +733,9 @@ class _ActionBar extends StatelessWidget {
     final items = [
       _ActItem(
         action: _WalletHomeAction.receive,
-        iconAsset: 'assets/img/accept.png',
         hint: i18n.t(
-          zhHans: '充币',
-          zhHant: '充幣',
+          zhHans: '充币到账',
+          zhHant: '充幣到帳',
           en: 'Deposit',
           ja: '入金',
           ko: '입금',
@@ -749,10 +750,9 @@ class _ActionBar extends StatelessWidget {
       ),
       _ActItem(
         action: _WalletHomeAction.transfer,
-        iconAsset: 'assets/img/send.png',
         hint: i18n.t(
-          zhHans: '提币',
-          zhHant: '提幣',
+          zhHans: '提现转出',
+          zhHant: '提現轉出',
           en: 'Withdraw',
           ja: '出金',
           ko: '출금',
@@ -767,7 +767,7 @@ class _ActionBar extends StatelessWidget {
       ),
       _ActItem(
         action: _WalletHomeAction.swap,
-        iconAsset: 'assets/img/exchange.png',
+        hint: i18n.t(zhHans: '币种兑换', zhHant: '幣種兌換', en: 'Exchange coins', ja: '通貨交換', ko: '코인 교환'),
         txt: i18n.t(
           zhHans: '闪兑',
           zhHant: '閃兌',
@@ -778,7 +778,7 @@ class _ActionBar extends StatelessWidget {
       ),
       _ActItem(
         action: _WalletHomeAction.record,
-        iconAsset: 'assets/img/Record.png',
+        hint: i18n.t(zhHans: '收支明细', zhHant: '收支明細', en: 'Transactions', ja: '入出金明細', ko: '거래 내역'),
         txt: i18n.t(
           zhHans: '记录',
           zhHant: '記錄',
@@ -857,59 +857,17 @@ class _ActionBar extends StatelessWidget {
                         return;
                     }
                   },
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        height: 32.sp,
-                        child: e.hint == null
-                            ? null
-                            : Align(
-                                alignment: Alignment.bottomCenter,
-                                child: _ActionHintBadge(
-                                  text: e.hint!,
-                                  accent: e.action == _WalletHomeAction.transfer
-                                      ? const Color(0xFF2B72FF)
-                                      : const Color(0xFF22C55E),
-                                ),
-                              ),
-                      ),
-                      SizedBox(height: 4.h),
-                      Image.asset(
-                        e.iconAsset,
-                        width: 60.sp,
-                        height: 60.sp,
-                        fit: BoxFit.contain,
-                        cacheWidth: walletPromoCacheWidth(
-                          logicalWidth: 60.sp,
-                          devicePixelRatio: walletPromoDecodePixelRatio(
-                            MediaQuery.devicePixelRatioOf(context),
-                          ),
-                          sourcePx: _walletActionIconSourcePx,
-                        ),
-                      ),
-                      SizedBox(height: 8.h),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          e.txt,
-                          maxLines: 1,
-                          softWrap: false,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 24.sp,
-                            height: 1.1,
-                            color: cs.text,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: WalletActionTile(
+                    action: e.action.name,
+                    title: e.txt,
+                    subtitle: e.hint ?? '',
+                    textColor: cs.text,
+                    dark: cs.dark,
+                    divider: e != items.last,
                   ),
                 ),
               ),
-            )
-            .toList(),
+            ).toList(),
       ),
     );
   }
@@ -1725,42 +1683,6 @@ class _UsdtPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _ActionHintBadge extends StatelessWidget {
-  const _ActionHintBadge({
-    required this.text,
-    required this.accent,
-  });
-
-  final String text;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
-        decoration: BoxDecoration(
-          color: accent,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          text,
-          maxLines: 1,
-          softWrap: false,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 20.sp,
-            height: 1.1,
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 enum _WalletHomeAction {
   receive,
   transfer,
@@ -1770,14 +1692,14 @@ enum _WalletHomeAction {
 
 class _ActItem {
   final _WalletHomeAction action;
-  final String iconAsset;
+
   final String txt;
-  /// 主文案上方的提示，如收款上的「充币」、转账上的「提币」。
+  /// 图标下方的用途说明。
   final String? hint;
 
   const _ActItem({
     required this.action,
-    required this.iconAsset,
+
     required this.txt,
     this.hint,
   });

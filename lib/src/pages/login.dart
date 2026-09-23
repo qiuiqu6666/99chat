@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_print
 
+import 'package:tencent_cloud_chat_demo/src/widgets/app_qr_icon.dart';
 import 'dart:async';
 
 import 'package:dio/dio.dart';
@@ -1129,9 +1130,8 @@ class _LoginBodyState extends State<_LoginBody> {
       return const CircularProgressIndicator();
     }
     final qr = payload.isEmpty
-        ? Icon(
-            Icons.qr_code_2_rounded,
-            size: 72,
+        ? AppQrIcon(
+          size: 72,
             color: AppTokens.ink300,
           )
         : QrImageView(
@@ -1315,8 +1315,7 @@ class _LoginBodyState extends State<_LoginBody> {
               child: const SizedBox(
                 width: 40,
                 height: 40,
-                child: Icon(
-                  Icons.qr_code_2_rounded,
+                child: AppQrIcon(
                   size: 24,
                   color: AppTokens.ink400,
                 ),
