@@ -14991,6 +14991,11 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
         !_isSameConversationID(_openBottomCapsuleLockConvId, convId)) {
       return false;
     }
+    if (!isFollowingLatest(convId) &&
+        (getMessageListPosition(convId) != HistoryMessagePosition.bottom ||
+            receivedNewMessageCountFor(convId) > 0)) {
+      return false;
+    }
     if (isSearchJumpPending(convId)) {
       return false;
     }
@@ -15342,9 +15347,14 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
         !_isSameConversationID(convId, currentSelectedConv)) {
       return false;
     }
+    if (!isFollowingLatest(convId) && receivedNewMessageCountFor(convId) > 0) {
+      return false;
+    }
     // list-push 会故意 jump 离底再 animate 回来；这段物理偏移不是用户上滑看历史。
     // 不限 chunked reveal：单条连续收消息同样会误闪「回到底部」。
-    if (isInboundViewportPushActive(convId)) {
+    if (isInboundViewportPushActive(convId) &&
+        (isFollowingLatest(convId) ||
+            getMessageListPosition(convId) == HistoryMessagePosition.bottom)) {
       return true;
     }
     if (!isChunkedRevealActive(convId)) {

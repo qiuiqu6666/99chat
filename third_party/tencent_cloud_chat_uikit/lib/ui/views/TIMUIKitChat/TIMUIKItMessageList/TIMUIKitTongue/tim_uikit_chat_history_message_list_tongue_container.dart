@@ -209,6 +209,11 @@ class TIMUIKitHistoryMessageListTongueContainerState
         globalModel.unadmittedRemainingLiveCountFor(conv) > 0) {
       return false;
     }
+    // A temporary scroll extent can reach its minimum before the newest row
+    // is actually painted. Do not dismiss unread at that older window edge.
+    if (widget.verifyLatestMessageVisible?.call() == false) {
+      return false;
+    }
     return TrueLatestEnd.atTrueLatestEnd(
       atListEnd: TrueLatestEnd.atListEndFromPosition(
         _singleScrollPositionOrNull(),

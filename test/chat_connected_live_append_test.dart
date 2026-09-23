@@ -464,6 +464,46 @@ void main() {
     });
   }
 
+  testWidgets('unread reminder stays visible across the former live edge',
+      (tester) async {
+    try {
+      await mount(tester);
+      final conv = model.conversationID;
+      scroll.jumpTo(1200);
+      global.setFollowingLatest(conv, false);
+      await frames(tester, 5);
+      expect(global.isFollowingLatest(conv), isFalse);
+      for (var seq = 101; seq <= 171; seq++) {
+        await global.applyAppRealtimeMessage(_message(conv, seq));
+      }
+      await frames(tester);
+      expect(global.receivedNewMessageCountFor(conv), 71);
+      global.beginOpenChatBottomCapsuleLock(conv, lockMilliseconds: 5000);
+      global.beginInboundViewportPush(conv, lockMilliseconds: 5000);
+      expect(global.isOpenChatBottomCapsuleLocked(conv), isFalse);
+      expect(global.isInboundPresentationBottomLocked(conv), isFalse);
+      global.notifyListeners();
+      await frames(tester, 3);
+      expect(find.textContaining('showUnread:').hitTestable(), findsOneWidget);
+
+      // Zero was the original latest edge before these rows were appended.
+      scroll.jumpTo(0);
+      await frames(tester, 8);
+      expect(find.text('seq:171').hitTestable(), findsNothing);
+      expect(global.receivedNewMessageCountFor(conv), greaterThan(0));
+      expect(find.textContaining('showUnread:').hitTestable(), findsOneWidget,
+          reason: 'the old edge cannot dismiss the unread reminder');
+
+      scroll.jumpTo(scroll.position.minScrollExtent + 80);
+      await frames(tester, 8);
+      if (global.receivedNewMessageCountFor(conv) > 0) {
+        expect(find.textContaining('showUnread:').hitTestable(), findsOneWidget);
+      }
+    } finally {
+      await close(tester);
+    }
+  });
+
 
   testWidgets('300 live arrivals remain connected without moving the reading row',
       (tester) async {
