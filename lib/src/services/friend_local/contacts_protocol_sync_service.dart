@@ -1,6 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:tencent_cloud_chat_demo/src/services/c2c_friend_message_guard.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_directory.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_reconcile_service.dart';
 import 'package:tencent_cloud_chat_demo/src/api/me_friend_api.dart';
 import 'package:tencent_cloud_chat_demo/src/api/sync_protocol_api.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_local/contacts_protocol_mapper.dart';
@@ -26,7 +30,7 @@ typedef ContactsChangesFetch = Future<SyncChangesPage> Function({
   int limit,
 });
 
-class ContactsProtocolSyncService {
+class ContactsProtocolSyncService with WidgetsBindingObserver {
   ContactsProtocolSyncService._()
       : _fetchSnapshot = null,
         _fetchChanges = null,
@@ -55,19 +59,40 @@ class ContactsProtocolSyncService {
   final SessionIdentity Function()? _captureIdentity;
 
   final Map<String, Future<void>> _inFlight = <String, Future<void>>{};
+  final Set<String> _pending = <String>{};
+  final Set<String> _projectedSessions = <String>{};
+  Timer? _catchUpTimer;
   bool _attached = false;
 
   Future<void> attach() async {
     if (!_attached) {
       _attached = true;
       FriendRealtimeService.instance.addAuthOkListener(_onAuthOk);
+      WidgetsBinding.instance.addObserver(this);
+      _catchUpTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+        if (WidgetsBinding.instance.lifecycleState == null ||
+            WidgetsBinding.instance.lifecycleState ==
+                AppLifecycleState.resumed) {
+          unawaited(sync(reason: 'foreground_catch_up'));
+        }
+      });
     }
     await sync(reason: 'home_bind');
   }
 
   void detach() {
     FriendRealtimeService.instance.removeAuthOkListener(_onAuthOk);
+    WidgetsBinding.instance.removeObserver(this);
+    _catchUpTimer?.cancel();
+    _catchUpTimer = null;
     _attached = false;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_attached && state == AppLifecycleState.resumed) {
+      unawaited(sync(reason: 'foreground_resume'));
+    }
   }
 
   void _onAuthOk() {
@@ -77,6 +102,8 @@ class ContactsProtocolSyncService {
   Future<void> clearSession({String? ownerUserId}) async {
     detach();
     _inFlight.clear();
+    _pending.clear();
+    _projectedSessions.clear();
   }
 
   Future<void> sync({required String reason}) {
@@ -87,14 +114,22 @@ class ContactsProtocolSyncService {
     final key = '${identity.ownerUserId}|${identity.generation}';
     final active = _inFlight[key];
     if (active != null) {
+      // The running request may have been captured before this mutation.
+      _pending.add(key);
       return active;
     }
     late final Future<void> task;
-    task = _syncOnce(
-      identity: identity,
-      reason: reason,
-      allowSnapshotRestart: true,
-    ).whenComplete(() {
+    task = (() async {
+      do {
+        _pending.remove(key);
+        await _syncOnce(
+          identity: identity,
+          reason: reason,
+          allowSnapshotRestart: true,
+        );
+      } while (_isCurrent(identity) && _pending.remove(key));
+    })()
+        .whenComplete(() {
       if (identical(_inFlight[key], task)) {
         _inFlight.remove(key);
       }
@@ -111,7 +146,7 @@ class ContactsProtocolSyncService {
   bool _isCurrent(SessionIdentity identity) {
     if (_captureIdentity != null) {
       return identity.ownerUserId.isNotEmpty &&
-          identity.generation == SessionIdentityService.instance.generation;
+          identity == _captureIdentity!.call();
     }
     return SessionIdentityService.instance.isCurrent(identity);
   }
@@ -164,7 +199,16 @@ class ContactsProtocolSyncService {
     required bool allowSnapshotRestart,
   }) async {
     final owner = identity.ownerUserId;
+    final sessionKey = '$owner|${identity.generation}';
     try {
+      if (!_projectedSessions.contains(sessionKey)) {
+        final cached =
+            await FriendLocalStore.instance.readAll(ownerUserId: owner);
+        if (!_isCurrent(identity)) return;
+        await _projectSnapshot(
+            identity: identity, before: cached, after: cached);
+        _projectedSessions.add(sessionKey);
+      }
       final job = await FriendLocalStore.instance.readSyncJob(
         ownerUserId: owner,
       );
@@ -214,6 +258,14 @@ class ContactsProtocolSyncService {
     } on FormatException catch (error) {
       if (kDebugMode) {
         debugPrint('ContactsProtocolSync: invalid reason=$reason error=$error');
+      }
+    } catch (error) {
+      _projectedSessions.remove(sessionKey);
+      // A successful mutation must not become a failed operation because its
+      // catch-up request failed. Reconnect/resume/foreground timer retries it.
+      if (kDebugMode) {
+        debugPrint(
+            'ContactsProtocolSync: retry pending reason=$reason error=$error');
       }
     }
   }
@@ -282,7 +334,8 @@ class ContactsProtocolSyncService {
       }
       if (response.hasMore) {
         if (response.nextCursor.isEmpty || response.nextCursor == cursor) {
-          throw const FormatException('contacts snapshot cursor did not advance');
+          throw const FormatException(
+              'contacts snapshot cursor did not advance');
         }
         cursor = response.nextCursor;
         await FriendLocalStore.instance.saveSyncJob(
@@ -298,6 +351,10 @@ class ContactsProtocolSyncService {
           ownerUserId: owner,
           snapshotRevision: revision,
         );
+        if (response.estimatedTotal != null &&
+            records.length != response.estimatedTotal) {
+          throw const FormatException('contacts snapshot total mismatch');
+        }
         final before = await FriendLocalStore.instance.readAll(
           ownerUserId: owner,
         );
@@ -305,6 +362,7 @@ class ContactsProtocolSyncService {
           ownerUserId: owner,
           snapshotRevision: revision,
           records: records,
+          replaceAbsent: true,
         );
         await FriendLocalStore.instance.saveSyncJob(
           ownerUserId: owner,
@@ -317,7 +375,8 @@ class ContactsProtocolSyncService {
         final after = await FriendLocalStore.instance.readAll(
           ownerUserId: owner,
         );
-        await _projectSnapshot(before: before, after: after);
+        await _projectSnapshot(
+            identity: identity, before: before, after: after);
         return;
       }
       if (page == _maxPages - 1) {
@@ -358,11 +417,12 @@ class ContactsProtocolSyncService {
         if (!_isCurrent(identity)) {
           return;
         }
-        await _applyAndProject(owner: owner, event: event);
+        await _applyAndProject(identity: identity, owner: owner, event: event);
       }
       if (response.hasMore) {
         if (response.nextCursor.isEmpty || response.nextCursor == cursor) {
-          throw const FormatException('contacts changes cursor did not advance');
+          throw const FormatException(
+              'contacts changes cursor did not advance');
         }
         cursor = response.nextCursor;
         await FriendLocalStore.instance.saveSyncJob(
@@ -395,6 +455,7 @@ class ContactsProtocolSyncService {
   }
 
   Future<void> _applyAndProject({
+    required SessionIdentity identity,
     required String owner,
     required SyncChangeEvent event,
   }) async {
@@ -413,10 +474,13 @@ class ContactsProtocolSyncService {
       event: event,
       record: record,
     );
-    if (!applied) {
+    if (!_isCurrent(identity) || !applied) {
       return;
     }
+    MeFriendApi.instance.invalidateRelation(id);
+    C2cFriendMessageGuard.invalidate(id, clearTrusted: true);
     if (event.isDelete) {
+      ImSdkRelationshipDirectory.instance.applyFriendRemoves([id]);
       PeerProfileRefreshBus.instance.notify(id);
       return;
     }
@@ -427,7 +491,13 @@ class ContactsProtocolSyncService {
     if (afterRows.isEmpty) {
       return;
     }
+    if (!_isCurrent(identity)) return;
     final after = afterRows.first;
+    ImSdkRelationshipDirectory.instance.applyFriendAdds([
+      ImSdkRelationshipReconcileService.friendEntryFromSdk(
+          after.toV2TimFriendInfo()),
+    ]);
+    PeerProfileRefreshBus.instance.notify(id);
     final remarkChanged = (before?.remark ?? '') != after.remark;
     final nicknameChanged =
         (before?.friendNickname ?? '') != after.friendNickname;
@@ -442,14 +512,35 @@ class ContactsProtocolSyncService {
   }
 
   Future<void> _projectSnapshot({
+    required SessionIdentity identity,
     required List<MeFriendRecord> before,
     required List<MeFriendRecord> after,
   }) async {
+    if (!_isCurrent(identity)) return;
+    final directory = ImSdkRelationshipDirectory.instance;
+    final entries = [
+      for (final record in after)
+        ImSdkRelationshipReconcileService.friendEntryFromSdk(
+            record.toV2TimFriendInfo()),
+    ];
+    directory.applyFriendSnapshot(
+      captureId: directory.beginFriendCapture(),
+      entries: entries,
+    );
+    for (final id in {
+      ...before.map((r) => r.friendUserId),
+      ...after.map((r) => r.friendUserId)
+    }) {
+      MeFriendApi.instance.invalidateRelation(id);
+      C2cFriendMessageGuard.invalidate(id, clearTrusted: true);
+      PeerProfileRefreshBus.instance.notify(id);
+    }
     final beforeById = <String, MeFriendRecord>{
       for (final record in before)
         ChatIdFormat.rawUserUid(record.friendUserId): record,
     };
     for (final record in after) {
+      if (!_isCurrent(identity)) return;
       final id = ChatIdFormat.rawUserUid(record.friendUserId);
       if (id.isEmpty) {
         continue;

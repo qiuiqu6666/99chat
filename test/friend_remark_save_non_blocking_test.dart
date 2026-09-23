@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('remark save has a bounded wait', () {
-    final source = File('lib/src/user_profile.dart').readAsStringSync();
+    final source = File('lib/src/user_profile.dart')
+        .readAsStringSync()
+        .replaceAll('\r\n', '\n');
     final start = source.indexOf('Future<void> _openFriendRemarkEdit');
     final end = source.indexOf('\n  Future<void> _handleAddFriend', start);
 
@@ -15,15 +17,16 @@ void main() {
   });
 
   test('remark lifecycle does not await conversation refresh', () {
-    final source = File('lib/src/user_profile.dart').readAsStringSync();
+    final source = File('lib/src/user_profile.dart')
+        .readAsStringSync()
+        .replaceAll('\r\n', '\n');
     expect(
-      source,
-      isNot(contains('await conversationModel\n'
-          '                                        .refreshConversationItem')),
-    );
+        RegExp(r'await\s+conversationModel\s*\.\s*refreshConversationItem')
+            .hasMatch(source),
+        isFalse);
     expect(
-        source,
-        contains('unawaited(\n'
-            '                                      conversationModel.refreshConversationItem'));
+        RegExp(r'unawaited\(\s*conversationModel\s*\.\s*refreshConversationItem')
+            .hasMatch(source),
+        isTrue);
   });
 }

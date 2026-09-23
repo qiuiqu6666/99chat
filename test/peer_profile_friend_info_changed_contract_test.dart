@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('friend info changed persists public profile before SelfHosted return',
+  test(
+      'self-hosted friend info waits for versioned state before writing public profile',
       () {
     final source = File(
       'third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/'
@@ -14,14 +15,14 @@ void main() {
       source.contains('UserProfileLocalBridge.upsertPublicProfileFromSnapshot'),
       isTrue,
     );
-    final upsertAt =
-        source.indexOf('UserProfileLocalBridge.upsertPublicProfileFromSnapshot');
+    final upsertAt = source
+        .indexOf('UserProfileLocalBridge.upsertPublicProfileFromSnapshot');
     final selfHostedReturnAt = source.indexOf(
       'SelfHostedFriendshipBridge.enabled',
-      upsertAt,
+      source.indexOf('onFriendInfoChanged:'),
     );
     expect(upsertAt, greaterThanOrEqualTo(0));
-    expect(selfHostedReturnAt, greaterThan(upsertAt));
+    expect(selfHostedReturnAt, lessThan(upsertAt));
 
     expect(
       source.contains(
@@ -42,7 +43,7 @@ void main() {
       source.contains('UserProfileLocalBridge.upsertPublicProfileFromSnapshot'),
       isTrue,
     );
-    expect(source.contains('_syncGroupMemberFromMessage(mountedMessage)'),
-        isTrue);
+    expect(
+        source.contains('_syncGroupMemberFromMessage(mountedMessage)'), isTrue);
   });
 }

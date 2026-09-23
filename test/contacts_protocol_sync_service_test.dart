@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_directory.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -38,6 +40,7 @@ void main() {
       );
 
   setUp(() async {
+    ImSdkRelationshipDirectory.instance.reset();
     snapshotCalls = <({String cursor, String? revision})>[];
     changesCalls = <({String afterRevision, String cursor})>[];
     snapshotPages = <SyncSnapshotPage>[];
@@ -336,7 +339,8 @@ void main() {
     expect(rows.single.remark, 'new');
   });
 
-  test('410 clears watermarks but keeps friends and resnapshots once', () async {
+  test('410 clears watermarks but keeps friends and resnapshots once',
+      () async {
     await FriendLocalStore.instance.replaceAll(
       ownerUserId: owner,
       records: [
@@ -427,5 +431,158 @@ void main() {
     expect(changesCalls, hasLength(2));
     final job = await FriendLocalStore.instance.readSyncJob(ownerUserId: owner);
     expect(job!['snapshot_revision'], 'R3');
+  });
+  test(
+      'complete authoritative snapshot removes absent versioned friends from DB and directory',
+      () async {
+    await FriendLocalStore.instance.upsert(
+        ownerUserId: owner,
+        record: MeFriendRecord(
+          friendUserId: peer,
+          remark: 'stale',
+          friendNickname: 'old',
+          friendAvatarUrl: '',
+          itemVersion: 17,
+          addedAt: 1,
+          peerDeletedMe: false,
+          canMessage: true,
+        ));
+    snapshotPages.add(const SyncSnapshotPage(
+        snapshotRevision: '20',
+        opaqueCursor: '',
+        hasMore: false,
+        items: [],
+        estimatedTotal: 0));
+    await service.sync(reason: 'repair');
+    expect(
+        await FriendLocalStore.instance.readAll(ownerUserId: owner), isEmpty);
+    expect(ImSdkRelationshipDirectory.instance.friend(peer), isNull);
+  });
+
+  test('incomplete snapshot cannot replace the last usable contacts', () async {
+    await FriendLocalStore.instance.upsert(
+        ownerUserId: owner,
+        record: MeFriendRecord(
+          friendUserId: peer,
+          remark: '',
+          friendNickname: 'old',
+          friendAvatarUrl: '',
+          itemVersion: 17,
+          addedAt: 1,
+          peerDeletedMe: false,
+          canMessage: true,
+        ));
+    snapshotPages.add(const SyncSnapshotPage(
+        snapshotRevision: '20',
+        opaqueCursor: '',
+        hasMore: false,
+        items: [],
+        estimatedTotal: 1));
+    await service.sync(reason: 'incomplete');
+    expect(await FriendLocalStore.instance.readAll(ownerUserId: owner),
+        hasLength(1));
+    expect(changesCalls, isEmpty);
+  });
+
+  test(
+      'notification during an old in-flight request forces another changes pass',
+      () async {
+    await FriendLocalStore.instance.saveSyncJob(
+        ownerUserId: owner,
+        snapshotRevision: '10',
+        nextCursor: '',
+        hasMore: false,
+        persistedCount: 0,
+        state: 'completed');
+    final started = Completer<void>();
+    final release = Completer<void>();
+    var calls = 0;
+    final overlapping = ContactsProtocolSyncService.forTest(
+      captureIdentity: () => SessionIdentity(
+          ownerUserId: owner,
+          generation: SessionIdentityService.instance.generation),
+      pacer: pacer(),
+      fetchSnapshot: (
+              {required String domain,
+              String cursor = '',
+              String? snapshotRevision,
+              int limit = 200}) async =>
+          throw StateError('unexpected snapshot'),
+      fetchChanges: (
+          {required String domain,
+          String afterRevision = '',
+          String cursor = '',
+          int limit = 200}) async {
+        calls++;
+        if (calls == 1) {
+          started.complete();
+          await release.future;
+          return const SyncChangesPage(
+              snapshotRevision: '10',
+              toRevision: '10',
+              opaqueCursor: '',
+              hasMore: false,
+              events: []);
+        }
+        return SyncChangesPage(
+            snapshotRevision: '11',
+            toRevision: '11',
+            opaqueCursor: '',
+            hasMore: false,
+            events: [
+              event(
+                  eventId: 'new-after-request', version: 1, remark: 'confirmed')
+            ]);
+      },
+    );
+    final first = overlapping.sync(reason: 'old_request');
+    await started.future;
+    final mutation = overlapping.sync(reason: 'mutation_completed');
+    release.complete();
+    await Future.wait([first, mutation]);
+    expect(calls, 2);
+    expect(
+        (await FriendLocalStore.instance.readAll(ownerUserId: owner))
+            .single
+            .remark,
+        'confirmed');
+    expect(ImSdkRelationshipDirectory.instance.friend(peer), isNotNull);
+  });
+
+  test('response from a previous account generation is discarded', () async {
+    final started = Completer<void>();
+    final release = Completer<void>();
+    var generation = 1;
+    final switching = ContactsProtocolSyncService.forTest(
+      captureIdentity: () =>
+          SessionIdentity(ownerUserId: owner, generation: generation),
+      pacer: pacer(),
+      fetchSnapshot: (
+          {required String domain,
+          String cursor = '',
+          String? snapshotRevision,
+          int limit = 200}) async {
+        started.complete();
+        await release.future;
+        return SyncSnapshotPage(
+            snapshotRevision: '10',
+            opaqueCursor: '',
+            hasMore: false,
+            items: [item(id: peer, version: 1)]);
+      },
+      fetchChanges: (
+              {required String domain,
+              String afterRevision = '',
+              String cursor = '',
+              int limit = 200}) async =>
+          throw StateError('unexpected changes'),
+    );
+    final request = switching.sync(reason: 'old_account');
+    await started.future;
+    generation++;
+    release.complete();
+    await request;
+    expect(
+        await FriendLocalStore.instance.readAll(ownerUserId: owner), isEmpty);
   });
 }

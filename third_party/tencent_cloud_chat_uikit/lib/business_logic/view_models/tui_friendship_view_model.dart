@@ -69,6 +69,7 @@ class TUIFriendShipViewModel extends ChangeNotifier {
     }
     return false;
   }
+
   NewContactLifeCycle? _newContactLifeCycle;
   FriendListLifeCycle? _contactListLifeCycle;
   BlockListLifeCycle? _blockListLifeCycle;
@@ -220,8 +221,12 @@ class TUIFriendShipViewModel extends ChangeNotifier {
         loadContactApplicationData();
       },
       onFriendInfoChanged: (infoList) {
-        // Always persist public nick/face. SelfHosted must not apply IM SNS
-        // remarks into DisplayNameStore, but must not skip public profile either.
+        if (SelfHostedFriendshipBridge.enabled) {
+          unawaited(ImSdkRelationshipReconcileService.instance
+              .refreshConfirmedFriends(reason: 'sdk_friend_info_hint'));
+          return;
+        }
+        // Ordinary SDK mode persists public profiles and remarks here.
         for (final info in infoList) {
           final userID = info.userID.trim();
           if (userID.isEmpty) {
@@ -238,11 +243,6 @@ class TUIFriendShipViewModel extends ChangeNotifier {
               faceUrl: profile.faceUrl,
             ),
           );
-        }
-        if (SelfHostedFriendshipBridge.enabled) {
-          // 备注以自托管为准，不把 IM SNS 里未清空的旧备注写回 Store。
-          _applyFriendChanges(infoList);
-          return;
         }
         var storeChanged = false;
         for (final info in infoList) {
@@ -270,6 +270,11 @@ class TUIFriendShipViewModel extends ChangeNotifier {
         _applyFriendAdds(users);
       },
       onFriendListDeleted: (userList) async {
+        if (SelfHostedFriendshipBridge.enabled) {
+          await ImSdkRelationshipReconcileService.instance
+              .refreshConfirmedFriends(reason: 'sdk_friend_removed_hint');
+          return;
+        }
         ImSdkRelationshipDirectory.instance.applyFriendRemoves(userList);
       },
       onBlackListAdd: (infoList) async {
@@ -330,7 +335,8 @@ class TUIFriendShipViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> markFriendApplicationAsRead({bool reloadApplications = true}) async {
+  Future<void> markFriendApplicationAsRead(
+      {bool reloadApplications = true}) async {
     final res = await _friendshipServices.setFriendApplicationRead();
     if (res.code == 0) {
       _friendApplicationAmount = 0;
@@ -388,6 +394,11 @@ class TUIFriendShipViewModel extends ChangeNotifier {
   }
 
   void _applyFriendAdds(List<V2TimFriendInfo> users) {
+    if (SelfHostedFriendshipBridge.enabled) {
+      unawaited(ImSdkRelationshipReconcileService.instance
+          .refreshConfirmedFriends(reason: 'sdk_friend_added_hint'));
+      return;
+    }
     ImSdkRelationshipDirectory.instance.applyFriendAdds([
       for (final info in users)
         ImSdkRelationshipReconcileService.friendEntryFromSdk(info),
