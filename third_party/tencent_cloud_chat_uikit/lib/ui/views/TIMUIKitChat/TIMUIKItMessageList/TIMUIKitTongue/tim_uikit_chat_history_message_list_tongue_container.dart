@@ -267,8 +267,21 @@ class TIMUIKitHistoryMessageListTongueContainerState
     }
   }
 
+  bool _canConfirmVisibleReading() {
+    if (!mounted) return false;
+    final conv = widget.model.conversationID;
+    return ModalRoute.of(context)?.isCurrent != false &&
+        !globalModel.isMessageContextMenuOverlayOpen &&
+        !globalModel.isContextMenuViewportRestoreActive(conv) &&
+        !globalModel.shouldLockChatScrollForMediaPreview &&
+        !globalModel.isRestoringScrollAfterMediaPreview &&
+        !globalModel.hasPendingScrollRestore(conv) &&
+        !globalModel.isSearchJumpPending(conv) &&
+        !widget.model.isLoadingChatHistory;
+  }
+
   void _settleLiveUnreadAtTrueLatestEnd() {
-    _commitOverallFollowIfReady();
+    if (!_commitOverallFollowIfReady()) return;
     _userLeftBottomIntentionally = false;
     if (mounted) {
       setState(() {
@@ -277,10 +290,37 @@ class TIMUIKitHistoryMessageListTongueContainerState
     }
   }
 
-  void _settleAtTrueLatestEnd() {
-    _commitOverallFollowIfReady();
+  bool _settleAtTrueLatestEnd() {
+    if (!_commitOverallFollowIfReady()) return false;
     _userLeftBottomIntentionally = false;
     widget.model.markMessageAsRead(force: true);
+    final conversationID = widget.model.conversationID;
+    globalModel.unlockEntryUnreadForTongue(
+      conversationID: conversationID,
+      notify: false,
+    );
+    var dismissedUnreadCount = _entryUnreadCount;
+    if (globalModel.unreadCountForTongue > dismissedUnreadCount) {
+      dismissedUnreadCount = globalModel.unreadCountForTongue;
+    }
+    final currentRemaining =
+        globalModel.getUnreadTongueRemaining(conversationID);
+    if (currentRemaining > dismissedUnreadCount) {
+      dismissedUnreadCount = currentRemaining;
+    }
+    globalModel.markEntryUnreadTongueDismissed(
+      conversationID: conversationID,
+      unreadCount: dismissedUnreadCount,
+      notify: false,
+    );
+    globalModel.clearUnreadTongueMetrics(
+      conversationID,
+      notify: false,
+    );
+    changePositionStateForConversation(
+      conversationID,
+      HistoryMessagePosition.bottom,
+    );
     if (mounted) {
       setState(() {
         _showScrollToBottomCapsule = false;
@@ -288,9 +328,12 @@ class TIMUIKitHistoryMessageListTongueContainerState
         _entryUnreadCount = 0;
       });
     }
+    return true;
   }
 
   bool _commitOverallFollowIfReady() =>
+      _canConfirmVisibleReading() &&
+      _atTrueLatestEndNow() &&
       widget.model.commitFollowAfterVisibleLatestConfirm();
 
   Future<void> scrollToLatestAndDismissUnreadCapsule() async {
@@ -615,8 +658,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
         }
       }
 
-      if (_atTrueLatestEndNow()) {
-        _settleAtTrueLatestEnd();
+      if (_settleAtTrueLatestEnd()) {
         returnedSuccessfully = true;
         return;
       }
@@ -640,6 +682,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
             isCurrent: () {
               final position = _singleScrollPositionOrNull();
               return isCurrent() &&
+                  _canConfirmVisibleReading() &&
                   globalModel.canRevealDurableIncomingAfterLatestReturn(
                     conversationID,
                   ) &&
@@ -671,37 +714,16 @@ class TIMUIKitHistoryMessageListTongueContainerState
         return;
       }
 
+      // Being at the scroll boundary alone is insufficient: an incoming row
+      // can still be absent from the projection, or an overlay can cover it.
+      if (!_settleAtTrueLatestEnd()) {
+        setState(() => _showScrollToBottomCapsule = true);
+        return;
+      }
       ChatJitterDiag.logFollowingLatest(
         action: 'return_to_latest_ok',
         conv: conversationID,
         extras: globalModel.stickToLatestDiagSnapshot(conversationID),
-      );
-      _settleAtTrueLatestEnd();
-      globalModel.unlockEntryUnreadForTongue(
-        conversationID: conversationID,
-        notify: false,
-      );
-      var dismissedUnreadCount = _entryUnreadCount;
-      if (globalModel.unreadCountForTongue > dismissedUnreadCount) {
-        dismissedUnreadCount = globalModel.unreadCountForTongue;
-      }
-      final currentRemaining =
-          globalModel.getUnreadTongueRemaining(conversationID);
-      if (currentRemaining > dismissedUnreadCount) {
-        dismissedUnreadCount = currentRemaining;
-      }
-      globalModel.markEntryUnreadTongueDismissed(
-        conversationID: conversationID,
-        unreadCount: dismissedUnreadCount,
-        notify: false,
-      );
-      globalModel.clearUnreadTongueMetrics(
-        conversationID,
-        notify: false,
-      );
-      changePositionStateForConversation(
-        conversationID,
-        HistoryMessagePosition.bottom,
       );
       returnedSuccessfully = true;
     }
@@ -1056,7 +1078,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
         widget.model.revealBufferedIncomingTowardLatest(skipCooldown: true);
         return;
       }
-      _commitOverallFollowIfReady();
+      if (!_commitOverallFollowIfReady()) return;
       final lockedBefore =
           globalModel.lockedEntryUnreadCountFor(conversationID);
       globalModel.unlockEntryUnreadForTongue(

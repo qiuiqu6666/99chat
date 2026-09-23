@@ -2073,6 +2073,7 @@ class _TIMUIKitHistoryMessageListState
     }
     final nextModel = Provider.of<TUIChatGlobalModel>(context, listen: false);
     _chatGlobalModel = nextModel;
+    _scheduleSeenLiveIncomingInViewport();
     if (_routeScroll.routeRestoreGlobalModel == nextModel) {
       return;
     }
@@ -2091,6 +2092,7 @@ class _TIMUIKitHistoryMessageListState
       _viewportInsert.viewportInsertSettleRemainingMs();
 
   void _onGlobalModelUpdated() {
+    _scheduleSeenLiveIncomingInViewport();
     _scheduleHistoryWindowTrim();
     _onGlobalRouteRestoreChanged();
     final globalModel = _routeScroll.routeRestoreGlobalModel;
@@ -6019,6 +6021,21 @@ class _TIMUIKitHistoryMessageListState
     }());
   }
 
+  bool _seenLiveIncomingScheduled = false;
+
+  void _scheduleSeenLiveIncomingInViewport() {
+    if (!mounted || _seenLiveIncomingScheduled ||
+        (_chatGlobalModel?.remainingLiveIncomingCountFor(_conversationId()) ?? 0)
+            <= 0) return;
+    _seenLiveIncomingScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _seenLiveIncomingScheduled = false;
+      _consumeSeenLiveIncomingInEffectiveViewport();
+    });
+    // Route/menu restoration may notify without changing the list or offset.
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
   void _consumeSeenLiveIncomingInEffectiveViewport() {
     if (!mounted) {
       return;
@@ -6028,7 +6045,17 @@ class _TIMUIKitHistoryMessageListState
       return;
     }
     final conv = _conversationId();
-    if (global.remainingLiveIncomingCountFor(conv) <= 0) {
+    if (global.remainingLiveIncomingCountFor(conv) <= 0 ||
+        ModalRoute.of(context)?.isCurrent == false ||
+        global.isMessageContextMenuOverlayOpen ||
+        global.isContextMenuViewportRestoreActive(conv) ||
+        global.shouldLockChatScrollForMediaPreview ||
+        global.isRestoringScrollAfterMediaPreview ||
+        global.hasPendingScrollRestore(conv) ||
+        global.isSearchJumpPending(conv) ||
+        _initialSearchJumpPending ||
+        _isSearchJumpStabilizing ||
+        widget.model.isLoadingChatHistory) {
       return;
     }
     final remaining = global.remainingLiveIncomingIdsFor(conv);
@@ -6041,10 +6068,9 @@ class _TIMUIKitHistoryMessageListState
         !position.hasContentDimensions) {
       return;
     }
-    final viewInsets = MediaQuery.viewInsetsOf(context).bottom;
-    final effectiveHeight =
-        (position.viewportDimension - viewInsets).clamp(0.0, double.infinity);
-    if (effectiveHeight <= 0) {
+    // The input area already reserves keyboard space outside this viewport.
+    // Subtracting MediaQuery insets here would exclude visible message rows.
+    if (position.viewportDimension <= 0) {
       return;
     }
     final messages = _currentVisibleMessageList();
@@ -6061,7 +6087,9 @@ class _TIMUIKitHistoryMessageListState
       }
       final tag = _autoScrollController.tagMap[-index];
       final rowContext = tag?.context;
-      if (rowContext == null) {
+      if (rowContext == null ||
+          tag?.widget.key !=
+              ValueKey<String>(_stableMessageListKey(message, index))) {
         continue;
       }
       final row = rowContext.findRenderObject();
@@ -6070,12 +6098,15 @@ class _TIMUIKitHistoryMessageListState
           viewport == null ||
           !row.attached ||
           !row.hasSize ||
+          !viewport.attached ||
+          !viewport.hasSize ||
+          _renderObjectNeedsLayout(row) ||
           row.size.height <= 0) {
         continue;
       }
       final top = row.localToGlobal(Offset.zero, ancestor: viewport).dy;
       final bottom = top + row.size.height;
-      if (top < effectiveHeight && bottom > 0) {
+      if (top < viewport.size.height && bottom > 0) {
         seen.add(id);
       }
     }
@@ -6087,7 +6118,7 @@ class _TIMUIKitHistoryMessageListState
   void _updateLatestMessageVisibility() {
     if (!mounted) return;
     _scheduleVisibleIncomingProgress();
-    _consumeSeenLiveIncomingInEffectiveViewport();
+    _scheduleSeenLiveIncomingInViewport();
     _scheduleLiveCenterRelease();
     final next = _isLatestMessageRowVisible();
     if (_latestMessageVisible.value != next) {

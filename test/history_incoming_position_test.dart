@@ -72,47 +72,70 @@ void main() {
         ..timestamp = id
         ..isSelf = false;
 
-  Future<void> mount(WidgetTester tester,
-      {bool tongue = false,
-      int entryUnread = 0,
-      Future<bool> Function(int)? onFirstUnread,
-      bool Function()? beginTransition,
-      Future<void> Function()? finishTransition}) async {
+  Future<void> mount(
+    WidgetTester tester, {
+    bool tongue = false,
+    int entryUnread = 0,
+    Future<bool> Function(int)? onFirstUnread,
+    bool Function()? beginTransition,
+    Future<void> Function()? finishTransition,
+  }) async {
     model.initialUnreadCount = entryUnread;
     final errorHandler = FlutterError.onError;
-    await tester.pumpWidget(ChangeNotifierProvider.value(
-      value: global,
-      child: MaterialApp(
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: global,
+        child: MaterialApp(
           home: Scaffold(
-              body: Stack(children: [
-        ListView.builder(
-          controller: scroll,
-          reverse: true,
-          itemExtent: 60,
-          itemCount: 100,
-          itemBuilder: (_, i) => Text('history $i'),
-        ),
-        if (tongue)
-          TIMUIKitHistoryMessageListTongueContainer(
-            messageList: List.generate(100, message),
-            conversation: V2TimConversation(
-                conversationID: 'group_$conv',
-                groupID: conv,
-                type: 2,
-                unreadCount: entryUnread),
-            scrollToIndexBySeq: (_) async => false,
-            scrollToFirstUnread: onFirstUnread ?? (_) async => false,
-            beginWindowTransition: beginTransition,
-            finishWindowTransition: finishTransition,
-            scrollController: scroll,
-            model: model,
-            tongueItemBuilder: (tap, type, count) => TextButton(
-              onPressed: tap,
-              child: Text('${type.name}:$count'),
+            body: AnimatedBuilder(
+              animation: global,
+              builder: (_, __) {
+                // Keep a long scroll surface, but give the rendered rows
+                // and the tongue the same current message identities.
+                final messages =
+                    global.rawMessageList(conv) ?? const <V2TimMessage>[];
+                return Stack(
+                  children: [
+                    ListView.builder(
+                      controller: scroll,
+                      reverse: true,
+                      itemExtent: 60,
+                      itemCount: 100,
+                      itemBuilder: (_, i) => Text(
+                        i < messages.length
+                            ? 'message:${messages[i].msgID}'
+                            : 'history $i',
+                      ),
+                    ),
+                    if (tongue)
+                      TIMUIKitHistoryMessageListTongueContainer(
+                        messageList: messages,
+                        conversation: V2TimConversation(
+                          conversationID: 'group_$conv',
+                          groupID: conv,
+                          type: 2,
+                          unreadCount: entryUnread,
+                        ),
+                        scrollToIndexBySeq: (_) async => false,
+                        scrollToFirstUnread:
+                            onFirstUnread ?? (_) async => false,
+                        beginWindowTransition: beginTransition,
+                        finishWindowTransition: finishTransition,
+                        scrollController: scroll,
+                        model: model,
+                        tongueItemBuilder: (tap, type, count) => TextButton(
+                          onPressed: tap,
+                          child: Text('${type.name}:$count'),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
-      ]))),
-    ));
+        ),
+      ),
+    );
     FlutterError.onError = errorHandler;
     await pump(tester);
   }
