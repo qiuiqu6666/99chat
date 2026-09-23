@@ -1291,7 +1291,7 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem>
     return buildChatMediaPreviewItems(
       originList: originList,
       tappedMessage: widget.message,
-      types: kChatMediaPreviewImageTypes,
+      types: kChatMediaPreviewAllTypes,
       heroTagBuilder: _heroTagForMessage,
       onDownload: (message) => _saveImgForMessage(message, theme),
       onEdit: ImagePreviewEditor.isSupported
@@ -1315,7 +1315,7 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem>
     final session = ChatMediaGalleryLiveSession(
       chatModel: widget.chatModel,
       tappedMessage: widget.message,
-      types: kChatMediaPreviewImageTypes,
+      types: kChatMediaPreviewAllTypes,
       initialPreview: _buildImagePreviewItems(
         widget.chatModel.getGalleryOriginMessageList(),
         theme,
@@ -1358,7 +1358,7 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem>
       MediaPreviewHeroRegistry.instance.revealAll({closingHeroTag});
     }
 
-    if (session.preview.isMixed) {
+    if (session.preview.items.isNotEmpty) {
       MediaPreviewDebug.log('push_gallery', {
         'from': 'image_elem',
         'initial': session.preview.initialIndex,
@@ -1544,7 +1544,7 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem>
         var payload = DesktopMediaPreviewPayload.fromChat(
           originList: widget.chatModel.getGalleryOriginMessageList(),
           tappedMessage: widget.message,
-          types: kChatMediaPreviewImageTypes,
+          types: kChatMediaPreviewAllTypes,
           heroTagBuilder: _heroTagForMessage,
           conversationID: widget.chatModel.conversationID,
           conversationType: widget.chatModel.conversationType,

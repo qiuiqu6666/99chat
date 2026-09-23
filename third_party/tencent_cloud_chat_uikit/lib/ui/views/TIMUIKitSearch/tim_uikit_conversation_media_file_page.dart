@@ -477,9 +477,7 @@ class _TIMUIKitConversationMediaFilePageState
       final payload = DesktopMediaPreviewPayload.fromChat(
         originList: items,
         tappedMessage: message,
-        types: isImage
-            ? kChatMediaPreviewImageTypes
-            : kChatMediaPreviewAllTypes,
+        types: kChatMediaPreviewAllTypes,
         heroTagBuilder: conversationMediaHeroTag,
         conversationID: widget.conversation.conversationID,
         conversationType: widget.conversation.type == 2
@@ -515,15 +513,11 @@ class _TIMUIKitConversationMediaFilePageState
       );
     }
 
-    // 对齐聊天气泡：点图片只收图片走 ImageScreen；点视频再走视频/混滑。
-    // 旧逻辑用 AllTypes，会话里一旦有视频就进 ChatMediaGalleryScreen，
-    // 与聊天进全屏路径不一致，且网格无源 Hero 易出空罩。
+    // 图片和视频使用同一条按聊天列表排序的预览序列。
     final preview = buildChatMediaPreviewItems(
       originList: items,
       tappedMessage: message,
-      types: isImage
-          ? kChatMediaPreviewImageTypes
-          : kChatMediaPreviewAllTypes,
+      types: kChatMediaPreviewAllTypes,
       heroTagBuilder: conversationMediaHeroTag,
       onDownload: downloadImage,
       onEdit: ImagePreviewEditor.isSupported ? editImage : null,
@@ -540,7 +534,7 @@ class _TIMUIKitConversationMediaFilePageState
       closingHeroTag = currentHeroTag;
     }
 
-    if (!isImage && preview.isMixed) {
+    if (preview.isMixed) {
       pushMediaPreview(
         context: context,
         enableGestureBack: false,

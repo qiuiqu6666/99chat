@@ -39,9 +39,10 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/desktop_media_preview_payload.
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_preview_debug.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_preview_video_utils.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitSearch/conversation_media_navigation.dart';
+import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitSearch/conversation_image_save.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/image_edit/image_preview_editor.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/forward_message_screen.dart';
-import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_media_preview_item.dart';
-import 'package:tencent_cloud_chat_uikit/ui/widgets/video_screen.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_media_gallery_screen.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/wide_popup.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -466,18 +467,31 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem>
 
   ChatMediaPreviewBuildResult _buildVideoPreviewItems(
     List<V2TimMessage> originList,
+    TUITheme theme,
   ) {
     return buildChatMediaPreviewItems(
       originList: originList,
       tappedMessage: widget.message,
       types: kChatMediaPreviewAllTypes,
       heroTagBuilder: _heroTagForMessage,
+      onDownload: (message) => saveConversationImageToGallery(
+        context: context,
+        message: message,
+        theme: theme,
+      ),
+      onEdit: ImagePreviewEditor.isSupported
+          ? (message, previewContext) =>
+              ImagePreviewEditor.editMessageImageAndSave(
+                previewContext: previewContext,
+                message: message,
+              )
+          : null,
       onForward: _forwardPreviewMessage,
       onDelete: _deletePreviewMessage,
     );
   }
 
-  Future<void> _openMobileMediaPreview(String heroTag) async {
+  Future<void> _openMobileMediaPreview(String heroTag, TUITheme theme) async {
     // 长按出菜单后，子级 Tap 仍会在抬手时完成（自定义长按 450ms < Flutter tap
     // 拒绝阈值 500ms）。与图片气泡一致：菜单打开期间禁止进全屏。
     if (globalModel.isMessageContextMenuOverlayOpen) {
@@ -490,8 +504,9 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem>
       types: kChatMediaPreviewAllTypes,
       initialPreview: _buildVideoPreviewItems(
         widget.chatModel.getGalleryOriginMessageList(),
+        theme,
       ),
-      rebuildPreview: _buildVideoPreviewItems,
+      rebuildPreview: (originList) => _buildVideoPreviewItems(originList, theme),
       isMounted: () => mounted,
     );
     MediaPreviewDebug.log('open_from_video_elem', {
@@ -511,39 +526,31 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem>
       if (!mounted) {
         return;
       }
-      final videoItems = session.preview.items
-          .where((item) => item.type == ChatMediaPreviewType.video)
-          .toList();
-      final tappedVideoIndex = videoItems.indexWhere(
-        (item) => isSameChatMediaMessage(item.message, widget.message),
-      );
-      if (videoItems.isEmpty || tappedVideoIndex < 0) {
+      if (session.preview.items.isEmpty) {
         return;
       }
-      final tappedVideo = videoItems[tappedVideoIndex];
-      MediaPreviewDebug.log('push_video_screen', {
+      MediaPreviewDebug.log('push_gallery', {
         'mixed': session.preview.isMixed,
-        'videoCount': videoItems.length,
-        'initial': tappedVideoIndex,
+        'count': session.preview.items.length,
+        'initial': session.preview.initialIndex,
       });
       didPushPreview = true;
       await pushMediaPreview(
         context: context,
+        enableGestureBack: false,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
         requiresOpaquePlatformView: true,
         restoreChatScrollConversationID: convId,
         child: StatefulBuilder(
           builder: (context, setPreviewState) {
             session.ensureStarted(() => setPreviewState(() {}));
-            return VideoScreen(
-              message: tappedVideo.message,
-              heroTag: tappedVideo.heroTag,
-              videoElement: tappedVideo.videoElement ?? stateElement,
-              preferOnlinePlayback: true,
-              forwardFn: () => _forwardPreviewMessage(widget.message),
-              deleteFn: () => _deletePreviewMessage(widget.message),
+            return ChatMediaGalleryScreen(
+              items: session.preview.items,
+              initialIndex: session.preview.initialIndex,
+              sourceMessage: widget.message,
+              enableHero: false,
               onOpenMedia: _openConversationMediaPageFromPreview,
-              galleryItems: videoItems.length > 1 ? videoItems : null,
-              initialIndex: tappedVideoIndex,
             );
           },
         ),
@@ -624,7 +631,7 @@ class _TIMUIKitVideoElemState extends TIMUIKitState<TIMUIKitVideoElem>
             }
           }
         } else {
-          _openMobileMediaPreview(heroTag);
+        _openMobileMediaPreview(heroTag, theme);
         }
       },
       child: PreviewHero(

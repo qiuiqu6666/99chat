@@ -111,7 +111,9 @@ void main() {
     final entry = File('lib/src/widgets/chat_attachment_message_card_io.dart')
         .readAsStringSync();
     expect(entry, contains('await pushMediaPreview('));
-    expect(entry, contains('child: attachmentVideoScreen('));
+    expect(entry, contains('types: kChatMediaPreviewAllTypes'));
+    expect(entry, contains('ChatMediaGalleryScreen('));
+    expect(entry, contains('attachmentVideoScreen('));
     expect(entry, contains('isMessageContextMenuOverlayOpen'));
     expect(entry, contains('saveScrollBeforeMediaPreview'));
     final screen = File(

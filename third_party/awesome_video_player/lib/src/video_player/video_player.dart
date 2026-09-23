@@ -466,6 +466,12 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     _timer?.cancel();
     if (value.isPlaying) {
       await _videoPlayerPlatform.play(_textureId);
+      if (_isDisposed || !value.isPlaying) {
+        return;
+      }
+      // Initialization and deferred autoplay may both await play(). Keep only
+      // the latest polling timer, and never restart it after pause/dispose.
+      _timer?.cancel();
       _timer = Timer.periodic(
         const Duration(milliseconds: 300),
         (Timer timer) async {

@@ -39,7 +39,7 @@ const Set<ChatMediaPreviewType> kChatMediaPreviewAllTypes = {
   ChatMediaPreviewType.video,
 };
 
-/// 点图片气泡时只收图片，避免图集数量与列表里的图片条数对不上。
+/// 供明确只展示图片的调用方使用；聊天预览使用 [kChatMediaPreviewAllTypes]。
 const Set<ChatMediaPreviewType> kChatMediaPreviewImageTypes = {
   ChatMediaPreviewType.image,
 };

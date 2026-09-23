@@ -12,8 +12,7 @@ import 'package:tencent_cloud_chat_sdk/enum/image_types.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_media_preview_builder.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_media_preview_item.dart';
 
-/// 媒体页点图必须与聊天气泡一致：只收集图片，走 ImageScreen 路径
-///（不要因会话里有视频就进混滑 ChatMediaGalleryScreen）。
+/// 图片与视频入口共享混合图集，并定位到实际点击的媒体。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -57,32 +56,29 @@ void main() {
     return m;
   }
 
-  test('tapping image with videos in list still builds image-only preview', () {
+  test('image and video entries share the same ordered media sequence', () {
     final img = imageMsg('img-1');
-    final list = [img, videoMsg('vid-1'), imageMsg('img-2')];
+    final video = videoMsg('vid-1');
+    final lastImage = imageMsg('img-2')..timestamp = 3;
+    final list = [lastImage, video, img];
 
-    final allTypes = buildChatMediaPreviewItems(
-      originList: list,
-      tappedMessage: img,
-      types: kChatMediaPreviewAllTypes,
-      heroTagBuilder: (m) => 'h_${m.msgID}',
-    );
-    expect(allTypes.isMixed, isTrue);
-
-    final imageOnly = buildChatMediaPreviewItems(
-      originList: list,
-      tappedMessage: img,
-      types: kChatMediaPreviewImageTypes,
-      heroTagBuilder: (m) => 'h_${m.msgID}',
-    );
-    expect(imageOnly.isMixed, isFalse);
-    expect(imageOnly.hasVideo, isFalse);
-    expect(imageOnly.hasImage, isTrue);
-    expect(
-      imageOnly.items.every((e) => e.type == ChatMediaPreviewType.image),
-      isTrue,
-    );
-    expect(imageOnly.currentItem?.message.msgID, 'img-1');
-    expect(imageOnly.currentItem?.imageProvider, isNotNull);
+    for (final tapped in [img, video, lastImage]) {
+      final preview = buildChatMediaPreviewItems(
+        originList: list,
+        tappedMessage: tapped,
+        types: kChatMediaPreviewAllTypes,
+        heroTagBuilder: (m) => 'h_${m.msgID}',
+      );
+      expect(preview.isMixed, isTrue);
+      expect(preview.items.map((item) => item.message.msgID),
+          ['img-1', 'vid-1', 'img-2']);
+      expect(preview.items.map((item) => item.type), [
+        ChatMediaPreviewType.image,
+        ChatMediaPreviewType.video,
+        ChatMediaPreviewType.image,
+      ]);
+      expect(preview.currentItem?.message.msgID, tapped.msgID);
+      expect(preview.items[preview.initialIndex].message.msgID, tapped.msgID);
+    }
   });
 }

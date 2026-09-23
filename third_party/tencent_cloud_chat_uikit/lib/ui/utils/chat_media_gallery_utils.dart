@@ -5,6 +5,7 @@ import 'package:flutter/painting.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
+import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/image_gallery_item.dart';
 
 class ChatBubbleImageWarmDecodeHint {
@@ -396,25 +397,17 @@ bool chatMediaGalleryShouldReplacePageController({
   return oldItemCount != newItemCount && newItemCount > 0;
 }
 
-/// 图集顺序：旧 → 新；与 reverse 聊天列表「上旧下新」一致。
+/// 复用聊天列表的时间线顺序：旧 → 新，对应聊天页面从上到下。
+///
+/// 索引参数保留以兼容调用方，但不能参与排序：首次收集是新 → 旧，
+/// 本地扩窗和实时更新传入的是旧 → 新，按输入索引兜底会把同秒图片反转。
 int compareChatMediaMessagesForGallery(
   V2TimMessage a,
   int aListIndex,
   V2TimMessage b,
   int bListIndex,
 ) {
-  final timestampCompare = (a.timestamp ?? 0).compareTo(b.timestamp ?? 0);
-  if (timestampCompare != 0) {
-    return timestampCompare;
-  }
-  final aSeq = a.seq is int ? a.seq as int : 0;
-  final bSeq = b.seq is int ? b.seq as int : 0;
-  final seqCompare = aSeq.compareTo(bSeq);
-  if (seqCompare != 0) {
-    return seqCompare;
-  }
-  // originList 为 newest→oldest：index 越大越旧，图集越靠前。
-  return bListIndex.compareTo(aListIndex);
+  return TUIChatGlobalModel.compareMessagesChronological(a, b);
 }
 
 List<_IndexedChatMediaMessage> _dedupeIndexedEntries(

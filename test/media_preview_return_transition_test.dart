@@ -141,8 +141,10 @@ void main() {
     expect(durationSource.contains('Curves.easeInOut'), isTrue);
     expect(
       videoElemSource.contains('transitionDuration: Duration.zero'),
-      isFalse,
+      isTrue,
     );
+    expect(videoElemSource.contains('return ChatMediaGalleryScreen('), isTrue);
+    expect(videoElemSource.contains('enableHero: false'), isTrue);
   });
 
   test('gallery page view does not restore a shared PageStorage offset', () {

@@ -116,6 +116,9 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
   bool _closeHeroRevealScheduled = false;
   bool _closeHeroRevealed = false;
   bool _galleryScrolling = false;
+  // Changing slideType adds/removes transforms around the body. Preserve its
+  // PageView and native player across that reparenting when crossing media types.
+  final GlobalKey _galleryBodyKey = GlobalKey();
 
   /// jumpToPage 会同步抛 ScrollStart；监听里再 jump 会递归到栈溢出。
   bool _galleryPageJumpInFlight = false;
@@ -270,19 +273,31 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
     if (widget.items.isEmpty) {
       return;
     }
-    final nextIndex = _indexForSourceMessage(
-      fallback: resolveChatMediaGalleryIndexAfterExpand(
-        currentIndex: _currentIndex,
-        oldOldestFirst: oldWidget.items.map((item) => item.message).toList(),
-        newOldestFirst: widget.items.map((item) => item.message).toList(),
-        tappedMessage: widget.sourceMessage ?? _tappedMessage,
-        preferredIndex: widget.initialIndex,
-      ),
+    final nextIndex = retainChatMediaGalleryIndex(
+      currentIndex: _currentIndex,
+      oldOldestFirst: oldWidget.items.map((item) => item.message).toList(),
+      newOldestFirst: widget.items.map((item) => item.message).toList(),
     );
+    final playerChanged = !isSameChatMediaMessage(
+      oldWidget.items[_playerPageIndex].message,
+      widget.items[nextIndex].message,
+    );
+    if (playerChanged) {
+      _playerKey.currentState?.prepareForRouteClose();
+      _resetPlayerState(holdHeroUntilPlayback: true);
+    }
     final oldCount = oldWidget.items.length;
     final newCount = widget.items.length;
     _currentIndex = nextIndex;
     _playerPageIndex = nextIndex;
+    if (playerChanged && _playerIsVideo) {
+      final playerKey = _playerKey;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _closing || !identical(playerKey, _playerKey)) return;
+        playerKey.currentState?.preparePlaybackPipeline();
+        playerKey.currentState?.startDeferredPlayback();
+      });
+    }
     if (chatMediaGalleryShouldReplacePageController(
       oldItemCount: oldCount,
       newItemCount: newCount,
@@ -1785,7 +1800,10 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
         },
         enableEdgeBack: false,
         bodyBuilder: (context, orientation) {
-          final body = _buildGalleryBody(orientation);
+          final body = KeyedSubtree(
+            key: _galleryBodyKey,
+            child: _buildGalleryBody(orientation),
+          );
           if (!MediaPreviewBackdropScope.desktopOverlayChromeOf(context)) {
             return body;
           }

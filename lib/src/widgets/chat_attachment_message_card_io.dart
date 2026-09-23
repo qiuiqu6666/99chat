@@ -1,6 +1,9 @@
 import 'package:tencent_cloud_chat_demo/src/platform/attachment_video_gallery_io.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_media_preview_builder.dart';
-import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_media_preview_item.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_media_gallery_screen.dart';
+import 'package:tencent_cloud_chat_uikit/theme/tui_theme_view_model.dart';
+import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitSearch/conversation_image_save.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/image_edit/image_preview_editor.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_separate_view_model.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_preview_presenter.dart';
@@ -144,7 +147,16 @@ class _ChatAttachmentMessageCardState extends State<ChatAttachmentMessageCard> {
               originList:
                   widget.chatModel?.getGalleryOriginMessageList() ?? [preview],
               tappedMessage: widget.message ?? preview,
-              types: const {ChatMediaPreviewType.video},
+              types: kChatMediaPreviewAllTypes,
+              onDownload: (message) => saveConversationImageToGallery(
+                  context: context,
+                  message: message,
+                  theme: serviceLocator<TUIThemeViewModel>().theme),
+              onEdit: ImagePreviewEditor.isSupported
+                  ? (message, previewContext) =>
+                      ImagePreviewEditor.editMessageImageAndSave(
+                          previewContext: previewContext, message: message)
+                  : null,
               heroTagBuilder: (message) =>
                   '${message.msgID ?? message.id ?? message.timestamp}');
           final convId = widget.conversationID;
@@ -156,7 +168,14 @@ class _ChatAttachmentMessageCardState extends State<ChatAttachmentMessageCard> {
             context: context,
             requiresOpaquePlatformView: true,
             restoreChatScrollConversationID: convId,
-            child: attachmentVideoScreen(
+            child: gallery.isMixed
+                ? ChatMediaGalleryScreen(
+                    items: gallery.items,
+                    initialIndex: gallery.initialIndex,
+                    sourceMessage: widget.message ?? preview,
+                    enableHero: false,
+                  )
+                : attachmentVideoScreen(
                 message: preview,
                 source: playback,
                 heroTag: _heroTag,
