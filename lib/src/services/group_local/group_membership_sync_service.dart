@@ -1388,16 +1388,15 @@ class GroupMembershipSyncService {
     );
     final id = groupId.trim();
     final self = _ownerUserId();
-    // 退出请求优先完成，提示消息放到后台，避免消息发送/重试阻塞退出。
-    final result = await MeGroupApi.instance.leaveGroup(groupId);
-    if (result.code == 0 && id.isNotEmpty && self.isNotEmpty) {
-      unawaited(GroupTipCustomSender.instance.send(
+    // 退群后已无权向群发消息；先由当前成员身份发送灰字，再执行 REST 退群。
+    if (id.isNotEmpty && self.isNotEmpty) {
+      await GroupTipCustomSender.instance.send(
         groupId: id,
         action: 'member_left',
         memberUserIds: <String>[self],
-      ));
+      );
     }
-    return result;
+    return MeGroupApi.instance.leaveGroup(groupId);
   }
 
   Future<V2TimCallback> dismissGroup(String groupId) {

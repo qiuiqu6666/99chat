@@ -80,6 +80,7 @@
   }
   
   [self setBestPreviewQuality];
+  [self resetToDefaultZoom];
   
   return self;
 }
@@ -246,7 +247,8 @@
 
 // Get max zoom level
 - (CGFloat)getMaxZoom {
-  CGFloat maxZoom = _captureDevice.activeFormat.videoMaxZoomFactor;
+  CGFloat maxZoom = MIN(_captureDevice.activeFormat.videoMaxZoomFactor,
+                        _captureDevice.maxAvailableVideoZoomFactor);
   // Not sure why on iPhone 14 Pro, zoom at 90 not working, so let's block to 50 which is very high
   return maxZoom > 50.0 ? 50.0 : maxZoom;
 }
@@ -327,6 +329,7 @@
   [self setBestPreviewQuality];
   
   [_captureSession commitConfiguration];
+  [self resetToDefaultZoom];
   if (sessionIsRunning) {
     dispatch_async(_dispatchQueue, ^{
       [self->_captureSession startRunning];
@@ -337,7 +340,8 @@
 /// Set zoom level
 - (void)setZoom:(float)value error:(FlutterError * _Nullable __autoreleasing * _Nonnull)error {
   CGFloat maxZoom = [self getMaxZoom];
-  CGFloat scaledZoom = value * (maxZoom - 1.0f) + 1.0f;
+  CGFloat defaultZoom = [self defaultVideoZoomFactor];
+  CGFloat scaledZoom = value * (maxZoom - defaultZoom) + defaultZoom;
   
   NSError *zoomError;
   if ([_captureDevice lockForConfiguration:&zoomError]) {
@@ -449,22 +453,50 @@
   if (_captureDeviceId != nil) {
     return _captureDeviceId;
   }
-  
-  // TODO: add dual & triple camera
-  NSArray<AVCaptureDevice *> *devices = [[NSArray alloc] init];
-  AVCaptureDeviceDiscoverySession *discoverySession = [AVCaptureDeviceDiscoverySession
-                                                       discoverySessionWithDeviceTypes:@[ AVCaptureDeviceTypeBuiltInWideAngleCamera, ]
-                                                       mediaType:AVMediaTypeVideo
-                                                       position:AVCaptureDevicePositionUnspecified];
-  devices = discoverySession.devices;
-  
-  NSInteger cameraType = (sensor == PigeonSensorPositionFront) ? AVCaptureDevicePositionFront : AVCaptureDevicePositionBack;
-  for (AVCaptureDevice *device in devices) {
-    if ([device position] == cameraType) {
-      return [device uniqueID];
+
+  AVCaptureDevicePosition position = sensor == PigeonSensorPositionFront
+      ? AVCaptureDevicePositionFront : AVCaptureDevicePositionBack;
+  if (position == AVCaptureDevicePositionBack) {
+    // A virtual rear camera can select the appropriate physical lens for
+    // close focus and low light, as the system Camera app does.
+    for (AVCaptureDeviceType deviceType in @[
+      AVCaptureDeviceTypeBuiltInTripleCamera,
+      AVCaptureDeviceTypeBuiltInDualWideCamera,
+      AVCaptureDeviceTypeBuiltInDualCamera,
+    ]) {
+      AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithDeviceType:deviceType
+                                                                    mediaType:AVMediaTypeVideo
+                                                                     position:position];
+      if (device != nil) {
+        return device.uniqueID;
+      }
     }
   }
-  return nil;
+  AVCaptureDevice *wideAngle = [AVCaptureDevice defaultDeviceWithDeviceType:AVCaptureDeviceTypeBuiltInWideAngleCamera
+                                                                   mediaType:AVMediaTypeVideo
+                                                                    position:position];
+  return wideAngle.uniqueID;
+}
+
+- (CGFloat)defaultVideoZoomFactor {
+  NSArray<AVCaptureDevice *> *constituents = _captureDevice.constituentDevices;
+  NSArray<NSNumber *> *switchFactors = _captureDevice.virtualDeviceSwitchOverVideoZoomFactors;
+  if (constituents.count > 1 && switchFactors.count > 0 &&
+      [constituents.firstObject.deviceType isEqualToString:AVCaptureDeviceTypeBuiltInUltraWideCamera]) {
+    return MIN([self getMaxZoom], MAX(_captureDevice.minAvailableVideoZoomFactor,
+                                    switchFactors.firstObject.doubleValue));
+  }
+  return MAX(1.0, _captureDevice.minAvailableVideoZoomFactor);
+}
+
+- (void)resetToDefaultZoom {
+  NSError *error = nil;
+  if ([_captureDevice lockForConfiguration:&error]) {
+    _captureDevice.videoZoomFactor = [self defaultVideoZoomFactor];
+    [_captureDevice unlockForConfiguration];
+  } else {
+    NSLog(@"camerawesome: failed to set the default camera zoom: %@", error.localizedDescription);
+  }
 }
 
 /// Set capture mode between Photo & Video mode
