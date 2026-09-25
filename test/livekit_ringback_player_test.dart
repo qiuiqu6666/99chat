@@ -13,6 +13,8 @@ import 'package:tencent_cloud_chat_demo/src/services/livekit_call_session.dart';
 class _Audio extends JustAudioPlatform {
   int loads = 0;
   int plays = 0;
+  final initialPositions = <Duration?>[];
+  final seekPositions = <Duration?>[];
   Completer<void> loadGate = Completer<void>();
   final players = <String, _Player>{};
   @override
@@ -43,18 +45,19 @@ class _Player extends AudioPlayerPlatform {
   @override
   Future<LoadResponse> load(LoadRequest request) async {
     owner.loads++;
+    owner.initialPositions.add(request.initialPosition);
     await Future.any([owner.loadGate.future, disposed.future]);
     events.add(PlaybackEventMessage(
       processingState: ProcessingStateMessage.ready,
       updateTime: DateTime.now(),
       updatePosition: Duration.zero,
       bufferedPosition: const Duration(seconds: 2),
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 48),
       icyMetadata: null,
       currentIndex: 0,
       androidAudioSessionId: null,
     ));
-    return LoadResponse(duration: const Duration(seconds: 2));
+    return LoadResponse(duration: const Duration(seconds: 48));
   }
 
   @override
@@ -70,7 +73,11 @@ class _Player extends AudioPlayerPlatform {
   }
 
   @override
-  Future<SeekResponse> seek(SeekRequest request) async => SeekResponse();
+  Future<SeekResponse> seek(SeekRequest request) async {
+    owner.seekPositions.add(request.position);
+    return SeekResponse();
+  }
+
   @override
   Future<SetVolumeResponse> setVolume(SetVolumeRequest request) async =>
       SetVolumeResponse();
@@ -137,8 +144,9 @@ void main() {
     final ringtone = LiveKitCallRingtone.instance;
     final session = LiveKitCallSession.instance;
     try {
-      await ringtone.ensureAttached();
       await session.prepareOutgoingPending(calleeUserId: 'peer', video: false);
+      // Opening a caller page attaches the player before invite has returned.
+      await ringtone.ensureAttached();
       await _until(() => audio.loads == 1);
       for (var i = 0; i < 20; i++) {
         await session.setMicrophoneEnabled(false);
@@ -146,6 +154,9 @@ void main() {
       expect(audio.loads, 1);
       audio.loadGate.complete();
       await _until(() => audio.plays == 1);
+      expect(session.callId, isEmpty);
+      expect(audio.initialPositions.single, const Duration(seconds: 2));
+      expect(audio.seekPositions, isNot(contains(Duration.zero)));
       await session.cancelOutgoing().timeout(const Duration(seconds: 2));
       await ringtone.stop().timeout(const Duration(seconds: 2));
       expect(audio.players, isEmpty);
@@ -161,6 +172,7 @@ void main() {
       audio.loadGate.complete();
       await session.prepareOutgoingPending(calleeUserId: 'peer', video: true);
       await _until(() => audio.plays == 2);
+      expect(audio.initialPositions.last, const Duration(seconds: 2));
       await session.cancelOutgoing().timeout(const Duration(seconds: 2));
       await ringtone.stop().timeout(const Duration(seconds: 2));
       expect(audio.players, isEmpty);

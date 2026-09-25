@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
@@ -29,6 +30,7 @@ class _ContactFriendsPageState extends State<ContactFriendsPage> {
   final TextEditingController _searchController = TextEditingController();
   final _sdk = TIMUIKitCore.getSDKInstance();
 
+  int _loadGeneration = 0;
   bool _loading = true;
   String? _errorMessage;
   List<ContactFriendEntry> _entries = const [];
@@ -46,25 +48,39 @@ class _ContactFriendsPageState extends State<ContactFriendsPage> {
   }
 
   Future<void> _loadEntries() async {
+    final generation = ++_loadGeneration;
+    final identity = SessionIdentityService.instance.capture();
+    bool current() =>
+        mounted &&
+        generation == _loadGeneration &&
+        SessionIdentityService.instance.isCurrent(identity);
     setState(() {
       _loading = true;
       _errorMessage = null;
     });
     try {
-      final entries = await ContactFriendsLookupService.loadEntries();
-      if (!mounted) return;
+      final entries = await ContactFriendsLookupService.loadEntries(
+          isCancelled: () => !current(),
+          onPartial: (entries) {
+            if (!current()) return;
+            setState(() {
+              _entries = entries;
+              _loading = false;
+            });
+          });
+      if (!current()) return;
       setState(() {
         _entries = entries;
         _loading = false;
       });
     } on ContactFriendsLookupException catch (e) {
-      if (!mounted) return;
+      if (!current()) return;
       setState(() {
         _loading = false;
         _errorMessage = e.message;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!current()) return;
       setState(() {
         _loading = false;
         _errorMessage = AppI18n.of(context).t(
@@ -378,9 +394,8 @@ class _ContactFriendRow extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundColor:
-                    (theme.primaryColor ?? const Color(0xFF1E90FF))
-                        .withValues(alpha: 0.12),
+                backgroundColor: (theme.primaryColor ?? const Color(0xFF1E90FF))
+                    .withValues(alpha: 0.12),
                 child: Text(
                   initial,
                   style: TextStyle(

@@ -84,65 +84,125 @@ class TimUIKitMediaUploadOverlay {
     if (!visible) {
       return const SizedBox.shrink();
     }
+    final hasMeasuredProgress = progress > 0 && progress < 100;
     return Positioned.fill(
       child: GestureDetector(
         onTap: onCancel,
         behavior: HitTestBehavior.opaque,
         child: ColoredBox(
-          color: const Color(0x99000000),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween<double>(end: progress.clamp(0, 100) / 100),
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOutCubic,
-            builder: (context, displayProgress, _) {
-              final showPercent = displayProgress > 0 && displayProgress < 1;
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 52,
-                      height: 52,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            value: showPercent ? displayProgress : null,
-                            strokeWidth: 3,
-                            color: Colors.white,
-                            backgroundColor: Colors.white24,
+          color: const Color(0x80000000),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: hasMeasuredProgress
+                      ? TweenAnimationBuilder<double>(
+                          tween: Tween<double>(end: progress / 100),
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, displayProgress, _) => CustomPaint(
+                            painter: _SegmentedUploadRingPainter(
+                              progress: displayProgress,
+                            ),
                           ),
-                          Icon(
-                            onCancel != null
-                                ? Icons.stop_rounded
-                                : Icons.cloud_upload_outlined,
-                            color: Colors.white,
-                            size: onCancel != null ? 28 : 24,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      onCancel != null
-                          ? TIM_t('点击停止发送')
-                          : (showPercent
-                              ? '${(displayProgress * 100).round()}%'
-                              : TIM_t('发送中')),
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                        )
+                      : const _RotatingUploadRing(),
                 ),
-              );
-            },
+                const SizedBox(height: 5),
+                Text(
+                  TIM_t('发送中'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+class _RotatingUploadRing extends StatefulWidget {
+  const _RotatingUploadRing();
+
+  @override
+  State<_RotatingUploadRing> createState() => _RotatingUploadRingState();
+}
+
+class _RotatingUploadRingState extends State<_RotatingUploadRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => RotationTransition(
+        turns: _controller,
+        child: const CustomPaint(painter: _SegmentedUploadRingPainter()),
+      );
+}
+
+class _SegmentedUploadRingPainter extends CustomPainter {
+  const _SegmentedUploadRingPainter({this.progress});
+
+  static const _segmentCount = 10;
+  static const _strokeWidth = 3.0;
+  static const _gapAngle = 0.30;
+
+  /// Null means the SDK has not reported a measurable upload percentage yet.
+  final double? progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = (min(size.width, size.height) - _strokeWidth) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    const step = 2 * pi / _segmentCount;
+    const sweep = step - _gapAngle;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _strokeWidth
+      ..strokeCap = StrokeCap.round;
+    final litSegments = (progress ?? 0) * _segmentCount;
+
+    for (var index = 0; index < _segmentCount; index++) {
+      final start = -pi / 2 + index * step + _gapAngle / 2;
+      if (progress == null) {
+        paint.color = Colors.white.withValues(
+          alpha: 0.14 + 0.86 * index / (_segmentCount - 1),
+        );
+        canvas.drawArc(rect, start, sweep, false, paint);
+        continue;
+      }
+
+      paint.color = Colors.white.withValues(alpha: 0.18);
+      canvas.drawArc(rect, start, sweep, false, paint);
+      final litFraction = (litSegments - index).clamp(0.0, 1.0);
+      if (litFraction <= 0) continue;
+      paint.color = Colors.white.withValues(
+        alpha: 0.55 + 0.45 * (index + litFraction) / litSegments,
+      );
+      canvas.drawArc(rect, start, sweep * litFraction, false, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SegmentedUploadRingPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
 
 /// 仅重建上传遮罩，避免进度更新牵动整张图片气泡。

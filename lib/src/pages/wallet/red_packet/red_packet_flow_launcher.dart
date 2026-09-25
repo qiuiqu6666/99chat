@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/full_screen_back_route.dart';
 
 import 'red_packet_detail_pop_result.dart';
+import 'red_packet_claim_action.dart';
 import 'red_packet_flow_detail_page.dart';
 import 'red_packet_open_flow_page.dart';
 
@@ -17,6 +18,7 @@ class RedPacketFlowLauncher {
     required String senderAvatar,
     required String greeting,
     required bool autoClaim,
+    RedPacketClaimOutcome? claimOutcome,
     Map<String, dynamic> seedPacket = const {},
   }) {
     return RedPacketProjectDetailPage(
@@ -26,6 +28,7 @@ class RedPacketFlowLauncher {
       senderAvatar: senderAvatar,
       greeting: greeting,
       autoClaim: autoClaim,
+      initialClaimOutcome: claimOutcome,
       seedPacket: seedPacket,
     );
   }
@@ -48,13 +51,14 @@ class RedPacketFlowLauncher {
       greeting: greeting,
       autoClaim: autoClaim,
       closeWhenResultPopped: closeWhenResultPopped,
-      resultBuilder: (context) => _detailPage(
+      claimResultBuilder: (context, outcome) => _detailPage(
         orderId: orderId,
         packetType: packetType,
         senderName: senderName,
         senderAvatar: senderAvatar,
         greeting: greeting,
-        autoClaim: autoClaim,
+        autoClaim: false,
+        claimOutcome: outcome,
         seedPacket: seedPacket,
       ),
     );

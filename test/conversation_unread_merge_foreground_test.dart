@@ -87,7 +87,7 @@ void main() {
       expect(incoming.unreadCount, 3);
     });
 
-    test('forces unread 0 for foreground chat', () {
+    test('preserves unseen sdk unread for foreground chat', () {
       ForegroundChatGuard.debugOverride = (_) => true;
       final existing = _conversation(unreadCount: 0);
       final incoming = _conversation(unreadCount: 3);
@@ -101,7 +101,7 @@ void main() {
         readClearedAtMs: now - 20000,
       );
 
-      expect(incoming.unreadCount, 0);
+      expect(incoming.unreadCount, 3);
     });
 
     test('accepts account-level cross-device read sync', () {

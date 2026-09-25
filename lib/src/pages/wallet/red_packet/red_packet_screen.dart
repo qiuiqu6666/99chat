@@ -1205,7 +1205,7 @@ class _PayCard extends StatelessWidget {
                   ),
                   SizedBox(height: 12.h),
                   Text(
-                    '${pay.bal} ${pay.coin}',
+                    pay.id.isEmpty ? '—' : '${pay.bal} ${pay.coin}',
                     style: TextStyle(
                       fontSize: 27.sp,
                       color: cs.text,

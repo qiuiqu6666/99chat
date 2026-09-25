@@ -2,6 +2,7 @@ import 'package:tencent_cloud_chat_demo/src/api/group_join_api.dart';
 import 'package:tencent_cloud_chat_demo/src/models/group_join_option.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_local/group_membership_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/group_join_application_approval.dart';
+import 'package:tencent_cloud_chat_demo/src/utils/group_member_membership.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_application.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_group_application.dart';
@@ -59,6 +60,7 @@ class GroupInviteMemberPageMeta {
   ) {
     final out = <String>{};
     for (final member in found) {
+      if (!isConfirmedGroupMemberRole(member?.role)) continue;
       final uid = ChatIdFormat.rawUserUid(member?.userID);
       if (uid.isNotEmpty) {
         out.add(uid);

@@ -16,6 +16,14 @@ import 'package:tencent_cloud_chat_demo/src/services/reconnect_recovery_epoch.da
 import 'package:tencent_cloud_chat_sdk/enum/login_status.dart';
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
 
+enum ImConnectionDiagnosticState {
+  connected,
+  connecting,
+  reconnecting,
+  offline,
+  unknown,
+}
+
 /// 根据 IM SDK 长连接回调同步 UI 连接状态。
 ///
 /// 冷启动 / 回前台 / 网络恢复进入首页后先展示连接中，直到 SDK 再次上报成功或
@@ -76,6 +84,24 @@ class ImConnectStatusService extends ChangeNotifier {
   /// SDK 长连接是否已建立（忽略握手最短展示期）。云端请求资格看这个；
   /// 「结果能否认证为最新」由 server sync 状态与 provenance 另行决定。
   static bool get isTransportReady => instance._sdkSocketConnected;
+
+  /// Read-only transport snapshot. A minimum UI handshake display time does
+  /// not turn an already connected socket into a network recovery interval.
+  static ImConnectionDiagnosticState get diagnosticState {
+    if (instance._sdkSocketConnected) {
+      return ImConnectionDiagnosticState.connected;
+    }
+    if (instance._handshakePending) {
+      return instance._needsHistoryCatchUp
+          ? ImConnectionDiagnosticState.reconnecting
+          : ImConnectionDiagnosticState.connecting;
+    }
+    if (instance._needsHistoryCatchUp ||
+        instance._localSetting?.connectStatusForUi == ConnectStatus.failed) {
+      return ImConnectionDiagnosticState.offline;
+    }
+    return ImConnectionDiagnosticState.unknown;
+  }
 
   /// 当前真实重连纪元；OpenViewportCache / latest-window trust 以此判过期。
   static int get recoveryEpoch => instance._recoveryEpoch.epoch;

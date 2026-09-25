@@ -1583,8 +1583,9 @@ class _ConversationState extends State<Conversation> {
         _folderUnreadForceFull = false;
         if (!mapEquals(_folderUnreadById, next)) {
           _folderUnreadById..clear()..addAll(next);
-          setState(() {});
         }
+        // The count can stay unchanged while a mute toggle changes badge color.
+        setState(() {});
       } catch (error) {
         if (kDebugMode) debugPrint('Folder unread SDK refresh failed: $error');
       } finally {
@@ -5711,6 +5712,9 @@ class _ConversationState extends State<Conversation> {
                   folders: folders,
                   selectedFolderId: _selectedFolderId,
                   unreadForFolder: _unreadForFolder,
+                  hasNotifiableUnreadForFolder: (folder) =>
+                      ConversationUnreadAggregate.instance
+                          .hasNotifiableUnreadForIds(folder.conversationIds),
                   reorderEditing: _folderReorderEditing,
                   onExitReorderEditing: _exitFolderReorderEditing,
                   onDeleteFolder: _deleteFolder,

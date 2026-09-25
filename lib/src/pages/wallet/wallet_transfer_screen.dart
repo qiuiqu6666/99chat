@@ -683,7 +683,7 @@ class _CoinPill extends StatelessWidget {
             ConstrainedBox(
               constraints: BoxConstraints(maxWidth: 72 * scale),
               child: Text(
-                balance.isEmpty ? '0.0' : balance,
+                item.id.isEmpty ? '—' : (balance.isEmpty ? '0.0' : balance),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -702,7 +702,7 @@ class _CoinPill extends StatelessWidget {
             ),
             SizedBox(width: 6 * scale),
             Text(
-              item.coin,
+              item.id.isEmpty ? '' : item.coin,
               style: TextStyle(
                 fontSize: 13.5 * scale,
                 color: cs.text,

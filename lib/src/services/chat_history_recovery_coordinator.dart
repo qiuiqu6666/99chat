@@ -29,11 +29,16 @@ class ChatHistoryRecoveryCoordinator {
   final MobileAsyncCommitGuard _commitGuard = MobileAsyncCommitGuard();
   int _lifecycleEpoch = 0;
 
-  /// Invalidates delayed recovery callbacks during logout/page teardown.
+  /// Detaches recovery work when the app backgrounds or its session ends.
   void invalidateLifecycle() {
     _lifecycleEpoch++;
     _commitGuard.advancePage();
-    for (final state in _states.values) {
+    // Native work may finish much later. Its priority and drain must not block
+    // foreground recovery in the new lifecycle while we wait for that result.
+    _exclusiveTasks.clear();
+    _activePriorityByKey.clear();
+    for (final key in _states.keys.toList(growable: false)) {
+      final state = _states[key]!;
       state.pendingTask = null;
       state.pendingToken = null;
       state.initialLoadInFlight = false;
@@ -42,6 +47,10 @@ class ChatHistoryRecoveryCoordinator {
         if (!waiter.isCompleted) waiter.complete();
       }
       state.initialLoadWaiters.clear();
+      // Old drains/retry finalizers retain their own state. Keep initial-load
+      // generations monotonic so a late completion cannot release a new load.
+      _states[key] = _ConversationRecoveryState()
+        ..initialLoadGeneration = state.initialLoadGeneration + 1;
     }
   }
 
@@ -209,7 +218,6 @@ class ChatHistoryRecoveryCoordinator {
     if (key.isEmpty) {
       return;
     }
-    final commitToken = _commitGuard.begin('history-recovery', key: key);
     final lifecycleEpoch = _lifecycleEpoch;
 
     if (shouldDropForPriority(conversationKey: key, priority: priority)) {
@@ -226,6 +234,8 @@ class ChatHistoryRecoveryCoordinator {
       }
     }
 
+    // Rejected background work must not supersede an accepted user recovery.
+    final commitToken = _commitGuard.begin('history-recovery', key: key);
     final previous = _exclusiveTasks[key];
     final state = _states.putIfAbsent(key, _ConversationRecoveryState.new);
     if (previous != null) {
@@ -265,6 +275,9 @@ class ChatHistoryRecoveryCoordinator {
             break;
           }
           await nextTask();
+          if (lifecycleEpoch != _lifecycleEpoch) {
+            break;
+          }
           final pending = state.pendingTask;
           if (pending == null) {
             break;
@@ -286,8 +299,10 @@ class ChatHistoryRecoveryCoordinator {
       } catch (error, stackTrace) {
         completion.completeError(error, stackTrace);
       } finally {
-        _exclusiveTasks.remove(key);
-        _activePriorityByKey.remove(key);
+        if (identical(_exclusiveTasks[key], completion.future)) {
+          _exclusiveTasks.remove(key);
+          _activePriorityByKey.remove(key);
+        }
         state.pendingTask = null;
         state.pendingPriority = null;
         state.pendingReason = null;

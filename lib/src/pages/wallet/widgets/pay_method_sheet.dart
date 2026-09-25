@@ -267,7 +267,9 @@ class _PayMethodRow extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(18.r),
         child: Container(
-          height: 132.h,
+          // .h and .sp scale differently on short screens. Let the contents
+          // determine the height instead of clipping the balance/fiat column.
+          constraints: BoxConstraints(minHeight: 132.h),
           padding: EdgeInsets.fromLTRB(24.w, 16.h, 22.w, 16.h),
           decoration: BoxDecoration(
             color: selected
@@ -292,6 +294,7 @@ class _PayMethodRow extends StatelessWidget {
               SizedBox(width: 20.w),
               Expanded(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -330,33 +333,38 @@ class _PayMethodRow extends StatelessWidget {
                 ),
               ),
               SizedBox(width: 12.w),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  _SelectionMark(selected: selected, cs: cs),
-                  const Spacer(),
-                  Text(
-                    item.bal,
-                    style: TextStyle(
-                      fontSize: 30.sp,
-                      color: disabled
-                          ? cs.subText.withValues(alpha: 0.55)
-                          : cs.text,
-                      fontWeight: FontWeight.w700,
-                      height: 1,
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _SelectionMark(selected: selected, cs: cs),
+                    SizedBox(height: 8.h),
+                    Text(
+                      item.bal,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        fontSize: 30.sp,
+                        color: disabled
+                            ? cs.subText.withValues(alpha: 0.55)
+                            : cs.text,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    fiatText,
-                    style: TextStyle(
-                      fontSize: 22.sp,
-                      color: disabled
-                          ? cs.subText.withValues(alpha: 0.45)
-                          : cs.subText,
+                    SizedBox(height: 8.h),
+                    Text(
+                      fiatText,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        fontSize: 22.sp,
+                        color: disabled
+                            ? cs.subText.withValues(alpha: 0.45)
+                            : cs.subText,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -583,10 +591,29 @@ class WalletPayCoinIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // No payment method has been resolved yet. Do not paint the empty DTO's
+    // default USDT face as though it were the user's selected currency.
+    if (item.id.isEmpty) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Icon(
+          Icons.account_balance_wallet_outlined,
+          size: size * 0.6,
+          color: Theme.of(context).disabledColor,
+        ),
+      );
+    }
     final url = item.logoUrl?.trim() ?? '';
     final isUsdt = item.id.toUpperCase() == 'USDT';
     final isPlatform = item.id == '99' || item.platformCoin;
     final badgeSize = small ? 16.w : 23.w;
+    final cacheSize = ImageMemCacheSize.forLogicalSize(size, context);
+    final fallback = _fallbackCoinFace(
+      isUsdt: isUsdt,
+      isPlatform: isPlatform,
+      cacheSize: cacheSize,
+    );
 
     return SizedBox(
       width: size,
@@ -594,23 +621,25 @@ class WalletPayCoinIcon extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          if (url.isNotEmpty)
+          // The platform logo is bundled, just as on the payment PIN prompt.
+          // Its availability must not depend on another network image request.
+          if (url.isNotEmpty && !isPlatform)
             ClipOval(
               child: AppNetworkImage(
+                key: ValueKey(item.id),
                 url: url,
                 width: size,
                 height: size,
                 fit: BoxFit.cover,
-                memCacheWidth: ImageMemCacheSize.forLogicalSize(size, context),
-                memCacheHeight: ImageMemCacheSize.forLogicalSize(size, context),
-                errorWidget: (_, __, ___) => _fallbackCoinFace(
-                  isUsdt: isUsdt,
-                  isPlatform: isPlatform,
-                ),
+                memCacheWidth: cacheSize,
+                memCacheHeight: cacheSize,
+                useOldImageOnUrlChange: false,
+                placeholder: (_, __) => fallback,
+                errorWidget: (_, __, ___) => fallback,
               ),
             )
           else
-            _fallbackCoinFace(isUsdt: isUsdt, isPlatform: isPlatform),
+            fallback,
           if (showWarning)
             Positioned(
               right: -2.w,
@@ -634,7 +663,7 @@ class WalletPayCoinIcon extends StatelessWidget {
                 ),
               ),
             )
-          else if (!isPlatform || url.isEmpty)
+          else if (!isPlatform)
             Positioned(
               right: -2.w,
               bottom: -2.w,
@@ -668,6 +697,7 @@ class WalletPayCoinIcon extends StatelessWidget {
   Widget _fallbackCoinFace({
     required bool isUsdt,
     required bool isPlatform,
+    required int cacheSize,
   }) {
     return Container(
       width: size,
@@ -688,6 +718,8 @@ class WalletPayCoinIcon extends StatelessWidget {
                     width: size,
                     height: size,
                     fit: BoxFit.cover,
+                    cacheWidth: cacheSize,
+                    cacheHeight: cacheSize,
                   )
                 : Text(
                     item.coin.isEmpty ? '?' : item.coin.substring(0, 1),

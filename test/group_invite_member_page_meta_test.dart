@@ -74,13 +74,27 @@ void main() {
 
   test('memberUserIdsFromLookup normalizes @ and c2c_ to the same uid', () {
     final found = <V2TimGroupMemberFullInfo>[
-      V2TimGroupMemberFullInfo(userID: '@alice'),
-      V2TimGroupMemberFullInfo(userID: 'c2c_alice'),
-      V2TimGroupMemberFullInfo(userID: 'alice'),
+      V2TimGroupMemberFullInfo(userID: '@alice', role: 200),
+      V2TimGroupMemberFullInfo(userID: 'c2c_alice', role: 200),
+      V2TimGroupMemberFullInfo(userID: 'alice', role: 200),
     ];
     expect(
       GroupInviteMemberPageMeta.memberUserIdsFromLookup(found),
       {'alice'},
+    );
+  });
+
+  test('only explicit current member roles disable an invite candidate', () {
+    expect(
+      GroupInviteMemberPageMeta.memberUserIdsFromLookup([
+        V2TimGroupMemberFullInfo(userID: 'removed', role: 0),
+        V2TimGroupMemberFullInfo(userID: 'profile-only'),
+        V2TimGroupMemberFullInfo(userID: 'member', role: 200),
+        V2TimGroupMemberFullInfo(userID: 'admin', role: 300),
+        V2TimGroupMemberFullInfo(userID: 'owner', role: 400),
+        null,
+      ]),
+      {'member', 'admin', 'owner'},
     );
   });
 }

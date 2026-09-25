@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -11,6 +12,8 @@ import 'package:tencent_cloud_chat_demo/src/pages/wallet/widgets/wallet_page_col
 import 'package:tencent_cloud_chat_demo/src/widgets/app_user_avatar.dart';
 
 import 'lucky_red_packet_detail_page.dart';
+import 'red_packet_claim_action.dart';
+import 'red_packet_detail_pop_result.dart';
 import 'widgets/red_packet_detail_app_bar.dart';
 
 const Color _kRedPacketAmountGold = Color(0xFFB08A4A);
@@ -32,6 +35,7 @@ class RedPacketOpenPreviewData {
     this.autoClaim = true,
     this.luckyDetailData,
     this.resultBuilder,
+    this.claimResultBuilder,
     this.closeWhenResultPopped = false,
   });
 
@@ -57,6 +61,8 @@ class RedPacketOpenPreviewData {
   final bool autoClaim;
   final LuckyRedPacketDetailData? luckyDetailData;
   final WidgetBuilder? resultBuilder;
+  final Widget Function(BuildContext, RedPacketClaimOutcome?)?
+      claimResultBuilder;
   final bool closeWhenResultPopped;
 
   bool get isLucky => packetType.trim().toUpperCase() == 'LUCKY_GROUP';
@@ -102,6 +108,9 @@ class _RedPacketPreviewPageState extends State<RedPacketPreviewPage>
   bool _opened = false;
   bool _showOpenedDetail = false;
   bool _showCoverLayer = true;
+  String _openError = '';
+  bool _terminalClaimError = false;
+  RedPacketClaimOutcome? _claimOutcome;
 
   AnimationController get _splitController {
     return _splitCtrl ??= AnimationController(
@@ -129,12 +138,44 @@ class _RedPacketPreviewPageState extends State<RedPacketPreviewPage>
   Future<void> _openRedPacket() async {
     if (_opening) return;
     setState(() {
-      _opening = true;
+      _opening = widget.data.autoClaim;
       _opened = false;
       _showOpenedDetail = false;
       _showCoverLayer = true;
+      _openError = '';
+      _terminalClaimError = false;
     });
-    await _openCtrl.forward(from: 0);
+    if (widget.data.autoClaim) {
+      _openCtrl.repeat();
+      try {
+        _claimOutcome = await RedPacketClaimAction.claim(widget.data.orderId);
+      } catch (_) {
+        if (mounted) setState(() => _openError = '领取失败，请重试');
+        return;
+      } finally {
+        if (mounted) {
+          _openCtrl.stop();
+          _openCtrl.value = 0;
+          setState(() => _opening = false);
+        }
+      }
+      if (!mounted) return;
+      final canViewDetails =
+          _claimOutcome?.status == RedPacketClaimStatus.empty ||
+              _claimOutcome?.status == RedPacketClaimStatus.expired;
+      if (_claimOutcome?.claimed != true && !canViewDetails) {
+        setState(() {
+          _terminalClaimError = true;
+          _openError = switch (_claimOutcome?.status) {
+            RedPacketClaimStatus.empty => '已抢完',
+            RedPacketClaimStatus.expired => '已过期',
+            RedPacketClaimStatus.notGroupMember => '不在群里，无法领取',
+            _ => '领取失败，请重试',
+          };
+        });
+        return;
+      }
+    }
     if (!mounted) return;
     setState(() {
       _opening = false;
@@ -174,14 +215,28 @@ class _RedPacketPreviewPageState extends State<RedPacketPreviewPage>
       _opened = false;
       _showOpenedDetail = false;
       _showCoverLayer = true;
+      _openError = '';
+      _terminalClaimError = false;
+      _claimOutcome = null;
     });
   }
 
   void _closePreview() {
-    Navigator.of(context).maybePop();
+    final status = switch (_claimOutcome?.status) {
+      RedPacketClaimStatus.empty => 'finished',
+      RedPacketClaimStatus.expired => 'expired',
+      _ => '',
+    };
+    if (status.isNotEmpty) {
+      Navigator.of(context).pop(RedPacketDetailPopResult(status: status));
+    } else {
+      Navigator.of(context).maybePop();
+    }
   }
 
   Widget _buildResultPage() {
+    final claimBuilder = widget.data.claimResultBuilder;
+    if (claimBuilder != null) return claimBuilder(context, _claimOutcome);
     final builder = widget.data.resultBuilder;
     if (builder != null) {
       return builder(context);
@@ -220,7 +275,25 @@ class _RedPacketPreviewPageState extends State<RedPacketPreviewPage>
           children: [
             if (_showOpenedDetail)
               Positioned.fill(
-                child: _buildResultPage(),
+                child: ColoredBox(
+                  color: Colors.white,
+                  child: Center(
+                    child: Container(
+                      width: 78,
+                      height: 78,
+                      decoration: BoxDecoration(
+                        color: const Color(0xAA000000),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Center(
+                        child: CupertinoActivityIndicator(
+                          radius: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             if (_showCoverLayer)
               AnimatedBuilder(
@@ -244,10 +317,10 @@ class _RedPacketPreviewPageState extends State<RedPacketPreviewPage>
                   builder: (context, viewport) {
                     final shortestSide =
                         math.min(viewport.maxWidth, viewport.maxHeight);
-                    final horizontalPadding = shortestSide * 0.045;
+                    final horizontalPadding = shortestSide * 0.08;
                     final topGap = viewport.maxHeight * 0.026;
                     final cardWidthFactor =
-                        viewport.maxWidth > 720 ? 0.38 : 0.94;
+                        viewport.maxWidth > 720 ? 0.55 : 0.91;
 
                     return Padding(
                       padding: EdgeInsets.fromLTRB(
@@ -261,15 +334,15 @@ class _RedPacketPreviewPageState extends State<RedPacketPreviewPage>
                           Expanded(
                             child: LayoutBuilder(
                               builder: (context, body) {
-                                final closeSize = (shortestSide * 0.13)
+                                final closeSize = (shortestSide * 0.105)
                                     .clamp(46.0, 64.0)
                                     .toDouble();
-                                final gap = shortestSide * 0.075;
+                                final gap = shortestSide * 0.04;
                                 final maxByWidth =
                                     body.maxWidth * cardWidthFactor;
                                 final maxByHeight = math.max(
                                   0.0,
-                                  (body.maxHeight - gap - closeSize) * 3 / 4,
+                                  (body.maxHeight - gap - closeSize) * 5 / 7,
                                 );
                                 final cardWidth =
                                     math.min(maxByWidth, maxByHeight);
@@ -284,14 +357,17 @@ class _RedPacketPreviewPageState extends State<RedPacketPreviewPage>
                                           behavior: HitTestBehavior.opaque,
                                           onTap: () {},
                                           child: AspectRatio(
-                                            aspectRatio: 3 / 4,
+                                            aspectRatio: 5 / 7,
                                             child: _RedPacketCover(
                                               data: widget.data,
                                               controller: _openCtrl,
                                               splitController: _splitController,
                                               opening: _opening,
                                               opened: _opened,
-                                              onOpen: _openRedPacket,
+                                              error: _openError,
+                                              onOpen: _terminalClaimError
+                                                  ? null
+                                                  : _openRedPacket,
                                             ),
                                           ),
                                         ),
@@ -329,15 +405,15 @@ class _PreviewMaskLayer extends StatelessWidget {
     if (AndroidPerformanceProfile.instance.reduceHeavyVisualEffects) {
       return SizedBox.expand(
         child: ColoredBox(
-          color: Colors.white.withValues(alpha: 0.82),
+          color: Colors.black.withValues(alpha: 0.55),
         ),
       );
     }
     return SizedBox.expand(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
-          color: Colors.white.withValues(alpha: 0.42),
+          color: Colors.black.withValues(alpha: 0.40),
         ),
       ),
     );
@@ -351,6 +427,7 @@ class _RedPacketCover extends StatelessWidget {
     required this.splitController,
     required this.opening,
     required this.opened,
+    required this.error,
     required this.onOpen,
   });
 
@@ -359,23 +436,22 @@ class _RedPacketCover extends StatelessWidget {
   final AnimationController splitController;
   final bool opening;
   final bool opened;
-  final VoidCallback onOpen;
+  final String error;
+  final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, card) {
-        final buttonSize = card.maxWidth * 0.25;
-        final flapHeight = card.maxHeight * 0.255;
-        final buttonBottom =
-            math.max(0.0, flapHeight * 0.56 - buttonSize * 0.50);
+        final buttonSize = card.maxWidth * 0.28;
+        final buttonBottom = card.maxHeight * 0.06;
 
         Widget buildCoverStack() {
           return Stack(
             fit: StackFit.expand,
             children: [
               Image.asset(
-                'assets/img/red_packet_preview_cover.webp',
+                'assets/img/red_packet_preview_cover_v2.png',
                 fit: BoxFit.cover,
               ),
               _WechatTitleOverlay(
@@ -383,15 +459,18 @@ class _RedPacketCover extends StatelessWidget {
                 cardWidth: card.maxWidth,
                 cardHeight: card.maxHeight,
               ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: flapHeight,
-                child: const CustomPaint(
-                  painter: _RedPocketFlapPainter(),
+              if (error.isNotEmpty)
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: buttonBottom + buttonSize + 8,
+                  child: Text(
+                    error,
+                    textAlign: TextAlign.center,
+                    style:
+                        const TextStyle(color: Color(0xFFFFE6A8), fontSize: 14),
+                  ),
                 ),
-              ),
               Positioned(
                 left: 0,
                 right: 0,
@@ -411,7 +490,7 @@ class _RedPacketCover extends StatelessWidget {
         }
 
         return ClipRRect(
-          borderRadius: BorderRadius.circular(card.maxWidth * 0.022),
+          borderRadius: BorderRadius.circular(card.maxWidth * 0.055),
           child: AnimatedBuilder(
             animation: splitController,
             builder: (context, _) {
@@ -480,62 +559,55 @@ class _WechatTitleOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const gold = Color(0xFFFFE8A0);
     return Positioned(
-      left: cardWidth * 0.06,
-      right: cardWidth * 0.06,
-      top: cardHeight * 0.255,
+      left: cardWidth * 0.07,
+      right: cardWidth * 0.07,
+      top: cardHeight * 0.16,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _WechatMark(size: cardWidth * 0.064),
-              SizedBox(width: cardWidth * 0.016),
-              Flexible(
+          SizedBox(
+            height: cardHeight * 0.05,
+            child: Center(
                 child: Text(
-                  data.isLucky
-                      ? '拼手气红包'
-                      : data.isExclusive
-                          ? '专属红包'
-                          : '预览红包封面',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: const Color(0xFFFFE6A8),
-                    fontSize: cardWidth * 0.041,
-                    fontWeight: FontWeight.w600,
+              data.isLucky
+                  ? '拼手气红包'
+                  : data.isExclusive
+                      ? '专属红包'
+                      : '普通红包',
+              style: TextStyle(
+                  color: gold,
+                  fontSize: cardWidth * 0.04,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.5),
+            )),
+          ),
+          SizedBox(height: cardHeight * 0.026),
+          SizedBox(
+            height: cardHeight * 0.065,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                data.displayGreeting.isEmpty
+                    ? '恭喜发财，大吉大利'
+                    : data.displayGreeting,
+                maxLines: 1,
+                style: TextStyle(
+                    color: gold,
+                    fontSize: cardWidth * 0.083,
+                    fontWeight: FontWeight.w700,
                     shadows: const [
                       Shadow(
-                        color: Color(0x52000000),
-                        blurRadius: 4,
-                        offset: Offset(0, 1.5),
-                      ),
-                    ],
-                  ),
-                ),
+                          color: Color(0x995B1200),
+                          blurRadius: 3,
+                          offset: Offset(0, 2))
+                    ]),
               ),
-            ],
-          ),
-          SizedBox(height: cardHeight * 0.018),
-          Text(
-            data.displayGreeting,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: const Color(0xFFFFE6A8),
-              fontSize: cardWidth * 0.058,
-              fontWeight: FontWeight.w600,
-              shadows: const [
-                Shadow(
-                  color: Color(0x66000000),
-                  blurRadius: 5,
-                  offset: Offset(0, 2),
-                ),
-              ],
             ),
           ),
+          SizedBox(height: cardHeight * 0.008),
+          Text('—  万 事 如 意 · 财 源 广 进  —',
+              style: TextStyle(color: gold, fontSize: cardWidth * 0.027)),
         ],
       ),
     );
@@ -586,30 +658,6 @@ class _BottomSplitClipper extends CustomClipper<Path> {
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
-class _WechatMark extends StatelessWidget {
-  const _WechatMark({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: const Color(0xFF21C35E),
-        borderRadius: BorderRadius.circular(size * 0.18),
-      ),
-      alignment: Alignment.center,
-      child: Icon(
-        Icons.chat_bubble,
-        color: Colors.white,
-        size: size * 0.62,
-      ),
-    );
-  }
-}
-
 class _OpenCoinButton extends StatelessWidget {
   const _OpenCoinButton({
     required this.controller,
@@ -623,7 +671,7 @@ class _OpenCoinButton extends StatelessWidget {
   final bool opening;
   final bool opened;
   final double size;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -667,6 +715,7 @@ class _OpenFace extends StatelessWidget {
       width: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFFFF0AD), width: size * 0.025),
         gradient: const RadialGradient(
           center: Alignment(-0.35, -0.35),
           radius: 0.95,
@@ -688,9 +737,9 @@ class _OpenFace extends StatelessWidget {
       child: Text(
         '開',
         style: TextStyle(
-          color: const Color(0xFF6E3D24),
-          fontSize: size * 0.39,
-          fontWeight: FontWeight.w400,
+          color: const Color(0xFF8A240C),
+          fontSize: size * 0.46,
+          fontWeight: FontWeight.w700,
           height: 1,
         ),
       ),
@@ -763,52 +812,6 @@ class _CoinHolePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _RedPocketFlapPainter extends CustomPainter {
-  const _RedPocketFlapPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFE52B1F), Color(0xFFD91F18)],
-      ).createShader(Offset.zero & size);
-    canvas.drawPath(_buildPath(size), paint);
-
-    final highlight = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.006
-      ..color = const Color(0xFFFF8D68).withOpacity(0.7);
-    final curve = Path()
-      ..moveTo(0, size.height * 0.22)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 0.56,
-        size.width,
-        size.height * 0.22,
-      );
-    canvas.drawPath(curve, highlight);
-  }
-
-  Path _buildPath(Size size) {
-    return Path()
-      ..moveTo(0, size.height * 0.20)
-      ..quadraticBezierTo(
-        size.width * 0.5,
-        size.height * 0.58,
-        size.width,
-        size.height * 0.20,
-      )
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 class _CloseButton extends StatelessWidget {
   const _CloseButton({required this.size});
 
@@ -824,15 +827,15 @@ class _CloseButton extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: const Color(0xFFD7A852),
-          width: actualSize * 0.035,
+          color: Colors.white.withValues(alpha: 0.85),
+          width: actualSize * 0.022,
         ),
       ),
       alignment: Alignment.center,
       child: Text(
         '×',
         style: TextStyle(
-          color: const Color(0xFFD7A852),
+          color: Colors.white.withValues(alpha: 0.85),
           fontSize: (actualSize * 0.62),
           height: 0.95,
           fontWeight: FontWeight.w300,
@@ -920,7 +923,7 @@ class _RedPacketOpenedPreviewPageState extends State<RedPacketOpenedPreviewPage>
                     child: ClipPath(
                       clipper: const _OpenedCoverClipper(),
                       child: Image.asset(
-                        'assets/img/red_packet_preview_cover.webp',
+                        'assets/img/red_packet_preview_cover_v2.png',
                         fit: BoxFit.cover,
                         alignment: const Alignment(0, -0.08),
                       ),

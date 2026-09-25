@@ -417,6 +417,11 @@ class FriendSyncService {
     if (id.isEmpty) {
       return;
     }
+    // Refresh an open chat immediately. Full contact sync and UIKit projection
+    // may be delayed; neither should leave a cached "not friends" on screen.
+    // This is only invalidation: chat still verifies permission with the server.
+    C2cFriendMessageGuard.invalidate(id);
+    PeerProfileRefreshBus.instance.notify(id);
     unawaited(_runBecameFriendsAfterSync(
       owner: owner,
       generation: generation,

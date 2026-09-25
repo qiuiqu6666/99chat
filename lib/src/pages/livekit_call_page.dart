@@ -10,6 +10,7 @@ import 'package:tencent_cloud_chat_demo/src/services/desktop_call_float_service.
     if (dart.library.html) 'package:tencent_cloud_chat_demo/src/services/desktop_call_float_service_web.dart';
 import 'package:tencent_cloud_chat_demo/src/services/livekit_call_navigator.dart';
 import 'package:tencent_cloud_chat_demo/src/services/livekit_call_page_paint_gate.dart';
+import 'package:tencent_cloud_chat_demo/src/services/livekit_call_ringtone.dart';
 import 'package:tencent_cloud_chat_demo/src/services/livekit_call_session.dart';
 import 'package:tencent_cloud_chat_demo/src/services/livekit_call_system_ui.dart';
 import 'package:tencent_cloud_chat_demo/src/services/livekit_call_types.dart';
@@ -103,6 +104,9 @@ class _LiveKitCallPageState extends State<LiveKitCallPage> with RouteAware {
     super.initState();
     // Heal RouteAware missed didPush — subscribe happens after push already fired.
     LiveKitCallNavigator.notifyCallPageMounted();
+    // The local call phase is already ringing before invite credentials arrive.
+    // Attach at page entry so the dial tone does not wait on the server.
+    unawaited(LiveKitCallRingtone.instance.ensureAttached());
     liveKitCallUiLog(
       'LiveKitCallPage.initState phase=${_session.phase} '
       'role=${_session.role} video=${_session.isVideo} '

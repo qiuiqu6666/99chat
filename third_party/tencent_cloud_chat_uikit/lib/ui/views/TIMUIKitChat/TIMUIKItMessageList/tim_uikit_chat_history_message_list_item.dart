@@ -2099,7 +2099,11 @@ class _TIMUIKItHistoryMessageListItemState
         ? baseNameStyle.copyWith(color: Colors.white)
         : baseNameStyle;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: EdgeInsets.only(
+        bottom: message.elemType == MessageElemType.V2TIM_ELEM_TYPE_FACE
+            ? 6
+            : 4,
+      ),
       child: Align(
         alignment: isSelf ? Alignment.centerRight : Alignment.centerLeft,
         child: ConstrainedBox(
@@ -2627,6 +2631,13 @@ class _TIMUIKItHistoryMessageListItemState
     final source = widget.toolTipsConfig ?? ToolTipsConfig();
     final baseShowReply = source.showReplyMessage;
     final baseShowForward = source.showForwardMessage;
+    final chatModel = context.read<TUIChatSeparateViewModel>();
+    final canMarkSendingFailed = widget.message.isSelf == true &&
+        _liveMessageStatus(context, chatModel, widget.message) ==
+            MessageStatus.V2TIM_MSG_STATUS_SENDING &&
+        !TimUIKitMediaUploadOverlay.supportsInlineUploadOverlay(
+          widget.message.elemType,
+        );
     return ToolTipsConfig(
       showDeleteMessage: source.showDeleteMessage &&
           !_isWalletCardCustomMessage(widget.message),
@@ -2644,9 +2655,52 @@ class _TIMUIKItHistoryMessageListItemState
           !(widget.message.hasRiskContent ?? false) &&
           !_isWalletCardCustomMessage(widget.message) &&
           !_isContactCardCustomMessage(widget.message),
-      additionalMessageToolTips: source.additionalMessageToolTips,
+      additionalMessageToolTips: canMarkSendingFailed
+          ? (message, closeTooltip) => [
+                ...?source.additionalMessageToolTips?.call(
+                  message,
+                  closeTooltip,
+                ),
+                MessageToolTipItem(
+                  label: TIM_t('标记失败'),
+                  id: 'mark_sending_failed',
+                  icon: Icons.error_outline,
+                  onClick: () {
+                    closeTooltip();
+                    unawaited(_confirmAbandonOutcomeUnknown(
+                      message,
+                      chatModel,
+                    ));
+                  },
+                ),
+              ]
+          : source.additionalMessageToolTips,
       additionalItemBuilder: source.additionalItemBuilder,
     );
+  }
+
+  Future<void> _confirmAbandonOutcomeUnknown(
+    V2TimMessage message,
+    TUIChatSeparateViewModel model,
+  ) async {
+    if (await showOutcomeUnknownDialog(context) != true || !mounted) {
+      return;
+    }
+    final abandoned = await model.globalModel.abandonOutcomeUnknownMessage(
+      conversationID: model.conversationID,
+      conversationType: model.conversationType ?? ConvType.none,
+      sdkLocalId: message.id ?? '',
+      msgID: message.msgID,
+    );
+    if (!abandoned) {
+      _coreServicesImpl.callOnCallback(
+        TIMCallback(
+          type: TIMCallbackType.INFO,
+          infoRecommendText: TIM_t('消息仍在发送或状态已经恢复'),
+          infoCode: 6661100,
+        ),
+      );
+    }
   }
 
   // 弹出对话框
@@ -2873,11 +2927,7 @@ class _TIMUIKItHistoryMessageListItemState
           message.localCustomInt != null &&
           message.localCustomInt != HistoryMessageDartConstant.read;
     }
-    return status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL ||
-        (status == MessageStatus.V2TIM_MSG_STATUS_SENDING &&
-            !TimUIKitMediaUploadOverlay.supportsInlineUploadOverlay(
-              message.elemType,
-            ));
+    return status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL;
   }
 
   bool _showMessageSideStatusColumn(V2TimMessage message, bool isSelf) {
@@ -2974,41 +3024,6 @@ class _TIMUIKItHistoryMessageListItemState
                 },
                 child: Icon(Icons.error, color: theme.cautionColor, size: 18),
               )),
-        if (isSelf && liveStatus == MessageStatus.V2TIM_MSG_STATUS_SENDING)
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () async {
-              if (await showOutcomeUnknownDialog(context) != true) return;
-              final abandoned =
-                  await model.globalModel.abandonOutcomeUnknownMessage(
-                conversationID: model.conversationID,
-                conversationType: model.conversationType ?? ConvType.none,
-                sdkLocalId: message.id ?? '',
-                msgID: message.msgID,
-              );
-              if (!abandoned) {
-                _coreServicesImpl.callOnCallback(
-                  TIMCallback(
-                    type: TIMCallbackType.INFO,
-                    infoRecommendText: TIM_t("消息仍在发送或状态已经恢复"),
-                    infoCode: 6661100,
-                  ),
-                );
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.only(bottom: 3),
-              margin: const EdgeInsets.only(right: 6),
-              width: 24,
-              height: 24,
-              alignment: Alignment.center,
-              child: const SizedBox(
-                width: 12,
-                height: 15,
-                child: CircularProgressIndicator(strokeWidth: 1),
-              ),
-            ),
-          ),
       ],
     );
   }

@@ -9,6 +9,8 @@ import 'package:tencent_cloud_chat_demo/src/services/im/im05_persistence.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/outbox_payload_cipher.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_media_staging.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_message_recreator.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_send_activity.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/writer_lease.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im_connect_status_service.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_priority_enum.dart';
@@ -24,7 +26,20 @@ import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 /// DispatchIntent immediately before the SDK call. dispatchIntent/sending are
 /// OutcomeUnknown and are never automatically resent.
 class OutgoingOutboxRecoveryService {
-  OutgoingOutboxRecoveryService._();
+  OutgoingOutboxRecoveryService._()
+      : _leaseContext = (() => ConversationSyncService.instance
+            .messageCoreLeaseForOutgoingSend());
+
+  @visibleForTesting
+  OutgoingOutboxRecoveryService.forTesting({
+    required Future<ImMessageCoreLeaseContext?> Function() leaseContext,
+  }) : _leaseContext = leaseContext;
+
+  final Future<ImMessageCoreLeaseContext?> Function() _leaseContext;
+
+  @visibleForTesting
+  Future<void> recoverOnceForTesting() =>
+      _recover(SessionIdentityService.instance.capture());
 
   static final OutgoingOutboxRecoveryService instance =
       OutgoingOutboxRecoveryService._();
@@ -116,15 +131,13 @@ class OutgoingOutboxRecoveryService {
     _runDeferred = false;
     _nextWakeDelay = const Duration(minutes: 1);
     if (identity.ownerUserId.isEmpty) return;
-    var context = await ConversationSyncService.instance
-        .messageCoreLeaseForOutgoingSend();
+    var context = await _leaseContext();
     for (var attempt = 0; context == null && attempt < 5; attempt++) {
       if (!SessionIdentityService.instance.isCurrent(identity)) return;
       await Future<void>.delayed(
         Duration(milliseconds: 100 * (1 << attempt)),
       );
-      context = await ConversationSyncService.instance
-          .messageCoreLeaseForOutgoingSend();
+      context = await _leaseContext();
     }
     if (context == null || context.ownerUserId != identity.ownerUserId) {
       _runDeferred = true;
@@ -150,9 +163,16 @@ class OutgoingOutboxRecoveryService {
         return;
       }
       var stateAdvancedCount = 0;
+      var activeSkippedCount = 0;
       for (final row in rows) {
         if (!SessionIdentityService.instance.isCurrent(identity)) return;
         cursor = row.operationId;
+        // Reconnect and the delayed Prepared wake can run while the SDK is
+        // still uploading. Only orphaned dispatches need reconciliation.
+        if (OutgoingSendActivity.instance.isActive(context, row.operationId)) {
+          activeSkippedCount++;
+          continue;
+        }
         if (row.state != ImOutboxState.prepared) {
           if (await persistence.recordOutcomeUnknown(
             ownerUserId: identity.ownerUserId,
@@ -234,7 +254,8 @@ class OutgoingOutboxRecoveryService {
         }
       }
       debugPrint('OUTBOX_RECOVERY scanned=${rows.length} '
-          'advanced=$stateAdvancedCount page=$page');
+          'advanced=$stateAdvancedCount activeSkipped=$activeSkippedCount '
+          'page=$page');
       if (rows.length < 100) {
         _continuationOperationId = null;
         await _cleanupOrphansAfterScan(identity, persistence);

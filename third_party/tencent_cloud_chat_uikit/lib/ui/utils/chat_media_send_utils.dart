@@ -9,6 +9,7 @@ import 'package:fc_native_video_thumbnail/fc_native_video_thumbnail_platform_int
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
@@ -718,6 +719,51 @@ Future<String?> stageVideoForChatSend(String sourcePath) async {
     } catch (_) {}
   }
   return null;
+}
+
+/// The system picker has already copied its result into our temporary cache.
+/// Move that private copy into durable staging when possible, avoiding another
+/// full video copy before upload. Other sources keep the existing copy path.
+Future<String?> stageSystemPickerVideoForChatSend(String sourcePath) async {
+  if (PlatformUtils().isWeb) return stageVideoForChatSend(sourcePath);
+  final trimmed = sourcePath.trim();
+  if (trimmed.isEmpty) return null;
+  if (isStagedChatVideoSendPath(trimmed)) {
+    return stageVideoForChatSend(trimmed);
+  }
+  final source = File(trimmed);
+  if (!await source.exists() || await source.length() <= 0) return null;
+
+  Directory? stageDir;
+  try {
+    final sourceCanonicalPath = await source.resolveSymbolicLinks();
+    final cacheRoots = <Directory>[
+      await getTemporaryDirectory(),
+      // image_picker_ios saves videos under NSTemporaryDirectory, while
+      // path_provider's temporary directory is Library/Caches.
+      if (Platform.isIOS) Directory.systemTemp,
+    ];
+    var privatePickerCopy = false;
+    for (final root in cacheRoots) {
+      if (p.isWithin(await root.resolveSymbolicLinks(), sourceCanonicalPath)) {
+        privatePickerCopy = true;
+        break;
+      }
+    }
+    if (!privatePickerCopy) {
+      return stageVideoForChatSend(trimmed);
+    }
+    stageDir = await _createChatMediaStagingDirectory('video');
+    final ext = _imageExtension(trimmed);
+    final suffix = ext == null ? '.mp4' : '.$ext';
+    final moved = await source.rename('${stageDir.path}/source$suffix');
+    return moved.path;
+  } catch (_) {
+    try {
+      await stageDir?.delete(recursive: true);
+    } catch (_) {}
+    return stageVideoForChatSend(trimmed);
+  }
 }
 
 /// 计算发送前压缩目标像素尺寸（可单测）。

@@ -40,7 +40,7 @@ import 'package:tencent_cloud_chat_demo/src/utils/qr_scanner_launcher.dart';
 import 'package:tencent_cloud_chat_demo/utils/init_step.dart';
 import 'package:tencent_cloud_chat_demo/src/search_add_page.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/orphan_overlay_guard.dart';
-import 'package:tencent_cloud_chat_demo/src/navigation/home_tab_activity.dart';
+import 'package:tencent_cloud_chat_demo/src/navigation/home_tab_stack.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/home_tab_reselection.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/route_visibility.dart';
 import 'package:tencent_cloud_chat_demo/src/tencent_page.dart';
@@ -82,7 +82,6 @@ class HomePageState extends State<HomePage> {
   var subscription;
   bool hasInternet = true;
   int currentIndex = 0;
-  final Set<int> _visitedTabs = <int>{};
   final GlobalKey _plusActionKey = GlobalKey();
 
   /// 菜单打开和关闭时各顺时针旋转 45°，关闭后恢复为加号。
@@ -228,13 +227,8 @@ class HomePageState extends State<HomePage> {
     );
     currentIndex = widget.pageIndex;
     _activeTabIndex.value = currentIndex;
-    // 首帧先只挂载当前 Tab，避免阻塞冷启动；首帧完成后在后台预热其余
-    // Tab。每帧只挂载一个，避免把所有页面的首次构建堆在同一帧。
-    _visitedTabs.add(currentIndex);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _warmNextTab();
-    });
+    // Hidden tabs initialize only after the first explicit selection.
+    // HomeTabStack keeps already visited page state across later switches.
     DeviceSyncService.instance.setHomeTabIndex(currentIndex);
     FriendRequestNoticeService.instance.onHomeTabChanged(currentIndex);
     AuthBootstrapService.instance.backgroundSyncing.addListener(
@@ -317,8 +311,6 @@ class HomePageState extends State<HomePage> {
         isCurrent: () => mounted,
         task: (work) async {
           await AppUpdateService.instance.check(context, manual: false);
-          if (!await work.checkpoint()) return;
-          await _precacheWalletPromoImages(work);
         },
       );
     });
@@ -354,30 +346,6 @@ class HomePageState extends State<HomePage> {
     }
   }
 
-  void _warmNextTab() {
-    if (!mounted) return;
-    const tabCount = 5;
-    const tabNames = <String>['c2c', 'group', 'contact', 'wallet', 'profile'];
-    for (var index = 0; index < tabCount; index++) {
-      if (_visitedTabs.contains(index)) continue;
-      setState(() => _visitedTabs.add(index));
-      StartupPerfLog.markTagged(
-        'home_tab_warm_started',
-        category: 'cold_start',
-        details: <String, Object>{
-          'tabIndex': index,
-          'tabName': tabNames[index],
-          'beforeFirstFrame': !StartupPerfLog.homeFrameReady,
-          'isCurrentTab': index == currentIndex,
-        },
-      );
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _warmNextTab();
-      });
-      return;
-    }
-  }
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -388,43 +356,6 @@ class HomePageState extends State<HomePage> {
       _navIconLocale = locale;
       _rebuildBottomNavIcons(theme);
     }
-  }
-
-  Future<void> _precacheWalletPromoImages(InteractionIdleTask work) async {
-    if (!mounted) {
-      return;
-    }
-    try {
-      final media = MediaQuery.of(context);
-      final logicalWidth = math.max(1.0, media.size.width - 32.0);
-      final decodeDpr = walletPromoDecodePixelRatio(media.devicePixelRatio);
-      final dark = Provider.of<DefaultThemeData>(
-            context,
-            listen: false,
-          ).currentThemeType ==
-          ThemeType.dark;
-      final headerAsset =
-          dark ? 'assets/img/card2.webp' : 'assets/img/card.webp';
-      final inviteAsset =
-          dark ? 'assets/img/invite2.webp' : 'assets/img/invite.webp';
-      final headerSourceWidth = 1024;
-      final inviteSourceWidth = dark ? 1829 : 1024;
-
-      ImageProvider resizedAsset(String asset, int sourceWidth) {
-        final cacheWidth = walletPromoCacheWidth(
-          logicalWidth: logicalWidth,
-          devicePixelRatio: decodeDpr,
-          sourcePx: sourceWidth,
-        );
-        return ResizeImage.resizeIfNeeded(cacheWidth, null, AssetImage(asset));
-      }
-
-      await precacheImage(
-          resizedAsset(headerAsset, headerSourceWidth), context);
-      if (!await work.checkpoint() || !mounted) return;
-      await precacheImage(
-          resizedAsset(inviteAsset, inviteSourceWidth), context);
-    } catch (_) {}
   }
 
   void _rebuildBottomNavIcons(theme) {
@@ -1351,7 +1282,6 @@ class HomePageState extends State<HomePage> {
     }
     setState(() {
       currentIndex = index;
-      _visitedTabs.add(index);
       if (index == 2) {
         pageName = 'concat';
       }
@@ -1370,28 +1300,13 @@ class HomePageState extends State<HomePage> {
     List<NavigationBarData> navItems, {
     required bool routeVisible,
   }) {
-    return IndexedStack(
+    return HomeTabStack(
       index: currentIndex,
-      children: List.generate(navItems.length, (index) {
-        final shouldBuild =
-            _visitedTabs.contains(index) || index == currentIndex;
-        final active = routeVisible && currentIndex == index;
-        return HomeTabActivity(
-          isActive: active,
-          child: TickerMode(
-            enabled: active,
-            child: IgnorePointer(
-              ignoring: !active,
-              child: RepaintBoundary(
-                child: shouldBuild
-                    ? (navItems[index].pageBuilder?.call() ??
-                        const SizedBox.shrink())
-                    : const SizedBox.shrink(),
-              ),
-            ),
-          ),
-        );
-      }),
+      routeVisible: routeVisible,
+      builders: [
+        for (final item in navItems)
+          (_) => item.pageBuilder?.call() ?? const SizedBox.shrink(),
+      ],
     );
   }
 

@@ -48,6 +48,9 @@ class StickerConstants {
     required String stickerId,
     String? thumbUrl,
     String? originUrl,
+    String? mediaType,
+    int? width,
+    int? height,
   }) {
     final id = stickerId.trim();
     var data = '$stickerDataScheme$id';
@@ -59,6 +62,13 @@ class StickerConstants {
     }
     if (origin.isNotEmpty && origin != thumb) {
       params['originUrl'] = origin;
+    }
+    if (mediaType == 'video') {
+      params['mediaType'] = 'video';
+    }
+    if (width != null && height != null && width > 0 && height > 0) {
+      params['width'] = '$width';
+      params['height'] = '$height';
     }
     if (params.isEmpty) {
       return data;
@@ -95,15 +105,33 @@ class StickerConstants {
   }
 
   /// 解析 Face data 内嵌的 thumbUrl / originUrl（发送方写入，接收方免拉 API）。
-  static ({String thumbUrl, String originUrl}) parseEmbeddedUrls(String data) {
+  static ({
+    String thumbUrl,
+    String originUrl,
+    String mediaType,
+    int? width,
+    int? height
+  }) parseEmbeddedUrls(String data) {
     final q = data.indexOf('?');
     if (q < 0 || q >= data.length - 1) {
-      return (thumbUrl: '', originUrl: '');
+      return (
+        thumbUrl: '',
+        originUrl: '',
+        mediaType: '',
+        width: null,
+        height: null
+      );
     }
     final params = Uri.splitQueryString(data.substring(q + 1));
+    final width = int.tryParse(params['width'] ?? '');
+    final height = int.tryParse(params['height'] ?? '');
+    final hasSize = width != null && height != null && width > 0 && height > 0;
     return (
       thumbUrl: params['thumbUrl']?.trim() ?? '',
       originUrl: params['originUrl']?.trim() ?? '',
+      mediaType: params['mediaType']?.trim() ?? '',
+      width: hasSize ? width : null,
+      height: hasSize ? height : null,
     );
   }
 }

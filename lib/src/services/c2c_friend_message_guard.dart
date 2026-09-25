@@ -26,6 +26,7 @@ class C2cFriendMessageGuard {
   static const String becameFriendsTrustSource = 'became_friends';
 
   static int _revision = 0;
+  static final Map<String, int> _peerRevisions = {};
 
   static final Map<String, _PermissionCacheEntry> _permissionCache = {};
   static final Map<String, Future<C2cSendPermissionDecision>> _inflightFetches =
@@ -67,7 +68,12 @@ class C2cFriendMessageGuard {
       );
     }
 
-    if (!forceNetwork) {
+    if (forceNetwork) {
+      // Discard both permission and relation caches, including requests that
+      // started before the relationship changed. Ignoring only this cache can
+      // still return MeFriendApi's cached negative or its old in-flight result.
+      invalidate(id);
+    } else {
       final cached = _uiSnapshotFromCache(id);
       if (cached != null) {
         return cached;
@@ -75,9 +81,11 @@ class C2cFriendMessageGuard {
     }
 
     final revision = _revision;
+    final peerRevision = _peerRevisions[id] ?? 0;
     final identity = SessionIdentityService.instance.capture();
     final relation = await MeFriendApi.instance.tryFetchRelation(id);
     if (revision != _revision ||
+        peerRevision != (_peerRevisions[id] ?? 0) ||
         !SessionIdentityService.instance.isCurrent(identity)) {
       return const C2cUiPermissionSnapshot(
           decision: C2cSendPermissionDecision.unknown,
@@ -95,6 +103,7 @@ class C2cFriendMessageGuard {
 
     final local = await MeFriendApi.instance.cachedByUserId(id);
     if (revision != _revision ||
+        peerRevision != (_peerRevisions[id] ?? 0) ||
         !SessionIdentityService.instance.isCurrent(identity)) {
       return const C2cUiPermissionSnapshot(
           decision: C2cSendPermissionDecision.unknown,
@@ -152,7 +161,9 @@ class C2cFriendMessageGuard {
     if (id == null) {
       return;
     }
-    _revision++;
+    // Another contact's sync must not discard this peer's pending result and
+    // leave its input bar stuck in the previous blocked state.
+    _peerRevisions[id] = (_peerRevisions[id] ?? 0) + 1;
     MeFriendApi.instance.invalidateRelation(id);
     _permissionCache.remove(id);
     _inflightFetches.remove(id);
@@ -231,6 +242,7 @@ class C2cFriendMessageGuard {
   @visibleForTesting
   static void debugReset() {
     _revision++;
+    _peerRevisions.clear();
     _permissionCache.clear();
     _inflightFetches.clear();
     _trustedAllowHints.clear();
@@ -362,6 +374,10 @@ class C2cFriendMessageGuard {
       return C2cSendPermissionDecision.allowed;
     }
 
+    if (forceNetwork) {
+      invalidate(id);
+    }
+
     final cached = _permissionCache[id];
     if (!forceNetwork && cached != null && cached.isFresh) {
       if (_preferTrustOverNegative(id, cached.canSend)) {
@@ -391,9 +407,11 @@ class C2cFriendMessageGuard {
 
   static Future<C2cSendPermissionDecision> _fetchDecision(String id) async {
     final revision = _revision;
+    final peerRevision = _peerRevisions[id] ?? 0;
     final identity = SessionIdentityService.instance.capture();
     final relation = await MeFriendApi.instance.tryFetchRelation(id);
     if (revision != _revision ||
+        peerRevision != (_peerRevisions[id] ?? 0) ||
         !SessionIdentityService.instance.isCurrent(identity)) {
       return C2cSendPermissionDecision.unknown;
     }
@@ -406,6 +424,7 @@ class C2cFriendMessageGuard {
 
     final cached = await MeFriendApi.instance.cachedByUserId(id);
     if (revision != _revision ||
+        peerRevision != (_peerRevisions[id] ?? 0) ||
         !SessionIdentityService.instance.isCurrent(identity)) {
       return C2cSendPermissionDecision.unknown;
     }

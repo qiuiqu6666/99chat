@@ -31,7 +31,6 @@ import 'package:tencent_cloud_chat_demo/src/services/conversation_pin_flicker_lo
 import 'package:tencent_cloud_chat_demo/src/services/conversation_pin_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_unread_trace.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_local/friend_local_store.dart';
-import 'package:tencent_cloud_chat_demo/src/services/foreground_chat_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/services/active_chat_registry.dart';
 import 'package:tencent_cloud_chat_demo/src/services/auth_bootstrap_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart';
@@ -5159,12 +5158,11 @@ class ConversationSyncService {
     return [conversation];
   }
 
-  /// 未读以 IM SDK 为准；仅前台正在看的会话强制 0。
+  /// 未读以 SDK 和已确认的消息已读锚点为准，页面可见不代表新气泡已读。
   void _applySdkUnreadForPatch(V2TimConversation conversation) {
-    final conversationId = conversation.conversationID.trim();
-    if (ForegroundChatGuard.isActiveConversation(conversationId)) {
-      conversation.unreadCount = 0;
-    }
+    ConversationLocalStore.instance.resolveSdkUnreadAgainstReadBarrier(
+      conversation,
+    );
   }
 
   Future<void> markConversationReadLocally(

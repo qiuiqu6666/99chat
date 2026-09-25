@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -12,12 +13,14 @@ import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversa
 import 'package:tencent_cloud_chat_demo/src/services/friend_local/friend_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/message_core_store.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_priority_enum.dart';
+import 'package:tencent_cloud_chat_sdk/enum/message_elem_type.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
 import 'package:tencent_cloud_chat_sdk/enum/offlinePushInfo.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_callback.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_msg_create_info_result.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_text_elem.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_face_elem.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart';
 import 'package:tencent_cloud_chat_sdk/native_im/adapter/tim_manager.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/c2c_blocked_outgoing_message_sync.dart';
@@ -43,6 +46,8 @@ class _SendService implements MessageService {
   int sends = 0;
   int resultCode = 0;
   String? receiver;
+  Completer<void>? faceCreateGate;
+  bool failFaceCreation = false;
   final Map<String, V2TimMessage> messages = {};
 
   @override
@@ -55,6 +60,26 @@ class _SendService implements MessageService {
       ..isSelf = true
       ..status = MessageStatus.V2TIM_MSG_STATUS_SENDING
       ..textElem = V2TimTextElem(text: text);
+    messages[id] = message;
+    return V2TimMsgCreateInfoResult(id: id, messageInfo: message);
+  }
+
+  @override
+  Future<V2TimMsgCreateInfoResult?> createFaceMessage({
+    required int index,
+    required String data,
+  }) async {
+    await faceCreateGate?.future;
+    if (failFaceCreation) return null;
+    final id = 'face-local-${messages.length}';
+    final message = V2TimMessage.fromJson({'message_risk_type_identified': 0})
+      ..id = id
+      ..elemType = MessageElemType.V2TIM_ELEM_TYPE_FACE
+      ..sender = 'send-owner'
+      ..isSelf = true
+      ..status = MessageStatus.V2TIM_MSG_STATUS_SENDING
+      ..faceElem = V2TimFaceElem(index: index, data: data);
+    message.elemList.add(message.faceElem!);
     messages[id] = message;
     return V2TimMsgCreateInfoResult(id: id, messageInfo: message);
   }
@@ -81,6 +106,8 @@ class _SendService implements MessageService {
     final sent = V2TimMessage.fromJson(messages[id]!.toJson())
       ..id = id
       ..msgID = syncMsgID
+      ..elemType = messages[id]!.elemType
+      ..faceElem = messages[id]!.faceElem
       ..cloudCustomData = cloudCustomData
       ..status = resultCode == 0
           ? MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC
@@ -195,6 +222,68 @@ void main() {
       expect(pendingRequests, isEmpty);
     });
   }
+
+  test('face is visible while SDK message creation is still pending', () async {
+    sdk.faceCreateGate = Completer<void>();
+    const data =
+        '99chat://sticker/fixture?thumbUrl=https%3A%2F%2Fexample.com%2Fthumb.jpg';
+    final send = page.sendFaceMessage(
+      index: 99,
+      data: data,
+      convID: 'send-peer',
+      convType: ConvType.c2c,
+    );
+
+    final pending = page.getOriginMessageList()
+        .where((message) => message.faceElem?.data == data)
+        .toList();
+    expect(pending, hasLength(1));
+    expect(pending.single.status, MessageStatus.V2TIM_MSG_STATUS_SENDING);
+    expect(sdk.sends, 0);
+
+    sdk.faceCreateGate!.complete();
+    final result = await send.timeout(const Duration(seconds: 5));
+    expect(result?.code, 0);
+    expect(sdk.sends, 1);
+    final settled = page.getOriginMessageList()
+        .where((message) => message.faceElem?.data == data)
+        .toList();
+    expect(settled, hasLength(1));
+    expect(settled.single.status, MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC);
+  });
+
+  test('face creation failure leaves one visible failed message', () async {
+    sdk.failFaceCreation = true;
+    const data = '99chat://sticker/failed';
+    final result = await page.sendFaceMessage(
+      index: 99,
+      data: data,
+      convID: 'send-peer',
+      convType: ConvType.c2c,
+    ).timeout(const Duration(seconds: 5));
+    expect(result, isNull);
+    expect(sdk.sends, 0);
+    final failed = page.getOriginMessageList()
+        .where((message) => message.faceElem?.data == data)
+        .toList();
+    expect(failed, hasLength(1));
+    expect(failed.single.status, MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL);
+    expect(failed.single.localCustomData, contains('"faceCreatePending":true'));
+
+    sdk.failFaceCreation = false;
+    final retried = await page.reSendFailMessage(
+      message: failed.single,
+      convID: 'send-peer',
+      convType: ConvType.c2c,
+    ).timeout(const Duration(seconds: 5));
+    expect(retried?.code, 0, reason: retried?.desc);
+    expect(sdk.sends, 1);
+    final afterRetry = page.getOriginMessageList()
+        .where((message) => message.faceElem?.data == data)
+        .toList();
+    expect(afterRetry, hasLength(1));
+    expect(afterRetry.single.status, MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC);
+  });
 
   test('IM 20007 peer blacklist settles SEND_FAIL without delivery check',
       () async {

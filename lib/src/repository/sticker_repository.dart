@@ -30,10 +30,26 @@ class StickerRepository {
         a.height == b.height;
   }
 
+  StickerItem _preserveCachedSize(StickerItem item) {
+    final existing = _cache[item.stickerId];
+    if (!item.hasIntrinsicSize &&
+        existing != null &&
+        existing.hasIntrinsicSize &&
+        existing.thumbUrl == item.thumbUrl &&
+        existing.originUrl == item.originUrl) {
+      // Legacy face payloads and favorites can omit dimensions. Reading one
+      // must not downgrade a resource that has already been measured.
+      return item.copyWithSize(
+          width: existing.width!, height: existing.height!);
+    }
+    return item;
+  }
+
   void putCache(StickerItem item) {
     if (item.stickerId.isEmpty || !_hasDisplayUrl(item)) {
       return;
     }
+    item = _preserveCachedSize(item);
     final existing = _cache[item.stickerId];
     if (existing != null && _sameCachedItem(existing, item)) {
       return;
@@ -44,10 +60,11 @@ class StickerRepository {
 
   void putCaches(Iterable<StickerItem> items) {
     var changed = false;
-    for (final item in items) {
+    for (var item in items) {
       if (item.stickerId.isEmpty || !_hasDisplayUrl(item)) {
         continue;
       }
+      item = _preserveCachedSize(item);
       final existing = _cache[item.stickerId];
       if (existing != null && _sameCachedItem(existing, item)) {
         continue;
@@ -70,9 +87,11 @@ class StickerRepository {
         stickerId: '',
         thumbUrl: trimmed,
         originUrl: trimmed,
-        mediaType: StickerMediaType.isGifUrl(trimmed)
-            ? StickerMediaType.gif
-            : StickerMediaType.image,
+        mediaType: StickerMediaType.isVideoUrl(trimmed)
+            ? StickerMediaType.video
+            : (StickerMediaType.isGifUrl(trimmed)
+                ? StickerMediaType.gif
+                : StickerMediaType.image),
       );
     }
     final stickerId = parseStickerId(trimmed);
@@ -82,7 +101,7 @@ class StickerRepository {
     final embedded = _itemFromEmbeddedUrls(trimmed, stickerId);
     if (embedded != null) {
       putCache(embedded);
-      return embedded;
+      return getCached(stickerId);
     }
     final cached = getCached(stickerId);
     if (cached != null && _hasDisplayUrl(cached)) {
@@ -107,22 +126,27 @@ class StickerRepository {
     if (origin.isEmpty) {
       origin = thumb;
     }
-    final mediaType = StickerMediaType.isGifUrl(origin) ||
-            StickerMediaType.isGifUrl(thumb)
-        ? StickerMediaType.gif
-        : StickerMediaType.image;
+    final mediaType = embedded.mediaType == StickerMediaType.video ||
+            StickerMediaType.isVideoUrl(origin)
+        ? StickerMediaType.video
+        : (StickerMediaType.isGifUrl(origin) || StickerMediaType.isGifUrl(thumb)
+            ? StickerMediaType.gif
+            : StickerMediaType.image);
     final item = StickerItem(
       stickerId: stickerId,
       thumbUrl: thumb,
       originUrl: origin,
       mediaType: mediaType,
+      width: embedded.width,
+      height: embedded.height,
     );
     return _hasDisplayUrl(item) ? item : null;
   }
 
   bool isDynamicFaceData(String data) {
     final t = data.trim();
-    return t.startsWith('http') || t.startsWith(StickerConstants.stickerDataScheme);
+    return t.startsWith('http') ||
+        t.startsWith(StickerConstants.stickerDataScheme);
   }
 
   Future<StickerItem?> resolveStickerItem(String data) async {
@@ -165,7 +189,8 @@ class StickerRepository {
     return task;
   }
 
-  Future<String?> resolveDisplayUrl(String data, {bool preferAnimated = true}) async {
+  Future<String?> resolveDisplayUrl(String data,
+      {bool preferAnimated = true}) async {
     final item = await resolveStickerItem(data);
     if (item == null) {
       return null;

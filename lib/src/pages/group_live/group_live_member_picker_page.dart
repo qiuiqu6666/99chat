@@ -79,8 +79,7 @@ class _GroupLiveMemberPickerPageState extends State<GroupLiveMemberPickerPage> {
 
   bool _isMutualFriend(String userId) {
     try {
-      return friendCanMessage(
-          serviceLocator<TUIFriendShipViewModel>(), userId);
+      return friendCanMessage(serviceLocator<TUIFriendShipViewModel>(), userId);
     } catch (_) {
       return false;
     }
@@ -109,22 +108,22 @@ class _GroupLiveMemberPickerPageState extends State<GroupLiveMemberPickerPage> {
         .toList(growable: false);
     return Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(),
+          leading: const AppBackButton(),
           title: Text(i18n.t(
-        zhHans: '选择主播',
-        zhHant: '選擇主播',
-        en: 'Select anchor',
-        ja: 'アンカーを選択',
-        ko: '앵커 선택',
-      ))),
+            zhHans: '选择主播',
+            zhHant: '選擇主播',
+            en: 'Select anchor',
+            ja: 'アンカーを選択',
+            ko: '앵커 선택',
+          ))),
       body: Column(children: [
         ContactStyleSearchBar(
           controller: _search,
           onChanged: (_) => setState(() {}),
           hint: i18n.t(
-              zhHans: '搜索成员',
-              zhHant: '搜尋成員',
-              en: 'Search members',
+              zhHans: _loader.complete ? '搜索成员' : '搜索已加载的成员',
+              zhHant: _loader.complete ? '搜尋成員' : '搜尋已載入的成員',
+              en: _loader.complete ? 'Search members' : 'Search loaded members',
               ja: 'メンバーを検索',
               ko: '멤버 검색'),
           showCancel: false,
@@ -153,6 +152,13 @@ class _GroupLiveMemberPickerPageState extends State<GroupLiveMemberPickerPage> {
               ko: '멤버 로드 미완료. 다시 시도',
             )),
           ),
+        if (!_loader.complete && !_loader.loading && !_loader.failed)
+          TextButton(
+              onPressed: () => unawaited(_loader.load()),
+              child: Text(i18n.t(
+                  zhHans: '加载更多成员',
+                  zhHant: '載入更多成員',
+                  en: 'Load more members'))),
         Expanded(
             child: members.isEmpty
                 ? Center(

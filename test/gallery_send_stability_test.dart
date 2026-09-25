@@ -154,10 +154,10 @@ void main() {
     expect(dispatch, contains('readLocalImageSizeFromHeader(file.path)'));
     expect(dispatch, contains('probeSizeSynchronously: false'));
     expect(dispatch, isNot(contains('probeSizeSynchronously: true')));
-    expect(dispatch, contains('imageWidth: imageSizes[i]?.width.round()'));
+    expect(dispatch, contains('imageWidth: imageSize?.width.round()'));
     expect(
         panel,
-        contains('await dismissPicker();\n'
+        contains('await dismissPicker(transitionSettled: Platform.isAndroid);\n'
             '            await _dispatchSystemPickedMedia('));
     final model = File('${root}business_logic/separate_models/'
             'tui_chat_separate_view_model.dart')

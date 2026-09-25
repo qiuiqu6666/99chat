@@ -11,11 +11,15 @@ class RedPacketOpenedRecord {
   final String orderId;
   final int openedAt;
   final bool claimed;
+  final int? claimAmountMinor;
+  final int? claimedAt;
 
   const RedPacketOpenedRecord({
     required this.orderId,
     required this.openedAt,
     this.claimed = false,
+    this.claimAmountMinor,
+    this.claimedAt,
   });
 }
 
@@ -56,7 +60,7 @@ class RedPacketLocalStore {
     final path = p.join(basePath, _dbName);
     _db = await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onOpen: (db) async {
         // FFB-2 扩散：iOS sqflite_darwin 启动期 PRAGMA 救火。失败不阻断 DB open。
         await SqfliteBootstrapHelper.withTag('red_packet').runOnOpenPragmas(db);
@@ -69,6 +73,11 @@ class RedPacketLocalStore {
           await db.execute(
             'ALTER TABLE $_table ADD COLUMN claimed INTEGER NOT NULL DEFAULT 0',
           );
+        }
+        if (oldVersion < 3) {
+          await db.execute(
+              'ALTER TABLE $_table ADD COLUMN claim_amount_minor INTEGER');
+          await db.execute('ALTER TABLE $_table ADD COLUMN claimed_at INTEGER');
         }
       },
     );
@@ -88,6 +97,8 @@ class RedPacketLocalStore {
         order_id TEXT NOT NULL,
         opened_at INTEGER NOT NULL DEFAULT 0,
         claimed INTEGER NOT NULL DEFAULT 0,
+        claim_amount_minor INTEGER,
+        claimed_at INTEGER,
         PRIMARY KEY (owner_user_id, order_id)
       )
     ''');
@@ -158,6 +169,8 @@ class RedPacketLocalStore {
       orderId: id,
       openedAt: row['opened_at'] as int? ?? 0,
       claimed: (row['claimed'] as int? ?? 0) == 1,
+      claimAmountMinor: row['claim_amount_minor'] as int?,
+      claimedAt: row['claimed_at'] as int?,
     );
     _memoryForOwner(owner)[id] = record;
     return record;
@@ -176,6 +189,8 @@ class RedPacketLocalStore {
     String? ownerUserId,
     int? openedAt,
     bool claimed = false,
+    int? claimAmountMinor,
+    int? claimedAt,
     Iterable<String> aliasOrderIds = const [],
   }) async {
     final id = orderId.trim();
@@ -199,6 +214,8 @@ class RedPacketLocalStore {
       orderId: id,
       openedAt: ts,
       claimed: nextClaimed,
+      claimAmountMinor: claimAmountMinor ?? existing?.claimAmountMinor,
+      claimedAt: claimedAt ?? existing?.claimedAt ?? (claimed ? ts : null),
     );
 
     for (final key in keys) {
@@ -209,16 +226,47 @@ class RedPacketLocalStore {
 
     final db = await _openDb();
     for (final key in keys) {
-      await db.insert(
-        _table,
-        {
-          'owner_user_id': owner,
-          'order_id': key,
-          'opened_at': ts,
-          'claimed': nextClaimed ? 1 : 0,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
+      // An older "opened" write may finish after a successful claim. Merge in
+      // SQLite as well as memory so it cannot erase the amount after restart.
+      await db.rawInsert('''
+        INSERT INTO $_table
+          (owner_user_id, order_id, opened_at, claimed, claim_amount_minor, claimed_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(owner_user_id, order_id) DO UPDATE SET
+          opened_at = excluded.opened_at,
+          claimed = MAX(claimed, excluded.claimed),
+          claim_amount_minor = COALESCE(excluded.claim_amount_minor, claim_amount_minor),
+          claimed_at = COALESCE(claimed_at, excluded.claimed_at)
+      ''', [
+        owner,
+        key,
+        ts,
+        nextClaimed ? 1 : 0,
+        record.claimAmountMinor,
+        record.claimedAt,
+      ]);
+    }
+    final persisted = await db.query(
+      _table,
+      where: 'owner_user_id = ? AND order_id = ?',
+      whereArgs: [owner, id],
+      limit: 1,
+    );
+    if (persisted.isNotEmpty) {
+      final row = persisted.first;
+      final current = _memoryForOwner(owner)[id];
+      final merged = RedPacketOpenedRecord(
+        orderId: id,
+        openedAt: ts,
+        claimed:
+            (row['claimed'] as int? ?? 0) == 1 || (current?.claimed ?? false),
+        claimAmountMinor:
+            current?.claimAmountMinor ?? row['claim_amount_minor'] as int?,
+        claimedAt: current?.claimedAt ?? row['claimed_at'] as int?,
       );
+      for (final key in keys) {
+        _memoryForOwner(owner)[key] = merged;
+      }
     }
   }
 
@@ -229,6 +277,11 @@ class RedPacketLocalStore {
     if (db != null) {
       await db.delete(_table);
     }
+  }
+
+  @visibleForTesting
+  void evictMemoryForTest(String ownerUserId) {
+    _memoryByOwner.remove(ChatIdFormat.rawUserUid(ownerUserId));
   }
 
   Future<void> clearForOwner(String? ownerUserId) async {

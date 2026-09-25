@@ -719,7 +719,14 @@ class LiveKitCallSession extends ChangeNotifier {
 
   Future<void> _ensureCallAudioRoute() async {
     if (_room == null || _finalizing) return;
-    await LiveKitCallRingtone.instance.stop();
+    // Joining/recovering the caller's room does not mean the peer answered.
+    if (!shouldPlayRingtone(
+      phase: _phase,
+      hasRoom: true,
+      isOutgoing: _role == AppCallRole.caller,
+    )) {
+      await LiveKitCallRingtone.instance.stop();
+    }
     // CallKit still owns playAndRecord — LiveKit speaker reconfig kills capture.
     if (!kIsWeb &&
         defaultTargetPlatform == TargetPlatform.iOS &&
@@ -975,7 +982,15 @@ class LiveKitCallSession extends ChangeNotifier {
         if (_sessionGen == gen) notifyListeners();
       });
 
-    await LiveKitCallRingtone.instance.stop();
+    // Keep the caller's ringback through connection setup. Callee audio must
+    // still stop before the CallKit handoff; connected callers stop as well.
+    if (!shouldPlayRingtone(
+      phase: _phase,
+      hasRoom: true,
+      isOutgoing: _role == AppCallRole.caller,
+    )) {
+      await LiveKitCallRingtone.instance.stop();
+    }
     await prepareIosCallKitMediaJoin(
       video: creds.isVideo,
       isCallee: _role == AppCallRole.callee,

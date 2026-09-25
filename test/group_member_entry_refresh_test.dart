@@ -305,6 +305,73 @@ void main() {
         hasLength(1));
   });
 
+  test('fresh membership cannot inherit an active role from cached profiles',
+      () async {
+    final cached = [member(7), member(8), member(9, role: 300)];
+    await disk.upsertMany(
+        ownerUserId: owner, groupId: group, records: cached);
+    final sync = GroupMembershipSyncService.forTest(
+      memberInfoLoader: (_, __) async => V2TimValueCallback(
+        code: 0,
+        desc: 'ok',
+        data: [
+          V2TimGroupMemberFullInfo(userID: cached[0].userId, role: 0),
+          V2TimGroupMemberFullInfo(userID: cached[1].userId),
+          V2TimGroupMemberFullInfo(userID: cached[2].userId, role: 200),
+        ],
+      ),
+    );
+    final result = await sync.loadGroupMembersInfo(
+      groupID: group,
+      memberList: cached.map((m) => m.userId).toList(),
+      refresh: true,
+    );
+    expect(result.code, 0);
+    expect(result.data!.map((m) => m.userID), [cached[2].userId]);
+    expect(result.data!.single.role, 200);
+    final display = await sync.loadGroupMembersInfo(
+      groupID: group,
+      memberList: cached.map((m) => m.userId).toList(),
+    );
+    expect(display.data, hasLength(3));
+    expect(display.data!.map((m) => m.nickName),
+        cached.map((m) => m.nickname));
+  });
+
+  test('local removal publishes picker invalidation and blocks late lookup',
+      () async {
+    final removed = member(7);
+    final retained = member(8);
+    await disk.upsertMany(
+        ownerUserId: owner, groupId: group, records: [removed, retained]);
+    final profile = model();
+    profile.groupMemberList = [v2Member(removed), v2Member(retained)];
+    final entered = Completer<void>();
+    final response = Completer<V2TimValueCallback<List<V2TimGroupMemberFullInfo>>>();
+    final sync = GroupMembershipSyncService.forTest(
+      memberInfoLoader: (_, __) {
+        entered.complete();
+        return response.future;
+      },
+    );
+    final lookup = sync.loadGroupMembersInfo(
+        groupID: group,
+        memberList: [removed.userId, retained.userId],
+        refresh: true);
+    await entered.future;
+    final removal = memory.removals.first;
+    await disk.deleteUsers(
+        ownerUserId: owner,
+        groupId: 'group_$group',
+        userIds: [removed.userId]);
+    expect(memory.isRemovalTombstoned(group, removed.userId), isTrue);
+    expect((await removal).userIDs, {removed.userId});
+    expect(profile.groupMemberList.map((m) => m?.userID), [retained.userId]);
+    response.complete(V2TimValueCallback(
+        code: 0, desc: 'ok', data: [v2Member(removed), v2Member(retained)]));
+    expect((await lookup).data!.map((m) => m.userID), [retained.userId]);
+  });
+
   test('failed fresh lookup is not reported as a successful empty membership',
       () async {
     final sync = GroupMembershipSyncService.forTest(

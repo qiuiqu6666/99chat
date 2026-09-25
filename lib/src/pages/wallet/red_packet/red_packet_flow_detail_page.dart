@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tencent_cloud_chat_demo/src/api/wallet_amount.dart';
@@ -8,14 +9,18 @@ import 'package:tencent_cloud_chat_demo/src/api/wallet_api.dart';
 import 'package:tencent_cloud_chat_demo/src/api/wallet_time.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/wallet/wallet_error_mapper.dart';
+import 'package:tencent_cloud_chat_demo/src/pages/wallet/wallet_store.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/wallet/widgets/wallet_page_colors.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart';
 import 'package:tencent_cloud_chat_demo/src/services/red_packet_claim_notice_sender.dart';
+import 'package:tencent_cloud_chat_demo/src/services/red_packet_local_store.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_user_full_info.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_user_full_info.dart';
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
+import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 
 import 'lucky_red_packet_detail_page.dart';
+import 'red_packet_claim_action.dart';
 import 'red_packet_detail_pop_result.dart';
 import 'red_packet_open_flow_page.dart';
 import 'widgets/red_packet_detail_app_bar.dart';
@@ -31,6 +36,7 @@ class RedPacketProjectDetailPage extends StatefulWidget {
     this.greeting = '',
     this.amountText = '',
     this.autoClaim = true,
+    this.initialClaimOutcome,
     this.seedPacket = const {},
   });
 
@@ -41,8 +47,9 @@ class RedPacketProjectDetailPage extends StatefulWidget {
   final String greeting;
   final String amountText;
   final bool autoClaim;
+  final RedPacketClaimOutcome? initialClaimOutcome;
 
-  /// 聊天消息里的本地字段，订单详情接口失败时用于兜底展示。
+  /// 聊天消息里的本地字段，只用于加载期间的领取上下文。
   final Map<String, dynamic> seedPacket;
 
   @override
@@ -50,9 +57,9 @@ class RedPacketProjectDetailPage extends StatefulWidget {
       _RedPacketProjectDetailPageState();
 }
 
-class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage> {
+class _RedPacketProjectDetailPageState
+    extends State<RedPacketProjectDetailPage> {
   bool _loading = true;
-  bool _claimed = false;
   bool _claimsLoaded = false;
   String _error = '';
   String _senderProfileAvatar = '';
@@ -60,14 +67,24 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
   RedPacketClaimStateDto? _claimState;
   List<Map<String, dynamic>> _claims = const [];
   List<_ResolvedClaim> _resolvedClaims = const [];
+  RedPacketOpenedRecord? _localClaim;
+  RedPacketClaimOutcome? _claimOutcome;
+  bool _claimAttempted = false;
 
   @override
   void initState() {
     super.initState();
+    _claimOutcome = widget.initialClaimOutcome;
+    _packet = _buildFallbackPacket(null) ?? const {};
     _load();
   }
 
   Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _claimsLoaded = false;
+      _error = '';
+    });
     final orderId = widget.orderId.trim();
     if (orderId.isEmpty) {
       setState(() {
@@ -77,104 +94,205 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
       return;
     }
 
-    if (mounted && (!_loading || _error.isNotEmpty)) {
-      setState(() {
-        _loading = true;
-        _error = '';
-      });
-    }
-
-    RedPacketClaimStateDto? claimState;
-    Map<String, dynamic>? packet;
-    Object? orderError;
-    List<Map<String, dynamic>> claims = _claims;
-    List<_ResolvedClaim> resolvedClaims = _resolvedClaims;
-    var claimsLoaded = _claimsLoaded;
-    var senderProfileAvatar = _senderProfileAvatar;
-
+    // The claim POST starts independently of detail and state reads.
+    RedPacketOpenedRecord? local;
     try {
-      claimState = await WalletApi.instance.getRedPacketClaimState(orderId);
-    } catch (_) {}
-
-    var claimSucceeded = false;
-    if (widget.autoClaim && !_claimed && (claimState?.canOpen ?? false)) {
-      _claimed = true;
-      try {
-        await WalletApi.instance.claimRedPacket(orderId: orderId);
-        claimState = await WalletApi.instance.getRedPacketClaimState(orderId);
-        claimSucceeded = claimState.received;
-      } catch (_) {
-        try {
-          claimState = await WalletApi.instance.getRedPacketClaimState(orderId);
-          claimSucceeded = claimState.received;
-        } catch (_) {}
-      }
-    }
-
-    try {
-      final order = await WalletApi.instance.getRedPacketOrder(orderId);
-      packet = Map<String, dynamic>.from(order.data);
-    } catch (e) {
-      orderError = e;
-    }
-
-    // 未参与领取的旁观者：订单详情接口可能因权限失败，用消息种子 + claim-state 兜底。
-    packet ??= _buildFallbackPacket(claimState);
-
-    // 领取灰字：等订单/种子齐后再发，避免 senderName 空落成占位。
-    if (claimSucceeded && packet != null) {
-      _packet = packet;
-      _scheduleClaimNoticeSend(
-        orderId: orderId,
-        claimState: claimState,
-      );
-    }
-
-    if (packet != null) {
-      senderProfileAvatar = await _fetchSenderAvatar(packet);
-    }
-
-    final embeddedClaims = _claimsFromPacket(packet);
-    try {
-      claims = await WalletApi.instance.getRedPacketClaims(orderId);
-      if (claims.isEmpty && embeddedClaims.isNotEmpty) {
-        claims = embeddedClaims;
-      }
-      resolvedClaims = await _buildResolvedClaims(claims);
-      claimsLoaded = true;
+      local = await RedPacketLocalStore.instance.getOpened(orderId: orderId);
     } catch (_) {
-      // /claims 失败时回退订单详情里内嵌的领取列表。
-      if (embeddedClaims.isNotEmpty) {
-        claims = embeddedClaims;
-        resolvedClaims = await _buildResolvedClaims(claims);
-        claimsLoaded = true;
-      } else {
-        claims = _claims;
-        resolvedClaims = _resolvedClaims;
-        claimsLoaded = false;
-      }
+      local = RedPacketLocalStore.instance.peekOpened(orderId: orderId);
     }
-
     if (!mounted) return;
-
-    if (packet == null) {
+    setState(() => _localClaim = local);
+    if (widget.autoClaim && !_claimAttempted && !(local?.claimed ?? false)) {
+      _claimAttempted = true;
+      unawaited(_claim(orderId));
+    }
+    if (widget.initialClaimOutcome?.newlyClaimed == true) {
+      _scheduleClaimNoticeSend(orderId: orderId, claimState: _claimState);
+      _scheduleBackgroundRefresh(orderId);
+    }
+    unawaited(_refreshClaimState(orderId));
+    try {
+      Map<String, dynamic>? packet;
+      Object? orderError;
+      for (final delay in const [
+        Duration.zero,
+        Duration(milliseconds: 350),
+        Duration(milliseconds: 900),
+      ]) {
+        if (delay != Duration.zero) await Future<void>.delayed(delay);
+        if (!mounted) return;
+        try {
+          final order = await WalletApi.instance.getRedPacketOrder(orderId);
+          packet = Map<String, dynamic>.from(order.data);
+          if (packet.isNotEmpty) break;
+          orderError = const FormatException('Empty red packet order');
+        } catch (error) {
+          orderError = error;
+        }
+      }
+      if (packet == null || packet.isEmpty) {
+        throw orderError ?? const FormatException('Missing red packet order');
+      }
+      if (!mounted) return;
+      _packet = packet;
+      // Order and claim records can become visible at different times. Keep
+      // the whole detail page covered until both describe the same snapshot.
+      var claimsReady = false;
+      for (final delay in const [
+        Duration.zero,
+        Duration(milliseconds: 400),
+        Duration(milliseconds: 900),
+        Duration(milliseconds: 1500),
+        Duration(milliseconds: 2500),
+        Duration(milliseconds: 3500),
+      ]) {
+        if (delay != Duration.zero) await Future<void>.delayed(delay);
+        if (!mounted) return;
+        claimsReady = await _refreshClaims(orderId, packet);
+        if (claimsReady) break;
+      }
+      if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = _orderLoadErrorMessage(orderError);
+        _error = claimsReady
+            ? ''
+            : AppI18n.of(context).t(
+                zhHans: '红包详情加载失败，请重试',
+                zhHant: '紅包詳情載入失敗，請重試',
+                en: 'Failed to load red packet details. Please retry.',
+                ja: '紅包の詳細を読み込めませんでした。再試行してください。',
+                ko: '레드패킷 상세 정보를 불러오지 못했습니다. 다시 시도해 주세요.',
+              );
       });
-      return;
+      unawaited(_fetchSenderAvatar(packet).then((avatar) {
+        if (mounted) setState(() => _senderProfileAvatar = avatar);
+      }));
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = _orderLoadErrorMessage(error);
+      });
     }
+  }
 
-    setState(() {
-      _claimState = claimState;
-      _packet = packet!;
-      _claims = claims;
-      _resolvedClaims = resolvedClaims;
-      _senderProfileAvatar = senderProfileAvatar;
-      _claimsLoaded = claimsLoaded;
-      _loading = false;
-      _error = '';
-    });
+  Future<void> _claim(String orderId) async {
+    try {
+      final outcome = await RedPacketClaimAction.claim(orderId);
+      if (!mounted) return;
+      setState(() {
+        _claimOutcome = outcome;
+        _localClaim = RedPacketLocalStore.instance.peekOpened(orderId: orderId);
+      });
+      if (outcome.newlyClaimed) {
+        _scheduleClaimNoticeSend(orderId: orderId, claimState: _claimState);
+      }
+      _scheduleBackgroundRefresh(orderId);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _claimAttempted = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _refreshClaimState(String orderId) async {
+    try {
+      final state = await WalletApi.instance.getRedPacketClaimState(orderId);
+      if (mounted) {
+        if (_claimState?.received == true && !state.received) return;
+        final justCredited = state.received && _claimState?.received != true;
+        setState(() => _claimState = state);
+        if (justCredited) {
+          unawaited(WalletStore.instance
+              .getWallet(force: true)
+              .then<void>((_) {})
+              .catchError((Object _) {}));
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<bool> _refreshClaims(
+      String orderId, Map<String, dynamic> packet) async {
+    final embedded = _claimsFromPacket(packet);
+    try {
+      final fetched = await WalletApi.instance.getRedPacketClaims(orderId);
+      final claims =
+          fetched.isEmpty && embedded.isNotEmpty ? embedded : fetched;
+      if (!_claimsMatchPacket(claims, packet)) return false;
+      if (_claimsLoaded && claims.length < _claims.length) return true;
+      final resolved = await _buildResolvedClaims(claims);
+      if (mounted) {
+        if (_didCurrentUserClaim && !claims.any(_isOwnClaim)) {
+          return _claimsLoaded;
+        }
+        setState(() {
+          _claims = claims;
+          _resolvedClaims = resolved;
+          _claimsLoaded = true;
+        });
+        return true;
+      }
+    } catch (_) {
+      if (embedded.isEmpty || !_claimsMatchPacket(embedded, packet)) {
+        return false;
+      }
+      final resolved = await _buildResolvedClaims(embedded);
+      if (mounted) {
+        if (_didCurrentUserClaim) return _claimsLoaded;
+        setState(() {
+          _claims = embedded;
+          _resolvedClaims = resolved;
+          _claimsLoaded = true;
+        });
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _claimsMatchPacket(
+      List<Map<String, dynamic>> claims, Map<String, dynamic> packet) {
+    final total =
+        _asInt(packet['packetCount'] ?? packet['count'] ?? packet['cnt']);
+    final explicit = _asInt(packet['claimedCount']);
+    final remaining = packet.containsKey('remainingCount')
+        ? _asInt(packet['remainingCount'])
+        : null;
+    final status = packet['status']?.toString().trim().toUpperCase() ?? '';
+    final finished = _claimOutcome?.status == RedPacketClaimStatus.empty ||
+        const {'FINISHED', 'FULLY_CLAIMED', 'CLAIMED_ALL', 'EMPTY'}
+            .contains(status);
+    final expected = math.max(
+      explicit,
+      finished && total > 0
+          ? total
+          : (remaining != null && total > 0
+              ? math.max(0, total - remaining)
+              : 0),
+    );
+    return claims.length >= expected && (claims.isNotEmpty || expected == 0);
+  }
+
+  void _scheduleBackgroundRefresh(String orderId) {
+    unawaited(_refreshClaimState(orderId));
+    unawaited(_refreshClaims(orderId, _packet));
+    for (final delay in const [
+      Duration(seconds: 1),
+      Duration(seconds: 3),
+      Duration(seconds: 6)
+    ]) {
+      unawaited(Future<void>.delayed(delay).then((_) async {
+        if (!mounted) return;
+        await Future.wait([
+          _refreshClaimState(orderId),
+          _refreshClaims(orderId, _packet),
+        ]);
+      }));
+    }
   }
 
   void _scheduleClaimNoticeSend({
@@ -234,7 +352,8 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
     );
   }
 
-  Map<String, dynamic>? _buildFallbackPacket(RedPacketClaimStateDto? claimState) {
+  Map<String, dynamic>? _buildFallbackPacket(
+      RedPacketClaimStateDto? claimState) {
     final seed = widget.seedPacket;
     final hasSeed = seed.isNotEmpty ||
         widget.packetType.trim().isNotEmpty ||
@@ -315,33 +434,48 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
   }
 
   bool get _didCurrentUserClaim {
-    final ownUserId =
-        context.read<LoginUserInfo>().loginUserInfo.userID?.trim() ?? '';
-    if (ownUserId.isEmpty) return false;
-    return _claims.any(
-      (item) => item['userId']?.toString().trim() == ownUserId,
-    );
+    return _claims.any(_isOwnClaim);
   }
 
+  bool _isOwnClaim(Map<String, dynamic> item) {
+    final ownUserId = ChatIdFormat.rawUserUid(
+        context.read<LoginUserInfo>().loginUserInfo.userID);
+    if (ownUserId.isEmpty) return false;
+    return ChatIdFormat.rawUserUid(item['userId']?.toString()) == ownUserId;
+  }
+
+  bool get _hasClaimed => redPacketClaimedForDisplay(
+        outcome: _claimOutcome,
+        localRecord: _localClaim,
+        serverState: _claimState,
+        inOfficialClaims: _didCurrentUserClaim,
+      );
+
   RedPacketDetailPopResult? _buildPopResult() {
+    if (_hasClaimed) {
+      return const RedPacketDetailPopResult(status: 'claimed', claimed: true);
+    }
+    if (_claimOutcome?.status == RedPacketClaimStatus.empty) {
+      return const RedPacketDetailPopResult(status: 'finished');
+    }
+    if (_claimOutcome?.status == RedPacketClaimStatus.expired) {
+      return const RedPacketDetailPopResult(status: 'expired');
+    }
     if (_packet.isEmpty) return null;
     final status = _packetStatus;
     if (status == 'EXPIRED') {
       return RedPacketDetailPopResult(
         status: 'expired',
-        claimed: _didCurrentUserClaim,
+        claimed: _hasClaimed,
       );
     }
     if (status == 'REFUNDED') {
       return RedPacketDetailPopResult(
         status: 'refunded',
-        claimed: _didCurrentUserClaim,
+        claimed: _hasClaimed,
       );
     }
-    if (_didCurrentUserClaim) {
-      return const RedPacketDetailPopResult(status: 'claimed', claimed: true);
-    }
-    if (!_hasRemainingBalance) {
+    if (_isDepletedForCurrentViewer() || !_hasRemainingBalance) {
       return const RedPacketDetailPopResult(status: 'finished', claimed: false);
     }
     return const RedPacketDetailPopResult(status: 'pending', claimed: false);
@@ -383,7 +517,20 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
           backgroundColor: cs.bg,
           appBar: buildRedPacketDetailAppBar(context, onBack: _requestPop),
           body: Center(
-            child: CircularProgressIndicator(color: cs.blue),
+            child: Container(
+              width: 78,
+              height: 78,
+              decoration: BoxDecoration(
+                color: const Color(0xAA000000),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Center(
+                child: CupertinoActivityIndicator(
+                  radius: 16,
+                  color: Colors.white,
+                ),
+              ),
+            ),
           ),
         ),
       );
@@ -439,9 +586,13 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
 
   bool _isDepletedForCurrentViewer() {
     if (_shouldShowClaimedAmount) return false;
+    if (const {'FINISHED', 'FULLY_CLAIMED', 'CLAIMED_ALL', 'EMPTY'}
+        .contains(_packetStatus)) {
+      return true;
+    }
     final claimState = _claimState;
     if (claimState != null) {
-      if (claimState.received || _didCurrentUserClaim) return false;
+      if (_hasClaimed) return false;
       if (claimState.depleted) return true;
     }
     final total = _totalCount;
@@ -452,7 +603,7 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
     final amount = _claimState?.myClaimAmount;
     if (amount != null && amount > 0) return true;
     if (_claimState?.received ?? false) return true;
-    return _didCurrentUserClaim;
+    return _hasClaimed;
   }
 
   bool _shouldShowOpenedAmountPage(String packetType) {
@@ -470,6 +621,24 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
   String _statusHint() {
     final i18n = AppI18n.of(context);
     final claimState = _claimState;
+    if (_claimOutcome?.status == RedPacketClaimStatus.empty) {
+      return i18n.t(
+        zhHans: '红包已领完',
+        zhHant: '紅包已領完',
+        en: 'Red packet fully claimed',
+        ja: '紅包はすべて受取済みです',
+        ko: '홍바오 모두 수령됨',
+      );
+    }
+    if (_claimOutcome?.status == RedPacketClaimStatus.expired) {
+      return i18n.t(
+        zhHans: '红包已过期',
+        zhHant: '紅包已過期',
+        en: 'Red packet expired',
+        ja: '紅包は期限切れです',
+        ko: '홍바오 만료됨',
+      );
+    }
     if (_isDepletedForCurrentViewer()) {
       final status = claimState?.packetStatus.isNotEmpty == true
           ? claimState!.packetStatus
@@ -494,7 +663,7 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
     if (claimState == null) {
       return _statusTip(i18n, _packetStatus);
     }
-    if (claimState.received || _didCurrentUserClaim) {
+    if (_hasClaimed) {
       return i18n.t(
         zhHans: '红包已领取',
         zhHant: '紅包已領取',
@@ -580,7 +749,8 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
     final claimedCount = _claimedCount;
     final totalCount = _totalCount;
     final totalAmount = _asInt(_packet['totalAmount'] ?? _packet['amount']);
-    final claimedAmount = _claimedAmountMinor(totalAmount, claimedCount, totalCount);
+    final claimedAmount =
+        _claimedAmountMinor(totalAmount, claimedCount, totalCount);
     return LuckyRedPacketDetailData(
       orderId: widget.orderId,
       packetType: packetType,
@@ -596,7 +766,7 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
       allClaimed: totalCount > 0 && claimedCount >= totalCount,
       claims: _claimRows(currency),
       statusHint: _shouldShowClaimedAmount ? '' : _statusHint(),
-      claimsLoaded: _claimsLoaded,
+      claimsLoaded: _claimsLoaded || _shouldInsertOwnClaim,
     );
   }
 
@@ -606,7 +776,11 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
       0,
       (sum, item) => sum + _asInt(item['amount']),
     );
-    if (fromClaims > 0) return fromClaims;
+    if (fromClaims > 0) {
+      return fromClaims +
+          (_shouldInsertOwnClaim ? (_localAmountMinor ?? 0) : 0);
+    }
+    if (_shouldInsertOwnClaim) return _localAmountMinor ?? 0;
 
     final explicit = _asInt(
       _packet['claimedAmount'] ??
@@ -643,9 +817,8 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
     final totalCount = _totalCount;
     final allClaimed = totalCount > 0 && claimedCount >= totalCount;
     final unit = walletDisplayCoin(currency);
-    final unitSuffix =
-        isWalletPlatformCurrency(currency) ? unit : ' $unit';
-    return _resolvedClaims
+    final unitSuffix = isWalletPlatformCurrency(currency) ? unit : ' $unit';
+    final rows = _resolvedClaims
         .map(
           (item) => LuckyRedPacketClaimPreviewData(
             avatarUrl: item.avatar,
@@ -656,7 +829,30 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
           ),
         )
         .toList();
+    if (_shouldInsertOwnClaim) {
+      final claimedAt = _localClaim?.claimedAt;
+      rows.insert(
+        0,
+        LuckyRedPacketClaimPreviewData(
+          avatarUrl: '',
+          name: _claimState?.received == true ? '我' : '我 · 入账中',
+          time: claimedAt == null
+              ? '--:--:--'
+              : formatWalletApiClaimListTime(
+                  DateTime.fromMillisecondsSinceEpoch(claimedAt)),
+          amountText:
+              '${_formatAmount(currency, _localAmountMinor!)}$unitSuffix',
+        ),
+      );
+    }
+    return rows;
   }
+
+  int? get _localAmountMinor =>
+      _claimOutcome?.amountMinor ?? _localClaim?.claimAmountMinor;
+
+  bool get _shouldInsertOwnClaim =>
+      _hasClaimed && !_didCurrentUserClaim && (_localAmountMinor ?? 0) > 0;
 
   Future<String> _fetchSenderAvatar(Map<String, dynamic> packet) async {
     final direct = _firstNonEmpty([
@@ -786,19 +982,19 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
       return _formatAmount(_currency, claimedAmount);
     }
 
-    final ownUserId =
-        context.read<LoginUserInfo>().loginUserInfo.userID?.trim() ?? '';
-    if (ownUserId.isNotEmpty) {
-      for (final item in _claims) {
-        if (item['userId']?.toString().trim() == ownUserId) {
-          final amount = _asInt(item['amount']);
-          if (amount > 0) {
-            return _formatAmount(_currency, amount);
-          }
+    for (final item in _claims) {
+      if (_isOwnClaim(item)) {
+        final amount = _asInt(item['amount']);
+        if (amount > 0) {
+          return _formatAmount(_currency, amount);
         }
       }
     }
 
+    final localAmount = _localAmountMinor;
+    if (localAmount != null && localAmount > 0) {
+      return _formatAmount(_currency, localAmount);
+    }
     return widget.amountText.trim();
   }
 
@@ -810,12 +1006,15 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
     final total = _totalCount;
 
     if (_claimsLoaded) {
-      return _claims.length;
+      return _claims.length + (_shouldInsertOwnClaim ? 1 : 0);
     }
 
     final explicit = _asInt(_packet['claimedCount']);
     if (explicit > 0) {
-      return total > 0 ? math.min(explicit, total) : explicit;
+      final optimistic = _shouldInsertOwnClaim ? 1 : 0;
+      return total > 0
+          ? math.min(math.max(explicit, optimistic), total)
+          : math.max(explicit, optimistic);
     }
 
     final status = _packetStatus;
@@ -827,7 +1026,7 @@ class _RedPacketProjectDetailPageState extends State<RedPacketProjectDetailPage>
       }
     }
 
-    return _claims.length;
+    return _claims.length + (_shouldInsertOwnClaim ? 1 : 0);
   }
 
   String _firstNonEmpty(List<Object?> values) {

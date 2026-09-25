@@ -10,12 +10,14 @@ import 'package:tencent_cloud_chat_demo/src/widgets/sticker/sticker_image.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_chat_bubble_size.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_constants.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_image_size_probe.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/screen_utils.dart';
 
 class StickerFaceBubble extends StatefulWidget {
   const StickerFaceBubble({
     super.key,
     required this.data,
-    /// 超出此屏宽比例才等比缩小；主气泡默认约 0.4。
+
+    /// Reply previews use a smaller width factor than chat messages.
     this.maxWidthFactor = 0.4,
     this.enableFullScreenPreview = true,
   });
@@ -33,9 +35,13 @@ class _StickerFaceBubbleState extends State<StickerFaceBubble> {
   bool _loading = false;
   int _probeToken = 0;
 
-  Size _displaySizeOf(BuildContext context) {
-    return resolveStickerChatBubbleSize(
-      screenWidth: MediaQuery.sizeOf(context).width,
+  Size _displaySizeOf(BuildContext context, BoxConstraints constraints) {
+    final screenSize = MediaQuery.sizeOf(context);
+    return resolveStickerMessageSize(
+      screenWidth: screenSize.width,
+      screenHeight: screenSize.height,
+      availableWidth: constraints.maxWidth,
+      isDesktop: TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop,
       maxWidthFactor: widget.maxWidthFactor,
       intrinsicWidth: _item?.width,
       intrinsicHeight: _item?.height,
@@ -58,12 +64,28 @@ class _StickerFaceBubbleState extends State<StickerFaceBubble> {
   }
 
   void _applyItem(StickerItem? item, {required bool loading}) {
+    if (item != null && !item.hasIntrinsicSize) {
+      final probe = StickerImageSizeProbe.instance;
+      final size = probe.cached(item.displayUrl(preferAnimated: false)) ??
+          probe.cached(item.originUrl);
+      if (size != null && size.width > 0 && size.height > 0) {
+        // Slivers must see the final ratio on the first layout after remount.
+        // Even an already completed probe Future would paint a square first.
+        item = item.copyWithSize(
+          width: size.width.round(),
+          height: size.height.round(),
+        );
+      }
+    }
+    final resolved = item;
     setState(() {
-      _item = item;
+      _item = resolved;
       _loading = loading;
     });
-    if (item != null && _hasDisplayableItem(item) && !item.hasIntrinsicSize) {
-      unawaited(_probeMissingSize(item));
+    if (resolved != null &&
+        _hasDisplayableItem(resolved) &&
+        !resolved.hasIntrinsicSize) {
+      unawaited(_probeMissingSize(resolved));
     }
   }
 
@@ -74,10 +96,10 @@ class _StickerFaceBubbleState extends State<StickerFaceBubble> {
     final token = ++_probeToken;
     // 优先静态缩略图：更快且宽高比通常与原图一致。
     final probeUrl = item.displayUrl(preferAnimated: false);
-    final fallbackUrl = item.originUrl.trim().isNotEmpty &&
-            item.originUrl.trim() != probeUrl
-        ? item.originUrl.trim()
-        : '';
+    final fallbackUrl =
+        item.originUrl.trim().isNotEmpty && item.originUrl.trim() != probeUrl
+            ? item.originUrl.trim()
+            : '';
     Size? size = await StickerImageSizeProbe.instance.probe(
       probeUrl,
       stickerId: item.stickerId,
@@ -152,8 +174,7 @@ class _StickerFaceBubbleState extends State<StickerFaceBubble> {
       _applyItem(fromProvider, loading: false);
       return;
     }
-    final sync =
-        StickerRepository.instance.resolveStickerItemSync(widget.data);
+    final sync = StickerRepository.instance.resolveStickerItemSync(widget.data);
     if (sync != null && _hasDisplayableItem(sync)) {
       _applyItem(sync, loading: false);
     }
@@ -186,8 +207,7 @@ class _StickerFaceBubbleState extends State<StickerFaceBubble> {
       return;
     }
 
-    final sync =
-        StickerRepository.instance.resolveStickerItemSync(widget.data);
+    final sync = StickerRepository.instance.resolveStickerItemSync(widget.data);
     if (sync != null && _hasDisplayableItem(sync)) {
       if (mounted) {
         _applyItem(sync, loading: false);
@@ -212,59 +232,77 @@ class _StickerFaceBubbleState extends State<StickerFaceBubble> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final displaySize = _displaySizeOf(context);
-    Widget child;
-    if (_loading) {
-      child = SizedBox(
-        width: displaySize.width,
-        height: displaySize.height,
-        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      );
-    } else if (_hasDisplayableItem(_item)) {
-      child = StickerImage(
-        item: _item!,
-        preferAnimated: true,
-        pauseWhenOffscreen: true,
-        fit: BoxFit.contain,
-        width: displaySize.width,
-        height: displaySize.height,
-      );
-    } else {
-      final assetPath = resolveBuiltinFaceAssetPath(widget.data);
-      if (assetPath != null) {
-        child = Image.asset(
-          assetPath,
-          fit: BoxFit.contain,
-          width: displaySize.width,
-          height: displaySize.height,
-          gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => _placeholder(displaySize),
+  Widget build(BuildContext context) =>
+      LayoutBuilder(builder: (context, constraints) {
+        final displaySize = _displaySizeOf(context, constraints);
+        final sourceWidth = _item?.width;
+        final sourceHeight = _item?.height;
+        final croppedLikeImage = widget.maxWidthFactor >= 0.3 &&
+            sourceWidth != null &&
+            sourceHeight != null &&
+            sourceWidth > 0 &&
+            sourceHeight > 0 &&
+            displaySize.height > 0 &&
+            (displaySize.width / displaySize.height -
+                        sourceWidth / sourceHeight)
+                    .abs() >
+                0.01;
+        final fit = croppedLikeImage ? BoxFit.cover : BoxFit.contain;
+        Widget child;
+        if (_loading) {
+          child = SizedBox(
+            width: displaySize.width,
+            height: displaySize.height,
+            child:
+                const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        } else if (_hasDisplayableItem(_item)) {
+          child = StickerImage(
+            item: _item!,
+            preferAnimated: true,
+            pauseWhenOffscreen: true,
+            fit: fit,
+            width: displaySize.width,
+            height: displaySize.height,
+          );
+        } else {
+          final assetPath = resolveBuiltinFaceAssetPath(widget.data);
+          if (assetPath != null) {
+            child = Image.asset(
+              assetPath,
+              fit: fit,
+              width: displaySize.width,
+              height: displaySize.height,
+              gaplessPlayback: true,
+              errorBuilder: (_, __, ___) => _placeholder(displaySize),
+            );
+          } else {
+            child = _placeholder(displaySize);
+          }
+        }
+        final bubble = ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: SizedBox(
+            width: displaySize.width,
+            height: displaySize.height,
+            child: child,
+          ),
         );
-      } else {
-        child = _placeholder(displaySize);
-      }
-    }
-    final bubble = SizedBox(
-      width: displaySize.width,
-      height: displaySize.height,
-      child: child,
-    );
-    if (!widget.enableFullScreenPreview) {
-      return bubble;
-    }
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => StickerSinglePreviewPage.open(
-        context,
-        data: widget.data,
-        assetPath:
-            _item == null ? resolveBuiltinFaceAssetPath(widget.data) : null,
-        preloadedItem: _item,
-      ),
-      child: bubble,
-    );
-  }
+        if (!widget.enableFullScreenPreview) {
+          return bubble;
+        }
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => StickerSinglePreviewPage.open(
+            context,
+            data: widget.data,
+            assetPath:
+                _item == null ? resolveBuiltinFaceAssetPath(widget.data) : null,
+            preloadedItem: _item,
+          ),
+          child: bubble,
+        );
+      });
 
   Widget _placeholder(Size displaySize) {
     final iconSize = math.min(displaySize.width, displaySize.height) * 0.3;

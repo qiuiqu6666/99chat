@@ -38,6 +38,7 @@ import 'package:tencent_cloud_chat_demo/src/pages/join_group_application_page.da
 import 'package:tencent_cloud_chat_demo/src/pages/qr_web_login_confirm_page.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/qr_app_payload.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/qr_gallery_decoder.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/qr_gallery_result_sheet.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/qr_web_login_payload.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart';
 
@@ -164,6 +165,8 @@ class _QRCodeScannerPageState extends State<QRCodeScannerPage>
   late final AnimationController _scanAnimationController;
   bool _handled = false;
   bool _loading = false;
+  bool _galleryBusy = false;
+  QrGalleryCancellation? _galleryCancellation;
   bool _cameraStarting = false;
   bool _cameraReady = false;
   String? _cameraError;
@@ -191,7 +194,10 @@ class _QRCodeScannerPageState extends State<QRCodeScannerPage>
       _stopCamera();
       return;
     }
-    if (state == AppLifecycleState.resumed && !_handled && !_loading) {
+    if (state == AppLifecycleState.resumed &&
+        !_handled &&
+        !_loading &&
+        !_galleryBusy) {
       ImmersiveSystemUi.apply();
       _startCamera();
     }
@@ -199,6 +205,7 @@ class _QRCodeScannerPageState extends State<QRCodeScannerPage>
 
   @override
   void dispose() {
+    _galleryCancellation?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _scanAnimationController.dispose();
     _scannerController.dispose();
@@ -207,7 +214,11 @@ class _QRCodeScannerPageState extends State<QRCodeScannerPage>
   }
 
   Future<void> _startCamera() async {
-    if (!mounted || _cameraStarting || _cameraReady) {
+    if (!mounted || _galleryBusy || _cameraStarting || _cameraReady) {
+      return;
+    }
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    if (lifecycle != null && lifecycle != AppLifecycleState.resumed) {
       return;
     }
     final seq = ++_cameraStartSeq;
@@ -547,7 +558,7 @@ class _QRCodeScannerPageState extends State<QRCodeScannerPage>
   }
 
   Future<void> _handleResult(String rawValue) async {
-    if (_handled || _loading) {
+    if (_handled || _loading || _galleryBusy) {
       return;
     }
     final normalizedRawValue = _normalizeQrRawValue(rawValue);
@@ -657,9 +668,10 @@ class _QRCodeScannerPageState extends State<QRCodeScannerPage>
   }
 
   Future<void> _pickImageFromGallery() async {
-    if (_loading) {
+    if (_loading || _galleryBusy || _handled) {
       return;
     }
+    _galleryBusy = true;
     try {
       await _stopCamera();
       if (!mounted) {
@@ -671,22 +683,56 @@ class _QRCodeScannerPageState extends State<QRCodeScannerPage>
       }
       final imagePath = picked?.path;
       if (imagePath == null || imagePath.isEmpty) {
-        await _startCamera();
         return;
       }
+      final cancellation = QrGalleryCancellation();
+      _galleryCancellation = cancellation;
       setState(() {
         _loading = true;
         _handled = false;
       });
-      final rawValue = await QrGalleryDecoder.decodeFromPath(imagePath);
-      if (!mounted) {
+      final result = await QrGalleryDecoder.scan(
+        imagePath,
+        cancellation: cancellation,
+        collectDiagnostics: const bool.fromEnvironment('QR_GALLERY_PROFILE'),
+      );
+      if (!mounted || cancellation.isCancelled) {
         return;
       }
+      _galleryCancellation = null;
       setState(() {
         _loading = false;
       });
-      if (rawValue == null || rawValue.isEmpty) {
-        await _startCamera();
+      if (result.status == 'timeout' || result.status == 'too_large') {
+        ToastUtils.toast(result.status == 'timeout'
+            ? AppI18n.of(context).t(
+                zhHans: '识别超时，请裁剪二维码区域后重试',
+                zhHant: '識別逾時，請裁切 QR 碼區域後重試',
+                en: 'Recognition timed out. Crop around the QR code and retry.',
+                ja: '認識がタイムアウトしました。QRコード部分を切り抜いて再試行してください。',
+                ko: '인식 시간이 초과되었습니다. QR 코드 영역을 잘라 다시 시도하세요.',
+              )
+            : AppI18n.of(context).t(
+                zhHans: '图片过大，请裁剪二维码区域后重试',
+                zhHant: '圖片過大，請裁切 QR 碼區域後重試',
+                en: 'Image is too large. Crop around the QR code and retry.',
+                ja: '画像が大きすぎます。QRコード部分を切り抜いて再試行してください。',
+                ko: '이미지가 너무 큽니다. QR 코드 영역을 잘라 다시 시도하세요.',
+              ));
+        return;
+      }
+      if (result.status == 'error' || result.status == 'invalid_image') {
+        throw StateError('Gallery image could not be decoded');
+      }
+      var candidates = QrGalleryDecoder.preferredCandidates(result.values,
+          preferAppCodes: !widget.walletAddressMode);
+      if (widget.walletAddressMode) {
+        final addresses = candidates
+            .where((raw) => _extractTronAddress(raw) != null)
+            .toList();
+        if (addresses.isNotEmpty) candidates = addresses;
+      }
+      if (candidates.isEmpty) {
         ToastUtils.toast(AppI18n.of(context).t(
           zhHans: '未识别到二维码',
           zhHant: '未識別到 QR 碼',
@@ -696,6 +742,11 @@ class _QRCodeScannerPageState extends State<QRCodeScannerPage>
         ));
         return;
       }
+      final rawValue = candidates.length == 1
+          ? candidates.single
+          : await QrGalleryResultSheet.show(context, candidates);
+      if (!mounted || rawValue == null) return;
+      _galleryBusy = false;
       await _handleResult(rawValue);
     } catch (_) {
       if (!mounted) {
@@ -705,7 +756,6 @@ class _QRCodeScannerPageState extends State<QRCodeScannerPage>
         _loading = false;
         _handled = false;
       });
-      await _startCamera();
       ToastUtils.toast(AppI18n.of(context).t(
         zhHans: '图片识别失败',
         zhHant: '圖片識別失敗',
@@ -713,6 +763,15 @@ class _QRCodeScannerPageState extends State<QRCodeScannerPage>
         ja: '画像認識に失敗',
         ko: '이미지 인식 실패',
       ));
+    } finally {
+      _galleryCancellation = null;
+      if (mounted) {
+        setState(() {
+          _galleryBusy = false;
+          _loading = false;
+        });
+        if (!_handled) await _startCamera();
+      }
     }
   }
 
@@ -1234,13 +1293,31 @@ class _QRCodeScannerPageState extends State<QRCodeScannerPage>
                 _buildFlashButton(flashTop),
                 _buildMyQRCodeLink(myQRCodeBottom),
                 if (!_loading &&
+                    !_galleryBusy &&
                     (_cameraStarting || !_cameraReady || _cameraError != null))
                   _buildCameraStateLayer(),
                 if (_loading)
-                  const ColoredBox(
+                  ColoredBox(
                     color: Colors.black87,
                     child: Center(
-                      child: CircularProgressIndicator(color: Colors.white),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        const CircularProgressIndicator(color: Colors.white),
+                        if (_galleryCancellation != null) ...[
+                          const SizedBox(height: 20),
+                          TextButton(
+                            onPressed: () => _galleryCancellation?.cancel(),
+                            child: Text(
+                                AppI18n.of(context).t(
+                                  zhHans: '取消',
+                                  zhHant: '取消',
+                                  en: 'Cancel',
+                                  ja: 'キャンセル',
+                                  ko: '취소',
+                                ),
+                                style: const TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ]),
                     ),
                   ),
               ],

@@ -2996,6 +2996,9 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem>
             maxHeight: layoutLimits.maxHeight,
           );
           return Align(
+            // Keep the layout box as wide as the image so the send-failure
+            // indicator in the parent row stays beside the visible bubble.
+            widthFactor: 1,
             alignment: (widget.message.isSelf ?? true)
                 ? Alignment.centerRight
                 : Alignment.centerLeft,

@@ -102,6 +102,30 @@ void main() {
   });
 
   group('ChatHistoryRecoveryCoordinator foreground request coalescing', () {
+    test('prior lifecycle success and coalescing do not suppress resume', () {
+      final coordinator = ChatHistoryRecoveryCoordinator.instance;
+      const key = 'resume-chat';
+      coordinator.recordSuccessfulRecovery(key);
+      expect(
+          coordinator.shouldCoalesceForegroundRequest(
+              conversationKey: key, reason: 'app_resumed'),
+          isFalse);
+      coordinator.invalidateLifecycle();
+
+      expect(
+          coordinator.shouldCoalesceForegroundRequest(
+              conversationKey: key, reason: 'app_resumed'),
+          isFalse);
+      expect(
+          coordinator.shouldSkipForegroundRecovery(
+            conversationKey: key,
+            hasVisibleMessages: true,
+            previewAhead: false,
+            reason: 'app_resumed',
+          ),
+          isFalse);
+    });
+
     test('coalesces resume and reconnect signals from the same unlock', () {
       const key = 'unlock-chat';
 
@@ -133,6 +157,89 @@ void main() {
   });
 
   group('ChatHistoryRecoveryCoordinator.runExclusive', () {
+    test('resume recovery starts while pre-background recovery is stalled',
+        () async {
+      final coordinator = ChatHistoryRecoveryCoordinator.instance;
+      final oldGate = Completer<void>();
+      final oldStarted = Completer<void>();
+      final old = coordinator.runExclusive(
+        conversationKey: 'resume-chat',
+        reason: 'external_entry',
+        priority: ChatHistoryRecoveryCoordinator.priorityUser,
+        task: () async {
+          oldStarted.complete();
+          await oldGate.future;
+        },
+      );
+      await oldStarted.future;
+      coordinator.invalidateLifecycle();
+
+      var resumed = false;
+      await coordinator.runExclusive(
+        conversationKey: 'resume-chat',
+        reason: 'app_resumed',
+        priority: ChatHistoryRecoveryCoordinator.priorityForeground,
+        task: () async => resumed = true,
+      );
+      // Complete the abandoned request even when the assertion below fails.
+      oldGate.complete();
+      await old;
+      expect(resumed, isTrue);
+    });
+
+    test('late old recovery cannot release or drain the new lifecycle lane',
+        () async {
+      final coordinator = ChatHistoryRecoveryCoordinator.instance;
+      final oldGate = Completer<void>();
+      final oldStarted = Completer<void>();
+      final newGate = Completer<void>();
+      final order = <String>[];
+      final old = coordinator.runExclusive(
+        conversationKey: 'resume-chat',
+        reason: 'old',
+        priority: ChatHistoryRecoveryCoordinator.priorityUser,
+        task: () async {
+          oldStarted.complete();
+          await oldGate.future;
+        },
+      );
+      await oldStarted.future;
+      coordinator.invalidateLifecycle();
+      final current = coordinator.runExclusive(
+        conversationKey: 'resume-chat',
+        reason: 'new',
+        priority: ChatHistoryRecoveryCoordinator.priorityUser,
+        task: () async {
+          order.add('new');
+          await newGate.future;
+        },
+      );
+      await Future<void>.delayed(Duration.zero);
+      final startedBeforeOldFinished = order.contains('new');
+      oldGate.complete();
+      await Future<void>.delayed(Duration.zero);
+      final pending = coordinator.runExclusive(
+        conversationKey: 'resume-chat',
+        reason: 'new-pending',
+        priority: ChatHistoryRecoveryCoordinator.priorityUser,
+        task: () async => order.add('pending'),
+      );
+      await coordinator.runExclusive(
+        conversationKey: 'resume-chat',
+        reason: 'background',
+        priority: ChatHistoryRecoveryCoordinator.priorityBackground,
+        task: () async => order.add('background'),
+      );
+      await Future<void>.delayed(Duration.zero);
+      final orderWhileCurrentRunning = List<String>.of(order);
+      newGate.complete();
+      await Future.wait([old, current, pending]);
+
+      expect(startedBeforeOldFinished, isTrue);
+      expect(orderWhileCurrentRunning, ['new']);
+      expect(order, ['new', 'pending']);
+    });
+
     test('runs tasks for the same key sequentially', () async {
       const key = 'bob';
       final order = <int>[];
@@ -225,6 +332,31 @@ void main() {
   });
 
   group('ChatHistoryRecoveryCoordinator initial load gate', () {
+    test('pre-background initial completion cannot open a new initial gate',
+        () async {
+      final coordinator = ChatHistoryRecoveryCoordinator.instance;
+      final oldGeneration = coordinator.beginInitialLoad('resume-chat');
+      coordinator.invalidateLifecycle();
+      final newGeneration = coordinator.beginInitialLoad('resume-chat');
+      var ran = false;
+      final pending = coordinator.runExclusive(
+        conversationKey: 'resume-chat',
+        reason: 'app_resumed',
+        priority: ChatHistoryRecoveryCoordinator.priorityForeground,
+        task: () async => ran = true,
+      );
+      coordinator.markInitialLoadComplete('resume-chat',
+          generation: oldGeneration);
+      await Future<void>.delayed(Duration.zero);
+      final ranBeforeNewInitialLoad = ran;
+      coordinator.markInitialLoadComplete('resume-chat',
+          generation: newGeneration);
+      await pending;
+      expect(newGeneration, greaterThan(oldGeneration));
+      expect(ranBeforeNewInitialLoad, isFalse);
+      expect(ran, isTrue);
+    });
+
     test('waits for initial load completion before lower priority work',
         () async {
       const key = 'carol';

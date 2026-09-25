@@ -76,7 +76,7 @@ class TIMUIKitVideoCard extends StatelessWidget {
                 Center(
                     child: Image.asset('images/play.png',
                         package: 'tencent_cloud_chat_uikit',
-                        height: 64 * scale)),
+                        height: 46 * scale)),
               Positioned(
                   left: 8,
                   bottom: 6 * scale,

@@ -14,17 +14,29 @@ List<String> decodeQrWithZxing2FromPath(String path) {
     if (decoded == null) {
       return const <String>[];
     }
-    final found = <String>{};
+    return decodeQrWithZxing2FromImage(decoded);
+  } catch (_) {
+    return const <String>[];
+  }
+}
+
+List<String> decodeQrWithZxing2FromImage(
+  img.Image decoded, {
+  bool Function()? shouldContinue,
+  void Function()? onPass,
+}) {
+  final found = <String>{};
+  try {
     for (final variant in _iterFullImageVariants(decoded)) {
+      if (shouldContinue != null && !shouldContinue()) break;
+      onPass?.call();
       final text = _decodeWithZxing2(variant);
       if (text != null && text.trim().isNotEmpty) {
         found.add(text.trim());
       }
     }
-    return found.toList(growable: false);
-  } catch (_) {
-    return const <String>[];
-  }
+  } catch (_) {}
+  return found.toList(growable: false);
 }
 
 String? _decodeWithZxing2(img.Image image) {

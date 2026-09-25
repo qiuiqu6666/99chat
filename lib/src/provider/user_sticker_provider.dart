@@ -7,6 +7,7 @@ import 'package:tencent_cloud_chat_demo/utils/constant.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_constants.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_favorite_store.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_recent_store.dart';
+import 'package:tencent_cloud_chat_demo/utils/sticker_media.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_order_store.dart';
 import 'package:tim_ui_kit_sticker_plugin/utils/tim_ui_kit_sticker_data.dart';
 
@@ -177,6 +178,7 @@ class UserStickerProvider extends ChangeNotifier {
       stickerId: id,
       thumbUrl: item?.thumbUrl ?? '',
       originUrl: item?.originUrl ?? '',
+      mediaType: item?.mediaType ?? StickerMediaType.image,
       favoritedAt: DateTime.now().toUtc(),
     );
     _favorites = [..._favorites, optimistic];

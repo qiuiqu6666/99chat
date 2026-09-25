@@ -83,7 +83,7 @@ void main() {
       expect(incoming.unreadCount, 0);
     });
 
-    test('forces zero for foreground chat', () {
+    test('foreground chat alone does not clear unseen sdk unread', () {
       ForegroundChatGuard.debugOverride = (_) => true;
       final incoming = _conversation(unreadCount: 4);
 
@@ -93,8 +93,8 @@ void main() {
         incoming: incoming,
       );
 
-      expect(resolved, 0);
-      expect(incoming.unreadCount, 0);
+      expect(resolved, 4);
+      expect(incoming.unreadCount, 4);
     });
 
     test('suppresses sdk unread replay when last message equals read anchor',

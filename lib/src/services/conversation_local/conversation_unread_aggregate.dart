@@ -11,8 +11,11 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation_result.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation_result.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation_filter.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
+    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_id_canonical.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_unread_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/conversation_unread_utils.dart';
@@ -75,10 +78,11 @@ class ConversationUnreadAggregate extends ChangeNotifier {
   bool _sdkSourceActive = false;
   bool _sdkUnreadSeeded = false;
 
-  /// Folder badges consume raw SDK counts, including muted/archived rows.
+  /// Folder badges consume read-reconciled SDK counts, including muted/archived rows.
   /// Their changes are independent of the notifiable tab sums.
   final ValueNotifier<int> sdkUnreadRevision = ValueNotifier<int>(0);
-  final ConversationChangeJournal _rawUnreadChanges = ConversationChangeJournal();
+  final ConversationChangeJournal _rawUnreadChanges =
+      ConversationChangeJournal();
   final Map<String, int> _publishedRawCounts = {};
   final Map<String, String> _publishedRawIds = {};
 
@@ -103,18 +107,69 @@ class ConversationUnreadAggregate extends ChangeNotifier {
         groupType: row.groupType,
         unreadCount: row.unreadCount,
         recvOpt: row.recvOpt,
+        // Retain only the identity/order needed for read reconciliation, not
+        // message contents or mutable SDK objects from an earlier callback.
+        lastMessage: row.lastMessage == null
+            ? null
+            : V2TimMessage.fromJson(kIsWeb
+                ? {
+                    'msgID': row.lastMessage!.msgID,
+                    'id': row.lastMessage!.id,
+                    'timestamp': row.lastMessage!.timestamp,
+                    'seq': row.lastMessage!.seq,
+                    'groupID': row.lastMessage!.groupID,
+                    'userID': row.lastMessage!.userID,
+                    'isSelf': row.lastMessage!.isSelf,
+                  }
+                : {
+                    'message_msg_id': row.lastMessage!.msgID,
+                    'message_server_time': row.lastMessage!.timestamp,
+                    'message_seq': row.lastMessage!.seq,
+                    'message_conv_type': row.type,
+                    'message_conv_id': row.groupID ?? row.userID,
+                    'message_risk_type_identified': 0,
+                    'message_is_from_self': row.lastMessage!.isSelf,
+                  }),
       );
+
+  V2TimConversation _resolveSdkUnread(V2TimConversation snapshot) {
+    final previous =
+        _sdkRows[ConversationIdCanonical.forStorage(snapshot.conversationID)];
+    // A count-only SDK ACK is still authoritative (also for unloaded rows).
+    // Reuse comparison metadata without inferring that the ACK is an old page.
+    if (snapshot.lastMessage == null) {
+      snapshot.lastMessage = previous?.lastMessage;
+      return snapshot;
+    }
+    final keepAnchor = ConversationUnreadGuard.shouldPreserveUnreadAnchor(
+      conversationId: snapshot.conversationID,
+      existingUnread: previous?.unreadCount ?? 0,
+      existingLastMessage: previous?.lastMessage,
+      incoming: snapshot,
+    );
+    ConversationUnreadGuard.resolveForListApply(
+      conversationId: snapshot.conversationID,
+      existingUnread: previous?.unreadCount ?? 0,
+      existingLastMessage: previous?.lastMessage,
+      incoming: snapshot,
+    );
+    if (keepAnchor) snapshot.lastMessage = previous?.lastMessage;
+    return snapshot;
+  }
 
   /// SDK-primary lists bypass SQLite. Keep absolute per-conversation values
   /// from that same SDK stream, including rows outside the visible window.
-  void applySdkConversations(Iterable<V2TimConversation> rows) {
+  void applySdkConversations(Iterable<V2TimConversation> rows,
+      {bool fromResolvedProjection = false}) {
     final first = !_sdkSourceActive;
     _sdkSourceActive = true;
     final changedKeys = <String>{};
     for (final row in rows) {
       final key = ConversationIdCanonical.forStorage(row.conversationID);
       if (key.isEmpty) continue;
-      _sdkRows[key] = _unreadSnapshot(row);
+      final snapshot = _unreadSnapshot(row);
+      _sdkRows[key] =
+          fromResolvedProjection ? snapshot : _resolveSdkUnread(snapshot);
       _sdkRowRevisions[key] = ++_sdkRevision;
       changedKeys.add(key);
     }
@@ -160,11 +215,19 @@ class ConversationUnreadAggregate extends ChangeNotifier {
           previous.unreadCount != row.unreadCount ||
           previous.recvOpt != row.recvOpt ||
           previous.groupType != row.groupType ||
+          previous.lastMessage?.msgID != row.lastMessage?.msgID ||
+          previous.lastMessage?.timestamp != row.lastMessage?.timestamp ||
+          previous.lastMessage?.seq != row.lastMessage?.seq ||
           previous.type != row.type ||
           previous.userID != row.userID ||
           previous.groupID != row.groupID;
     }).toList(growable: false);
-    if (changed.isNotEmpty) applySdkConversations(changed);
+    // The list already resolved these rows, including intentional preview
+    // rollback after deletion. Do not reinterpret a local edit as an old SDK
+    // callback and retain the deleted message as an unread comparison anchor.
+    if (changed.isNotEmpty) {
+      applySdkConversations(changed, fromResolvedProjection: true);
+    }
   }
 
   int get sdkPageRevision => _sdkRevision;
@@ -180,7 +243,8 @@ class ConversationUnreadAggregate extends ChangeNotifier {
 
   void _publishSdkSums({Set<String>? changedKeys}) {
     final rawChangedIds = <String>{};
-    for (final key in changedKeys ?? {..._sdkRows.keys, ..._publishedRawCounts.keys}) {
+    for (final key
+        in changedKeys ?? {..._sdkRows.keys, ..._publishedRawCounts.keys}) {
       final row = _sdkRows[key];
       final next = row?.unreadCount ?? 0;
       if (next != (_publishedRawCounts[key] ?? 0)) {
@@ -220,6 +284,10 @@ class ConversationUnreadAggregate extends ChangeNotifier {
               archivedGroup: archivedConversationGroupIDsNotifier.value,
             );
       final group = ConversationUnreadUtils.isGroupConversation(row);
+      if ((old?.count ?? 0) != count) {
+        // A mute change can alter folder badge color without changing its sum.
+        rawChangedIds.add(row.conversationID);
+      }
       _sdkContributions[key] = (group: group, count: count);
       if (group) {
         _sdkGroupSum += count;
@@ -287,6 +355,11 @@ class ConversationUnreadAggregate extends ChangeNotifier {
           snapshot[entry.key] = row;
         }
       }
+      // Recheck at publication: a local read can occur after a page was
+      // fetched, and reconnect snapshots may still include acknowledged rows.
+      for (final row in snapshot.values) {
+        _resolveSdkUnread(row);
+      }
       _sdkRows
         ..clear()
         ..addAll(snapshot);
@@ -323,6 +396,18 @@ class ConversationUnreadAggregate extends ChangeNotifier {
                 ?.unreadCount ??
             0,
     };
+  }
+
+  bool hasNotifiableUnreadForIds(Iterable<String> ids) {
+    for (final id in ids) {
+      final key = ConversationIdCanonical.forStorage(id);
+      final contribution = _sdkContributions[key] ??
+          (!id.startsWith('c2c_') && !id.startsWith('group_')
+              ? _sdkContributions[ConversationIdCanonical.forStorage('c2c_$id')]
+              : null);
+      if ((contribution?.count ?? 0) > 0) return true;
+    }
+    return false;
   }
 
   /// R1: zero-confirm 连续 defer 次数上限。超过后强制应用 Store 结果，

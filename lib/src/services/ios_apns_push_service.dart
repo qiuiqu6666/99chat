@@ -23,6 +23,9 @@ typedef IosRemoteNotificationHandler = FutureOr<void> Function(
 class IosApnsPushService {
   IosApnsPushService._();
 
+  @visibleForTesting
+  factory IosApnsPushService.forTest() => IosApnsPushService._();
+
   static final IosApnsPushService instance = IosApnsPushService._();
   static const MethodChannel _channel = MethodChannel('ios_apns_push');
   static const String _tracePrefix = 'IOS_PUSH_TRACE';
@@ -33,6 +36,8 @@ class IosApnsPushService {
 
   bool _installed = false;
   Future<void>? _syncTask;
+  Future<void> Function()? _pendingTokenSync;
+  String? _lastSuccessfulSubmitKey;
   IosPushTapHandler? _onNotificationTap;
   IosPushTapHandler? _onVoipPush;
   IosRemoteNotificationHandler? _onRemoteNotificationReceived;
@@ -160,18 +165,42 @@ class IosApnsPushService {
     if (!Platform.isIOS) {
       return Future<void>.value();
     }
+    return _startTokenSync(() => _syncTokensOnce(reason: reason));
+  }
+
+  Future<void> _startTokenSync(Future<void> Function() action) {
+    // Token/login callbacks arriving during an upload must get another pass.
+    _pendingTokenSync = action;
     final running = _syncTask;
     if (running != null) {
       return running;
     }
-    final task = _syncTokensOnce(reason: reason);
-    _syncTask = task.whenComplete(() {
-      if (identical(_syncTask, task)) {
+
+    final completion = Completer<void>();
+    _syncTask = completion.future;
+    unawaited(() async {
+      try {
+        while (_pendingTokenSync != null) {
+          final next = _pendingTokenSync!;
+          _pendingTokenSync = null;
+          try {
+            await next();
+          } catch (error) {
+            // Push registration is best effort; still drain a newer request.
+            debugPrint('$_tracePrefix sync_failed type=${error.runtimeType}');
+          }
+        }
+      } finally {
         _syncTask = null;
+        completion.complete();
       }
-    });
-    return _syncTask!;
+    }());
+    return completion.future;
   }
+
+  @visibleForTesting
+  Future<void> runTokenSyncForTest([Future<void> Function()? action]) =>
+      _startTokenSync(action ?? () => _syncTokensOnce(reason: 'test'));
 
   Future<void> unregisterForLogout() async {
     if (!Platform.isIOS) {
@@ -187,6 +216,8 @@ class IosApnsPushService {
     }
     _cachedApnsToken = null;
     _cachedVoipToken = null;
+    _lastSuccessfulSubmitKey = null;
+    _pendingTokenSync = null;
     await syncLoginUserId(null);
     await endVoipCallKit();
     final prefs = await SharedPreferences.getInstance();
@@ -409,6 +440,8 @@ class IosApnsPushService {
   Future<void> _syncTokensOnce({required String reason}) async {
     await ApiClient.instance.ensureDeviceIdReady();
     final authToken = ApiClient.instance.token;
+    final credentialGeneration = ApiClient.instance.credentialGeneration;
+    final ownerUserId = ApiClient.instance.authenticatedUserId;
     if (!ApiClient.isValidJwt(authToken)) {
       _trace('skip token sync: invalid JWT reason=$reason');
       return;
@@ -453,20 +486,6 @@ class IosApnsPushService {
       bundleId: bundleId,
       apsEnvironment: apsEnvironment,
     );
-    final uploadedInDb = await PushTokenUploadLocalStore.instance.hasSuccess(
-      deviceId: deviceId,
-      platform: 'IOS',
-      tokenKeyHash: tokenKeyHash,
-    );
-    if (uploadedInDb) {
-      _trace(
-        'skip POST /me/push-token: already recorded in local db '
-        'reason=$reason hasVoip=${voipToken.isNotEmpty} '
-        'bundleId=$bundleId aps=$apsEnvironment',
-      );
-      return;
-    }
-
     final prefs = await SharedPreferences.getInstance();
     final submitKey = _buildSubmitKey(
       apnsToken,
@@ -478,12 +497,18 @@ class IosApnsPushService {
     final lastKey = prefs.getString(_lastSubmittedKey);
     final lastAtMs = prefs.getInt(_lastSubmittedAtKey) ?? 0;
     final lastAt = DateTime.fromMillisecondsSinceEpoch(lastAtMs);
-    if (lastKey == submitKey &&
+    // A historical local receipt cannot prove the server still has an enabled
+    // token. Re-register once per process, then throttle unchanged callbacks.
+    if (_lastSuccessfulSubmitKey == submitKey &&
+        lastKey == submitKey &&
         DateTime.now().difference(lastAt) < _submitRefreshInterval) {
       _trace('skip POST /me/push-token: already submitted within 6h');
       return;
     }
 
+    if (ApiClient.instance.credentialGeneration != credentialGeneration) {
+      return;
+    }
     try {
       _trace(
         'POST /me/push-token start reason=$reason '
@@ -499,24 +524,41 @@ class IosApnsPushService {
         'POST /me/push-token response ok=${result.ok} '
         'provider=${result.provider} hasVoipToken=${result.hasVoipToken}',
       );
+      if (!result.ok) {
+        throw const PushTokenApiException('PUSH_TOKEN_NOT_REGISTERED');
+      }
+      if (ApiClient.instance.credentialGeneration != credentialGeneration) {
+        return;
+      }
+
+      if (voipToken.isNotEmpty && !result.hasVoipToken) {
+        final voipResult = await PushTokenApi.instance.registerVoipToken(
+          token: voipToken,
+          bundleId: bundleId.isNotEmpty ? bundleId : null,
+          apsEnvironment: apsEnvironment.isNotEmpty ? apsEnvironment : null,
+        );
+        if (!voipResult.ok) {
+          throw const PushTokenApiException('VOIP_TOKEN_NOT_REGISTERED');
+        }
+      }
+      if (ApiClient.instance.credentialGeneration != credentialGeneration) {
+        return;
+      }
+      await PushTokenUploadLocalStore.instance.markSuccess(
+        ownerUserId: ownerUserId,
+        deviceId: deviceId,
+        platform: 'IOS',
+        tokenKeyHash: tokenKeyHash,
+      );
+      if (ApiClient.instance.credentialGeneration != credentialGeneration) {
+        return;
+      }
       await prefs.setString(_lastSubmittedKey, submitKey);
       await prefs.setInt(
         _lastSubmittedAtKey,
         DateTime.now().millisecondsSinceEpoch,
       );
-
-      if (voipToken.isNotEmpty && !result.hasVoipToken) {
-        await PushTokenApi.instance.registerVoipToken(
-          token: voipToken,
-          bundleId: bundleId.isNotEmpty ? bundleId : null,
-          apsEnvironment: apsEnvironment.isNotEmpty ? apsEnvironment : null,
-        );
-      }
-      await PushTokenUploadLocalStore.instance.markSuccess(
-        deviceId: deviceId,
-        platform: 'IOS',
-        tokenKeyHash: tokenKeyHash,
-      );
+      _lastSuccessfulSubmitKey = submitKey;
     } catch (e) {
       _trace('POST /me/push-token failed reason=$reason error=$e');
       if (kDebugMode) {

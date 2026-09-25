@@ -4,16 +4,25 @@ class StickerMediaType {
 
   static const String image = 'image';
   static const String gif = 'gif';
+  static const String video = 'video';
 
   static String fromJson(dynamic value) {
     final v = value?.toString().toLowerCase().trim() ?? '';
-    if (v == gif || v == 'animated' || v == 'video') {
+    if (v == video) return video;
+    if (v == gif || v == 'animated') {
       return gif;
     }
     return image;
   }
 
   static bool isGifMediaType(String mediaType) => mediaType == gif;
+
+  static bool isVideoUrl(String url) {
+    final path = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+    return path.endsWith('.mp4') ||
+        path.endsWith('.mov') ||
+        path.endsWith('.webm');
+  }
 
   static bool isGifUrl(String url) {
     final path = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
@@ -25,7 +34,7 @@ class StickerMediaType {
     required String thumbUrl,
     required String originUrl,
   }) {
-    if (isGifMediaType(mediaType)) {
+    if (isGifMediaType(mediaType) || mediaType == video) {
       return true;
     }
     return isGifUrl(thumbUrl) || isGifUrl(originUrl);

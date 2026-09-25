@@ -1,3 +1,4 @@
+import 'ledger_page_progress.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -220,6 +221,7 @@ class WalletLedgerLocalStore {
     if (owner.isEmpty) return;
     _memory.remove(owner);
     _complete.remove(owner);
+    await LedgerPageProgress.clear(owner);
     if (_useMemoryOnly) return;
     final db = await _openDb();
     await db

@@ -146,6 +146,7 @@ import 'package:tencent_cloud_chat_demo/src/widgets/sticker/sticker_chat_panel.d
 import 'package:tencent_cloud_chat_demo/src/widgets/dice/dice_face_bubble.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/sticker/sticker_face_bubble.dart'
     show StickerFaceBubble, stickerFaceShouldUseCustomBubble;
+import 'package:tencent_cloud_chat_demo/src/widgets/sticker/sticker_message_content.dart';
 import 'package:tencent_cloud_chat_demo/utils/dice_asset_warmup.dart';
 import 'package:tencent_cloud_chat_demo/utils/dice_constants.dart';
 import 'package:tencent_cloud_chat_demo/utils/dice_play_store.dart';
@@ -2796,7 +2797,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
         if (!StickerRepository.instance.isDynamicFaceData(data)) {
           return null;
         }
-        return StickerFaceBubble(data: data);
+        return StickerMessageContent(data: data, message: message);
       },
       textMessageItemBuilder: (message, isShowJump, clearJump) {
         if (!PlatformOfficialAccountService.isPlatformOfficialAccount(

@@ -1,3 +1,5 @@
+import 'package:tencent_cloud_chat_demo/src/services/ledger_page_progress.dart';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -659,6 +661,11 @@ class WalletApi {
     bool awaitFirstPage = false,
   }) async {
     final store = WalletLedgerLocalStore.instance;
+    final owner = store.currentOwnerUserId();
+    final identity = SessionIdentityService.instance.capture();
+    bool isCurrent() =>
+        SessionIdentityService.instance.isGenerationCurrent(identity.generation) &&
+        store.currentOwnerUserId() == owner;
     final scopeKey = _ledgerScopeKey(
       ledgerTypes: ledgerTypes,
       source: source,
@@ -666,19 +673,24 @@ class WalletApi {
       startTime: startTime,
       endTime: endTime,
     );
-    var cached = await store.read(scopeKey: scopeKey);
-    final complete = await store.isComplete(scopeKey: scopeKey);
+    var cached = await store.read(scopeKey: scopeKey, ownerUserId: owner);
+    final complete =
+        await store.isComplete(scopeKey: scopeKey, ownerUserId: owner);
+    if (!isCurrent()) return const [];
     _ledgerDebug(
       'read scope=${scopeKey.hashCode} complete=$complete cached=${cached.length}',
     );
 
     // Most callers can render the persisted snapshot immediately. History
-    // waits for the first page so a new charge is visible on initial paint.
+    // briefly waits for the first page so a new charge is visible on initial
+    // paint, without hiding a useful snapshot behind a slow network.
     if (cached.isNotEmpty && !awaitFirstPage) {
       final knownIds = cached.map((item) => item.id).toSet();
       _scheduleLedgerBackgroundSync(
         scopeKey: scopeKey,
         task: () => _refreshLedgerScope(
+          owner: owner,
+          isCurrent: isCurrent,
           scopeKey: scopeKey,
           pageSize: pageSize,
           maxPages: maxPages,
@@ -697,9 +709,7 @@ class WalletApi {
       return _sortRecords(cached);
     }
 
-    List<WalletRecordDto> firstPage;
-    try {
-      firstPage = await getLedger(
+    final firstPageRequest = getLedger(
         page: 0,
         size: pageSize,
         ledgerTypes: ledgerTypes,
@@ -708,7 +718,35 @@ class WalletApi {
         startTime: startTime,
         endTime: endTime,
       );
+    List<WalletRecordDto> firstPage;
+    try {
+      firstPage = cached.isEmpty
+          ? await firstPageRequest
+          : await firstPageRequest.timeout(const Duration(seconds: 2));
+    } on TimeoutException {
+      if (!isCurrent()) return const [];
+      if (cached.isEmpty) rethrow;
+      _scheduleLedgerBackgroundSync(
+        scopeKey: scopeKey,
+        task: () => _refreshLedgerScope(
+          firstPageRequest: firstPageRequest,
+          owner: owner,
+          isCurrent: isCurrent,
+          scopeKey: scopeKey,
+          pageSize: pageSize,
+          maxPages: maxPages,
+          ledgerTypes: ledgerTypes,
+          source: source,
+          currency: currency,
+          startTime: startTime,
+          endTime: endTime,
+          complete: complete,
+          knownIds: cached.map((row) => row.id).toSet(),
+        ),
+      );
+      return _sortRecords(cached);
     } catch (_) {
+      if (!isCurrent()) return const [];
       // A persisted snapshot is still useful when the refresh endpoint is
       // temporarily unavailable.
       if (cached.isNotEmpty) return _sortRecords(cached);
@@ -719,18 +757,26 @@ class WalletApi {
       '${complete ? 'incremental' : 'initial'} page=0 '
       'count=${firstPage.length} scope=${scopeKey.hashCode}',
     );
+    if (!isCurrent()) return const [];
     if (firstPage.isEmpty) {
-      if (!complete) await store.markComplete(scopeKey: scopeKey);
+      if (!complete) {
+        await store.markComplete(scopeKey: scopeKey, ownerUserId: owner);
+      }
     } else {
       final knownIds = cached.map((e) => e.id).toSet();
       final hasUnknown = firstPage.any((item) => !knownIds.contains(item.id));
-      await store.upsert(scopeKey: scopeKey, records: firstPage);
-      cached = await store.read(scopeKey: scopeKey);
+      await store.upsert(
+          scopeKey: scopeKey, ownerUserId: owner, records: firstPage);
+      cached = await store.read(scopeKey: scopeKey, ownerUserId: owner);
 
       if (!complete && firstPage.length >= pageSize) {
         _scheduleLedgerBackgroundSync(
           scopeKey: scopeKey,
           task: () => _syncLedgerSnapshotPages(
+            head:
+                LedgerPageProgress.fingerprint(firstPage.map((row) => row.id)),
+            owner: owner,
+            isCurrent: isCurrent,
             scopeKey: scopeKey,
             pageSize: pageSize,
             maxPages: maxPages,
@@ -747,6 +793,8 @@ class WalletApi {
         _scheduleLedgerBackgroundSync(
           scopeKey: scopeKey,
           task: () => _syncLedgerIncrementalPages(
+            owner: owner,
+            isCurrent: isCurrent,
             scopeKey: scopeKey,
             pageSize: pageSize,
             maxPages: maxPages,
@@ -760,11 +808,12 @@ class WalletApi {
           ),
         );
       } else if (!complete && firstPage.length < pageSize) {
-        await store.markComplete(scopeKey: scopeKey);
+        await store.markComplete(scopeKey: scopeKey, ownerUserId: owner);
       }
     }
 
-    cached = await store.read(scopeKey: scopeKey);
+    cached = await store.read(scopeKey: scopeKey, ownerUserId: owner);
+    if (!isCurrent()) return const [];
     final unique = <String, WalletRecordDto>{
       for (final item in cached) item.id: item,
       for (final item in firstPage) item.id: item,
@@ -779,7 +828,9 @@ class WalletApi {
     required String scopeKey,
     required Future<void> Function() task,
   }) {
-    if (_ledgerBackgroundTasks.containsKey(scopeKey)) return;
+    final owner = WalletLedgerLocalStore.instance.currentOwnerUserId();
+    final taskKey = '$owner:$scopeKey';
+    if (_ledgerBackgroundTasks.containsKey(taskKey)) return;
     late final Future<void> running;
     // Yield one event-loop turn so the page can paint before refresh traffic
     // starts. This keeps background sync from extending the loading spinner.
@@ -788,15 +839,18 @@ class WalletApi {
         .catchError((error, stackTrace) {
       _ledgerDebug('background failed scope=${scopeKey.hashCode} error=$error');
     }).whenComplete(() {
-      if (identical(_ledgerBackgroundTasks[scopeKey], running)) {
-        _ledgerBackgroundTasks.remove(scopeKey);
+      if (identical(_ledgerBackgroundTasks[taskKey], running)) {
+        _ledgerBackgroundTasks.remove(taskKey);
       }
     });
-    _ledgerBackgroundTasks[scopeKey] = running;
+    _ledgerBackgroundTasks[taskKey] = running;
     unawaited(running);
   }
 
   Future<void> _refreshLedgerScope({
+    Future<List<WalletRecordDto>>? firstPageRequest,
+    required String owner,
+    required bool Function() isCurrent,
     required String scopeKey,
     required int pageSize,
     required int maxPages,
@@ -808,8 +862,9 @@ class WalletApi {
     required bool complete,
     required Set<String> knownIds,
   }) async {
+    if (!isCurrent()) return;
     final store = WalletLedgerLocalStore.instance;
-    final firstPage = await getLedger(
+    final firstPage = await (firstPageRequest ?? getLedger(
       page: 0,
       size: pageSize,
       ledgerTypes: ledgerTypes,
@@ -817,19 +872,26 @@ class WalletApi {
       currency: currency,
       startTime: startTime,
       endTime: endTime,
-    );
+    ));
+    if (!isCurrent()) return;
     if (firstPage.isEmpty) {
-      if (!complete) await store.markComplete(scopeKey: scopeKey);
+      if (!complete) {
+        await store.markComplete(scopeKey: scopeKey, ownerUserId: owner);
+      }
       return;
     }
     final hasUnknown = firstPage.any((item) => !knownIds.contains(item.id));
-    await store.upsert(scopeKey: scopeKey, records: firstPage);
+    await store.upsert(
+        scopeKey: scopeKey, ownerUserId: owner, records: firstPage);
     if (firstPage.length < pageSize) {
-      await store.markComplete(scopeKey: scopeKey);
+      await store.markComplete(scopeKey: scopeKey, ownerUserId: owner);
       return;
     }
     if (!complete) {
       await _syncLedgerSnapshotPages(
+        head: LedgerPageProgress.fingerprint(firstPage.map((row) => row.id)),
+        owner: owner,
+        isCurrent: isCurrent,
         scopeKey: scopeKey,
         pageSize: pageSize,
         maxPages: maxPages,
@@ -843,6 +905,8 @@ class WalletApi {
     } else if (hasUnknown) {
       knownIds.addAll(firstPage.map((item) => item.id));
       await _syncLedgerIncrementalPages(
+        owner: owner,
+        isCurrent: isCurrent,
         scopeKey: scopeKey,
         pageSize: pageSize,
         maxPages: maxPages,
@@ -858,6 +922,9 @@ class WalletApi {
   }
 
   Future<void> _syncLedgerSnapshotPages({
+    required String head,
+    required String owner,
+    required bool Function() isCurrent,
     required String scopeKey,
     required int pageSize,
     required int maxPages,
@@ -868,8 +935,15 @@ class WalletApi {
     required String? endTime,
     required int startPage,
   }) async {
+    if (!isCurrent()) return;
     final store = WalletLedgerLocalStore.instance;
-    for (var page = startPage; page < maxPages; page++) {
+    var next = await LedgerPageProgress.read(
+        owner: owner, scope: scopeKey, size: pageSize, head: head);
+    final cached = await store.read(scopeKey: scopeKey, ownerUserId: owner);
+    if (cached.length < next * pageSize) next = startPage;
+    if (next < startPage) next = startPage;
+    for (var page = next; page < next + maxPages - 1; page++) {
+      if (!isCurrent()) return;
       final batch = await getLedger(
         page: page,
         size: pageSize,
@@ -879,23 +953,36 @@ class WalletApi {
         startTime: startTime,
         endTime: endTime,
       );
+      if (!isCurrent()) return;
       if (batch.isEmpty) {
-        await store.markComplete(scopeKey: scopeKey);
+        await store.markComplete(scopeKey: scopeKey, ownerUserId: owner);
         return;
       }
       _ledgerDebug(
         'background full page=$page count=${batch.length} '
         'scope=${scopeKey.hashCode}',
       );
-      await store.upsert(scopeKey: scopeKey, records: batch);
+      await store.upsert(
+          scopeKey: scopeKey, ownerUserId: owner, records: batch);
+      if (!isCurrent()) return;
+      await LedgerPageProgress.save(
+          owner: owner,
+          scope: scopeKey,
+          size: pageSize,
+          head: head,
+          next: page + 1);
+      // Yield between pages so database work does not monopolize interaction.
+      await Future<void>.delayed(const Duration(milliseconds: 100));
       if (batch.length < pageSize) {
-        await store.markComplete(scopeKey: scopeKey);
+        await store.markComplete(scopeKey: scopeKey, ownerUserId: owner);
         return;
       }
     }
   }
 
   Future<void> _syncLedgerIncrementalPages({
+    required String owner,
+    required bool Function() isCurrent,
     required String scopeKey,
     required int pageSize,
     required int maxPages,
@@ -907,8 +994,10 @@ class WalletApi {
     required Set<String> knownIds,
     required int startPage,
   }) async {
+    if (!isCurrent()) return;
     final store = WalletLedgerLocalStore.instance;
     for (var page = startPage; page < maxPages; page++) {
+      if (!isCurrent()) return;
       final batch = await getLedger(
         page: page,
         size: pageSize,
@@ -918,13 +1007,15 @@ class WalletApi {
         startTime: startTime,
         endTime: endTime,
       );
+      if (!isCurrent()) return;
       if (batch.isEmpty) return;
       final hasUnknown = batch.any((item) => !knownIds.contains(item.id));
       _ledgerDebug(
         'background incremental page=$page count=${batch.length} '
         'new=$hasUnknown scope=${scopeKey.hashCode}',
       );
-      await store.upsert(scopeKey: scopeKey, records: batch);
+      await store.upsert(
+          scopeKey: scopeKey, ownerUserId: owner, records: batch);
       knownIds.addAll(batch.map((e) => e.id));
       if (batch.length < pageSize || !hasUnknown) return;
     }
@@ -1229,7 +1320,7 @@ class WalletApi {
       if (payPin != null && payPin.trim().isNotEmpty) 'payPin': payPin,
     };
     try {
-      final res = await _dio.post(path, data: body);
+      final res = await _dio.post(path, data: body.isEmpty ? null : body);
       _logRedPacketApi('POST $path', request: body, response: res.data);
       final map = _asMap(unwrapApiPayload(res.data));
       return WalletOrderResult(
@@ -1261,7 +1352,8 @@ class WalletApi {
 
     // Legacy callers need only a preview. The recipient route owns paging.
     final cached = await GroupMemberLocalStore.instance.readWindow(
-      groupId: groupId, limit: 100,
+      groupId: groupId,
+      limit: 100,
     );
     if (cached.isNotEmpty) return _redPacketMembersFromRecords(cached);
 

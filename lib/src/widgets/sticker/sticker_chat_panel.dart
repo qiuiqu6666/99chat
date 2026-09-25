@@ -137,6 +137,7 @@ class _WeChatStickerPanelState extends State<_WeChatStickerPanel> {
           stickerId: trimmed,
           thumbUrl: item.thumbUrl,
           originUrl: item.originUrl,
+          mediaType: item.mediaType,
         );
         return;
       }
@@ -153,6 +154,7 @@ class _WeChatStickerPanelState extends State<_WeChatStickerPanel> {
             stickerId: stickerId,
             thumbUrl: item.thumbUrl,
             originUrl: item.originUrl,
+            mediaType: item.mediaType,
           );
           return;
         }

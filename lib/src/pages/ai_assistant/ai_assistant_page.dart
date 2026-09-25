@@ -1,7 +1,8 @@
-﻿import 'dart:async';
+import 'package:scrollable_positioned_list_for_us/scrollable_positioned_list_for_us.dart';
+import 'package:tencent_cloud_chat_demo/src/services/bounded_file_loader.dart';
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
@@ -21,9 +22,7 @@ import 'package:tencent_cloud_chat_demo/src/pages/ai_assistant/ai_assistant_capa
 import 'package:tencent_cloud_chat_demo/src/pages/ai_assistant/ai_assistant_draft.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/ai_assistant/ai_assistant_file_kind.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/ai_assistant/ai_assistant_history_map.dart';
-import 'package:tencent_cloud_chat_demo/src/pages/ai_assistant/ai_assistant_markdown.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/ai_assistant/ai_assistant_models.dart';
-import 'package:tencent_cloud_chat_demo/src/pages/ai_assistant/ai_assistant_markdown.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/ai_assistant/ai_assistant_search.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/contact_card_user_picker_page.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart';
@@ -103,7 +102,8 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
   final FocusNode _inputFocus = FocusNode();
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
-  final ScrollController _listController = ScrollController();
+  final ItemScrollController _listController = ItemScrollController();
+  final _itemPositions = ItemPositionsListener.create();
   final List<AiAssistantDraftItem> _drafts = <AiAssistantDraftItem>[];
   final List<GlobalKey> _messageKeys = <GlobalKey>[];
   late final String _userId;
@@ -121,7 +121,10 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
   bool _hasMore = false;
   String? _nextCursor;
   CancelToken? _streamCancel;
-  final Map<String, Uint8List> _fileCache = <String, Uint8List>{};
+  late final _fileLoader = BoundedFileLoader(AiAssistantApi.instance.downloadFile);
+  Map<String, Uint8List> get _fileCache => _fileLoader.cache;
+  final Set<String> _visibleFileAttempts = {};
+  final Map<String, Future<Uint8List?>> _fileRequests = {};
   bool _fileOpening = false;
   String _selfAvatarUrl = '';
 
@@ -131,7 +134,7 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
     _userId = ChatIdFormat.rawUserUid(
       ContactSocialCacheStore.safeLoginUserId(),
     );
-    _listController.addListener(_onHistoryScroll);
+    _itemPositions.itemPositions.addListener(_onHistoryScroll);
     _loadWelcome();
     unawaited(_loadSelfAvatar());
   }
@@ -220,12 +223,13 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
   @override
   void dispose() {
     _streamCancel?.cancel('dispose');
-    _listController.removeListener(_onHistoryScroll);
+    _itemPositions.itemPositions.removeListener(_onHistoryScroll);
+    _fileLoader.dispose();
     _inputController.dispose();
     _inputFocus.dispose();
     _searchController.dispose();
     _searchFocus.dispose();
-    _listController.dispose();
+
     super.dispose();
   }
 
@@ -242,17 +246,11 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
   }
 
   void _onHistoryScroll() {
-    if (!_hasMore || _historyLoading || !_listController.hasClients) {
-      return;
-    }
-    final position = _listController.position;
-    if (position.maxScrollExtent <= 0) {
-      return;
-    }
-    if (position.pixels < position.maxScrollExtent - 64) {
-      return;
-    }
-    unawaited(_loadOlderHistory());
+    _prefetchHistoryImages();
+    if (!_hasMore || _historyLoading || _messages.isEmpty) return;
+    final atOldest = _itemPositions.itemPositions.value.any((p) =>
+        p.index == _messages.length - 1 && p.itemLeadingEdge < 1 && p.itemTrailingEdge > 0);
+    if (atOldest) unawaited(_loadOlderHistory());
   }
 
   Future<void> _loadHistory() async {
@@ -367,29 +365,32 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
     );
   }
 
-  Future<void> _ensureFileBytes(String fileId, {bool silent = false}) async {
+  Future<Uint8List?> _ensureFileBytes(String fileId, {bool silent = false}) {
     final id = fileId.trim();
-    if (id.isEmpty || _fileCache.containsKey(id)) {
-      return;
-    }
-    try {
-      final bytes = await AiAssistantApi.instance.downloadFile(id);
-      if (!mounted) {
-        return;
+    if (id.isEmpty || !mounted) return Future.value(null);
+    final cached = _fileCache[id];
+    if (cached != null) return Future.value(cached);
+    final active = _fileRequests[id];
+    if (active != null) return active;
+    if (silent && !_visibleFileAttempts.add(id)) return Future.value(null);
+    late final Future<Uint8List?> request;
+    request = () async {
+      try {
+        final bytes = await _fileLoader.load(id, priority: !silent);
+        if (!mounted || bytes == null) return null;
+        setState(() => _hydrateHistoryFiles(id, bytes));
+        return bytes;
+      } on AiAssistantException catch (error) {
+        if (mounted && !silent) _toastApiError(error);
+      } catch (_) {
+        if (mounted && !silent) {
+          _toastApiError(const AiAssistantException('FILE_UNAVAILABLE', ''));
+        }
       }
-      setState(() {
-        _fileCache[id] = bytes;
-        _hydrateHistoryFiles(id, bytes);
-      });
-    } on AiAssistantException catch (error) {
-      if (!silent) {
-        _toastApiError(error);
-      }
-    } catch (_) {
-      if (!silent) {
-        _toastApiError(const AiAssistantException('FILE_UNAVAILABLE', ''));
-      }
-    }
+      return null;
+    }().whenComplete(() { if (identical(_fileRequests[id], request)) _fileRequests.remove(id); });
+    _fileRequests[id] = request;
+    return request;
   }
 
   void _hydrateHistoryFiles(String fileId, Uint8List bytes) {
@@ -424,7 +425,7 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
           kind: kind,
           localPath: file.localPath,
           fileId: file.fileId,
-          bytes: bytes,
+          bytes: null,
           mimeType: mime,
           sizeBytes: bytes.length,
         );
@@ -452,22 +453,22 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
   }
 
   void _prefetchHistoryImages() {
+    if (!mounted) return;
     final ids = <String>{};
-    for (final message in _messages) {
+    for (final position in _itemPositions.itemPositions.value) {
+      if (position.itemTrailingEdge <= -0.5 || position.itemLeadingEdge >= 1.5) continue;
+      final index = _messages.length - 1 - position.index;
+      if (index < 0 || index >= _messages.length) continue;
+      final message = _messages[index];
       final fromUrl = AiAssistantApi.fileIdFromUrl(message.imageUrl);
-      if (fromUrl != null) {
-        ids.add(fromUrl);
-      }
+      if (fromUrl != null) ids.add(fromUrl);
       for (final file in message.files) {
         final id = (file.fileId ?? '').trim();
-        if (id.isNotEmpty) {
-          ids.add(id);
-        }
+        if (id.isNotEmpty && file.kind == AiAssistantFileKind.image) ids.add(id);
       }
     }
-    for (final id in ids) {
-      unawaited(_ensureFileBytes(id, silent: true));
-    }
+    _visibleFileAttempts.removeWhere((id) => !ids.contains(id));
+    for (final id in ids) { unawaited(_ensureFileBytes(id, silent: true)); }
   }
 
   Future<void> _hydrateHistoryCards() async {
@@ -658,8 +659,7 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
         data = _fileCache[id];
       }
       if ((data == null || data.isEmpty) && id.isNotEmpty) {
-        await _ensureFileBytes(id);
-        data = _fileCache[id];
+        data = await _ensureFileBytes(id);
       }
       final local = (file.localPath ?? '').trim();
       if ((data == null || data.isEmpty) && local.isNotEmpty) {
@@ -727,8 +727,7 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
         ? fileId!.trim()
         : (AiAssistantApi.fileIdFromUrl(imageUrl ?? '') ?? '');
     if ((data == null || data.isEmpty) && id.isNotEmpty) {
-      await _ensureFileBytes(id, silent: true);
-      data = _fileCache[id];
+      data = await _ensureFileBytes(id);
     }
     final path = (localPath ?? '').trim();
     if ((data == null || data.isEmpty) && !kIsWeb && path.isNotEmpty) {
@@ -1091,7 +1090,8 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
       _replying = false;
       _hasMore = false;
       _nextCursor = null;
-      _fileCache.clear();
+      _fileLoader.clear();
+      _visibleFileAttempts.clear();
       _syncKeys();
       if (_searching) {
         _applyMatches();
@@ -1120,34 +1120,14 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
     setState(_applyMatches);
   }
 
-  void _jumpToActive({int attempt = 0}) {
-    if (_matchIndexes.isEmpty) {
+  void _jumpToActive() {
+    if (_matchIndexes.isEmpty || !_listController.isAttached ||
+        _activeMatch < 0 || _activeMatch >= _matchIndexes.length) {
       return;
     }
-    if (_activeMatch < 0 || _activeMatch >= _matchIndexes.length) {
-      return;
-    }
-    final index = _matchIndexes[_activeMatch];
-    if (index < 0 || index >= _messageKeys.length) {
-      return;
-    }
-    final target = _messageKeys[index].currentContext;
-    if (target == null) {
-      if (attempt < 2) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _jumpToActive(attempt: attempt + 1);
-          }
-        });
-      }
-      return;
-    }
-    Scrollable.ensureVisible(
-      target,
-      alignment: 0.2,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-    );
+    final index = _messages.length - 1 - _matchIndexes[_activeMatch];
+    unawaited(_listController.scrollTo(index: index, alignment: 0.2,
+        duration: const Duration(milliseconds: 200), curve: Curves.easeOut));
   }
 
   void _openSearch() {
@@ -1468,17 +1448,10 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
   }
 
   void _scrollToEnd() {
-    void jumpIfReady() {
-      if (!_listController.hasClients) {
-        return;
-      }
-      if (_listController.offset > 0) {
-        _listController.jumpTo(0);
-      }
-    }
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      jumpIfReady();
+      if (mounted && _listController.isAttached && _messages.isNotEmpty) {
+        _listController.jumpTo(index: 0);
+      }
     });
   }
 
@@ -2138,17 +2111,22 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
                           i18n: i18n,
                           onStart: _focusInput,
                         )
-                      : ListView(
-                    controller: _listController,
+                      : ScrollablePositionedList.builder(
+                    itemScrollController: _listController,
+                    itemPositionsListener: _itemPositions,
                     reverse: true,
-                    cacheExtent: _searching && searchNeedle.isNotEmpty
-                        ? double.infinity
-                        : null,
+                    cacheExtent: 300,
+                    addAutomaticKeepAlives: false,
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                    children: [
-                      ..._messages.asMap().entries.toList().reversed.map((entry) {
-                        final index = entry.key;
-                        final message = entry.value;
+                    itemCount: _messages.length + (_welcomeVisible ? 1 : 0),
+                    itemBuilder: (context, reverseIndex) {
+                      if (reverseIndex == _messages.length) {
+                        return Padding(padding: const EdgeInsets.only(top: 12),
+                          child: _WelcomeBanner(dark: dark, i18n: i18n,
+                            onClose: () => unawaited(_dismissWelcome())));
+                      }
+                      final index = _messages.length - 1 - reverseIndex;
+                      final message = _messages[index];
                         return KeyedSubtree(
                           key: _messageKeys[index],
                           child: Padding(
@@ -2213,16 +2191,7 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
                                   ),
                           ),
                         );
-                      }),
-                      if (_welcomeVisible) ...[
-                        const SizedBox(height: 12),
-                        _WelcomeBanner(
-                          dark: dark,
-                          i18n: i18n,
-                          onClose: () => unawaited(_dismissWelcome()),
-                        ),
-                      ],
-                    ],
+                    },
                   ),
                 ),
                 _QuickChipBar(

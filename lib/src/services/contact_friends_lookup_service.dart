@@ -37,7 +37,10 @@ class ContactFriendsLookupService {
 
   static const int _batchSize = 500;
 
-  static Future<List<ContactFriendEntry>> loadEntries() async {
+  static Future<List<ContactFriendEntry>> loadEntries({
+    void Function(List<ContactFriendEntry>)? onPartial,
+    bool Function()? isCancelled,
+  }) async {
     if (!await PermissionGuard.hasContactsForDeviceSync()) {
       throw ContactFriendsLookupException(
         AppI18n.current.t(
@@ -55,51 +58,63 @@ class ContactFriendsLookupService {
       return const [];
     }
 
-    final uniquePhones = PhoneFormat.filterForContactMatch(
-      contacts.expand((contact) => contact.phones),
-    );
+    return matchEntries(contacts, onPartial: onPartial, isCancelled: isCancelled);
+  }
 
-    Map<String, ContactMatchItem> phoneLookup;
-    try {
-      phoneLookup = uniquePhones.isEmpty
-          ? <String, ContactMatchItem>{}
-          : await _matchPhones(uniquePhones);
-    } on ContactFriendsLookupException {
-      // 部分号码格式异常时不阻断整页，仍展示本地联系人（视为未注册）。
-      phoneLookup = <String, ContactMatchItem>{};
-    }
-
+  static Future<List<ContactFriendEntry>> matchEntries(
+    List<LocalContactRecord> contacts, {
+    void Function(List<ContactFriendEntry>)? onPartial,
+    bool Function()? isCancelled,
+    Future<Map<String, ContactMatchItem>> Function(List<String>)? matchBatch,
+  }) async {
     final entries = <ContactFriendEntry>[];
-    for (final contact in contacts) {
-      ContactMatchItem? matched;
-      String primaryPhone = contact.phones.first;
-      for (final phone in contact.phones) {
-        final lookupKey = _resolveLookupKey(phone);
-        if (lookupKey == null) {
-          continue;
+    for (var start = 0; start < contacts.length; start += _batchSize) {
+      if (isCancelled?.call() == true) return entries;
+      final batchContacts = contacts.skip(start).take(_batchSize);
+      final uniquePhones = PhoneFormat.filterForContactMatch(
+          batchContacts.expand((contact) => contact.phones));
+      Map<String, ContactMatchItem> phoneLookup;
+      try {
+        phoneLookup = matchBatch != null ? await matchBatch(uniquePhones)
+            : await _matchPhones(uniquePhones, isCancelled: isCancelled);
+      } on ContactFriendsLookupException {
+        phoneLookup = <String, ContactMatchItem>{};
+      }
+      if (isCancelled?.call() == true) return entries;
+      for (final contact in batchContacts) {
+        ContactMatchItem? matched;
+        String primaryPhone = contact.phones.first;
+        for (final phone in contact.phones) {
+          final lookupKey = _resolveLookupKey(phone);
+          if (lookupKey == null) {
+            continue;
+          }
+          final hit = phoneLookup[lookupKey];
+          if (hit != null && hit.registered) {
+            matched = hit;
+            primaryPhone = phone;
+            break;
+          }
         }
-        final hit = phoneLookup[lookupKey];
-        if (hit != null && hit.registered) {
-          matched = hit;
-          primaryPhone = phone;
-          break;
-        }
+
+        final status = _resolveStatus(matched);
+        entries.add(
+          ContactFriendEntry(
+            localContactId: contact.localContactId,
+            displayName: contact.displayName,
+            primaryPhone: PhoneFormat.cleanContactPhoneRaw(primaryPhone),
+            phones: contact.phones
+                .map(PhoneFormat.cleanContactPhoneRaw)
+                .where((phone) => phone.isNotEmpty)
+                .toList(),
+            status: status,
+            user: matched?.toUserSearchResult(),
+          ),
+        );
       }
 
-      final status = _resolveStatus(matched);
-      entries.add(
-        ContactFriendEntry(
-          localContactId: contact.localContactId,
-          displayName: contact.displayName,
-          primaryPhone: PhoneFormat.cleanContactPhoneRaw(primaryPhone),
-          phones: contact.phones
-              .map(PhoneFormat.cleanContactPhoneRaw)
-              .where((phone) => phone.isNotEmpty)
-              .toList(),
-          status: status,
-          user: matched?.toUserSearchResult(),
-        ),
-      );
+      onPartial?.call(List<ContactFriendEntry>.unmodifiable(entries));
+      await Future<void>.delayed(Duration.zero);
     }
 
     entries.sort(ContactFriendsLookupService.compareEntries);
@@ -146,16 +161,17 @@ class ContactFriendsLookupService {
     }
   }
 
-  static Future<Map<String, ContactMatchItem>> _matchPhones(
-    List<String> phones,
-  ) async {
+  static Future<Map<String, ContactMatchItem>> _matchPhones(List<String> phones,
+      {bool Function()? isCancelled}) async {
     final lookup = <String, ContactMatchItem>{};
     if (phones.isEmpty) {
       return lookup;
     }
 
     for (var i = 0; i < phones.length; i += _batchSize) {
-      final end = (i + _batchSize > phones.length) ? phones.length : i + _batchSize;
+      if (isCancelled?.call() == true) return lookup;
+      final end =
+          (i + _batchSize > phones.length) ? phones.length : i + _batchSize;
       final batch = phones.sublist(i, end);
       final items = await _matchPhoneBatch(batch);
       for (final item in items) {
@@ -191,7 +207,8 @@ class ContactFriendsLookupService {
           }
         }
       }
-      throw ContactFriendsLookupException(UserApiErrorMessage.fromContactMatch(e));
+      throw ContactFriendsLookupException(
+          UserApiErrorMessage.fromContactMatch(e));
     }
   }
 

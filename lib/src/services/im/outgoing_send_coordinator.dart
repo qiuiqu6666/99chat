@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'outbox_draft_submission.dart';
 import 'outbox_retry_identity.dart';
+import 'outgoing_send_activity.dart';
 import 'writer_lease.dart';
 
 import 'package:flutter/foundation.dart';
@@ -26,6 +27,7 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_value_callback.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/media_send_perf.dart';
 
 class ImCoordinatedSendResult {
   const ImCoordinatedSendResult({
@@ -234,7 +236,9 @@ class ImOutgoingSendCoordinator {
         desc: 'sdkLocalId is required',
       );
     }
-    final context = await _leaseContext();
+    Future<T> measure<T>(String stage, Future<T> Function() work) =>
+        MediaSendPerf.measureFor(localId, stage, work);
+    final context = await measure('sendLease', _leaseContext);
     if (expectedSessionIdentity != null &&
         (!SessionIdentityService.instance.isCurrent(expectedSessionIdentity) ||
             context?.ownerUserId != expectedSessionIdentity.ownerUserId ||
@@ -312,389 +316,420 @@ class ImOutgoingSendCoordinator {
         : retryKey == null
             ? newOutgoingOperationId()
             : 'retry_$retryKey';
-    final clientCorrelationId =
-        clientCorrelationIdOverride?.trim().isNotEmpty == true
-            ? clientCorrelationIdOverride!.trim()
-            : retryKey == null
-                ? newOutgoingClientCorrelationId()
-                : 'retry_corr_$retryKey';
-    // The SDK-created local message is already the bubble adopted by the UI.
-    // Recreating it here produces a second local id: the SDK sends that second
-    // message while the visible bubble stays attached to the first one. This
-    // is the root cause of duplicate media bubbles and media/audio rows stuck
-    // in SENDING. Normal dispatch must always keep the original local id.
-    final sendLocalId = localId;
-    final sendMessage = fallbackMessage;
-    var outboxMessage = fallbackMessage;
-    String? stagedMediaRoot;
-    if (persistOutbox && !recoverPreparedOutbox && retryParent == null) {
-      // Staging rewrites local paths. Apply that mutation only to a detached
-      // Outbox copy so the live SDK/UI message continues to use its original
-      // path and identity. Recovery may recreate an SDK message later from
-      // this durable copy; the immediate send must not.
-      outboxMessage = _cloneMessageForOutbox(fallbackMessage);
-      if (fallbackMessage != null && outboxMessage == null) {
+    // Pin before Prepared can become visible to reconnect/recovery scans.
+    // Keep ownership until the SDK result has been durably adjudicated.
+    return OutgoingSendActivity.instance.track(context, operationId, () async {
+      final clientCorrelationId =
+          clientCorrelationIdOverride?.trim().isNotEmpty == true
+              ? clientCorrelationIdOverride!.trim()
+              : retryKey == null
+                  ? newOutgoingClientCorrelationId()
+                  : 'retry_corr_$retryKey';
+      // The SDK-created local message is already the bubble adopted by the UI.
+      // Recreating it here produces a second local id: the SDK sends that second
+      // message while the visible bubble stays attached to the first one. This
+      // is the root cause of duplicate media bubbles and media/audio rows stuck
+      // in SENDING. Normal dispatch must always keep the original local id.
+      final sendLocalId = localId;
+      final sendMessage = fallbackMessage;
+      var outboxMessage = fallbackMessage;
+      String? stagedMediaRoot;
+      if (persistOutbox && !recoverPreparedOutbox && retryParent == null) {
+        // Staging rewrites local paths. Apply that mutation only to a detached
+        // Outbox copy so the live SDK/UI message continues to use its original
+        // path and identity. Recovery may recreate an SDK message later from
+        // this durable copy; the immediate send must not.
+        outboxMessage = _cloneMessageForOutbox(fallbackMessage);
+        if (fallbackMessage != null && outboxMessage == null) {
+          return _blocked(
+            fallbackMessage: fallbackMessage,
+            desc: 'outgoing message snapshot failed',
+          );
+        }
+        final staged = await measure(
+            'outboxMedia',
+            () => OutgoingMediaStager.instance.stageMessage(
+                  message: outboxMessage,
+                  operationId: operationId,
+                ));
+        if (staged.shouldBlock) {
+          return _blocked(
+            fallbackMessage: fallbackMessage,
+            desc: 'outgoing media staging failed',
+          );
+        }
+        stagedMediaRoot = staged.rootPath;
+      }
+      ImOutboxDispatchAssessment? recoveredPrepared;
+      if (recoverPreparedOutbox) {
+        recoveredPrepared = await persistence.assessOutboxForDispatch(
+          ownerUserId: context.ownerUserId,
+          operationId: operationId,
+          leaseOwnerId: context.lease.leaseOwnerId,
+          fencingToken: context.lease.fencingToken,
+          nowMs: nowMs,
+        );
+        final recoveredMain = recoveredPrepared.main;
+        if (!recoveredPrepared.canDispatch ||
+            recoveredMain == null ||
+            recoveredMain.state != ImOutboxState.prepared ||
+            recoveredMain.operationId != operationId ||
+            recoveredMain.clientCorrelationId != clientCorrelationId ||
+            recoveredMain.conversationId != scope.storageKey) {
+          return _blocked(
+            fallbackMessage: fallbackMessage,
+            usedOutbox: true,
+            decision: recoveredPrepared.decision,
+            outcomeUnknown: recoveredPrepared.requiresOutcomeQuery,
+            desc: 'prepared Outbox recovery identity rejected',
+          );
+        }
+      }
+      final messageKind = _messageKindFor(
+        (outboxMessage ?? sendMessage)?.elemType,
+      );
+      final plaintextEnvelope = recoveredPrepared == null && retryParent == null
+          ? _encodeOutgoingEnvelope(
+              message: outboxMessage,
+              sdkLocalId: sendLocalId,
+              conversationId: conversationId,
+              receiver: receiver,
+              groupID: groupID,
+              priority: priority,
+              onlineUserOnly: onlineUserOnly,
+              isExcludedFromUnreadCount: isExcludedFromUnreadCount,
+              needReadReceipt: needReadReceipt,
+              offlinePushInfo: offlinePushInfo,
+              businessCloudCustomData: businessCloudCustomData,
+              localCustomData: localCustomData,
+              isExcludedFromContentModeration: isExcludedFromContentModeration,
+            )
+          : null;
+      final protectedPayload = persistOutbox &&
+              recoveredPrepared == null &&
+              plaintextEnvelope != null
+          ? await measure(
+              'outboxEncrypt',
+              () => OutboxPayloadCipher.instance.protect(
+                    ownerUserId: context.ownerUserId,
+                    plaintext: plaintextEnvelope,
+                  ))
+          : null;
+      final payloadEnvelope = recoveredPrepared?.main?.payloadReference ??
+          retryParent?.payloadReference ??
+          (persistOutbox ? protectedPayload?.value : plaintextEnvelope);
+      if (persistOutbox && payloadEnvelope == null) {
+        await OutgoingMediaStager.instance.cleanup(stagedMediaRoot);
         return _blocked(
           fallbackMessage: fallbackMessage,
-          desc: 'outgoing message snapshot failed',
+          desc: 'durable outgoing payload is unavailable',
         );
       }
-      final staged = await OutgoingMediaStager.instance.stageMessage(
-        message: outboxMessage,
-        operationId: operationId,
-      );
-      if (staged.shouldBlock) {
-        return _blocked(
-          fallbackMessage: fallbackMessage,
-          desc: 'outgoing media staging failed',
-        );
-      }
-      stagedMediaRoot = staged.rootPath;
-    }
-    ImOutboxDispatchAssessment? recoveredPrepared;
-    if (recoverPreparedOutbox) {
-      recoveredPrepared = await persistence.assessOutboxForDispatch(
-        ownerUserId: context.ownerUserId,
-        operationId: operationId,
-        leaseOwnerId: context.lease.leaseOwnerId,
-        fencingToken: context.lease.fencingToken,
-        nowMs: nowMs,
-      );
-      final recoveredMain = recoveredPrepared.main;
-      if (!recoveredPrepared.canDispatch ||
-          recoveredMain == null ||
-          recoveredMain.state != ImOutboxState.prepared ||
-          recoveredMain.operationId != operationId ||
-          recoveredMain.clientCorrelationId != clientCorrelationId ||
-          recoveredMain.conversationId != scope.storageKey) {
+      // Hash the canonical plaintext envelope, not the AES-GCM ciphertext.
+      // Encryption intentionally uses a fresh nonce on every send, so a
+      // ciphertext hash would change even when the logical message is identical.
+      final payloadFingerprint = recoveredPrepared?.main?.payloadHash ??
+          retryParent?.payloadHash ??
+          sha256
+              .convert(
+                  utf8.encode(plaintextEnvelope ?? 'sdkLocalId:$sendLocalId'))
+              .toString();
+      if (recoveredPrepared != null &&
+          recoveredPrepared.main!.payloadHash != payloadFingerprint) {
         return _blocked(
           fallbackMessage: fallbackMessage,
           usedOutbox: true,
-          decision: recoveredPrepared.decision,
-          outcomeUnknown: recoveredPrepared.requiresOutcomeQuery,
-          desc: 'prepared Outbox recovery identity rejected',
+          decision: ImOutboxDispatchDecision.identityConflict,
+          desc: 'prepared Outbox payload fingerprint rejected',
         );
       }
-    }
-    final messageKind = _messageKindFor(
-      (outboxMessage ?? sendMessage)?.elemType,
-    );
-    final plaintextEnvelope = recoveredPrepared == null && retryParent == null
-        ? _encodeOutgoingEnvelope(
-            message: outboxMessage,
-            sdkLocalId: sendLocalId,
-            conversationId: conversationId,
-            receiver: receiver,
-            groupID: groupID,
-            priority: priority,
-            onlineUserOnly: onlineUserOnly,
-            isExcludedFromUnreadCount: isExcludedFromUnreadCount,
-            needReadReceipt: needReadReceipt,
-            offlinePushInfo: offlinePushInfo,
-            businessCloudCustomData: businessCloudCustomData,
-            localCustomData: localCustomData,
-            isExcludedFromContentModeration: isExcludedFromContentModeration,
-          )
-        : null;
-    final protectedPayload =
-        persistOutbox && recoveredPrepared == null && plaintextEnvelope != null
-            ? await OutboxPayloadCipher.instance.protect(
-                ownerUserId: context.ownerUserId,
-                plaintext: plaintextEnvelope,
-              )
-            : null;
-    final payloadEnvelope = recoveredPrepared?.main?.payloadReference ??
-        retryParent?.payloadReference ??
-        (persistOutbox ? protectedPayload?.value : plaintextEnvelope);
-    if (persistOutbox && payloadEnvelope == null) {
-      await OutgoingMediaStager.instance.cleanup(stagedMediaRoot);
-      return _blocked(
-        fallbackMessage: fallbackMessage,
-        desc: 'durable outgoing payload is unavailable',
-      );
-    }
-    // Hash the canonical plaintext envelope, not the AES-GCM ciphertext.
-    // Encryption intentionally uses a fresh nonce on every send, so a
-    // ciphertext hash would change even when the logical message is identical.
-    final payloadFingerprint = recoveredPrepared?.main?.payloadHash ??
-        retryParent?.payloadHash ??
-        sha256
-            .convert(
-                utf8.encode(plaintextEnvelope ?? 'sdkLocalId:$sendLocalId'))
-            .toString();
-    if (recoveredPrepared != null &&
-        recoveredPrepared.main!.payloadHash != payloadFingerprint) {
-      return _blocked(
-        fallbackMessage: fallbackMessage,
-        usedOutbox: true,
-        decision: ImOutboxDispatchDecision.identityConflict,
-        desc: 'prepared Outbox payload fingerprint rejected',
-      );
-    }
-    final identity = OutgoingIdentityContract(
-      scope: scope,
-      operationId: operationId,
-      clientCorrelationId: clientCorrelationId,
-      messageKind: messageKind,
-      payloadFingerprint: payloadFingerprint,
-      createdAtMs: recoveredPrepared?.main?.createdAtMs ?? nowMs,
-      sdkLocalId: sendLocalId,
-    );
-    final sendGeneration = ++_sendOperationGeneration;
-    final dispatchAttemptId =
-        'attempt:${identity.operationId}:$sendGeneration:$nowMs';
-    final resultView = persistOutbox
-        ? persistence.watchOutboxResult(
-            context.ownerUserId, identity.operationId)
-        : null;
-
-    final draftContext =
-        recoverPreparedOutbox ? null : ImDraftSubmissionContext.current;
-    final draftAcceptance = persistOutbox && draftContext != null
-        ? await draftContext.prepare()
-        : null;
-    if (persistOutbox) {
-      final main = ImOutboxRecord(
-        operationId: identity.operationId,
-        retryOfOperationId: recoveredPrepared?.main?.retryOfOperationId ??
-            retryParent?.operationId,
-        retryOfStateVersion: recoveredPrepared?.main?.retryOfStateVersion ??
-            retryParent?.stateVersion,
-        ownerUserId: context.ownerUserId,
-        conversationId: scope.storageKey,
-        clientCorrelationId: identity.clientCorrelationId,
-        messageType:
-            (outboxMessage ?? sendMessage)?.elemType ?? messageKind.index,
-        payloadReference: payloadEnvelope!,
-        mediaLocalRef: recoveredPrepared?.main?.mediaLocalRef ??
-            retryParent?.mediaLocalRef ??
-            stagedMediaRoot ??
-            _mediaLocalReference(outboxMessage ?? sendMessage),
-        encryptionVersion: recoveredPrepared?.main?.encryptionVersion ??
-            retryParent?.encryptionVersion ??
-            (protectedPayload == null
-                ? null
-                : ProtectedOutboxPayload.encryptionVersion),
-        keyId: recoveredPrepared?.main?.keyId ??
-            retryParent?.keyId ??
-            protectedPayload?.keyId,
-        cipherAlgorithm: recoveredPrepared?.main?.cipherAlgorithm ??
-            retryParent?.cipherAlgorithm ??
-            (protectedPayload == null
-                ? null
-                : ProtectedOutboxPayload.cipherAlgorithm),
-        nonce: recoveredPrepared?.main?.nonce ??
-            retryParent?.nonce ??
-            protectedPayload?.nonce,
-        payloadHash: identity.payloadFingerprint,
-        contentChecksum: identity.payloadFingerprint,
-        sdkMessageId: sendLocalId,
-        state: ImOutboxState.prepared,
-        createdAtMs: nowMs,
-        updatedAtMs: nowMs,
-      );
-      final recovery = ImOutboxRecoveryRecord(
-        ownerUserId: context.ownerUserId,
-        operationId: identity.operationId,
-        clientCorrelationId: identity.clientCorrelationId,
-        conversationId: scope.storageKey,
-        messageType: main.messageType,
-        recoveryRevision: 1,
-        state: ImOutboxCopyState.copyPrepared,
-        payloadReferenceOrCiphertext: payloadEnvelope,
-        payloadHash: identity.payloadFingerprint,
-        checksum: identity.payloadFingerprint,
+      final identity = OutgoingIdentityContract(
+        scope: scope,
+        operationId: operationId,
+        clientCorrelationId: clientCorrelationId,
+        messageKind: messageKind,
+        payloadFingerprint: payloadFingerprint,
+        createdAtMs: recoveredPrepared?.main?.createdAtMs ?? nowMs,
         sdkLocalId: sendLocalId,
-        updatedAtMs: nowMs,
       );
-      final prepared = recoveredPrepared ??
-          await persistence.prepareOutbox(
-            main: main,
-            recoveryCopy: recovery,
-            draftAcceptance: draftAcceptance,
-            leaseOwnerId: context.lease.leaseOwnerId,
-            fencingToken: context.lease.fencingToken,
-            nowMs: nowMs,
-          );
-      if (!prepared.canDispatch) {
-        return _blocked(
-          fallbackMessage: fallbackMessage,
-          identity: identity,
-          usedOutbox: true,
-          decision: prepared.decision,
-          outboxResult: ImOutboxResultVerdict.fromDispatchAssessment(prepared),
-          resultView: resultView,
-          accountGeneration: context.accountGeneration,
-          domainGeneration: context.domainGeneration,
-          outcomeUnknown: prepared.requiresOutcomeQuery,
-          desc: 'outbox dispatch rejected: ${prepared.decision.name}',
-        );
-      }
-      if (!recoverPreparedOutbox) {
-        OutgoingOutboxRecoveryService.instance.wakeAfterPreparedCommit();
-      }
-      // The two Outbox records and draft ownership are committed together.
-      // A UI failure cannot undo durable acceptance or trigger another send.
-      if (draftContext != null) {
-        try {
-          draftContext.accepted(identity.operationId);
-        } catch (error) {
-          debugPrint('draft acceptance projection failed: ' +
-              error.runtimeType.toString());
-        }
-      }
-      final dispatch = await persistence.recordDispatchIntent(
-        ownerUserId: context.ownerUserId,
-        operationId: identity.operationId,
-        dispatchAttemptId: dispatchAttemptId,
-        leaseOwnerId: context.lease.leaseOwnerId,
-        fencingToken: context.lease.fencingToken,
-        nowMs: nowMs,
-      );
-      if (!dispatch.canDispatch || dispatch.main == null) {
-        return _blocked(
-          fallbackMessage: fallbackMessage,
-          identity: identity,
-          usedOutbox: true,
-          decision: dispatch.decision,
-          outboxResult: ImOutboxResultVerdict.fromDispatchAssessment(dispatch),
-          resultView: resultView,
-          accountGeneration: context.accountGeneration,
-          domainGeneration: context.domainGeneration,
-          outcomeUnknown: dispatch.requiresOutcomeQuery,
-          desc: 'outbox dispatch rejected: ${dispatch.decision.name}',
-        );
-      }
-      final sending = await persistence.transitionOutbox(
-        next: dispatch.main!.copyWith(
-          state: ImOutboxState.sending,
+      final sendGeneration = ++_sendOperationGeneration;
+      final dispatchAttemptId =
+          'attempt:${identity.operationId}:$sendGeneration:$nowMs';
+      final resultView = persistOutbox
+          ? persistence.watchOutboxResult(
+              context.ownerUserId, identity.operationId)
+          : null;
+
+      final draftContext =
+          recoverPreparedOutbox ? null : ImDraftSubmissionContext.current;
+      final draftAcceptance = persistOutbox && draftContext != null
+          ? await draftContext.prepare()
+          : null;
+      if (persistOutbox) {
+        final main = ImOutboxRecord(
+          operationId: identity.operationId,
+          retryOfOperationId: recoveredPrepared?.main?.retryOfOperationId ??
+              retryParent?.operationId,
+          retryOfStateVersion: recoveredPrepared?.main?.retryOfStateVersion ??
+              retryParent?.stateVersion,
+          ownerUserId: context.ownerUserId,
+          conversationId: scope.storageKey,
+          clientCorrelationId: identity.clientCorrelationId,
+          messageType:
+              (outboxMessage ?? sendMessage)?.elemType ?? messageKind.index,
+          payloadReference: payloadEnvelope!,
+          mediaLocalRef: recoveredPrepared?.main?.mediaLocalRef ??
+              retryParent?.mediaLocalRef ??
+              stagedMediaRoot ??
+              _mediaLocalReference(outboxMessage ?? sendMessage),
+          encryptionVersion: recoveredPrepared?.main?.encryptionVersion ??
+              retryParent?.encryptionVersion ??
+              (protectedPayload == null
+                  ? null
+                  : ProtectedOutboxPayload.encryptionVersion),
+          keyId: recoveredPrepared?.main?.keyId ??
+              retryParent?.keyId ??
+              protectedPayload?.keyId,
+          cipherAlgorithm: recoveredPrepared?.main?.cipherAlgorithm ??
+              retryParent?.cipherAlgorithm ??
+              (protectedPayload == null
+                  ? null
+                  : ProtectedOutboxPayload.cipherAlgorithm),
+          nonce: recoveredPrepared?.main?.nonce ??
+              retryParent?.nonce ??
+              protectedPayload?.nonce,
+          payloadHash: identity.payloadFingerprint,
+          contentChecksum: identity.payloadFingerprint,
           sdkMessageId: sendLocalId,
-        ),
-        expectedState: ImOutboxState.dispatchIntent,
-        leaseOwnerId: context.lease.leaseOwnerId,
-        fencingToken: context.lease.fencingToken,
-        nowMs: DateTime.now().millisecondsSinceEpoch,
-      );
-      if (sending == null) {
-        return _blocked(
-          fallbackMessage: fallbackMessage,
-          identity: identity,
-          usedOutbox: true,
-          decision: ImOutboxDispatchDecision.fencingRejected,
-          resultView: resultView,
-          accountGeneration: context.accountGeneration,
-          domainGeneration: context.domainGeneration,
-          desc: 'outbox sending transition rejected',
+          state: ImOutboxState.prepared,
+          createdAtMs: nowMs,
+          updatedAtMs: nowMs,
         );
+        final recovery = ImOutboxRecoveryRecord(
+          ownerUserId: context.ownerUserId,
+          operationId: identity.operationId,
+          clientCorrelationId: identity.clientCorrelationId,
+          conversationId: scope.storageKey,
+          messageType: main.messageType,
+          recoveryRevision: 1,
+          state: ImOutboxCopyState.copyPrepared,
+          payloadReferenceOrCiphertext: payloadEnvelope,
+          payloadHash: identity.payloadFingerprint,
+          checksum: identity.payloadFingerprint,
+          sdkLocalId: sendLocalId,
+          updatedAtMs: nowMs,
+        );
+        final prepared = recoveredPrepared ??
+            await measure<ImOutboxDispatchAssessment>(
+                'outboxPrepare',
+                () => persistence.prepareOutbox(
+                      main: main,
+                      recoveryCopy: recovery,
+                      draftAcceptance: draftAcceptance,
+                      leaseOwnerId: context.lease.leaseOwnerId,
+                      fencingToken: context.lease.fencingToken,
+                      nowMs: nowMs,
+                    ));
+        if (!prepared.canDispatch) {
+          return _blocked(
+            fallbackMessage: fallbackMessage,
+            identity: identity,
+            usedOutbox: true,
+            decision: prepared.decision,
+            outboxResult:
+                ImOutboxResultVerdict.fromDispatchAssessment(prepared),
+            resultView: resultView,
+            accountGeneration: context.accountGeneration,
+            domainGeneration: context.domainGeneration,
+            outcomeUnknown: prepared.requiresOutcomeQuery,
+            desc: 'outbox dispatch rejected: ${prepared.decision.name}',
+          );
+        }
+        if (!recoverPreparedOutbox) {
+          OutgoingOutboxRecoveryService.instance.wakeAfterPreparedCommit();
+        }
+        // The two Outbox records and draft ownership are committed together.
+        // A UI failure cannot undo durable acceptance or trigger another send.
+        if (draftContext != null) {
+          try {
+            draftContext.accepted(identity.operationId);
+          } catch (error) {
+            debugPrint('draft acceptance projection failed: ' +
+                error.runtimeType.toString());
+          }
+        }
+        final dispatch = await measure(
+            'outboxDispatchIntent',
+            () => persistence.recordDispatchIntent(
+                  ownerUserId: context.ownerUserId,
+                  operationId: identity.operationId,
+                  dispatchAttemptId: dispatchAttemptId,
+                  leaseOwnerId: context.lease.leaseOwnerId,
+                  fencingToken: context.lease.fencingToken,
+                  nowMs: nowMs,
+                ));
+        if (!dispatch.canDispatch || dispatch.main == null) {
+          return _blocked(
+            fallbackMessage: fallbackMessage,
+            identity: identity,
+            usedOutbox: true,
+            decision: dispatch.decision,
+            outboxResult:
+                ImOutboxResultVerdict.fromDispatchAssessment(dispatch),
+            resultView: resultView,
+            accountGeneration: context.accountGeneration,
+            domainGeneration: context.domainGeneration,
+            outcomeUnknown: dispatch.requiresOutcomeQuery,
+            desc: 'outbox dispatch rejected: ${dispatch.decision.name}',
+          );
+        }
+        final sending = await measure(
+            'outboxSending',
+            () => persistence.transitionOutbox(
+                  next: dispatch.main!.copyWith(
+                    state: ImOutboxState.sending,
+                    sdkMessageId: sendLocalId,
+                  ),
+                  expectedState: ImOutboxState.dispatchIntent,
+                  leaseOwnerId: context.lease.leaseOwnerId,
+                  fencingToken: context.lease.fencingToken,
+                  nowMs: DateTime.now().millisecondsSinceEpoch,
+                ));
+        if (sending == null) {
+          return _blocked(
+            fallbackMessage: fallbackMessage,
+            identity: identity,
+            usedOutbox: true,
+            decision: ImOutboxDispatchDecision.fencingRejected,
+            resultView: resultView,
+            accountGeneration: context.accountGeneration,
+            domainGeneration: context.domainGeneration,
+            desc: 'outbox sending transition rejected',
+          );
+        }
       }
-    }
 
-    if (!SessionIdentityService.instance.isCurrent(SessionIdentity(
+      if (!SessionIdentityService.instance.isCurrent(SessionIdentity(
+          ownerUserId: context.ownerUserId,
+          generation: context.accountGeneration))) {
+        return ImCoordinatedSendResult(
+            sdkResult: V2TimValueCallback<V2TimMessage>(
+                code: -2,
+                desc: 'session changed before SDK dispatch',
+                data: fallbackMessage),
+            usedOutbox: persistOutbox,
+            identity: identity,
+            accountGeneration: context.accountGeneration,
+            domainGeneration: context.domainGeneration,
+            outcomeUnknown: true);
+      }
+      final adapter = TencentMessageAdapter(
+        port: TUIKitMessageServicePort(messageService),
+        platform: ImPlatform.unknown,
         ownerUserId: context.ownerUserId,
-        generation: context.accountGeneration))) {
-      return ImCoordinatedSendResult(
-          sdkResult: V2TimValueCallback<V2TimMessage>(
-              code: -2,
-              desc: 'session changed before SDK dispatch',
-              data: fallbackMessage),
-          usedOutbox: persistOutbox,
-          identity: identity,
-          accountGeneration: context.accountGeneration,
-          domainGeneration: context.domainGeneration,
-          outcomeUnknown: true);
-    }
-    final adapter = TencentMessageAdapter(
-      port: TUIKitMessageServicePort(messageService),
-      platform: ImPlatform.unknown,
-      ownerUserId: context.ownerUserId,
-      accountGeneration: context.accountGeneration,
-      domainGeneration: context.domainGeneration,
-      nextAccountIngressSequence: _nextTransientIngressSequence,
-      nextScopeIngressSequence: (_) => _nextTransientIngressSequence(),
-      onSyncIdentity: (event) {
-        final serverId = event.payload?.serverMsgId?.trim() ?? '';
-        if (serverId.isNotEmpty) {
-          onSyncMsgID?.call(serverId);
-        }
-      },
-    );
-    try {
-      onDispatchGranted?.call();
-    } catch (error) {
-      debugPrint('outbox dispatch UI pending: ${error.runtimeType}');
-    }
-    final sdk = await adapter.send(
-      identity: identity,
-      sdkLocalId: sendLocalId,
-      receiver: receiver,
-      groupID: groupID,
-      sendOperationGeneration: sendGeneration,
-      priority: priority,
-      onlineUserOnly: onlineUserOnly,
-      isExcludedFromUnreadCount: isExcludedFromUnreadCount,
-      needReadReceipt: needReadReceipt,
-      offlinePushInfo: offlinePushInfo,
-      businessCloudCustomData: businessCloudCustomData,
-      localCustomData: localCustomData,
-      isExcludedFromContentModeration: isExcludedFromContentModeration,
-    );
-
-    final formalIdentity = sdk.data?.identity ?? identity;
-    var callback = V2TimValueCallback<V2TimMessage>(
-      code: sdk.code ?? (sdk.isSuccess ? 0 : -1),
-      desc: sdk.resultDesc ?? '',
-      data: sdk.data?.message ?? sendMessage ?? fallbackMessage,
-    );
-    ImOutboxResultVerdict? verdict;
-    var localStatePending = false;
-    if (persistOutbox) {
-      final now = DateTime.now().millisecondsSinceEpoch;
+        accountGeneration: context.accountGeneration,
+        domainGeneration: context.domainGeneration,
+        nextAccountIngressSequence: _nextTransientIngressSequence,
+        nextScopeIngressSequence: (_) => _nextTransientIngressSequence(),
+        onSyncIdentity: (event) {
+          final serverId = event.payload?.serverMsgId?.trim() ?? '';
+          if (serverId.isNotEmpty) {
+            onSyncMsgID?.call(serverId);
+          }
+        },
+      );
       try {
-        if (sdk.isOutcomeUnknown) {
-          await persistence.recordOutcomeUnknown(
-            ownerUserId: context.ownerUserId,
-            operationId: identity.operationId,
-            leaseOwnerId: context.lease.leaseOwnerId,
-            fencingToken: context.lease.fencingToken,
-            nowMs: now,
-            resultCode: callback.code.toString(),
-          );
-          verdict = await persistence.readOutboxResult(
-              ownerUserId: context.ownerUserId,
-              operationId: identity.operationId);
-        } else {
-          verdict = await persistence.adjudicateOutboxSdkResult(
-            ownerUserId: context.ownerUserId,
-            operationId: identity.operationId,
-            expectedAttemptId: dispatchAttemptId,
-            succeeded: sdk.isSuccess,
-            leaseOwnerId: context.lease.leaseOwnerId,
-            fencingToken: context.lease.fencingToken,
-            nowMs: now,
-            sdkLocalId: sendLocalId,
-            serverMsgId: formalIdentity.serverMsgId,
-            resultCode: callback.code.toString(),
-          );
-        }
+        onDispatchGranted?.call();
       } catch (error) {
-        // A valid SDK success remains success. A failed local transaction is
-        // pending repair, never permission to dispatch this operation again.
-        localStatePending = true;
-        debugPrint(
-            '[IM_SEND_COORDINATOR] result persistence pending: ${error.runtimeType}');
+        debugPrint('outbox dispatch UI pending: ${error.runtimeType}');
       }
-    }
-    return ImCoordinatedSendResult(
-      sdkResult: callback,
-      usedOutbox: persistOutbox,
-      identity: formalIdentity,
-      accountGeneration: context.accountGeneration,
-      domainGeneration: context.domainGeneration,
-      outcomeUnknown: sdk.isOutcomeUnknown,
-      outboxResult: verdict,
-      resultView: resultView,
-      localStatePending: localStatePending,
-    );
+      final sdk = await adapter.send(
+        identity: identity,
+        sdkLocalId: sendLocalId,
+        receiver: receiver,
+        groupID: groupID,
+        sendOperationGeneration: sendGeneration,
+        priority: priority,
+        onlineUserOnly: onlineUserOnly,
+        isExcludedFromUnreadCount: isExcludedFromUnreadCount,
+        needReadReceipt: needReadReceipt,
+        offlinePushInfo: offlinePushInfo,
+        businessCloudCustomData: businessCloudCustomData,
+        localCustomData: localCustomData,
+        isExcludedFromContentModeration: isExcludedFromContentModeration,
+      );
+
+      final formalIdentity = sdk.data?.identity ?? identity;
+      var callback = V2TimValueCallback<V2TimMessage>(
+        code: sdk.code ?? (sdk.isSuccess ? 0 : -1),
+        desc: sdk.resultDesc ?? '',
+        data: sdk.data?.message ?? sendMessage ?? fallbackMessage,
+      );
+      ImOutboxResultVerdict? verdict;
+      var localStatePending = false;
+      if (persistOutbox) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        try {
+          if (sdk.isOutcomeUnknown) {
+            await measure(
+                'outboxUnknown',
+                () => persistence.recordOutcomeUnknown(
+                      ownerUserId: context.ownerUserId,
+                      operationId: identity.operationId,
+                      leaseOwnerId: context.lease.leaseOwnerId,
+                      fencingToken: context.lease.fencingToken,
+                      nowMs: now,
+                      resultCode: callback.code.toString(),
+                    ));
+            verdict = await measure(
+                'outboxResultRead',
+                () => persistence.readOutboxResult(
+                    ownerUserId: context.ownerUserId,
+                    operationId: identity.operationId));
+          } else {
+            verdict = await measure(
+                'outboxResult',
+                () => persistence.adjudicateOutboxSdkResult(
+                      ownerUserId: context.ownerUserId,
+                      operationId: identity.operationId,
+                      expectedAttemptId: dispatchAttemptId,
+                      succeeded: sdk.isSuccess,
+                      leaseOwnerId: context.lease.leaseOwnerId,
+                      fencingToken: context.lease.fencingToken,
+                      nowMs: now,
+                      sdkLocalId: sendLocalId,
+                      serverMsgId: formalIdentity.serverMsgId,
+                      resultCode: callback.code.toString(),
+                    ));
+          }
+        } catch (error) {
+          // A valid SDK success remains success. A failed local transaction is
+          // pending repair, never permission to dispatch this operation again.
+          localStatePending = true;
+          debugPrint(
+              '[IM_SEND_COORDINATOR] result persistence pending: ${error.runtimeType}');
+        }
+      }
+      if (persistOutbox &&
+          sdk.isSuccess &&
+          verdict?.deliveryConfirmed != true) {
+        debugPrint('[IM_SEND_ADJUDICATION] sdkCode=${callback.code} '
+            'decision=${verdict?.decision.name ?? 'unavailable'} '
+            'state=${verdict?.currentState?.name ?? 'missing'} '
+            'reason=${verdict?.reason ?? 'result_persistence_pending'}');
+      }
+      return ImCoordinatedSendResult(
+        sdkResult: callback,
+        usedOutbox: persistOutbox,
+        identity: formalIdentity,
+        accountGeneration: context.accountGeneration,
+        domainGeneration: context.domainGeneration,
+        outcomeUnknown: sdk.isOutcomeUnknown,
+        outboxResult: verdict,
+        resultView: resultView,
+        localStatePending: localStatePending,
+      );
+    });
   }
 
   Future<bool> completeSuccessfulProjection(

@@ -60,6 +60,8 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_message_read_member_l
 import 'package:tencent_cloud_chat_sdk/enum/message_elem_type.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_image_elem.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_image_elem.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_face_elem.dart'
+    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_face_elem.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_text_elem.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_text_elem.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_video_elem.dart'
@@ -6050,34 +6052,68 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     required String convID,
     required ConvType convType,
   }) async {
-    final faceMessageInfo = await _messageService.createFaceMessage(
-      index: index,
-      data: data,
+    final optimisticId = _nextOptimisticClientId();
+    final optimistic = tools.setUserInfoForMessage(
+      V2TimMessage(
+        elemType: MessageElemType.V2TIM_ELEM_TYPE_FACE,
+        faceElem: V2TimFaceElem(index: index, data: data),
+      ),
+      optimisticId,
     );
-    List<V2TimMessage> currentHistoryMsgList = getOriginMessageList();
-    final messageInfo = faceMessageInfo!.messageInfo;
-    if (messageInfo != null) {
-      final messageInfoWithSender = tools.setUserInfoForMessage(
-        messageInfo,
-        faceMessageInfo.id!,
-      );
-      messageInfoWithSender.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
-      addSendingMessageID(messageInfo.id);
-      _prependOutgoingMessage(messageInfoWithSender);
+    // Reconciliation clones through toJson(); keep the face payload in elemList.
+    optimistic.elemList.add(optimistic.faceElem!);
+    optimistic.localCustomData = jsonEncode(<String, Object>{
+      'faceCreatePending': true,
+    });
+    optimistic.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+    applyOutgoingStableIdToMessage(optimistic, optimisticId);
+    addSendingMessageID(optimisticId);
+    _prependOutgoingMessageForConversation(convID, optimistic);
 
-      return _sendMessage(
-        convID: convID,
-        id: faceMessageInfo.id as String,
-        convType: convType,
-        messageInfo: messageInfoWithSender,
-        offlinePushInfo: tools.buildMessagePushInfo(
-          faceMessageInfo.messageInfo!,
-          convID,
-          convType,
-        ),
+    V2TimMsgCreateInfoResult? faceMessageInfo;
+    try {
+      faceMessageInfo = await _messageService.createFaceMessage(
+        index: index,
+        data: data,
       );
+    } catch (_) {
+      // Leave the visible row in a retryable failed state if SDK creation fails.
     }
-    return null;
+    final messageInfo = faceMessageInfo?.messageInfo;
+    final sdkId = faceMessageInfo?.id?.trim() ?? '';
+    if (messageInfo == null || sdkId.isEmpty) {
+      removeSendingMessageID(optimisticId);
+      _markOutgoingMediaSendFailed(convID: convID, clientId: optimisticId);
+      _notifyCreateMessageFailed(TIM_t('消息创建失败，请重试'));
+      return null;
+    }
+    final outgoing = tools.setUserInfoForMessage(messageInfo, sdkId);
+    outgoing.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+    if (outgoing.faceElem != null && outgoing.elemList.isEmpty) {
+      outgoing.elemList.add(outgoing.faceElem!);
+    }
+    _swapOutgoingMessage(
+      convID: convID,
+      oldClientId: optimisticId,
+      newMessage: outgoing,
+    );
+    chatUiStateStore.bindMessageAlias(
+      convID,
+      optimisticId,
+      ChatUiStateStore.messageKeyOf(outgoing),
+    );
+    addSendingMessageID(sdkId);
+    return _sendMessage(
+      convID: convID,
+      id: sdkId,
+      convType: convType,
+      messageInfo: outgoing,
+      offlinePushInfo: tools.buildMessagePushInfo(
+        messageInfo,
+        convID,
+        convType,
+      ),
+    );
   }
 
   /// Accepted on release; neither file finalization nor upload belongs to a route.
@@ -6823,7 +6859,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         }
         final compressionQueued = Stopwatch()..start();
         final prepared =
-            await OutgoingMediaWorkQueue.imagePreparation.run(() async {
+            await perf.measure('imagePreparation', () => OutgoingMediaWorkQueue.imagePreparation.run(() async {
           perf.record('compressQueueWaitMs', compressionQueued.elapsedMilliseconds);
           if (!canSendCapturedMedia ||
               _isOutgoingMediaCancelled(optimisticId)) {
@@ -6832,7 +6868,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           knownLayoutSize ??= await perf.measure('probe', () => probeLocalImageSize(workingPath));
           return perf.measure('compress', () => prepareImageForChatSend(workingPath,
               knownSourceSize: knownLayoutSize));
-        });
+        }));
         if (!canSendCapturedMedia) return null;
         if (_isOutgoingMediaCancelled(optimisticId)) {
           _removeOutgoingMessage(
@@ -6867,11 +6903,11 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         } catch (_) {}
       }
       if (!canSendCapturedMedia) return null;
-      final createFuture = _messageService.createImageMessage(
+      final createFuture = perf.measure('sdkCreateImage', () => _messageService.createImageMessage(
         imageName: imageName,
         imagePath: effectivePath,
         inputElement: inputElement,
-      );
+      ));
       final imageMessageInfo = await createFuture;
       if (!canSendCapturedMedia) return null;
       final imageSize = knownLayoutSize;
@@ -7096,13 +7132,13 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       ));
       if (!canSendCapturedMedia) return null;
 
-      final videoMessageInfo = await _messageService.createVideoMessage(
+      final videoMessageInfo = await perf.measure('sdkCreateVideo', () => _messageService.createVideoMessage(
         videoPath: videoPath,
         type: _safeVideoType(videoPath),
         duration: duration,
         inputElement: inputElement,
         snapshotPath: resolvedSnapshotPath,
-      );
+      ));
       final messageInfo = videoMessageInfo?.messageInfo;
       if (!canSendCapturedMedia) return null;
       if (videoMessageInfo == null || messageInfo == null) {
@@ -7576,6 +7612,14 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     }
     final clientId = message.id?.trim() ?? '';
     final msgID = message.msgID?.trim() ?? '';
+    var faceFailedBeforeSdkCreation = false;
+    if (message.elemType == MessageElemType.V2TIM_ELEM_TYPE_FACE) {
+      try {
+        final metadata = jsonDecode(message.localCustomData ?? '');
+        faceFailedBeforeSdkCreation =
+            metadata is Map && metadata['faceCreatePending'] == true;
+      } catch (_) {}
+    }
     _clearOutgoingMediaCancelled(clientId);
     _clearOutgoingMediaCancelled(msgID);
     final localPath = TencentUtils.checkString(
@@ -7608,7 +7652,9 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     applyOutgoingStableIdToMessage(outgoing, recreatedId);
     return _sendMessage(
       id: recreatedId,
-      retryOfSdkLocalId: clientId,
+      // A face placeholder that failed before SDK creation has no durable
+      // dispatch attempt to retry; its resend is a fresh outbox operation.
+      retryOfSdkLocalId: faceFailedBeforeSdkCreation ? null : clientId,
       onDispatchGranted: () {
         _removeOutgoingMessage(convID: convID, clientId: clientId.isEmpty ? null : clientId,
           msgID: msgID.isEmpty ? null : msgID);

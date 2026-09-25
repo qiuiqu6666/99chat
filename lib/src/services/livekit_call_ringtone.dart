@@ -7,11 +7,11 @@ import 'package:tencent_cloud_chat_demo/src/services/livekit_call_session.dart';
 import 'package:tencent_cloud_chat_demo/src/services/notification_settings_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/livekit_call_types.dart';
 
-/// Whether ringtone may play for [phase] given media room presence.
-@visibleForTesting
+/// Shared ringtone policy for playback and media-session handoff.
 bool shouldPlayRingtone({
   required LiveKitCallPhase phase,
   required bool hasRoom,
+  bool isOutgoing = false,
   bool allowsIncomingRingtone = true,
 }) {
   switch (phase) {
@@ -21,6 +21,7 @@ bool shouldPlayRingtone({
     case LiveKitCallPhase.ringingIn:
       return !hasRoom && allowsIncomingRingtone;
     case LiveKitCallPhase.connecting:
+      return isOutgoing;
     case LiveKitCallPhase.connected:
     case LiveKitCallPhase.ended:
     case LiveKitCallPhase.idle:
@@ -51,13 +52,15 @@ class LiveKitCallRingtone {
   );
   AudioSession? _audioSession;
   bool _attached = false;
-  LiveKitCallPhase? _playingForPhase;
   String? _playingAsset;
   int _playGen = 0;
   Future<void> _commands = Future<void>.value();
 
   Future<void> ensureAttached() async {
-    if (_attached) return;
+    if (_attached) {
+      _onSession();
+      return;
+    }
     LiveKitCallSession.instance.addListener(_onSession);
     _attached = true;
     _onSession();
@@ -65,7 +68,6 @@ class LiveKitCallRingtone {
 
   Future<void> stop() async {
     _playGen++;
-    _playingForPhase = null;
     _playingAsset = null;
     // Interrupt an asset load immediately; hangup/media handoff must not
     // wait behind a native load that may need stop() to finish.
@@ -111,6 +113,7 @@ class LiveKitCallRingtone {
     if (!shouldPlayRingtone(
       phase: phase,
       hasRoom: hasRoom,
+      isOutgoing: session.role == AppCallRole.caller,
       allowsIncomingRingtone:
           NotificationSettingsService.instance.allowsCallRingtone,
     )) {
@@ -119,12 +122,12 @@ class LiveKitCallRingtone {
     }
     switch (phase) {
       case LiveKitCallPhase.ringingOut:
+      case LiveKitCallPhase.connecting:
         unawaited(_playLoop(dialingAsset, phase));
         break;
       case LiveKitCallPhase.ringingIn:
         unawaited(_playLoop(ringingAsset, phase));
         break;
-      case LiveKitCallPhase.connecting:
       case LiveKitCallPhase.connected:
       case LiveKitCallPhase.ended:
       case LiveKitCallPhase.idle:
@@ -134,13 +137,12 @@ class LiveKitCallRingtone {
   }
 
   Future<void> _playLoop(String asset, LiveKitCallPhase phase) async {
-    if (_playingForPhase == phase && _playingAsset == asset) {
+    if (_playingAsset == asset) {
       // Includes setup in flight, so repeated room notifications cannot
       // continually restart setAsset before playback gets a chance to begin.
       return;
     }
     final gen = ++_playGen;
-    _playingForPhase = phase;
     _playingAsset = asset;
     await _enqueue(() async {
       if (gen != _playGen) return;
@@ -151,16 +153,22 @@ class LiveKitCallRingtone {
         if (gen != _playGen) return;
         await _player.setLoopMode(LoopMode.one);
         if (gen != _playGen) return;
-        await _player.setAsset(asset);
+        // phone_dialing.mp3 starts with ~1.98 seconds of silence. Start at
+        // its first audible tone so page entry gives immediate feedback.
+        // The full asset still loops with its original ringback cadence.
+        await _player.setAsset(
+          asset,
+          initialPosition: asset == dialingAsset
+              ? const Duration(seconds: 2)
+              : Duration.zero,
+        );
         if (gen != _playGen) return;
         await _player.setVolume(1);
-        await _player.seek(Duration.zero);
         if (gen != _playGen) return;
         // play() completes only when looping stops; never hold the command
         // queue on it, otherwise accept/hangup cannot stop the waiting tone.
         unawaited(_player.play().catchError((Object error) {
           if (gen == _playGen) {
-            _playingForPhase = null;
             _playingAsset = null;
           }
           debugPrint('LiveKitCallRingtone: playback failed: $error');
@@ -173,7 +181,6 @@ class LiveKitCallRingtone {
         }
       } catch (e, st) {
         if (gen == _playGen) {
-          _playingForPhase = null;
           _playingAsset = null;
         }
         if (kDebugMode) {

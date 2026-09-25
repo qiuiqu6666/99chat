@@ -206,7 +206,7 @@ void main() {
     );
     final system = panel.substring(systemStart, systemEnd);
     expect(system.contains('beginOptimisticVideoPlaceholder'), isTrue);
-    expect(panel.contains('stageVideoForChatSend'), isTrue);
+    expect(panel.contains('stageSystemPickerVideoForChatSend'), isTrue);
     expect(
       system.indexOf('beginOptimisticVideoPlaceholder'),
       lessThan(system.indexOf('_prepareAndDispatchSystemGalleryVideo')),

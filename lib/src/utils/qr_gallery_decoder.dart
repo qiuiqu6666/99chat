@@ -1,333 +1,222 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_zxing/flutter_zxing.dart';
-import 'package:image/image.dart' as img;
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:tencent_cloud_chat_demo/src/utils/qr_app_payload.dart';
+import 'package:tencent_cloud_chat_demo/src/utils/qr_gallery_worker.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/qr_image_normalizer.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/qr_web_login_payload.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/qr_zxing2_decode.dart';
 
-/// 相册二维码识别：规范化 → flutter_zxing 多 pass → zxing2 兜底。
-///
-/// 不假设码在画面中心。相册路径默认不调用 ML Kit analyzeImage。
+class QrGalleryCancellation {
+  bool _cancelled = false;
+  final _listeners = <VoidCallback>{};
+  bool get isCancelled => _cancelled;
+
+  void cancel() {
+    if (_cancelled) return;
+    _cancelled = true;
+    for (final listener in _listeners.toList()) {
+      listener();
+    }
+    _listeners.clear();
+  }
+}
+
+class QrGalleryScanResult {
+  const QrGalleryScanResult(this.values, this.status, this.diagnostics);
+  final List<String> values;
+  // ok, no_code, cancelled, timeout, invalid_image, too_large, error
+  final String status;
+  final Map<String, Object?> diagnostics;
+}
+
+/// Owns the deadline and cancellation on the UI isolate. All bitmap work and
+/// synchronous FFI calls run in a disposable worker, including on desktop.
 class QrGalleryDecoder {
   QrGalleryDecoder._();
-
   static const Duration _totalTimeout = Duration(seconds: 8);
-  static const Duration _normalizeBudget = Duration(milliseconds: 800);
-  static const Duration _flutterZxingPassBudget = Duration(milliseconds: 550);
-  static const Duration _zxing2Reserve = Duration(milliseconds: 1500);
 
-  static bool? _flutterZxingReady;
-
-  /// 对外入口：返回一条优先业务码的 raw；失败为 null。
   static Future<String?> decodeFromPath(
     String path, {
     @Deprecated('Gallery path no longer uses ML Kit analyzeImage')
     MobileScannerController? mlKitScanner,
-  }) async {
-    final results = await scanAll(path);
-    return pickPreferred(results);
-  }
+  }) async =>
+      pickPreferred(await scanAll(path));
 
-  /// 返回去重后的全部文本。
-  static Future<List<String>> scanAll(String path) async {
-    if (path.trim().isEmpty || kIsWeb) {
-      return const <String>[];
+  static Future<List<String>> scanAll(String path) async =>
+      (await scan(path)).values;
+
+  static Future<QrGalleryScanResult> scan(
+    String path, {
+    QrGalleryCancellation? cancellation,
+    Duration timeout = _totalTimeout,
+    bool collectDiagnostics = false,
+  }) async {
+    final cancel = cancellation ?? QrGalleryCancellation();
+    final clock = Stopwatch()..start();
+    NormalizedQrImage? normalized;
+    Timer? memorySampler;
+    int? rssBefore;
+    int? rssPeak;
+    var normalizeMs = 0;
+    if (collectDiagnostics && !kIsWeb) {
+      int? readRss() {
+        try {
+          return ProcessInfo.currentRss;
+        } catch (_) {
+          return null;
+        }
+      }
+
+      rssBefore = readRss();
+      rssPeak = rssBefore;
+      memorySampler = Timer.periodic(const Duration(milliseconds: 50), (_) {
+        final rss = readRss();
+        if (rss != null) rssPeak = math.max(rssPeak ?? rss, rss);
+      });
+    }
+    QrGalleryScanResult result(Map<String, Object?> raw) {
+      final values = (raw['values'] as List?)?.cast<String>() ?? <String>[];
+      final status = raw['status'] as String? ?? 'error';
+      final metrics = <String, Object?>{
+        ...(Map<String, Object?>.from(raw)..remove('values')),
+        'elapsedMs': clock.elapsedMilliseconds,
+        'normalizeMs': normalizeMs,
+        if (rssBefore != null && rssPeak != null)
+          'sampledProcessRssDeltaBytes': rssPeak! - rssBefore,
+      };
+      if (kDebugMode || collectDiagnostics) {
+        // Never log the image path or decoded login/address/personal payload.
+        debugPrint(
+            '[QrGallery] ${jsonEncode({...metrics, 'codes': values.length})}');
+      }
+      return QrGalleryScanResult(List.unmodifiable(values), status, metrics);
     }
 
-    final deadline = DateTime.now().add(_totalTimeout);
-    NormalizedQrImage? normalized;
     try {
+      if (cancel.isCancelled) return result({'status': 'cancelled'});
+      if (kIsWeb || path.trim().isEmpty) {
+        return result({'status': 'invalid_image'});
+      }
+      if (timeout <= Duration.zero) return result({'status': 'timeout'});
       var normalizeExpired = false;
+      final normalizeBudget = timeout < const Duration(milliseconds: 800)
+          ? timeout
+          : const Duration(milliseconds: 800);
       normalized = await QrImageNormalizer.normalize(path).then((value) async {
         if (normalizeExpired) await value.disposeTemporary();
         return value;
-      }).timeout(
-        _normalizeBudget,
-        onTimeout: () {
-          normalizeExpired = true;
-          return NormalizedQrImage(
-              path: path, width: 0, height: 0, isTemporary: false);
-        },
-      );
-      final scanPath = (normalized.path.isNotEmpty) ? normalized.path : path;
-      return await _scanPasses(scanPath, deadline: deadline);
+      }).timeout(normalizeBudget, onTimeout: () {
+        normalizeExpired = true;
+        return NormalizedQrImage(
+            path: path, width: 0, height: 0, isTemporary: false);
+      });
+      normalizeMs = clock.elapsedMilliseconds;
+      if (cancel.isCancelled) return result({'status': 'cancelled'});
+      final remaining = timeout - clock.elapsed;
+      if (remaining <= Duration.zero) return result({'status': 'timeout'});
+      return result(await _runWorker(normalized.path, remaining, cancel));
     } catch (_) {
-      return const <String>[];
+      return result({'status': cancel.isCancelled ? 'cancelled' : 'error'});
     } finally {
+      memorySampler?.cancel();
       await normalized?.disposeTemporary();
     }
   }
 
+  static Future<Map<String, Object?>> _runWorker(
+    String path,
+    Duration budget,
+    QrGalleryCancellation cancel,
+  ) {
+    final completion = Completer<Map<String, Object?>>();
+    final replies = ReceivePort();
+    Isolate? worker;
+    Timer? deadline;
+    late VoidCallback onCancel;
+    void finish(Map<String, Object?> value) {
+      if (completion.isCompleted) return;
+      deadline?.cancel();
+      cancel._listeners.remove(onCancel);
+      replies.close();
+      // A native call already running can finish before the isolate exits;
+      // its late result is discarded and no more passes are scheduled.
+      worker?.kill(priority: Isolate.immediate);
+      completion.complete(value);
+    }
+
+    onCancel = () => finish({'status': 'cancelled'});
+    replies.listen((message) {
+      if (message is Map) {
+        finish(Map<String, Object?>.from(message));
+      } else {
+        finish({'status': 'error'});
+      }
+    });
+    cancel._listeners.add(onCancel);
+    if (cancel.isCancelled) {
+      onCancel();
+      return completion.future;
+    }
+    deadline = Timer(budget, () => finish({'status': 'timeout'}));
+    unawaited(Isolate.spawn(
+      decodeQrGalleryWorker,
+      (
+        replies.sendPort,
+        path,
+        budget.inMilliseconds,
+        (Platform.isAndroid || Platform.isIOS) &&
+            !Platform.environment.containsKey('FLUTTER_TEST')
+      ),
+      onError: replies.sendPort,
+      onExit: replies.sendPort,
+      errorsAreFatal: true,
+      debugName: 'qr-gallery',
+    ).then((isolate) {
+      worker = isolate;
+      if (completion.isCompleted) isolate.kill(priority: Isolate.immediate);
+    }, onError: (Object _, StackTrace __) {
+      finish({'status': 'error'});
+    }));
+    return completion.future;
+  }
+
+  /// A single app target wins over unrelated codes. Ambiguous targets are
+  /// returned to the UI for explicit selection, never silently chosen.
+  static List<String> preferredCandidates(List<String> values,
+      {bool preferAppCodes = true}) {
+    final all = <String, String>{};
+    final business = <String, String>{};
+    for (final raw in values) {
+      final value = raw.trim();
+      if (value.isEmpty) continue;
+      final app = QrAppPayload.tryParse(value);
+      final login = QrWebLoginPayload.tryParse(value);
+      final key = app != null
+          ? jsonEncode([app.type.name, app.id])
+          : login != null
+              ? 'login:${login.sessionId}'
+              : 'raw:$value';
+      all.putIfAbsent(key, () => value);
+      if (app != null || login != null) business.putIfAbsent(key, () => value);
+    }
+    return (preferAppCodes && business.isNotEmpty ? business : all)
+        .values
+        .toList(growable: false);
+  }
+
   @visibleForTesting
   static String? pickPreferred(List<String> values) {
-    if (values.isEmpty) {
-      return null;
-    }
-    for (final value in values) {
-      if (_looksLikeAppBusinessQr(value)) {
-        return value;
-      }
-    }
-    return values.first;
+    final candidates = preferredCandidates(values);
+    return candidates.length == 1 ? candidates.single : null;
   }
 
-  /// 单测同步入口（纯 Dart zxing2，不依赖 FFI）。
   @visibleForTesting
-  static String? decodeZxingFromPathForTest(String path) {
-    return pickPreferred(decodeQrWithZxing2FromPath(path));
-  }
-
-  static Future<List<String>> _scanPasses(
-    String path, {
-    required DateTime deadline,
-  }) async {
-    final collected = <String>{};
-
-    void absorb(Iterable<String> batch) {
-      for (final item in batch) {
-        final text = item.trim();
-        if (text.isNotEmpty) {
-          collected.add(text);
-        }
-      }
-    }
-
-    Duration remaining() {
-      final left = deadline.difference(DateTime.now());
-      return left.isNegative ? Duration.zero : left;
-    }
-
-    if (_isFlutterZxingUsable()) {
-      final passes = <DecodeParams>[
-        DecodeParams(
-          format: Format.qrCode,
-          tryRotate: true,
-          tryHarder: false,
-          tryInverted: false,
-          maxSize: 2048,
-        ),
-        DecodeParams(
-          format: Format.qrCode,
-          tryRotate: true,
-          tryHarder: true,
-          tryInverted: true,
-          maxSize: 2048,
-        ),
-        DecodeParams(
-          format: Format.qrCode,
-          tryRotate: true,
-          tryHarder: true,
-          tryInverted: true,
-          maxSize: 3072,
-        ),
-      ];
-      for (final params in passes) {
-        if (remaining() <= _zxing2Reserve) {
-          break;
-        }
-        final budget = _minDuration(
-          _flutterZxingPassBudget,
-          remaining() - _zxing2Reserve,
-        );
-        if (budget <= Duration.zero) {
-          break;
-        }
-        absorb(await _decodeFlutterZxing(path, params).timeout(
-          budget,
-          onTimeout: () => const <String>[],
-        ));
-        if (collected.isNotEmpty) {
-          return collected.toList(growable: false);
-        }
-      }
-    }
-
-    // 灰度增强主要为原生 flutter_zxing 服务；VM 单测跳过以免主 isolate 同步 decode 拖死超时。
-    if (_isFlutterZxingUsable() && remaining() > _zxing2Reserve) {
-      var expired = false;
-      final enhanced = await _writeEnhancedGrayJpeg(path).then((value) async {
-        if (expired && value != null) {
-          try {
-            await File(value).delete();
-          } catch (_) {}
-          return null;
-        }
-        return value;
-      }).timeout(remaining() - _zxing2Reserve, onTimeout: () {
-        expired = true;
-        return null;
-      });
-      if (enhanced != null) {
-        try {
-          if (remaining() > _zxing2Reserve) {
-            absorb(await _decodeFlutterZxing(
-              enhanced,
-              DecodeParams(
-                format: Format.qrCode,
-                tryRotate: true,
-                tryHarder: true,
-                tryInverted: true,
-                maxSize: 2048,
-              ),
-            ).timeout(
-              _minDuration(
-                _flutterZxingPassBudget,
-                remaining() - _zxing2Reserve,
-              ),
-              onTimeout: () => const <String>[],
-            ));
-          }
-          if (collected.isEmpty &&
-              remaining() > const Duration(milliseconds: 200)) {
-            absorb(await compute(decodeQrWithZxing2FromPath, enhanced).timeout(
-              remaining(),
-              onTimeout: () => const <String>[],
-            ));
-          }
-        } finally {
-          try {
-            final file = File(enhanced);
-            if (await file.exists()) {
-              await file.delete();
-            }
-          } catch (_) {}
-        }
-        if (collected.isNotEmpty) {
-          return collected.toList(growable: false);
-        }
-      }
-    }
-
-    // FFI 不可用（单测 VM）或原生仍失败时，纯 Dart 全图多尺度兜底。
-    if (remaining() > const Duration(milliseconds: 150)) {
-      final budget = remaining();
-      // 桌面/单测直接同步调用，避免 compute 拉起 isolate 的额外开销与加载问题。
-      if (!(Platform.isIOS || Platform.isAndroid) ||
-          Platform.environment.containsKey('FLUTTER_TEST')) {
-        absorb(decodeQrWithZxing2FromPath(path));
-      } else {
-        absorb(await compute(decodeQrWithZxing2FromPath, path).timeout(
-          budget,
-          onTimeout: () => const <String>[],
-        ));
-      }
-    }
-    return collected.toList(growable: false);
-  }
-
-  static bool _isFlutterZxingUsable() {
-    if (kIsWeb) {
-      return false;
-    }
-    // 仅真机 iOS/Android 走原生引擎；桌面 VM 单测无 dylib。
-    if (!(Platform.isIOS || Platform.isAndroid)) {
-      return false;
-    }
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
-      return false;
-    }
-    final cached = _flutterZxingReady;
-    if (cached != null) {
-      return cached;
-    }
-    try {
-      final _ = zx.version();
-      _flutterZxingReady = true;
-    } catch (_) {
-      _flutterZxingReady = false;
-    }
-    return _flutterZxingReady!;
-  }
-
-  static Duration _minDuration(Duration a, Duration b) {
-    return a <= b ? a : b;
-  }
-
-  static Future<List<String>> _decodeFlutterZxing(
-    String path,
-    DecodeParams params,
-  ) async {
-    try {
-      final codes = await zx.readBarcodesImagePathString(path, params: params);
-      return codes.codes
-          .where((c) => c.isValid && (c.text?.trim().isNotEmpty ?? false))
-          .map((c) => c.text!.trim())
-          .toList(growable: false);
-    } catch (_) {
-      try {
-        final code = await zx.readBarcodeImagePathString(path, params: params);
-        final text = code.text?.trim() ?? '';
-        if (code.isValid && text.isNotEmpty) {
-          return <String>[text];
-        }
-      } catch (_) {}
-      return const <String>[];
-    }
-  }
-
-  static Future<String?> _writeEnhancedGrayJpeg(String path) async {
-    try {
-      final dir = await getTemporaryDirectory();
-      return compute(_enhanceGrayJpeg, (path, dir.path));
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static Future<String?> _enhanceGrayJpeg((String, String) input) async {
-    try {
-      final bytes = await File(input.$1).readAsBytes();
-      final decoder = img.findDecoderForData(bytes);
-      final header = decoder?.startDecode(bytes);
-      // Optional enhancement must not allocate an unbounded original bitmap
-      // when native normalization timed out on a very large gallery image.
-      if (header == null || header.width * header.height > 4096 * 4096) {
-        return null;
-      }
-      var image = decoder!.decodeFrame(0);
-      if (image == null) {
-        return null;
-      }
-      image = img.grayscale(image);
-      image = img.adjustColor(image, contrast: 1.25);
-      final encoded = img.encodeJpg(image, quality: 92);
-      final outDir = Directory('${input.$2}/qr_norm');
-      if (!await outDir.exists()) {
-        await outDir.create(recursive: true);
-      }
-      final out = File(
-        '${outDir.path}/qr_enh_${DateTime.now().millisecondsSinceEpoch}.jpg',
-      );
-      await out.writeAsBytes(encoded, flush: true);
-      return out.path;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static bool _looksLikeAppBusinessQr(String raw) {
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) {
-      return false;
-    }
-    if (QrWebLoginPayload.tryParse(trimmed) != null) {
-      return true;
-    }
-    try {
-      final decoded = jsonDecode(trimmed);
-      if (decoded is Map) {
-        final type = decoded['type']?.toString();
-        final id = decoded['id']?.toString() ?? '';
-        if (id.isNotEmpty && (type == 'user' || type == 'group')) {
-          return true;
-        }
-      }
-    } catch (_) {}
-    return false;
-  }
+  static String? decodeZxingFromPathForTest(String path) =>
+      pickPreferred(decodeQrWithZxing2FromPath(path));
 }

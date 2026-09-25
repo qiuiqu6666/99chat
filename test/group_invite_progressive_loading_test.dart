@@ -10,6 +10,7 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_friend_info.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_member_operation_result.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_group_profile_model.dart';
+import 'package:tencent_cloud_chat_uikit/business_logic/services/group_member_store.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/screen_utils.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/group_member/tui_add_group_member.dart';
@@ -48,6 +49,7 @@ void main() {
     testErrorHandler = null;
     testDeviceType = null;
     ImSdkRelationshipDirectory.instance.reset();
+    GroupMemberStore.instance.clear(notify: false);
   });
 
   Future<void> frame(WidgetTester tester) async {
@@ -58,6 +60,7 @@ void main() {
   }
 
   tearDown(ImSdkRelationshipDirectory.instance.reset);
+  tearDown(() => GroupMemberStore.instance.clear(notify: false));
 
   Future<void> pumpPage(WidgetTester tester, Widget page) async {
     testErrorHandler ??= FlutterError.onError;
@@ -78,6 +81,47 @@ void main() {
           friendRemark: 'A${i.toString().padLeft(5, '0')}',
         ),
     ];
+
+  testWidgets('removed contact can be selected and stays selectable on reentry',
+      (tester) async {
+    final model = modelWithFriends(2);
+    Widget page() => AddGroupMemberPage(
+          key: addGroupMemberKey,
+          model: model,
+          onClose: () {},
+          existingMemberUserIdsLoader: (_) async =>
+              {'friend00000', 'friend00001'},
+        );
+    await pumpPage(tester, page());
+    await frame(tester);
+    expect(tester.widget<ContactList>(find.byType(ContactList)).disabledUserIds,
+        containsAll(['friend00000', 'friend00001']));
+
+    GroupMemberStore.instance
+        .removeMembers('group_${model.groupID}', ['@friend00000']);
+    await tester.pump(const Duration(milliseconds: 50));
+    await frame(tester);
+    await frame(tester);
+    var contacts = tester.widget<ContactList>(find.byType(ContactList));
+    expect(contacts.disabledUserIds, isNot(contains('friend00000')));
+    expect(contacts.disabledUserIds, contains('friend00001'));
+    await tester.tap(find.text('A00000'));
+    await frame(tester);
+    expect(find.text('1/100'), findsOneWidget);
+    // A stale response on the next entry must not restore the disabled badge.
+    await pumpPage(tester, const SizedBox.shrink());
+    await pumpPage(tester, page());
+    await frame(tester);
+    contacts = tester.widget<ContactList>(find.byType(ContactList));
+    expect(contacts.disabledUserIds, isNot(contains('friend00000')));
+    await tester.tap(find.text('全选'));
+    await frame(tester);
+    expect(find.text('1/100'), findsOneWidget);
+    await addGroupMemberKey.currentState!.submitAdd();
+    expect(model.invited, ['friend00000']);
+    await pumpPage(tester, const SizedBox.shrink());
+    model.dispose();
+  });
 
   testWidgets('10,000 friends paint and can submit after only the first batch',
       (tester) async {

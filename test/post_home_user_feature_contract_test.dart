@@ -82,7 +82,7 @@ void main() {
     final home =
         File('lib/src/bootstrap/home_bootstrap.dart').readAsStringSync();
     expect(home, contains("'native_post_home'"));
-    expect(home, contains('for (final task in _nativeSideEffectTasks())'));
+    expect(home, contains('for (final task in _nativeSideEffectTasks(identity))'));
     expect(home, contains('await _runWithRetry(task, identity, generation)'));
   });
 

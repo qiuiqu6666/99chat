@@ -1799,24 +1799,32 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
     final senderName = _redPacketSenderName();
     final senderAvatar = widget.message.faceUrl ?? '';
     final greeting = card.msg.isNotEmpty ? card.msg : TIM_t('恭喜发财，大吉大利');
-    final autoClaim = _isRedPacketClaimableStatus(card.status);
+    final alreadyClaimed = _redPacketClaimedLocally ||
+        (_peekRedPacketOpenedRecord(walletData)?.claimed ?? false);
+    var autoClaim =
+        _isRedPacketClaimableStatus(card.status) && !alreadyClaimed;
 
-    var showOpenAnimation = false;
-    var shouldAutoClaim = autoClaim;
     _redPacketOverlayOpening = true;
-    try {
-      final claimState =
-          await WalletApi.instance.getRedPacketClaimState(orderId);
-      showOpenAnimation = autoClaim && claimState.canOpen;
-      if (!claimState.canOpen) {
-        shouldAutoClaim = false;
-      }
-    } catch (_) {
-      showOpenAnimation = false;
-    }
 
     RedPacketDetailPopResult? result;
     try {
+      // The message card is a cached snapshot: another member may have taken
+      // the final share since it was rendered. Resolve before showing "开".
+      if (autoClaim) {
+        try {
+          final state = await WalletApi.instance.getRedPacketClaimState(orderId);
+          if (!mounted) return;
+          final terminal = const {
+            'FINISHED', 'COMPLETED', 'FULLY_CLAIMED', 'CLAIMED_ALL',
+            'EMPTY', 'EXPIRED', 'REFUNDED',
+          }.contains(state.packetStatus.toUpperCase());
+          autoClaim = state.canOpen && !state.received &&
+              state.remainingCount > 0 && !terminal;
+        } catch (_) {
+          if (mounted) ToastUtils.toast(TIM_t('红包状态加载失败，请重试'));
+          return;
+        }
+      }
       await AppHud.settleActive();
       if (!mounted) return;
       result = await _pushWalletOverlay<RedPacketDetailPopResult>(
@@ -1827,8 +1835,8 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
             senderName: senderName,
             senderAvatar: senderAvatar,
             greeting: greeting,
-            autoClaim: shouldAutoClaim,
-            showOpenAnimation: showOpenAnimation,
+            autoClaim: autoClaim,
+            showOpenAnimation: autoClaim,
             seedPacket: _redPacketSeedPacket(walletData, card),
           ),
         ),

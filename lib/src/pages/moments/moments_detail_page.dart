@@ -63,7 +63,8 @@ class _MomentsDetailPageState extends State<MomentsDetailPage> {
 
   @override
   void dispose() {
-    PeerProfileRefreshBus.instance.revision.removeListener(_onPeerProfileRefresh);
+    PeerProfileRefreshBus.instance.revision
+        .removeListener(_onPeerProfileRefresh);
     _commentController.dispose();
     _commentFocusNode.dispose();
     super.dispose();
@@ -304,61 +305,78 @@ class _MomentsDetailPageState extends State<MomentsDetailPage> {
                 )
               : GestureDetector(
                   onTap: () => FocusScope.of(context).unfocus(),
-                  child: ListView(
+                  child: ListView.builder(
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 96),
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          GestureDetector(
-                            onTap: () => openAuthorMomentsPage(context,
-                                author: post.author),
-                            behavior: HitTestBehavior.opaque,
-                            child: MomentsUserAvatar(
-                              user: post.author,
-                              size: 44,
+                    itemCount: post.comments.length + 1,
+                    itemBuilder: (context, row) {
+                      if (row > 0) {
+                        return ColoredBox(
+                            color: _momentsPanelColor(dark),
+                            child: _DetailCommentsRows(
+                                post: post,
+                                dark: dark,
+                                index: row - 1,
+                                onLongPress: (comment) => _showCommentActions(
+                                    comment,
+                                    selfId: selfId,
+                                    isPostOwner: isOwner)));
+                      }
+                      return Column(children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            GestureDetector(
+                              onTap: () => openAuthorMomentsPage(context,
+                                  author: post.author),
+                              behavior: HitTestBehavior.opaque,
+                              child: MomentsUserAvatar(
+                                user: post.author,
+                                size: 44,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _DetailMomentBody(
-                              post: post,
-                              dark: dark,
-                              isOwner: isOwner,
-                              onDelete: _deletePost,
-                              onComment: () => _commentFocusNode.requestFocus(),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _DetailMomentBody(
+                                post: post,
+                                dark: dark,
+                                isOwner: isOwner,
+                                onDelete: _deletePost,
+                                onComment: () =>
+                                    _commentFocusNode.requestFocus(),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (post.likeCount > 0 || post.commentCount > 0) ...[
+                          const SizedBox(height: 8),
+                          _DetailInteractionPanel(
+                            post: post,
+                            dark: dark,
+                            liked: post.likedBy(selfId),
+                            onLike: _toggleLike,
+                            onCommentLongPress: (comment) =>
+                                _showCommentActions(
+                              comment,
+                              selfId: selfId,
+                              isPostOwner: isOwner,
                             ),
                           ),
                         ],
-                      ),
-                      if (post.likeCount > 0 || post.commentCount > 0) ...[
-                        const SizedBox(height: 8),
-                        _DetailInteractionPanel(
-                          post: post,
-                          dark: dark,
-                          liked: post.likedBy(selfId),
-                          onLike: _toggleLike,
-                          onCommentLongPress: (comment) => _showCommentActions(
-                            comment,
-                            selfId: selfId,
-                            isPostOwner: isOwner,
-                          ),
-                        ),
-                      ],
-                      if (post.likeCount == 0 && post.commentCount == 0)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 22),
-                          child: Center(
-                            child: Text(
-                              TIM_t('还没有互动'),
-                              style: TextStyle(
-                                color: AppColors.subText(dark: dark),
-                                fontSize: 13,
+                        if (post.likeCount == 0 && post.commentCount == 0)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 22),
+                            child: Center(
+                              child: Text(
+                                TIM_t('还没有互动'),
+                                style: TextStyle(
+                                  color: AppColors.subText(dark: dark),
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
+                      ]);
+                    },
                   ),
                 ),
     );
@@ -624,12 +642,6 @@ class _DetailInteractionPanel extends StatelessWidget {
               indent: 64,
               color: AppColors.line(dark: dark),
             ),
-          if (post.commentCount > 0)
-            _DetailCommentsRows(
-              post: post,
-              dark: dark,
-              onLongPress: onCommentLongPress,
-            ),
         ],
       ),
     );
@@ -696,74 +708,72 @@ class _DetailLikesRow extends StatelessWidget {
 
 class _DetailCommentsRows extends StatelessWidget {
   const _DetailCommentsRows({
+    required this.index,
     required this.post,
     required this.dark,
     required this.onLongPress,
   });
 
+  final int index;
   final MomentPost post;
   final bool dark;
   final void Function(MomentComment comment) onLongPress;
 
   @override
   Widget build(BuildContext context) {
+    final item = post.comments[index];
     return Column(
-      children: post.comments.map((item) {
-        final index = post.comments.indexOf(item);
-        return Column(
-          children: [
-            GestureDetector(
-              // 单击弹出回复/删除；长按同样入口，避免只能长按才删。
-              onTap: () => onLongPress(item),
-              onLongPress: () => onLongPress(item),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(0, 6, 12, 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (index == 0)
-                      const SizedBox(
-                        width: 44,
-                        child: Center(
-                          child: Icon(
-                            Icons.mode_comment_outlined,
-                            color: _momentsNameColor,
-                            size: 20,
-                          ),
-                        ),
-                      )
-                    else
-                      const SizedBox(width: 44),
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: () =>
-                          openAuthorMomentsPage(context, author: item.author),
-                      behavior: HitTestBehavior.opaque,
-                      child: MomentsUserAvatar(
-                        user: item.author,
-                        size: 32,
+      children: [
+        GestureDetector(
+          // 单击弹出回复/删除；长按同样入口，避免只能长按才删。
+          onTap: () => onLongPress(item),
+          onLongPress: () => onLongPress(item),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(0, 6, 12, 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (index == 0)
+                  const SizedBox(
+                    width: 44,
+                    child: Center(
+                      child: Icon(
+                        Icons.mode_comment_outlined,
+                        color: _momentsNameColor,
+                        size: 20,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _DetailCommentBody(
-                        comment: item,
-                        dark: dark,
-                      ),
-                    ),
-                  ],
+                  )
+                else
+                  const SizedBox(width: 44),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () =>
+                      openAuthorMomentsPage(context, author: item.author),
+                  behavior: HitTestBehavior.opaque,
+                  child: MomentsUserAvatar(
+                    user: item.author,
+                    size: 32,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _DetailCommentBody(
+                    comment: item,
+                    dark: dark,
+                  ),
+                ),
+              ],
             ),
-            if (index < post.comments.length - 1)
-              Divider(
-                height: 1,
-                indent: 94,
-                color: AppColors.line(dark: dark),
-              ),
-          ],
-        );
-      }).toList(),
+          ),
+        ),
+        if (index < post.comments.length - 1)
+          Divider(
+            height: 1,
+            indent: 94,
+            color: AppColors.line(dark: dark),
+          ),
+      ],
     );
   }
 }

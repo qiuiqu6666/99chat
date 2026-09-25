@@ -20,6 +20,7 @@ class _SangongAllUsersPageState extends State<SangongAllUsersPage> {
   final _searchController = TextEditingController();
   final List<SangongAdminUserReport> _users = [];
   String _query = '';
+  String _lastAutoFillQuery = '';
   bool _pointsDescending = true;
   bool _loading = true;
   bool _loadingMore = false;
@@ -105,9 +106,13 @@ class _SangongAllUsersPageState extends State<SangongAllUsersPage> {
   }
 
   void _fillIfSearching() {
-    if (_query.isEmpty || !_hasMore || _loadingMore) {
+    if (_query.isEmpty ||
+        _query == _lastAutoFillQuery ||
+        !_hasMore ||
+        _loadingMore) {
       return;
     }
+    _lastAutoFillQuery = _query;
     final visible = _visibleUsers();
     if (visible.length < 12) {
       _loadMore();
@@ -127,106 +132,87 @@ class _SangongAllUsersPageState extends State<SangongAllUsersPage> {
     return users;
   }
 
-  bool _onScroll(ScrollNotification notification) {
-    if (notification.metrics.pixels >=
-        notification.metrics.maxScrollExtent - 280) {
-      _loadMore();
-    }
-    return false;
-  }
-
   @override
   Widget build(BuildContext context) {
     final users = _visibleUsers();
-    final rows = <Widget>[
-      for (final user in users) _userCell(context, user),
-      if (_loadingMore)
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 16),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-    ];
-    return NotificationListener<ScrollNotification>(
-      onNotification: _onScroll,
-      child: SettingsScaffold(
-        title: '全部用户',
+    final header = Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Row(
         children: [
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (value) {
-                      setState(() => _query = value.trim().toLowerCase());
-                      _fillIfSearching();
-                    },
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.search_rounded, size: 23),
-                      hintText: '搜索昵称或 IM UserID',
-                      isDense: true,
-                      filled: true,
-                      fillColor: Color(0xFFF1F3F6),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 15,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(28)),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(28)),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(28)),
-                        borderSide: BorderSide(color: Color(0xFF248BFF), width: 1.2),
-                      ),
-                    ),
-                  ),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() => _query = value.trim().toLowerCase());
+                _fillIfSearching();
+              },
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search_rounded, size: 23),
+                hintText: '搜索已加载的昵称或 IM UserID',
+                isDense: true,
+                filled: true,
+                fillColor: Color(0xFFF1F3F6),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 15,
                 ),
-                const SizedBox(width: 8),
-                DecoratedBox(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF1F3F6),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    tooltip: _pointsDescending ? '积分从高到低' : '积分从低到高',
-                    onPressed: () =>
-                        setState(() => _pointsDescending = !_pointsDescending),
-                    icon: Icon(
-                      _pointsDescending
-                          ? Icons.arrow_downward_rounded
-                          : Icons.arrow_upward_rounded,
-                      color: const Color(0xFF3C4653),
-                    ),
-                  ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(28)),
+                  borderSide: BorderSide.none,
                 ),
-              ],
-            ),
-          ),
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_failed)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: TextButton(
-                  onPressed: _loadFirst,
-                  child: const Text('加载失败，点击重试'),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(28)),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(28)),
+                  borderSide: BorderSide(color: Color(0xFF248BFF), width: 1.2),
                 ),
               ),
-            )
-          else
-            SettingsGroup(children: rows),
+            ),
+          ),
+          const SizedBox(width: 8),
+          DecoratedBox(
+            decoration: const BoxDecoration(
+              color: Color(0xFFF1F3F6),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              tooltip: _pointsDescending ? '积分从高到低' : '积分从低到高',
+              onPressed: () =>
+                  setState(() => _pointsDescending = !_pointsDescending),
+              icon: Icon(
+                _pointsDescending
+                    ? Icons.arrow_downward_rounded
+                    : Icons.arrow_upward_rounded,
+                color: const Color(0xFF3C4653),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+    return Scaffold(
+      appBar: AppBar(title: const Text('全部用户'), centerTitle: true),
+      body: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+        itemCount:
+            1 + (_loading || _failed ? 1 : users.length + (_hasMore ? 1 : 0)),
+        itemBuilder: (context, index) {
+          if (index == 0) return header;
+          if (_loading) return const Center(child: CircularProgressIndicator());
+          if (_failed) {
+            return TextButton(
+                onPressed: _loadFirst, child: const Text('加载失败，点击重试'));
+          }
+          if (index == users.length + 1) {
+            return TextButton(
+                onPressed: _loadingMore ? null : _loadMore,
+                child: Text(_loadingMore ? '加载中…' : '加载更多用户'));
+          }
+          return _userCell(context, users[index - 1]);
+        },
       ),
     );
   }
@@ -247,7 +233,10 @@ class _SangongAllUsersPageState extends State<SangongAllUsersPage> {
         radius: 22,
         backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
         child: avatar.isEmpty
-            ? Text((nickname.isNotEmpty ? nickname : id).characters.first.toUpperCase())
+            ? Text((nickname.isNotEmpty ? nickname : id)
+                .characters
+                .first
+                .toUpperCase())
             : null,
       ),
       title: '',

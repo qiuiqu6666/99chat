@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+import 'package:tencent_cloud_chat_demo/src/utils/group_member_membership.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_local/group_removal_work.dart';
 
 import 'package:flutter/foundation.dart';
@@ -1077,6 +1078,18 @@ class GroupMembershipSyncService {
                   batch.contains(ChatIdFormat.rawUserUid(m.userID)) &&
                   !removed(m.userID))
               .toList();
+          if (refresh) {
+            // Membership checks must use this response's roles. Merging a
+            // removed user's profile with its old cached member role would
+            // disable that contact in the invite picker again.
+            for (final member in found) {
+              if (isConfirmedGroupMemberRole(member.role)) {
+                byId[ChatIdFormat.rawUserUid(member.userID)] = member;
+              }
+            }
+            resolvedBatch = true;
+            break;
+          }
           final current = await GroupMemberLocalStore.instance
               .readRecordsByUserIds(
                   groupId: groupID, userIds: batch, ownerUserId: owner);
@@ -1114,11 +1127,7 @@ class GroupMembershipSyncService {
             return V2TimValueCallback(code: -1, desc: 'Account changed');
           }
           for (final m in resolved) {
-            if (!removed(m.userID) &&
-                (!refresh ||
-                    found.any((f) =>
-                        ChatIdFormat.rawUserUid(f.userID) ==
-                        ChatIdFormat.rawUserUid(m.userID)))) {
+            if (!removed(m.userID)) {
               byId[ChatIdFormat.rawUserUid(m.userID)] = m;
             }
           }

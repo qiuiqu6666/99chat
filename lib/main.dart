@@ -96,6 +96,7 @@ import 'package:tencent_cloud_chat_demo/src/services/group_game/privileged_game_
 import 'package:tencent_cloud_chat_demo/src/services/group_game/sangong_my_config_service.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/archive_history_provider.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitConversation/archived_conversation_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
 
 void main(List<String> args) {
   // Profile 用于真机性能诊断，需要保留 Dart/业务日志；仅 Release 静默。
@@ -351,6 +352,8 @@ void _startApp(List<String> args) {
     StartupPerfLog.mark('node_hydrate_start');
     await ApiNodeService.instance.hydrate();
     StartupPerfLog.mark('node_hydrate_done');
+    // Restore read anchors before login can replay native SDK unread snapshots.
+    await ConversationLocalStore.instance.restoreReadBarriers();
     StartupPerfLog.mark('api_bootstrap_start');
     await ApiClient.instance.bootstrap();
     // 版本检测属于启动能力，独立于登录链路；失败不阻塞首屏。

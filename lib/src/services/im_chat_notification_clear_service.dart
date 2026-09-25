@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:tencent_cloud_chat_demo/src/api/presence_api.dart';
 import 'package:tencent_cloud_chat_demo/src/services/app_badge_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im_chat_notification_registry.dart';
@@ -45,20 +46,25 @@ class ImChatNotificationClearService {
     }
 
     final generation = SessionIdentityService.instance.generation;
-    bool isCurrent() =>
-        SessionIdentityService.instance.isGenerationCurrent(generation);
+    // IM sync can finish while the app is backgrounded. Only entering the
+    // foreground authorizes clearing all delivered chat notifications.
+    bool canClear() =>
+        SessionIdentityService.instance.isGenerationCurrent(generation) &&
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    if (!canClear()) return;
 
     final registry = ImChatNotificationRegistry.instance;
     final localIds = registry.allImChatIds().toList();
     for (final id in localIds) {
       await LocalSystemNotificationService.instance.cancelNotification(id);
-      if (!isCurrent()) return;
+      if (!canClear()) return;
     }
 
     await LocalSystemNotificationService.instance
         .clearDeliveredImChatNotifications();
+    if (!canClear()) return;
     await IosApnsPushService.instance.clearAllImChatNotifications();
-    if (!isCurrent()) return;
+    if (!canClear()) return;
 
     registry.clearAll();
 

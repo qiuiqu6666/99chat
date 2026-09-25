@@ -109,6 +109,9 @@ dependencies:
   awesome_video_player:
     path: third_party/awesome_video_player
   timezone: 0.10.1
+  intl: ^0.20.2
+  scrollable_positioned_list_for_us:
+    path: third_party/scrollable_positioned_list_for_us
 
 dependency_overrides:
   geolocator_android: ^4.6.2

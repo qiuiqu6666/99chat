@@ -65,13 +65,15 @@ class GroupLiveMemberLoader extends ChangeNotifier {
 
   List<RedPacketMember> get members => _members.values.toList(growable: false);
 
-  Future<void> load() async {
+  Future<void> load({int pageBudget = 2}) async {
     if (_disposed || loading || complete) return;
     loading = true;
     failed = false;
     notifyListeners();
     try {
-      while (!_disposed && !complete) {
+      for (var pages = 0;
+          pages < pageBudget && !_disposed && !complete;
+          pages++) {
         final page = await loadPage(_cursor);
         if (_disposed) return;
         final next = page.nextCursor.trim();

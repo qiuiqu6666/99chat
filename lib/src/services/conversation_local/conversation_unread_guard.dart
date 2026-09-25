@@ -67,38 +67,21 @@ class ConversationUnreadGuard {
     V2TimMessage? existingLastMessage,
     String? ownerUserId,
   }) {
-    final sdkUnread = _resolveUnread(
-      conversationId,
-      incoming,
+    final olderSnapshot = shouldPreserveUnreadAnchor(
+      conversationId: conversationId,
+      existingUnread: existingUnread,
+      existingLastMessage: existingLastMessage,
+      incoming: incoming,
+      ownerUserId: ownerUserId,
     );
-    if (sdkUnread > 0 &&
-        _isReadAnchorReplay(
-          conversationId: conversationId,
-          incoming: incoming,
-          ownerUserId: ownerUserId,
-        )) {
-      incoming.unreadCount = 0;
-      return 0;
-    }
-    // 全部已读后 SDK 回灌宽限判定：与 Store 层 _upsertBatchImpl 对齐，
-    // 在 read anchor 的 12 秒宽限期内，如果 incoming 的 lastMessage 时间戳
-    // 不晚于 read cleared 时间，说明 SDK 回灌的是已读前的旧快照——
-    // 即使 msgID 不完全匹配也强制 unread=0，避免气泡残留。
-    if (sdkUnread > 0 &&
-        _isReadGraceReplay(
-          conversationId: conversationId,
-          incoming: incoming,
-          ownerUserId: ownerUserId,
-        )) {
-      incoming.unreadCount = 0;
-      return 0;
-    }
+    final sdkUnread = _resolveUnread(
+      incoming,
+      ownerUserId: ownerUserId,
+      existingLastMessage: existingLastMessage,
+      existingUnread: existingUnread,
+    );
     var resolved = sdkUnread;
-    if (sdkUnread < existingUnread &&
-        _incomingSnapshotIsOlder(
-          existingLastMessage: existingLastMessage,
-          incomingLastMessage: incoming.lastMessage,
-        )) {
+    if (olderSnapshot && sdkUnread < existingUnread) {
       resolved = existingUnread;
     }
     if (_shouldPreserveOptimisticUnread(
@@ -113,6 +96,39 @@ class ConversationUnreadGuard {
     }
     incoming.unreadCount = resolved;
     return resolved;
+  }
+
+  /// Keeps unread comparison metadata monotonic without changing UI preview
+  /// selection, which also supports explicit message deletion/rollback.
+  static bool shouldPreserveUnreadAnchor({
+    required String conversationId,
+    required int existingUnread,
+    required V2TimConversation incoming,
+    V2TimMessage? existingLastMessage,
+    String? ownerUserId,
+  }) {
+    final barrier = existingUnread > 0
+        ? ConversationLocalStore.instance
+            .readBarrierFor(conversationId, ownerUserId: ownerUserId)
+        : null;
+    final existingId =
+        (existingLastMessage?.msgID ?? existingLastMessage?.id ?? '').trim();
+    final incomingId =
+        (incoming.lastMessage?.msgID ?? incoming.lastMessage?.id ?? '').trim();
+    // A read of M1 cannot acknowledge the later unread M2 merely because
+    // their C2C timestamps share a second. The exact read identity disambiguates
+    // this replay; only a read snapshot for M2 may lower its count.
+    final readReplayBehindUnread = barrier != null &&
+        barrier.lastMessageId.isNotEmpty &&
+        incomingId == barrier.lastMessageId &&
+        existingId.isNotEmpty &&
+        existingId != incomingId &&
+        (existingLastMessage?.timestamp ?? 0) >= barrier.lastMessageTimestamp;
+    return readReplayBehindUnread ||
+        _incomingSnapshotIsOlder(
+          existingLastMessage: existingLastMessage,
+          incomingLastMessage: incoming.lastMessage,
+        );
   }
 
   static bool _shouldPreserveOptimisticUnread({
@@ -203,18 +219,9 @@ class ConversationUnreadGuard {
     String? ownerUserId,
   }) {
     // suppressStaleForRecentlyLeft 保留签名兼容。
-    if ((conversation.unreadCount ?? 0) > 0 &&
-        _isReadAnchorReplay(
-          conversationId: conversation.conversationID,
-          incoming: conversation,
-          ownerUserId: ownerUserId,
-        )) {
-      conversation.unreadCount = 0;
-      return 0;
-    }
     final resolved = _resolveUnread(
-      conversation.conversationID,
       conversation,
+      ownerUserId: ownerUserId,
     );
     conversation.unreadCount = resolved;
     return resolved;
@@ -246,48 +253,6 @@ class ConversationUnreadGuard {
     final existingTs = existingLastMessage.timestamp ?? 0;
     final incomingTs = incomingLastMessage.timestamp ?? 0;
     return existingTs > 0 && incomingTs > 0 && incomingTs < existingTs;
-  }
-
-  static bool _isReadAnchorReplay({
-    required String conversationId,
-    required V2TimConversation incoming,
-    String? ownerUserId,
-  }) {
-    final incomingId = incoming.lastMessage?.msgID?.trim() ?? '';
-    if (incomingId.isEmpty) {
-      return false;
-    }
-    final anchor = ConversationLocalStore.instance.readClearedLastMessageIdFor(
-      conversationId,
-      ownerUserId: ownerUserId,
-    );
-    return anchor != null && anchor.isNotEmpty && anchor == incomingId;
-  }
-
-  /// 全部已读后 SDK 回灌宽限判定：与 Store 层 _upsertBatchImpl 的
-  /// readGraceReplay 对齐。在 read cleared 的 12 秒宽限期内，如果
-  /// incoming 的 lastMessage 时间戳不晚于 read cleared 时间，
-  /// 说明 SDK 回灌的是已读前的旧快照——强制 unread=0。
-  static bool _isReadGraceReplay({
-    required String conversationId,
-    required V2TimConversation incoming,
-    String? ownerUserId,
-  }) {
-    final readClearedAtMs = ConversationLocalStore.instance.readClearedAtFor(
-      conversationId,
-      ownerUserId: ownerUserId,
-    );
-    if (readClearedAtMs <= 0) {
-      return false;
-    }
-    if (!ConversationLocalStore.instance.isWithinReadGrace(readClearedAtMs)) {
-      return false;
-    }
-    final incomingTs = ConversationLocalStore.lastMessageTimestampMs(incoming);
-    if (incomingTs <= 0) {
-      return false;
-    }
-    return incomingTs <= readClearedAtMs;
   }
 
   /// 入站消息乐观预览时是否同步 +1 未读（与预览同帧刷新）。
@@ -335,14 +300,19 @@ class ConversationUnreadGuard {
   }
 
   static int _resolveUnread(
-    String conversationId,
-    V2TimConversation conversation,
-  ) {
-    final id = conversationId.trim();
-    if (ForegroundChatGuard.isActiveConversation(id)) {
-      conversation.unreadCount = 0;
-      return 0;
-    }
+    V2TimConversation conversation, {
+    String? ownerUserId,
+    V2TimMessage? existingLastMessage,
+    int? existingUnread,
+  }) {
+    // Route visibility does not prove the newest bubble was rendered. Apply
+    // only a confirmed message watermark, shared with the durable projection.
+    ConversationLocalStore.instance.resolveSdkUnreadAgainstReadBarrier(
+      conversation,
+      ownerUserId: ownerUserId,
+      existingLastMessage: existingLastMessage,
+      existingUnread: existingUnread,
+    );
     return conversation.unreadCount ?? 0;
   }
 }

@@ -711,26 +711,42 @@ func print(
     ) {
         let normalizedThread = threadId?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let clearsAllChats = normalizedThread.isEmpty
+        // Background IM synchronization is not evidence that notifications
+        // have been seen. Keep them until the user returns to the app.
+        if clearsAllChats && UIApplication.shared.applicationState != .active {
+            completion(0)
+            return
+        }
+        let requestedAt = Date()
         UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
-            var toRemove: [String] = []
-            for notification in notifications {
-                let userInfo = self.normalizeUserInfo(notification.request.content.userInfo)
-                guard self.isImChatUserInfo(userInfo) else {
-                    continue
+            DispatchQueue.main.async {
+                // The app may have backgrounded during the asynchronous fetch.
+                if clearsAllChats && UIApplication.shared.applicationState != .active {
+                    completion(0)
+                    return
                 }
-                if !normalizedThread.isEmpty {
-                    let payloadThread = self.threadIdFromUserInfo(userInfo)
-                    if !payloadThread.isEmpty && payloadThread != normalizedThread {
+                var toRemove: [String] = []
+                for notification in notifications {
+                    if clearsAllChats && notification.date > requestedAt {
                         continue
                     }
+                    let userInfo = self.normalizeUserInfo(notification.request.content.userInfo)
+                    guard self.isImChatUserInfo(userInfo) else {
+                        continue
+                    }
+                    if !normalizedThread.isEmpty {
+                        let payloadThread = self.threadIdFromUserInfo(userInfo)
+                        if !payloadThread.isEmpty && payloadThread != normalizedThread {
+                            continue
+                        }
+                    }
+                    toRemove.append(notification.request.identifier)
                 }
-                toRemove.append(notification.request.identifier)
-            }
-            if !toRemove.isEmpty {
-                UNUserNotificationCenter.current()
-                    .removeDeliveredNotifications(withIdentifiers: toRemove)
-            }
-            DispatchQueue.main.async {
+                if !toRemove.isEmpty {
+                    UNUserNotificationCenter.current()
+                        .removeDeliveredNotifications(withIdentifiers: toRemove)
+                }
                 completion(toRemove.count)
             }
         }

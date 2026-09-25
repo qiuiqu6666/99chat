@@ -48,6 +48,7 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/chat_history_trace.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/error_message_converter.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im_connect_status_service.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'message_web_history_loader_stub.dart'
     if (dart.library.html) 'message_web_history_loader_web.dart';
@@ -1063,7 +1064,10 @@ class MessageServiceImpl extends MessageService {
       // Non-JSON local metadata is valid for ordinary SDK messages.
     }
     final queue = OutgoingMessageSendQueue.instance;
-    if (mediaKind != null) return queue.runMedia(mediaKind, dispatch);
+    if (mediaKind != null) {
+      return MediaSendPerf.measureFor(id, 'uploadQueueAndSend',
+          () => queue.runMedia(mediaKind!, dispatch));
+    }
     return batchId == null
         ? queue.runSerial(convKey, dispatch)
         : queue.runMediaBatch(convKey, batchId, dispatch);
@@ -1088,8 +1092,14 @@ class MessageServiceImpl extends MessageService {
       '[IM_SEND] target=${groupID.isNotEmpty ? 'group' : 'c2c'} '
       'onlineOnly=$onlineUserOnly',
     );
-    final result =
-        await TencentImSDKPlugin.v2TIMManager.getMessageManager().sendMessage(
+    final perf = MediaSendPerf.lookup(id);
+    perf?.markSdkEnter(
+      connectionState: ImConnectStatusService.diagnosticState.name,
+      handshakePending: ImConnectStatusService.isHandshakePending,
+    );
+    late final V2TimValueCallback<V2TimMessage> result;
+    try {
+      result = await TencentImSDKPlugin.v2TIMManager.getMessageManager().sendMessage(
               id: id,
               receiver: receiver,
               groupID: groupID,
@@ -1105,9 +1115,16 @@ class MessageServiceImpl extends MessageService {
                 if (syncMsgID.trim().isEmpty) {
                   return;
                 }
+                // Native upload callbacks carry message_msg_id, while their
+                // Dart-only local id can be absent. Bind before forwarding.
+                perf?.bind(syncMsgID);
                 onSyncMsgID?.call(syncMsgID);
               },
             );
+    } finally {
+      perf?.markSdkReturn(
+          connectionState: ImConnectStatusService.diagnosticState.name);
+    }
     if (result.code != 0) {
       debugPrint(
         '[IM_SEND_FAIL] target=${groupID.isNotEmpty ? 'group' : 'c2c'} '
@@ -1571,6 +1588,8 @@ class MessageServiceImpl extends MessageService {
         _forEachAdvanced((listener) => listener.onRecvMessageModified(message));
       },
       onSendMessageProgress: (message, progress) {
+        (MediaSendPerf.lookup(message.id) ?? MediaSendPerf.lookup(message.msgID))
+            ?.observeUploadProgress(progress);
         _forEachAdvanced(
           (listener) => listener.onSendMessageProgress(message, progress),
         );

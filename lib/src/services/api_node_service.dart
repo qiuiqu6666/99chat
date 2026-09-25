@@ -67,12 +67,6 @@ class ApiNodeService extends ChangeNotifier {
       apiBaseUrl: 'https://apiios.99chat.vip',
       realtimeTcpBase: 'http://119.28.179.146:8082',
     ),
-    ApiNodeDefinition(
-      id: 'api99chat',
-      name: '节点03(BY)',
-      apiBaseUrl: 'https://api99chat.99chat.vip',
-      realtimeTcpBase: 'http://119.28.179.146:8082',
-    ),
   ];
 
   static const String defaultNodeId = 'cn';
@@ -139,14 +133,13 @@ class ApiNodeService extends ChangeNotifier {
     return best;
   }
 
-  /// 启动早期调用：恢复选中节点；仅首次安装测速并选最快；挂载失败计数回调。
+  /// 启动早期调用：恢复有效选择，首次或已下线节点使用节点01。
   Future<void> hydrate() async {
     if (_hydrated) {
       return;
     }
     final prefs = await SharedPreferences.getInstance();
     final savedId = prefs.getString(_prefsSelectedNodeId)?.trim();
-    final firstAutoDone = prefs.getBool(_prefsFirstAutoProbeDone) ?? false;
 
     final probeAtMs = prefs.getInt(_prefsLastProbeAtMs);
     if (probeAtMs != null && probeAtMs > 0) {
@@ -160,45 +153,11 @@ class ApiNodeService extends ChangeNotifier {
       }
     }
 
-    // 仅首次（从未写过选中节点且未做过自动测速）：测速后选最快正常节点。
-    if (!firstAutoDone && (savedId == null || savedId.isEmpty)) {
-      _selectedNodeId = defaultNodeId;
-      ApiClient.applyRuntimeBaseUrl(currentApiBaseUrl);
-      try {
-        await probeAll();
-        final best = pickFastestNormal(probes: _probeById);
-        if (best != null) {
-          _selectedNodeId = best.id;
-          await prefs.setString(_prefsSelectedNodeId, best.id);
-          ApiClient.applyRuntimeBaseUrl(best.apiBaseUrl);
-        } else {
-          await prefs.setString(_prefsSelectedNodeId, _selectedNodeId);
-        }
-      } catch (_) {
-        await prefs.setString(_prefsSelectedNodeId, _selectedNodeId);
-        ApiClient.applyRuntimeBaseUrl(currentApiBaseUrl);
-      }
-      await prefs.setBool(_prefsFirstAutoProbeDone, true);
-    } else {
-      if (savedId != null && savedId.isNotEmpty) {
-        _selectedNodeId = savedId;
-      } else {
-        _selectedNodeId = defaultNodeId;
-      }
-      // 已下线节点（如旧 OS）统一落到当前唯一可用节点。
-      final resolvedId = nodeById(_selectedNodeId).id;
-      if (resolvedId != _selectedNodeId) {
-        _selectedNodeId = resolvedId;
-        await prefs.setString(_prefsSelectedNodeId, resolvedId);
-      } else {
-        _selectedNodeId = resolvedId;
-      }
-      ApiClient.applyRuntimeBaseUrl(currentApiBaseUrl);
-      // 老用户已有选中节点时，补记「首次已完成」，避免下次冷启动再测速。
-      if (!firstAutoDone) {
-        await prefs.setBool(_prefsFirstAutoProbeDone, true);
-      }
-    }
+    // 新安装和已下线的节点统一使用节点01；保留有效的手动选择。
+    _selectedNodeId = nodeById(savedId ?? defaultNodeId).id;
+    await prefs.setString(_prefsSelectedNodeId, _selectedNodeId);
+    await prefs.setBool(_prefsFirstAutoProbeDone, true);
+    ApiClient.applyRuntimeBaseUrl(currentApiBaseUrl);
 
     ApiClient.onTransportSuccess = noteRequestSuccess;
     ApiClient.onTransportFailure = noteRequestFailure;

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tencent_cloud_chat_demo/src/api/wallet_amount.dart';
@@ -211,24 +212,24 @@ class _LuckyDetailBody extends StatelessWidget {
         child: Text(data.progressText,
             style: TextStyle(color: cs.subText, fontSize: 13, height: 1.5)),
       )),
-      if (data.claims.isEmpty)
+      if (data.claims.isEmpty && !data.claimsLoaded)
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 48),
+            child: Center(child: CupertinoActivityIndicator()),
+          ),
+        )
+      else if (data.claims.isEmpty)
         SliverToBoxAdapter(
             child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
           child: Text(
-              !data.claimsLoaded
-                  ? i18n.t(
-                      zhHans: '领取记录暂时加载失败',
-                      zhHant: '領取記錄暫時載入失敗',
-                      en: 'Failed to load claim records.',
-                      ja: '受取記録の読み込みに失敗しました。',
-                      ko: '수령 기록을 불러오지 못했습니다.')
-                  : i18n.t(
-                      zhHans: '还没有人领取这个红包',
-                      zhHant: '還沒有人領取這個紅包',
-                      en: 'No one has claimed this red packet yet.',
-                      ja: 'まだ誰もこの紅包を受け取っていません。',
-                      ko: '아직 이 홍바오를 받은 사람이 없습니다.'),
+              i18n.t(
+                  zhHans: '还没有人领取这个红包',
+                  zhHant: '還沒有人領取這個紅包',
+                  en: 'No one has claimed this red packet yet.',
+                  ja: 'まだ誰もこの紅包を受け取っていません。',
+                  ko: '아직 이 홍바오를 받은 사람이 없습니다.'),
               textAlign: TextAlign.center,
               style: TextStyle(color: cs.subText, fontSize: 14)),
         ))

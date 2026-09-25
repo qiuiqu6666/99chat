@@ -38,6 +38,7 @@ import 'package:tencent_cloud_chat_uikit/data_services/conversation/conversation
 import 'package:tencent_cloud_chat_uikit/data_services/core/core_services_implements.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/friendShip/friendship_services.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/group/group_services.dart';
+import 'package:tencent_cloud_chat_uikit/data_services/group/self_hosted_group_bridge.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/group/self_hosted_group_invite_bridge.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/group_role_policy.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.dart';
@@ -48,6 +49,7 @@ import 'package:tencent_cloud_chat_demo/src/services/group_local/group_local_sto
 import 'package:tencent_cloud_chat_demo/src/api/me_group_api.dart';
 import 'package:tencent_cloud_chat_demo/src/models/me_group_record.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+import 'package:tencent_cloud_chat_demo/src/utils/group_invite_member_page_meta.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 
 class TUIGroupProfileModel extends ChangeNotifier {
@@ -533,6 +535,7 @@ class TUIGroupProfileModel extends ChangeNotifier {
           .map(_normalizeMemberUserId)
           .where((id) => id.isNotEmpty)
           .toSet();
+      GroupMemberStore.instance.removeMembers(_groupID, deleted);
       _stripRemovedMembersFromProfile(deleted);
       _memberWindowRevision++;
       _memberMembershipRevision++;
@@ -2166,6 +2169,12 @@ class TUIGroupProfileModel extends ChangeNotifier {
     if (candidates.isEmpty || _groupID.trim().isEmpty) {
       return const <String>{};
     }
+    if (SelfHostedGroupBridge.enabled) {
+      return GroupInviteMemberPageMeta.existingMemberUserIds(
+        _groupID,
+        candidateUserIds: candidates,
+      );
+    }
     final res = await _groupServices.getGroupMembersInfo(
       groupID: _groupID,
       memberList: candidates.toList(growable: false),
@@ -2173,14 +2182,7 @@ class TUIGroupProfileModel extends ChangeNotifier {
     if (res.code != 0 || res.data == null) {
       throw StateError('Unable to verify group membership: ${res.desc}');
     }
-    final out = <String>{};
-    for (final member in res.data!) {
-      final uid = ChatIdFormat.rawUserUid(member.userID);
-      if (uid.isNotEmpty) {
-        out.add(uid);
-      }
-    }
-    return out;
+    return GroupInviteMemberPageMeta.memberUserIdsFromLookup(res.data!);
   }
 
   Future<V2TimValueCallback<List<V2TimGroupMemberOperationResult>>>

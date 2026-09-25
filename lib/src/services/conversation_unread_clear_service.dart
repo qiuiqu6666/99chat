@@ -675,6 +675,9 @@ class ConversationUnreadClearService {
     ConversationLocalStore.instance.recordReadClearedAnchor(
       conversationID,
       lastMessageId: conversation.lastMessage?.msgID,
+      lastMessageTimestamp: conversation.lastMessage?.timestamp,
+      lastMessageSeq: int.tryParse(conversation.lastMessage?.seq ?? ''),
+      orderKey: conversation.orderkey,
     );
     markViewModelReadLocally?.call(conversationID);
     ConversationUnreadTrace.log(
@@ -776,6 +779,9 @@ class ConversationUnreadClearService {
     ConversationLocalStore.instance.recordReadClearedAnchor(
       conversationID,
       lastMessageId: conversation.lastMessage?.msgID,
+      lastMessageTimestamp: conversation.lastMessage?.timestamp,
+      lastMessageSeq: int.tryParse(conversation.lastMessage?.seq ?? ''),
+      orderKey: conversation.orderkey,
     );
     await ConversationSyncService.instance.markConversationReadLocally(
       conversationID,

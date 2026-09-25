@@ -70,6 +70,7 @@ class SessionManager extends ChangeNotifier {
   final SessionStore _store;
   final AuthRepository _auth;
   final ImClient _im;
+
   /// App-level cleanup, user feedback and navigation for terminal IM events.
   Future<void> Function(SessionInvalidationReason reason)? onSessionInvalidated;
   Timer? _retryTimer;
@@ -90,15 +91,32 @@ class SessionManager extends ChangeNotifier {
   bool get isOnline => _state.phase == SessionPhase.ready;
 
   Future<void> restore() async {
-    final active = _activeOperation;
-    if (active != null) return active;
-    final operation = _restoreInternal();
-    _activeOperation = operation;
-    try {
-      await operation;
-    } finally {
-      if (identical(_activeOperation, operation)) _activeOperation = null;
+    final generation = _sessionGeneration;
+    var active = _activeOperation;
+    if (active == null) {
+      late final Future<void> operation;
+      operation = _restoreInternal().whenComplete(() {
+        if (identical(_activeOperation, operation)) _activeOperation = null;
+      });
+      _activeOperation = operation;
+      active = operation;
     }
+    // Budget only the UI wait. Keep the actual operation single-flight until
+    // it settles: timeout cannot cancel an SDK login or suppress a late 401.
+    await active.timeout(const Duration(seconds: 8), onTimeout: () {
+      final owner = _state.userId;
+      if (generation != _sessionGeneration ||
+          _state.isLoggedOut ||
+          _state.isReady ||
+          owner == null ||
+          owner.isEmpty) {
+        return;
+      }
+      _set(SessionState(
+          phase: SessionPhase.offline,
+          userId: owner,
+          error: TimeoutException('Session restore is still connecting')));
+    });
   }
 
   Future<void> _restoreInternal() async {
@@ -126,6 +144,7 @@ class SessionManager extends ChangeNotifier {
       userId: effectiveUserId,
     );
     if (generation != _sessionGeneration) return;
+    _set(SessionState(phase: SessionPhase.restoring, userId: effectiveUserId));
     final cached = await _store.readImCredential();
     if (cached != null) {
       // The IM credential is not proof that the business session is still
@@ -334,6 +353,8 @@ class SessionManager extends ChangeNotifier {
   }
 
   Future<void> _reconnect(String userId) async {
+    // A UI timeout must not create overlapping authentication/SDK logins.
+    if (_activeOperation != null) return;
     final generation = _sessionGeneration;
     if (_state.isLoggedOut || _state.userId != userId) return;
     await _establish(userId: userId, generation: generation);
@@ -382,7 +403,8 @@ class SessionManager extends ChangeNotifier {
     } catch (error) {
       // SDK callbacks have no awaiting caller. The app handler still presents
       // the login route in its finally block if teardown reports a failure.
-      debugPrint('[SessionManager] session invalidation cleanup failed: $error');
+      debugPrint(
+          '[SessionManager] session invalidation cleanup failed: $error');
     } finally {
       _signingOut = false;
     }

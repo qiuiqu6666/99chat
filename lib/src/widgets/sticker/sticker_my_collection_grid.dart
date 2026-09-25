@@ -67,6 +67,7 @@ class StickerMyCollectionGrid extends StatelessWidget {
         stickerId: stickerId,
         thumbUrl: item.thumbUrl,
         originUrl: item.originUrl,
+        mediaType: item.mediaType,
       );
       return;
     }

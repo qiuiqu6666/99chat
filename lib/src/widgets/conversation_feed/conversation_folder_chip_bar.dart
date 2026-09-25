@@ -13,6 +13,7 @@ class ConversationFolderChipBar extends StatefulWidget {
     required this.folders,
     required this.selectedFolderId,
     required this.unreadForFolder,
+    this.hasNotifiableUnreadForFolder,
     required this.onSelectAll,
     required this.onSelectFolder,
     required this.onCreateFolder,
@@ -26,6 +27,7 @@ class ConversationFolderChipBar extends StatefulWidget {
   final List<ConversationFolder> folders;
   final String? selectedFolderId;
   final int Function(ConversationFolder folder) unreadForFolder;
+  final bool Function(ConversationFolder folder)? hasNotifiableUnreadForFolder;
   final VoidCallback onSelectAll;
   final ValueChanged<String> onSelectFolder;
   final VoidCallback onCreateFolder;
@@ -193,6 +195,7 @@ class _ConversationFolderChipBarState extends State<ConversationFolderChipBar> {
                             selected:
                                 widget.selectedFolderId == folder.folderId,
                             badge: widget.unreadForFolder(folder),
+                            notifiable: widget.hasNotifiableUnreadForFolder?.call(folder) ?? true,
                             onTap: () =>
                                 widget.onSelectFolder(folder.folderId),
                             onLongPress: widget.reorderEditing ||
@@ -327,6 +330,7 @@ class _Segment extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.badge,
+    this.notifiable = true,
     required this.onTap,
     this.onLongPress,
     this.onSecondaryTap,
@@ -340,6 +344,7 @@ class _Segment extends StatelessWidget {
   final String label;
   final bool selected;
   final int badge;
+  final bool notifiable;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   final VoidCallback? onSecondaryTap;
@@ -414,7 +419,7 @@ class _Segment extends StatelessWidget {
                     ),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: dark
+                      color: notifiable ? const Color(0xFFFF524B) : dark
                           ? colors.secondaryContainer
                           : ConversationFolderChipBar._badgeBg,
                       borderRadius: BorderRadius.circular(999),
@@ -425,7 +430,7 @@ class _Segment extends StatelessWidget {
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color:
-                            dark ? colors.onSecondaryContainer : Colors.white,
+                            !notifiable && dark ? colors.onSecondaryContainer : Colors.white,
                         height: 1,
                       ),
                     ),

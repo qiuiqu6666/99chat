@@ -76,6 +76,9 @@ void main() {
     NetworkStatusService.instance.status.value = NetworkReachability.offline;
     expect(ConnectStatusUi.conversationTabConnectIndicator(settings),
         ConversationTabConnectIndicator.ready);
+    // onSdkConnectSuccess also starts recovery. Drain its zero-delay database
+    // scheduling yield before the widget test checks for leaked timers.
+    await tester.pumpAndSettle();
   });
 
   testWidgets('disconnect ends pending handshake and reconnect recovers',

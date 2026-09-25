@@ -1697,7 +1697,10 @@ class ConversationTabStore extends ChangeNotifier {
   }) {
     final id = existing.conversationID.trim();
     final existingUnread = existing.unreadCount ?? 0;
-    var resolvedUnread = useIncomingUnread
+    // Explicit local zero patches have no message. SDK snapshots do carry a
+    // message and must still respect read/ordering barriers, even when their
+    // unread field is authoritative for that snapshot.
+    var resolvedUnread = useIncomingUnread && incoming.lastMessage == null
         ? (incoming.unreadCount ?? 0)
         : ConversationUnreadGuard.resolveForListApply(
             conversationId: id,
@@ -1720,7 +1723,19 @@ class ConversationTabStore extends ChangeNotifier {
     )) {
       incomingLast = null;
     }
-    final preferredLast = useIncomingLastMessage
+    final readBarrier = existingUnread == 0 && resolvedUnread > 0
+        ? ConversationLocalStore.instance.readBarrierFor(id)
+        : null;
+    // A distinct SDK-unread message in the read anchor's second must carry
+    // its identity into the row. Keeping the old preview here makes its late
+    // read ACK indistinguishable from an ACK for the newly arrived message.
+    final unreadAfterReadAnchor = readBarrier != null &&
+        readBarrier.lastMessageId.isNotEmpty &&
+        readBarrier.lastMessageId == existing.lastMessage?.msgID &&
+        (incomingLast?.msgID?.isNotEmpty ?? false) &&
+        incomingLast!.msgID != readBarrier.lastMessageId &&
+        (incomingLast.timestamp ?? 0) >= readBarrier.lastMessageTimestamp;
+    final preferredLast = useIncomingLastMessage || unreadAfterReadAnchor
         ? incomingLast
         : ConversationLastMessagePrefer.preferLastMessage(
             existing: existing.lastMessage,

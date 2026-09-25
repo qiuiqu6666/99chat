@@ -835,16 +835,33 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
       );
     }
 
-    // The first frame is already visible; bounded header reads can now run.
+    // Start videos as soon as their rows are visible. Image header checks and
+    // image sends must not hold back an independently selected video.
+    for (var videoIndex = 0; videoIndex < videos.length; videoIndex++) {
+      perf.retainAsyncOperation();
+      unawaited(
+        _prepareAndDispatchSystemGalleryVideo(
+          file: videos[videoIndex],
+          model: model,
+          convID: convID,
+          convType: convType,
+          existingOptimisticId: videoOptimisticIds[videoIndex],
+          perf: perf,
+        ).whenComplete(perf.releaseAsyncOperation),
+      );
+    }
+
+    // Start all header reads, but let each image send when its own result is
+    // ready instead of waiting for every selected image.
     perf.log('image_headers_begin', count: imageFiles.length);
-    final imageSizes = await Future.wait(
-      imageFiles.map((file) => readLocalImageSizeFromHeader(file.path)),
-    );
+    final imageSizes = imageFiles
+        .map((file) => readLocalImageSizeFromHeader(file.path))
+        .toList(growable: false);
     if (!model.canSendCapturedMedia) {
       for (final id in optimisticIds) { MediaSendPerf.lookup(id)?.finish('session_changed'); }
       return;
     }
-    perf.log('image_headers_end', count: imageFiles.length);
+    perf.log('image_headers_started', count: imageFiles.length);
 
     // Stream: resolve → stage → enqueue while keeping the captured
     // conversation ID. Leaving the panel must not cancel queued images.
@@ -862,6 +879,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
       final optimisticId = optimisticIds[i];
       final picked = imageFiles[i];
       try {
+        final imageSize = await imageSizes[i];
         final itemWatch = Stopwatch()..start();
         perf.log('system_resolve_begin', index: i, count: imageFiles.length);
         final source = File(picked.path);
@@ -905,8 +923,8 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
           convType: convType,
           batchId: batchId,
           batchIndex: i,
-          imageWidth: imageSizes[i]?.width.round(),
-          imageHeight: imageSizes[i]?.height.round(),
+          imageWidth: imageSize?.width.round(),
+          imageHeight: imageSize?.height.round(),
         ));
         _enqueueGalleryImage(model, pendingImages.last, perf);
         perf.log(
@@ -933,19 +951,6 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
 
     if (pendingImages.isNotEmpty) {
       perf.log('image_send_queue_start', count: pendingImages.length);
-    }
-    for (var videoIndex = 0; videoIndex < videos.length; videoIndex++) {
-      perf.retainAsyncOperation();
-      unawaited(
-        _prepareAndDispatchSystemGalleryVideo(
-          file: videos[videoIndex],
-          model: model,
-          convID: convID,
-          convType: convType,
-          existingOptimisticId: videoOptimisticIds[videoIndex],
-          perf: perf,
-        ).whenComplete(perf.releaseAsyncOperation),
-      );
     }
     perf.log(
       'system_dispatch_complete',
@@ -979,7 +984,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
       // Backend attachments own their durable staging; avoid copying twice.
       final backend = await ChatAttachmentService.instance.handles(file.path, 'video');
       final staged = backend ? file.path : await mediaPerf.measure(
-          'staging', () => stageVideoForChatSend(file.path));
+          'staging', () => stageSystemPickerVideoForChatSend(file.path));
       perf?.log(
         'video_stage_end',
         bytes: staged == null ? null : await File(staged).length(),
@@ -1764,7 +1769,9 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
               perf.log('system_picker_cancelled');
               return;
             }
-            await dismissPicker();
+            // Android returns after its picker activity has handed the files
+            // back. One Flutter frame is enough before showing chat rows.
+            await dismissPicker(transitionSettled: Platform.isAndroid);
             await _dispatchSystemPickedMedia(
               files: systemFiles,
               model: model,

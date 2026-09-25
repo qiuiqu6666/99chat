@@ -94,7 +94,10 @@ class _AgentRebateDescendantsPageState
       <String, List<AgentDescendantTreeNodeDto>>{};
 
   static const int _firstPageSize = 50;
-  static const int _prefetchPageSize = 200;
+  final Map<String, AgentDescendantItemDto> _profilePending = {};
+  final Set<String> _profileRequested = {};
+  int _profileRunning = 0;
+  Object? _moreError;
   int _loadGeneration = 0;
 
   @override
@@ -107,6 +110,7 @@ class _AgentRebateDescendantsPageState
   void dispose() {
     _loadGeneration++;
     _profileGeneration++;
+    _profilePending.clear();
     _searchController.dispose();
     super.dispose();
   }
@@ -114,6 +118,11 @@ class _AgentRebateDescendantsPageState
   Future<void> _load() async {
     if (!mounted || !_isCurrentSession) return;
     final generation = ++_loadGeneration;
+    _profileGeneration++;
+    _profilePending.clear();
+    _profileRequested.clear();
+    _profiles.clear();
+    _moreError = null;
     setState(() {
       _loading = true;
       _loadingMore = false;
@@ -139,8 +148,6 @@ class _AgentRebateDescendantsPageState
       setState(() {
         _loading = false;
       });
-      unawaited(_loadProfiles(_collectProfileItems(_data!)));
-      unawaited(_prefetchRemaining(generation));
     } catch (error) {
       if (!mounted || !_isCurrentSession || generation != _loadGeneration) {
         return;
@@ -158,41 +165,32 @@ class _AgentRebateDescendantsPageState
     }
   }
 
-  /// 首页先 50 条；后台从第 1 页起按 200 重拉并去重，再继续往后翻直到拉完。
+  /// One explicit continuation at a time, using the same page size as page 1.
   Future<void> _prefetchRemaining(int generation) async {
-    if (!_hasMore) {
+    if (!_hasMore ||
+        _loadingMore ||
+        !_isCurrentSession ||
+        generation != _loadGeneration) {
       return;
     }
-    if (!mounted || !_isCurrentSession || generation != _loadGeneration) {
-      return;
-    }
-    setState(() => _loadingMore = true);
+    setState(() {
+      _loadingMore = true;
+      _moreError = null;
+    });
     try {
-      var page = 1;
-      while (mounted &&
-          _isCurrentSession &&
-          generation == _loadGeneration) {
-        final result = await _api.fetchDescendants(
-          page: page,
-          pageSize: _prefetchPageSize,
-        );
-        if (!mounted ||
-            !_isCurrentSession ||
-            generation != _loadGeneration) {
-          return;
-        }
-        _applyPage(result, replace: false);
-        setState(() {});
-        unawaited(_loadProfiles(result.items));
-        if (!result.hasMore || result.items.isEmpty) {
-          break;
-        }
-        page = result.page + 1;
+      final result = await _api.fetchDescendants(
+          page: _page + 1, pageSize: _firstPageSize);
+      if (!_isCurrentSession || generation != _loadGeneration) return;
+      final previousCount = _items.length;
+      if (result.page <= _page) throw StateError('Page did not advance');
+      _applyPage(result, replace: false);
+      if (_items.length == previousCount) _hasMore = false;
+    } catch (error) {
+      if (_isCurrentSession && generation == _loadGeneration) {
+        _moreError = error;
       }
-    } catch (_) {
-      // 首屏已可用；后续页失败不打断当前列表。
     } finally {
-      if (mounted && _isCurrentSession && generation == _loadGeneration) {
+      if (_isCurrentSession && generation == _loadGeneration) {
         setState(() => _loadingMore = false);
       }
     }
@@ -200,7 +198,8 @@ class _AgentRebateDescendantsPageState
 
   void _applyPage(AgentDescendantsDto result, {required bool replace}) {
     final seen = <String>{
-      if (!replace) for (final item in _items) item.userId.trim(),
+      if (!replace)
+        for (final item in _items) item.userId.trim(),
     };
     final next = <AgentDescendantItemDto>[
       if (!replace) ..._items,
@@ -235,41 +234,54 @@ class _AgentRebateDescendantsPageState
   }
 
   Future<void> _loadProfiles(List<AgentDescendantItemDto> items) async {
-    if (!mounted || !_isCurrentSession) return;
-    final generation = ++_profileGeneration;
-    final ids = items
-        .map((item) => item.userId.trim())
-        .where((id) => id.isNotEmpty)
-        .toSet()
-        .toList(growable: false);
-    const batchSize = 8;
-    for (var start = 0; start < ids.length; start += batchSize) {
-      final end =
-          start + batchSize < ids.length ? start + batchSize : ids.length;
-      final batch = ids.sublist(start, end);
-      final profiles = await Future.wait(
-        batch.map((id) async {
-          try {
-            return await _profileLoader(id);
-          } catch (_) {
-            return null;
-          }
-        }),
-      );
-      if (!mounted || !_isCurrentSession || generation != _profileGeneration) return;
-      for (final profile in profiles) {
-        if (profile != null && profile.userId.trim().isNotEmpty) {
-          _profiles[profile.userId.trim()] = profile;
-        }
+    if (!_isCurrentSession) return;
+    for (final item in items) {
+      final id = item.userId.trim();
+      if (id.isNotEmpty && _profileRequested.add(id)) {
+        _profilePending[id] = item;
       }
     }
-    if (!mounted || !_isCurrentSession || generation != _profileGeneration) return;
-    setState(() {
-      if (_keyword.trim().isNotEmpty) {
-        _rowCache = null;
-      }
-    });
+    while (_profileRunning < 4 && _profilePending.isNotEmpty) {
+      final id = _profilePending.keys.first;
+      _profilePending.remove(id);
+      final generation = _profileGeneration;
+      _profileRunning++;
+      unawaited(() async {
+        try {
+          final profile = await _profileLoader(id);
+          if (!_isCurrentSession || generation != _profileGeneration) return;
+          if (profile != null) {
+            setState(() {
+              _profiles[id] = profile;
+              _rowCache = null;
+            });
+          }
+        } catch (_) {
+          // The list payload remains usable when optional profile enrichment fails.
+        } finally {
+          _profileRunning--;
+          if (_isCurrentSession) unawaited(_loadProfiles(const []));
+        }
+      }());
+    }
   }
+
+  Widget _moreButton(AppI18n i18n) => TextButton(
+        key: const ValueKey('descendants-load-more'),
+        onPressed:
+            _loadingMore ? null : () => _prefetchRemaining(_loadGeneration),
+        child: Text(_loadingMore
+            ? i18n.t(zhHans: '加载中…', zhHant: '載入中…', en: 'Loading…')
+            : _moreError != null
+                ? i18n.t(
+                    zhHans: '加载失败，点击重试',
+                    zhHant: '載入失敗，點擊重試',
+                    en: 'Retry loading')
+                : i18n.t(
+                    zhHans: '加载更多（已加载 ${_items.length}/$_total）',
+                    zhHant: '載入更多（已載入 ${_items.length}/$_total）',
+                    en: 'Load more (${_items.length}/$_total)')),
+      );
 
   void _selectSort(_DescendantSort sort) {
     setState(() {
@@ -281,28 +293,6 @@ class _AgentRebateDescendantsPageState
       }
       _rowCache = null;
     });
-  }
-
-  List<AgentDescendantItemDto> _collectProfileItems(
-    AgentFirstLevelAgentsDto data,
-  ) {
-    final items = <AgentDescendantItemDto>[];
-    for (final group in data.agents) {
-      items.add(group.agent);
-      items.addAll(group.descendants);
-      _collectTreeItems(group.children, items);
-    }
-    return items;
-  }
-
-  void _collectTreeItems(
-    List<AgentDescendantTreeNodeDto> nodes,
-    List<AgentDescendantItemDto> items,
-  ) {
-    for (final node in nodes) {
-      items.add(node.item);
-      _collectTreeItems(node.children, items);
-    }
   }
 
   List<AgentDescendantTreeNodeDto> _resolveGroupChildren(
@@ -334,30 +324,27 @@ class _AgentRebateDescendantsPageState
     final stack = visiting ?? <String>{};
     if (!stack.add(parent)) return const [];
     try {
-      return descendants
-          .where((item) {
-            final id = item.userId.trim();
-            return id.isNotEmpty &&
-                id != parent &&
-                item.directParentUserId.trim() == parent;
-          })
-          .map((item) {
-            final nested = _treeFromDescendants(
-              item.userId,
-              descendants,
-              stack,
-            );
-            return AgentDescendantTreeNodeDto(
-              item: item,
-              childCount: nested.length,
-              descendantCount: nested.fold<int>(
-                0,
-                (total, child) => total + 1 + child.descendantCount,
-              ),
-              children: nested,
-            );
-          })
-          .toList(growable: false);
+      return descendants.where((item) {
+        final id = item.userId.trim();
+        return id.isNotEmpty &&
+            id != parent &&
+            item.directParentUserId.trim() == parent;
+      }).map((item) {
+        final nested = _treeFromDescendants(
+          item.userId,
+          descendants,
+          stack,
+        );
+        return AgentDescendantTreeNodeDto(
+          item: item,
+          childCount: nested.length,
+          descendantCount: nested.fold<int>(
+            0,
+            (total, child) => total + 1 + child.descendantCount,
+          ),
+          children: nested,
+        );
+      }).toList(growable: false);
     } finally {
       stack.remove(parent);
     }
@@ -709,9 +696,11 @@ class _AgentRebateDescendantsPageState
                     textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
                       hintText: i18n.t(
-                        zhHans: '搜索昵称或编号',
-                        zhHant: '搜尋暱稱或編號',
-                        en: 'Search nickname or No.',
+                        zhHans: _hasMore ? '搜索已加载的昵称或编号' : '搜索昵称或编号',
+                        zhHant: _hasMore ? '搜尋已載入的暱稱或編號' : '搜尋暱稱或編號',
+                        en: _hasMore
+                            ? 'Search loaded names or numbers'
+                            : 'Search nickname or No.',
                       ),
                       prefixIcon: const Icon(Icons.search_rounded),
                       suffixIcon: _keyword.isEmpty
@@ -816,6 +805,7 @@ class _AgentRebateDescendantsPageState
                       en: 'No matching nickname or number.',
                     ),
             ),
+            if (_hasMore) _moreButton(i18n),
           ],
         ),
       );
@@ -827,7 +817,7 @@ class _AgentRebateDescendantsPageState
         padding: const EdgeInsets.all(AppTokens.s5),
         addAutomaticKeepAlives: false,
         cacheExtent: 200,
-        itemCount: rows.length + 1 + (_loadingMore ? 1 : 0),
+        itemCount: rows.length + 1 + (_hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == 0) {
             return Padding(
@@ -845,14 +835,11 @@ class _AgentRebateDescendantsPageState
               ),
             );
           }
-          if (_loadingMore && index == rows.length + 1) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: AppTokens.s4),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
+          if (_hasMore && index == rows.length + 1) return _moreButton(i18n);
           final row = rows[index - 1];
           final item = row.item;
+          // Defer to after build; only rows requested by the lazy list enrich profiles.
+          unawaited(Future<void>.microtask(() => _loadProfiles([item])));
           return Padding(
             padding: const EdgeInsets.only(bottom: AppTokens.s3),
             child: _DescendantTile(

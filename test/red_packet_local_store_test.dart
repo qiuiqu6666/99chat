@@ -61,11 +61,53 @@ void main() {
       isTrue,
     );
     expect(
-      RedPacketLocalStore.instance.peekOpened(
-        orderId: 'server-order-1',
-        ownerUserId: owner,
-      )?.claimed,
+      RedPacketLocalStore.instance
+          .peekOpened(
+            orderId: 'server-order-1',
+            ownerUserId: owner,
+          )
+          ?.claimed,
       isFalse,
     );
+  });
+
+  test('a later opened update keeps a confirmed claim amount', () async {
+    const owner = 'test-user-claim';
+    await RedPacketLocalStore.instance.markOpened(
+      orderId: '3525',
+      ownerUserId: owner,
+      claimed: true,
+      claimAmountMinor: 1888,
+      claimedAt: 123456789,
+    );
+    await RedPacketLocalStore.instance.markOpened(
+      orderId: '3525',
+      ownerUserId: owner,
+    );
+    final record = await RedPacketLocalStore.instance.getOpened(
+      orderId: '3525',
+      ownerUserId: owner,
+    );
+    expect(record?.claimed, isTrue);
+    expect(record?.claimAmountMinor, 1888);
+    expect(record?.claimedAt, 123456789);
+  });
+
+  test('an opened write cannot erase a persisted claim after cache eviction',
+      () async {
+    const owner = 'test-user-disk-claim';
+    final store = RedPacketLocalStore.instance;
+    await store.markOpened(
+      orderId: '3526',
+      ownerUserId: owner,
+      claimed: true,
+      claimAmountMinor: 3599,
+    );
+    store.evictMemoryForTest(owner);
+    await store.markOpened(orderId: '3526', ownerUserId: owner);
+    store.evictMemoryForTest(owner);
+    final record = await store.getOpened(orderId: '3526', ownerUserId: owner);
+    expect(record?.claimed, isTrue);
+    expect(record?.claimAmountMinor, 3599);
   });
 }

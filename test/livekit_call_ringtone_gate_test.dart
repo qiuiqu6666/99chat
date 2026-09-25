@@ -59,7 +59,20 @@ void main() {
       );
     });
 
-    test('connecting/connected/ended/idle never play', () {
+    test('outgoing connecting keeps ringback until connected', () {
+      for (final hasRoom in [false, true]) {
+        expect(
+          shouldPlayRingtone(
+            phase: LiveKitCallPhase.connecting,
+            hasRoom: hasRoom,
+            isOutgoing: true,
+          ),
+          isTrue,
+        );
+      }
+    });
+
+    test('incoming connecting and finished phases never play', () {
       for (final phase in [
         LiveKitCallPhase.connecting,
         LiveKitCallPhase.connected,
@@ -75,6 +88,23 @@ void main() {
           shouldPlayRingtone(phase: phase, hasRoom: true),
           isFalse,
           reason: '$phase hasRoom=true',
+        );
+      }
+    });
+
+    test('outgoing acceptance and end stop ringback even with a room', () {
+      for (final phase in [
+        LiveKitCallPhase.connected,
+        LiveKitCallPhase.ended,
+        LiveKitCallPhase.idle,
+      ]) {
+        expect(
+          shouldPlayRingtone(
+            phase: phase,
+            hasRoom: true,
+            isOutgoing: true,
+          ),
+          isFalse,
         );
       }
     });

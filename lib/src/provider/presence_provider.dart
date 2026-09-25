@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:tencent_cloud_chat_demo/src/services/request_retry_backoff.dart';
 import 'package:tencent_cloud_chat_demo/src/api/presence_api.dart';
 import 'package:tencent_cloud_chat_demo/src/api/user_api.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
@@ -45,6 +46,7 @@ class PresenceProvider extends ChangeNotifier {
   bool _hydratedFromLocalCache = false;
   String? _activeScope;
   int _sessionGeneration = 0;
+  final _retryBackoff = RequestRetryBackoff();
 
   /// 列表/通讯录软刷新：有缓存则少打全量。
   static const Duration softFetchTtl = Duration(minutes: 3);
@@ -396,8 +398,7 @@ class PresenceProvider extends ChangeNotifier {
     var visualStateChanged = wasBackendOnline != online || hadPendingWork;
     if (lastActiveAt != null) {
       final accepted = _writeLastSeen(primary, lastActiveAt, now);
-      visualStateChanged =
-          visualStateChanged || previousLastSeen != accepted;
+      visualStateChanged = visualStateChanged || previousLastSeen != accepted;
       for (final key in keys) {
         persistSeen[key] = accepted;
       }
@@ -498,8 +499,10 @@ class PresenceProvider extends ChangeNotifier {
     final cached = await ContactSocialCacheStore.readPresenceLastSeen();
     final cachedVisibility =
         await ContactSocialCacheStore.readPresenceVisibility();
-    if (_disposed || generation != _sessionGeneration ||
-        _activeScope != scope || ContactSocialCacheStore.accountScope() != scope) {
+    if (_disposed ||
+        generation != _sessionGeneration ||
+        _activeScope != scope ||
+        ContactSocialCacheStore.accountScope() != scope) {
       return;
     }
     if (cached.isEmpty && cachedVisibility.isEmpty) {
@@ -662,7 +665,8 @@ class PresenceProvider extends ChangeNotifier {
     final changedIds = <String>{};
     final persist = <String, String>{};
     for (final id in todo) {
-      if (_disposed || generation != _sessionGeneration ||
+      if (_disposed ||
+          generation != _sessionGeneration ||
           ContactSocialCacheStore.accountScope() != scope) {
         return;
       }
@@ -672,7 +676,8 @@ class PresenceProvider extends ChangeNotifier {
         if (_keysFor(id).any(_visibilityFromApi.contains)) continue;
         final settings =
             await UserApi.instance.fetchUserOnlinePrivacyProtection(id);
-        if (_disposed || generation != _sessionGeneration ||
+        if (_disposed ||
+            generation != _sessionGeneration ||
             ContactSocialCacheStore.accountScope() != scope) {
           return;
         }
@@ -702,7 +707,9 @@ class PresenceProvider extends ChangeNotifier {
         return;
       }
     }
-    if (!_disposed && ContactSocialCacheStore.accountScope() == scope && persist.isNotEmpty) {
+    if (!_disposed &&
+        ContactSocialCacheStore.accountScope() == scope &&
+        persist.isNotEmpty) {
       unawaited(ContactSocialCacheStore.mergePresenceVisibility(persist));
     }
     if (!_disposed) _queueUserRevisionPublish(changedIds);
@@ -730,10 +737,9 @@ class PresenceProvider extends ChangeNotifier {
   void _scheduleFlush({bool immediate = false}) {
     if (_disposed) return;
     _flushTimer?.cancel();
-    _flushTimer = Timer(
-      immediate ? Duration.zero : _flushDebounce,
-      _flush,
-    );
+    final retryDelay = _retryBackoff.remaining(DateTime.now());
+    final debounce = immediate ? Duration.zero : _flushDebounce;
+    _flushTimer = Timer(retryDelay > debounce ? retryDelay : debounce, _flush);
   }
 
   Future<void> _flush() async {
@@ -793,7 +799,8 @@ class PresenceProvider extends ChangeNotifier {
         } else {
           result = await PresenceApi.instance.fetchLastSeen(requestIds);
         }
-        if (_disposed || generation != _sessionGeneration ||
+        if (_disposed ||
+            generation != _sessionGeneration ||
             ContactSocialCacheStore.accountScope() != scope) {
           return;
         }
@@ -826,10 +833,12 @@ class PresenceProvider extends ChangeNotifier {
         // Disk debounce must not delay visible status or the next network page.
         unawaited(_persistPresenceBatch(seenUpdates, visibilityUpdates));
       }
-    } catch (_) {
+      if (!_disposed && generation == _sessionGeneration) _retryBackoff.reset();
+    } catch (error) {
       if (!_disposed && generation == _sessionGeneration) {
-        _pending.addAll(batchIds);
-        _scheduleFlush(immediate: false);
+        if (_retryBackoff.failed(error, DateTime.now())) {
+          _pending.addAll(batchIds);
+        }
       }
     } finally {
       if (!_disposed && generation == _sessionGeneration) {
@@ -839,7 +848,8 @@ class PresenceProvider extends ChangeNotifier {
         // returns the same timestamp. Publish those rows in frame-sized chunks.
         _queueUserRevisionPublish(completedUiIds);
         // Only request individual privacy for omissions in the batch result.
-        final missingVisibility = completedUiIds.where(_visibilityWanted.contains).toList();
+        final missingVisibility =
+            completedUiIds.where(_visibilityWanted.contains).toList();
         _visibilityWanted.removeAll(completedUiIds);
         _scheduleVisibilityPrefetchIfNeeded(missingVisibility);
       }
@@ -851,11 +861,14 @@ class PresenceProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _persistPresenceBatch(Map<String, int> seen, Map<String, String> visibility) async {
+  Future<void> _persistPresenceBatch(
+      Map<String, int> seen, Map<String, String> visibility) async {
     try {
       await Future.wait([
-        if (seen.isNotEmpty) ContactSocialCacheStore.mergePresenceLastSeen(seen),
-        if (visibility.isNotEmpty) ContactSocialCacheStore.mergePresenceVisibility(visibility),
+        if (seen.isNotEmpty)
+          ContactSocialCacheStore.mergePresenceLastSeen(seen),
+        if (visibility.isNotEmpty)
+          ContactSocialCacheStore.mergePresenceVisibility(visibility),
       ]);
     } catch (_) {
       // Optional cache persistence cannot invalidate a successful presence fetch.
@@ -1193,6 +1206,7 @@ class PresenceProvider extends ChangeNotifier {
 
   void clearSessionState() {
     _sessionGeneration++;
+    _retryBackoff.reset();
     _flushInFlight = false;
     _visibilityFromApi.clear();
     _visibilityFetchAt.clear();

@@ -8,6 +8,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_flags.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_gate_log.dart';
@@ -17,7 +18,6 @@ import 'package:tencent_cloud_chat_demo/src/services/conversation_pin_sync_servi
 import 'package:tencent_cloud_chat_demo/src/services/conversation_refresh_bus.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_unread_trace.dart';
 import 'package:tencent_cloud_chat_demo/src/services/startup_perf_log.dart';
-import 'package:tencent_cloud_chat_demo/src/services/foreground_chat_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/sqflite_lifecycle_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/services/sqflite_lock_profile_log.dart';
@@ -443,6 +443,74 @@ class ConversationLocalStore {
   final Map<String, int> _readClearedAtMs = {};
   final Map<String, String> _readClearedLastMsgId = {};
   final Map<String, ConversationReadBarrier> _readBarriers = {};
+  // Account-scoped durable cache survives a logout/login within this process.
+  final Map<String, ConversationReadBarrier> _durableReadBarriers = {};
+  static const _durableReadPrefix = 'conversation_read_barrier_v1:';
+  Future<void> _readBarrierWriteTail = Future<void>.value();
+
+  /// Restore before SDK login/list callbacks, including SDK-primary mode where
+  /// a conversation may never have been mirrored into the local row table.
+  Future<void> restoreReadBarriers() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final key in prefs.getKeys().where((k) => k.startsWith(_durableReadPrefix))) {
+      try {
+        final data = jsonDecode(prefs.getString(key) ?? '') as Map;
+        final owner = data['owner'] as String;
+        final id = data['conversation'] as String;
+        final barrier = ConversationReadBarrier(
+          version: data['version'] as int,
+          recordedAtMs: data['at'] as int,
+          lastMessageId: data['message'] as String,
+          lastMessageTimestamp: data['timestamp'] as int,
+          lastMessageSeq: data['seq'] as int,
+          orderKey: data['order'] as int,
+        );
+        if (owner.isEmpty || id.isEmpty) continue;
+        final cacheKey = _readClearCacheKey(owner, id);
+        final current = _readBarriers[cacheKey];
+        if (current != null && current.recordedAtMs >= barrier.recordedAtMs) continue;
+        _readBarriers[cacheKey] = barrier;
+        _durableReadBarriers[cacheKey] = barrier;
+        _readClearedAtMs[cacheKey] = barrier.recordedAtMs;
+        if (barrier.lastMessageId.isNotEmpty) {
+          _readClearedLastMsgId[cacheKey] = barrier.lastMessageId;
+        }
+      } catch (_) {
+        // One damaged record must not prevent other conversations restoring.
+      }
+    }
+  }
+
+  void _persistReadBarrier(String owner, String id, ConversationReadBarrier? barrier) {
+    final cacheKey = _readClearCacheKey(owner, id);
+    if (barrier == null) {
+      _durableReadBarriers.remove(cacheKey);
+    } else {
+      _durableReadBarriers[cacheKey] = barrier;
+    }
+    final storageId = _conversationEquivalenceKey(id);
+    final key = '$_durableReadPrefix${jsonEncode([owner, storageId])}';
+    final value = barrier == null ? null : jsonEncode({
+      'owner': owner, 'conversation': storageId, 'version': barrier.version,
+      'at': barrier.recordedAtMs, 'message': barrier.lastMessageId,
+      'timestamp': barrier.lastMessageTimestamp, 'seq': barrier.lastMessageSeq,
+      'order': barrier.orderKey,
+    });
+    // Serialize writes/removals so an older read cannot win a disk-write race.
+    _readBarrierWriteTail = _readBarrierWriteTail.then((_) async {
+      final prefs = await SharedPreferences.getInstance();
+      if (value == null) {
+        await prefs.remove(key);
+      } else {
+        await prefs.setString(key, value);
+      }
+    }).catchError((Object error) {
+      debugPrint('Persist read barrier failed: ${error.runtimeType}');
+    });
+  }
+
+  @visibleForTesting
+  Future<void> flushReadBarrierWritesForTest() => _readBarrierWriteTail;
 
   /// Monotonic source watermark for SDK unread snapshots. This is separate
   /// from read barriers: it prevents an older callback from reverting a newer
@@ -2281,20 +2349,36 @@ class ConversationLocalStore {
     final now = DateTime.now().toUtc().millisecondsSinceEpoch;
     _recordReadCleared(owner, id, now);
     final current = _conversationFor(owner, id);
-    final resolvedLastMessageId =
-        lastMessageId?.trim() ?? current?.lastMessage?.msgID?.trim() ?? '';
+    final currentMessage = current?.lastMessage;
+    final previous = readBarrierFor(id, ownerUserId: owner);
+    // SDK-primary rows need not exist in the SQLite mirror. A later local
+    // persistence call without a target must preserve the captured read, not
+    // replace it with an empty anchor (or a newer, unseen mirror snapshot).
+    final resolvedLastMessageId = lastMessageId?.trim() ??
+        previous?.lastMessageId ?? currentMessage?.msgID?.trim() ?? '';
+    final samePrevious = previous != null &&
+        previous.lastMessageId == resolvedLastMessageId;
+    final sameCurrent = currentMessage != null &&
+        (currentMessage.msgID?.trim() ?? '') == resolvedLastMessageId;
     if (resolvedLastMessageId.isNotEmpty) {
       _readClearedLastMsgId[_readClearCacheKey(owner, id)] =
           resolvedLastMessageId;
     }
-    final timestamp =
-        lastMessageTimestamp ?? current?.lastMessage?.timestamp ?? 0;
-    final seq = lastMessageSeq ??
-        int.tryParse(current?.lastMessage?.seq?.trim() ?? '') ??
+    final timestamp = ((lastMessageTimestamp ?? 0) > 0
+            ? lastMessageTimestamp : null) ??
+        (samePrevious && previous.lastMessageTimestamp > 0
+            ? previous.lastMessageTimestamp : null) ??
+        (sameCurrent ? currentMessage.timestamp : null) ?? 0;
+    final seq = ((lastMessageSeq ?? 0) > 0 ? lastMessageSeq : null) ??
+        (samePrevious && previous.lastMessageSeq > 0
+            ? previous.lastMessageSeq : null) ??
+        (sameCurrent
+            ? int.tryParse(currentMessage.seq?.trim() ?? '')
+            : null) ??
         0;
-    final order = orderKey ?? current?.orderkey ?? 0;
+    final order = orderKey ??
+        (samePrevious ? previous.orderKey : null) ?? current?.orderkey ?? 0;
     final key = _readClearCacheKey(owner, id);
-    final previous = _readBarriers[key];
     // `orderkey` is a sorting token, not evidence of a newer message. Keep it
     // out of the read-watermark clock so an old SDK page cannot consume this
     // barrier merely by carrying a larger sort key.
@@ -2313,6 +2397,7 @@ class ConversationLocalStore {
       orderKey: order,
     );
     _readBarriers[key] = barrier;
+    _persistReadBarrier(owner, id, barrier);
     return barrier;
   }
 
@@ -2342,11 +2427,12 @@ class ConversationLocalStore {
     if (id.isEmpty || owner.isEmpty) {
       return null;
     }
-    final direct = _readBarriers[_readClearCacheKey(owner, id)];
+    final direct = _readBarriers[_readClearCacheKey(owner, id)] ??
+        _durableReadBarriers[_readClearCacheKey(owner, id)];
     if (direct != null) {
       return direct;
     }
-    for (final entry in _readBarriers.entries) {
+    for (final entry in _durableReadBarriers.entries) {
       final separator = entry.key.indexOf('|');
       if (separator < 0 || entry.key.substring(0, separator) != owner) {
         continue;
@@ -2368,6 +2454,8 @@ class ConversationLocalStore {
   int resolveSdkUnreadAgainstReadBarrier(
     V2TimConversation incoming, {
     String? ownerUserId,
+    V2TimMessage? existingLastMessage,
+    int? existingUnread,
   }) {
     final id = incoming.conversationID.trim();
     final owner = _resolveOwner(ownerUserId);
@@ -2376,23 +2464,58 @@ class ConversationLocalStore {
     }
     final barrier = readBarrierFor(id, ownerUserId: owner);
     if (barrier == null) {
+      // Persisted metadata may retain the exact anchor without an in-memory
+      // barrier. A wall-clock grace period cannot identify a read message.
+      final anchor = readClearedLastMessageIdFor(id, ownerUserId: owner);
+      final incomingId = incoming.lastMessage?.msgID?.trim() ?? '';
+      if (anchor != null && anchor.isNotEmpty && anchor == incomingId) {
+        incoming.unreadCount = 0;
+      }
       return 0;
     }
     final incomingMessage = incoming.lastMessage;
     final incomingId = incomingMessage?.msgID?.trim() ?? '';
     final incomingTimestamp = incomingMessage?.timestamp ?? 0;
     final incomingSeq = int.tryParse(incomingMessage?.seq?.trim() ?? '') ?? 0;
+    if (incomingMessage?.isSelf == true) {
+      final local = _conversationFor(owner, id);
+      final previousMessage = existingLastMessage ?? local?.lastMessage;
+      final previousUnread = existingUnread ?? local?.unreadCount ?? 0;
+      final previousId = previousMessage?.msgID?.trim() ?? '';
+      final knownUnreadAfterRead = previousUnread > 0 &&
+          previousId.isNotEmpty && previousId != barrier.lastMessageId &&
+          (previousMessage?.timestamp ?? 0) >= barrier.lastMessageTimestamp;
+      // Sending is not receiving: it cannot consume the peer read watermark.
+      // Retain the original anchor so a peer message between read and send
+      // still becomes unread when its callback arrives later.
+      if (!knownUnreadAfterRead) incoming.unreadCount = 0;
+      return barrier.version;
+    }
     final exactReplay = barrier.lastMessageId.isNotEmpty &&
         incomingId.isNotEmpty &&
         barrier.lastMessageId == incomingId;
+    final comparableGroupSeq =
+        ConversationUnreadUtils.isGroupConversation(incoming) &&
+            incomingSeq > 0 &&
+            barrier.lastMessageSeq > 0;
     final advanced = !exactReplay &&
-        (incomingSeq > barrier.lastMessageSeq && incomingSeq > 0 ||
-            incomingTimestamp > barrier.lastMessageTimestamp);
+        (comparableGroupSeq
+            ? incomingSeq > barrier.lastMessageSeq
+            : incomingTimestamp > barrier.lastMessageTimestamp);
     if (advanced) {
       _clearReadCleared(owner, id);
       return barrier.version + 1;
     }
-    if ((incoming.unreadCount ?? 0) > 0 || exactReplay) {
+    // C2C timestamps have second precision and sender seq is not a shared
+    // clock. A different message in the same second may still be unseen.
+    // Keep its SDK count and retain the anchor for a later exact replay.
+    final replay = exactReplay ||
+        (comparableGroupSeq
+            ? incomingSeq <= barrier.lastMessageSeq
+            : incomingTimestamp > 0 &&
+                barrier.lastMessageTimestamp > 0 &&
+                incomingTimestamp < barrier.lastMessageTimestamp);
+    if (replay) {
       incoming.unreadCount = 0;
       ConversationUnreadTrace.log(
         'sdk_unread_rejected_by_version_anchor',
@@ -2410,6 +2533,7 @@ class ConversationLocalStore {
 
   void _clearReadCleared(String owner, String conversationId) {
     final key = _readClearCacheKey(owner, conversationId);
+    _persistReadBarrier(owner, conversationId, null);
     _readClearedAtMs.remove(key);
     _readClearedLastMsgId.remove(key);
     _readBarriers.remove(key);
@@ -2702,10 +2826,6 @@ class ConversationLocalStore {
       conversationId: conversationId,
       rowReadClearedAtMs: existingReadClearedAtMs,
     );
-    if (ForegroundChatGuard.isActiveConversation(conversationId)) {
-      conversation.unreadCount = 0;
-      return resolved > 0 ? resolved : existingReadClearedAtMs;
-    }
     // `unreadCount > 0` has no message identity and must never consume the
     // barrier before the shared snapshot adjudicator compares its anchor.
     return resolved;
@@ -5561,6 +5681,9 @@ class ConversationLocalStore {
     )) {
       conversation.lastMessage = null;
     }
+    // SDK-primary realtime and page loads can apply explicit unread values,
+    // bypassing mergePatchRow's fallback guard. Fence them at this shared entry.
+    instance.resolveSdkUnreadAgainstReadBarrier(conversation);
     DisplayNameStore.instance.applyToConversation(conversation);
   }
 
@@ -7369,6 +7492,12 @@ class ConversationLocalStore {
     if (owner.isEmpty) {
       return;
     }
+    for (final key in _durableReadBarriers.keys.toList()) {
+      if (key.startsWith('$owner|')) {
+        _persistReadBarrier(owner, key.substring(owner.length + 1), null);
+      }
+    }
+    await _readBarrierWriteTail;
     _memoryByOwner.remove(owner);
     _memoryMetaByOwner.remove(owner);
     _coordinatorCommitStates.removeWhere((key, _) => key.startsWith('$owner|'));
@@ -9108,51 +9237,10 @@ class ConversationLocalStore {
       versionsByDomain[sourceKey] = incomingGeneration;
     }
 
-    if (ForegroundChatGuard.isActiveConversation(conversationId)) {
-      incoming.unreadCount = 0;
-      return;
-    }
-
     // Some compatibility/store paths bypass SyncService. They still must use
     // the exact same watermark adjudication before merging unread.
     resolveSdkUnreadAgainstReadBarrier(incoming, ownerUserId: owner);
     incomingUnread = incoming.unreadCount ?? 0;
-
-    // A conversation opened moments ago may receive an older SDK snapshot
-    // after the local read commit. Do not resurrect the badge when that
-    // snapshot still points at the exact message used as the read anchor.
-    final readAnchorMessageId = _resolvedReadClearedLastMessageId(
-      owner: owner,
-      conversationId: conversationId,
-    );
-    final incomingLastMessageId = incoming.lastMessage?.msgID?.trim() ?? '';
-    final incomingLastMessageAtMs = lastMessageTimestampMs(incoming);
-    final readGraceReplay = incomingUnread > 0 &&
-        readClearedAtMs > 0 &&
-        incomingLastMessageAtMs > 0 &&
-        incomingLastMessageAtMs <= readClearedAtMs &&
-        isWithinReadGrace(readClearedAtMs);
-    final exactAnchorReplay = readAnchorMessageId != null &&
-        incomingLastMessageId.isNotEmpty &&
-        incomingLastMessageId == readAnchorMessageId;
-    if (incomingUnread > 0 &&
-        readClearedAtMs > 0 &&
-        (exactAnchorReplay || readGraceReplay)) {
-      incoming.unreadCount = 0;
-      ConversationUnreadTrace.log(
-        'merge_unread_suppress_read_anchor_replay',
-        conversationID: conversationId,
-        unreadBefore: existingUnread,
-        unreadAfter: 0,
-        extras: <String, Object?>{
-          'incoming': incomingUnread,
-          'readClearedAtMs': readClearedAtMs,
-          'anchorMessageId': readAnchorMessageId,
-          'timestampReplay': readGraceReplay,
-        },
-      );
-      return;
-    }
 
     final last = incoming.lastMessage;
     if (last != null &&
@@ -9299,6 +9387,7 @@ class ConversationLocalStore {
     _readClearedAtMs.clear();
     _readClearedLastMsgId.clear();
     _readBarriers.clear();
+    _durableReadBarriers.clear();
     _sdkUnreadSourceVersionsGroup.clear();
     _sdkUnreadSourceVersionsC2c.clear();
     _historyClearedAtMs.clear();
