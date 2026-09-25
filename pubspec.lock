@@ -1145,7 +1145,7 @@ packages:
     source: hosted
     version: "0.2.2"
   intl:
-    dependency: "direct overridden"
+    dependency: "direct main"
     description:
       name: intl
       sha256: "1ca20c894b1717686a2319b8548763d812bc0aabdac580420a44c5178c57a867"
@@ -1920,7 +1920,7 @@ packages:
     source: hosted
     version: "2.1.1"
   scrollable_positioned_list_for_us:
-    dependency: "direct overridden"
+    dependency: "direct main"
     description:
       path: "third_party/scrollable_positioned_list_for_us"
       relative: true
