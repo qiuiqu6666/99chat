@@ -85,7 +85,7 @@ class HomePageState extends State<HomePage> {
   final Set<int> _visitedTabs = <int>{};
   final GlobalKey _plusActionKey = GlobalKey();
 
-  /// 加号图标旋转（圈数），每次点击顺时针增加 0.125 圈（45°）。
+  /// 菜单打开和关闭时各顺时针旋转 45°，关闭后恢复为加号。
   double _plusIconTurns = 0;
   final TIMUIKitConversationController _conversationController =
       TIMUIKitConversationController();
@@ -1157,6 +1157,7 @@ class HomePageState extends State<HomePage> {
       items: _getTooltipMenus(context, theme),
     );
     if (!mounted) return;
+    _rotatePlusIconClockwise();
     if (selected != null) {
       _handleTapTooltipItem(selected);
     }

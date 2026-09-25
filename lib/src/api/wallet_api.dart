@@ -656,6 +656,7 @@ class WalletApi {
     String? endTime,
     int pageSize = 100,
     int maxPages = 20,
+    bool awaitFirstPage = false,
   }) async {
     final store = WalletLedgerLocalStore.instance;
     final scopeKey = _ledgerScopeKey(
@@ -671,9 +672,9 @@ class WalletApi {
       'read scope=${scopeKey.hashCode} complete=$complete cached=${cached.length}',
     );
 
-    // A persisted snapshot is the fast path. Do not wait for the refresh
-    // request before allowing the history screen to render.
-    if (cached.isNotEmpty) {
+    // Most callers can render the persisted snapshot immediately. History
+    // waits for the first page so a new charge is visible on initial paint.
+    if (cached.isNotEmpty && !awaitFirstPage) {
       final knownIds = cached.map((item) => item.id).toSet();
       _scheduleLedgerBackgroundSync(
         scopeKey: scopeKey,
@@ -766,6 +767,7 @@ class WalletApi {
     cached = await store.read(scopeKey: scopeKey);
     final unique = <String, WalletRecordDto>{
       for (final item in cached) item.id: item,
+      for (final item in firstPage) item.id: item,
     };
     _ledgerDebug(
       'ready scope=${scopeKey.hashCode} count=${unique.length}',
@@ -987,7 +989,7 @@ class WalletApi {
   }
 
   Future<List<WalletRecordDto>> getHistoryRecords() async {
-    return getLedgerAll();
+    return getLedgerAll(awaitFirstPage: true);
   }
 
   Future<List<WalletRecordDto>> getHistoryRecordsByFilter(
