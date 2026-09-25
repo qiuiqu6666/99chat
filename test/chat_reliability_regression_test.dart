@@ -73,7 +73,7 @@ void main() {
     ).readAsStringSync();
     expect(persistence, contains('adoptOutboxProviderSucceeded'));
     expect(persistence, contains('main.clientCorrelationId !='));
-    expect(persistence, contains('main.payloadHash != payloadHash'));
+    expect(persistence, contains('main.payloadHash != expectedPayloadHash'));
     expect(coordinator, contains('adoptProviderHistory'));
   });
 
@@ -101,15 +101,6 @@ void main() {
     }
   });
 
-  test('provider confirmation wins a late SDK failure or timeout race', () {
-    final source = File(
-      'lib/src/services/im/outgoing_send_coordinator.dart',
-    ).readAsStringSync();
-    expect(source, contains('_providerAlreadyConfirmed'));
-    expect(source, contains('provider evidence confirmed delivery'));
-    expect(
-      source,
-      contains('sdk.isOutcomeUnknown && !providerConfirmed'),
-    );
-  });
+  // Provider/callback ordering is exercised against real persistence and UI
+  // projections in outgoing_result_arbitration_test.dart.
 }

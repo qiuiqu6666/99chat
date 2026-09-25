@@ -1,6 +1,8 @@
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/life_cycle/base_life_cycle.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart'
+    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_value_callback.dart';
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 
 class ChatLifeCycle {
@@ -17,6 +19,14 @@ class ChatLifeCycle {
 
   /// After a new message been sent.
   MessageFunctionNullCallback messageDidSend;
+
+  /// Host-owned submission identity, captured before programmatic input clear.
+  /// These optional hooks do not change the generic message lifecycle.
+  final Object? Function(String text)? textWillSubmit;
+  final void Function(Object? submission)? textDidClearAfterSubmit;
+  final void Function(
+          Object? submission, V2TimValueCallback<V2TimMessage> result)?
+      textDidSubmit;
 
   /// After getting the latest message list from API,
   /// and before historical message list will be rendered.
@@ -41,14 +51,20 @@ class ChatLifeCycle {
   MessageListFunctionAsync messageListShouldMount;
 
   ChatLifeCycle({
-    this.shouldClearHistoricalMessageList = DefaultLifeCycle.defaultAsyncBooleanSolution,
+    this.textWillSubmit,
+    this.textDidClearAfterSubmit,
+    this.textDidSubmit,
+    this.shouldClearHistoricalMessageList =
+        DefaultLifeCycle.defaultAsyncBooleanSolution,
     this.shouldDeleteMessage = DefaultLifeCycle.defaultAsyncBooleanSolution,
     this.messageDidSend = DefaultLifeCycle.defaultNullCallbackSolution,
-    this.didGetHistoricalMessageList = DefaultLifeCycle.defaultMessageListSolution,
+    this.didGetHistoricalMessageList =
+        DefaultLifeCycle.defaultMessageListSolution,
     // this.messageWillSend = DefaultLifeCycle.defaultTwoMessagesSolution,
     this.modifiedMessageWillMount = DefaultLifeCycle.defaultMessageSolution,
     this.newMessageWillMount = DefaultLifeCycle.defaultMessageSolution,
     this.messageShouldMount = DefaultLifeCycle.defaultBooleanSolution,
-    this.messageListShouldMount = DefaultLifeCycle.defaultMessageListSolutionAsync,
+    this.messageListShouldMount =
+        DefaultLifeCycle.defaultMessageListSolutionAsync,
   });
 }

@@ -29,6 +29,7 @@ void main() {
   late List<SyncSnapshotPage> snapshotPages;
   late List<SyncChangesPage> changesPages;
   late int changesThrowAt;
+  void Function()? beforeChangesResponse;
   late ContactsProtocolSyncService service;
 
   RestoreWorkPacer pacer() => RestoreWorkPacer(
@@ -46,6 +47,7 @@ void main() {
     snapshotPages = <SyncSnapshotPage>[];
     changesPages = <SyncChangesPage>[];
     changesThrowAt = -1;
+    beforeChangesResponse = null;
     FriendSyncService.instance.debugOwnerUserId = owner;
     FriendSyncService.instance.debugRemarkDisplayPublishCount = 0;
     await FriendLocalStore.instance.clearForOwner(owner);
@@ -73,6 +75,7 @@ void main() {
         int limit = 200,
       }) async {
         changesCalls.add((afterRevision: afterRevision, cursor: cursor));
+        beforeChangesResponse?.call();
         if (changesThrowAt == changesCalls.length) {
           throw const SyncProtocolException('SNAPSHOT_REQUIRED');
         }
@@ -179,6 +182,59 @@ void main() {
     );
     expect(rows.single.remark, 'A');
   });
+
+  for (final resetDuringRequest in [false, true]) {
+    test(
+        'restores directory reset ${resetDuringRequest ? 'during' : 'before'} an empty catch-up',
+        () async {
+      snapshotPages.add(SyncSnapshotPage(
+        snapshotRevision: 'R1',
+        opaqueCursor: '',
+        hasMore: false,
+        items: [item(id: peer, version: 1, remark: 'A')],
+      ));
+      await service.sync(reason: 'initial');
+      final directory = ImSdkRelationshipDirectory.instance;
+      expect(directory.friend(peer), isNotNull);
+
+      if (resetDuringRequest) {
+        beforeChangesResponse = directory.reset;
+      } else {
+        directory.reset();
+      }
+      await service.sync(reason: 'create_group');
+
+      expect(directory.hasCompleteFriendSnapshot, isTrue);
+      expect(directory.friend(peer)?.remark, 'A');
+      expect(snapshotCalls, hasLength(1));
+      expect(changesCalls, hasLength(2));
+    });
+  }
+
+  for (final resetDuringRequest in [false, true]) {
+    test(
+        'restores cached contacts when reset ${resetDuringRequest ? 'during' : 'before'} offline catch-up',
+        () async {
+      snapshotPages.add(SyncSnapshotPage(
+        snapshotRevision: 'R1',
+        opaqueCursor: '',
+        hasMore: false,
+        items: [item(id: peer, version: 1, remark: 'A')],
+      ));
+      await service.sync(reason: 'initial');
+      final directory = ImSdkRelationshipDirectory.instance;
+      if (!resetDuringRequest) directory.reset();
+      beforeChangesResponse = () {
+        if (resetDuringRequest) directory.reset();
+        throw StateError('offline');
+      };
+
+      await service.sync(reason: 'create_group');
+
+      expect(directory.friend(peer)?.remark, 'A');
+      expect(snapshotCalls, hasLength(1));
+    });
+  }
 
   test('TCP A@11 then v2 A@12 advances version without republishing', () async {
     await FriendLocalStore.instance.replaceAll(

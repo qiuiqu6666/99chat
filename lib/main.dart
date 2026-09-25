@@ -5,6 +5,7 @@ import 'package:tencent_cloud_chat_uikit/data_services/message/history_window_re
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Directory, File, Platform, pid;
+import 'package:tencent_cloud_chat_demo/src/widgets/business_session_guard.dart';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:desktop_webview_window_for_is/desktop_webview_window_for_is.dart';
@@ -551,7 +552,9 @@ class TUIKitDemoApp extends StatelessWidget {
                       DeviceSyncService.instance.markUserActive(),
                   onPointerSignal: (_) =>
                       DeviceSyncService.instance.markUserActive(),
-                  child: AppMaterialAppBuilder(child: child),
+                  child: BusinessSessionGuard(
+                    child: AppMaterialAppBuilder(child: child),
+                  ),
                 ),
               ),
               navigatorObservers: [

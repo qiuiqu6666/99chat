@@ -13,3 +13,7 @@ third_party/tencent_cloud_chat_uikit/*
 /web/trtc.js
 /web/tim-js-friendship.js
 /web/sdk/tencentcloud-chat.js
+
+# Audit evidence contains source snapshots and generated web bundles.
+# Index the live source tree rather than duplicate historical artifacts.
+/artifacts/

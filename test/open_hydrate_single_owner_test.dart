@@ -92,6 +92,36 @@ void main() {
     expect(model.openHydrateResultFor('c2c_u1'), isNull);
   });
 
+  test('a new page does not join a hydrate whose owner is invalid', () async {
+    var firstPageCurrent = true;
+    final oldResponse = Completer<bool>();
+    final newResponse = Completer<bool>();
+    final first = model.ensureOpenHydrate('c2c_u1',
+        requestSignature: 'page1',
+        load: () => oldResponse.future,
+        canPublish: () => firstPageCurrent);
+    await Future<void>.delayed(Duration.zero);
+    firstPageCurrent = false;
+    final second = model.ensureOpenHydrate('u1',
+        requestSignature: 'page2',
+        load: () => newResponse.future,
+        canPublish: () => true);
+    try {
+      expect(identical(first, second), isFalse);
+      oldResponse.complete(true);
+      expect((await first).kind, OpenHydrateResultKind.aborted);
+      expect(model.hasOpenHydrateInFlight('c2c_u1'), isTrue);
+      newResponse.complete(true);
+      expect((await second).shouldSuppressOrdinaryLoad, isTrue);
+      expect(model.openHydrateResultFor('c2c_u1')!.requestSignature, 'page2');
+    } finally {
+      if (!oldResponse.isCompleted) oldResponse.complete(false);
+      if (!newResponse.isCompleted) newResponse.complete(false);
+      await first;
+      await second;
+    }
+  });
+
   test('window eviction invalidates a completed result', () async {
     model.markLocalInitialHistoryVisible('c2c_u1');
     await model.ensureOpenHydrate('c2c_u1',

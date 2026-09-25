@@ -1,4 +1,14 @@
+import 'dart:async';
+
 import 'package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/outbox_draft_submission.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/outbox_payload_cipher.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/contracts/outgoing_identity_contract.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store_platform_stub.dart'
+    if (dart.library.js_interop) 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store_platform_web.dart'
+    as platform;
+
 import 'package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_draft_leave_trace.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
@@ -12,7 +22,32 @@ import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_id_canonical.dart';
 
-/// 会话草稿：以 IMSDK 本地会话库为权威，SQLite 仅保留兼容镜像。
+/// An edit capability scoped to the captured login generation. Its opaque
+/// draftId also identifies durable acceptance; equal text is a different edit.
+class ConversationDraftEdit {
+  ConversationDraftEdit._(this.identity, this.conversationID,
+      this.editorIdentity, this.revision, this.text,
+      [String? persistedId])
+      : draftId = persistedId ?? newOutgoingClientCorrelationId();
+  final String draftId;
+  final SessionIdentity identity;
+  final String conversationID;
+  final Object editorIdentity;
+  final int revision;
+  final String? text;
+  String get key =>
+      '${identity.ownerUserId}|${identity.generation}|$conversationID';
+}
+
+class DraftMirrorWriteException implements Exception {
+  const DraftMirrorWriteException(this.cause);
+  final Object cause;
+  @override
+  String toString() => 'SDK draft saved; local mirror needs repair: $cause';
+}
+
+/// App edits and send acceptance live in the encrypted draft ledger. SDK-only
+/// legacy drafts are imported on read; SDK and conversation mirrors are derived.
 class ConversationDraftService {
   ConversationDraftService._();
 
@@ -20,7 +55,16 @@ class ConversationDraftService {
       {required this.ownerForTest,
       required this.writeForTest,
       required this.readForTest,
-      required this.commitForTest});
+      required this.commitForTest,
+      this.draftStoreForTest,
+      this.draftCipherForTest});
+  ImIngressStore? draftStoreForTest;
+  OutboxPayloadCipher? draftCipherForTest;
+  late final ImIngressStore _draftStore =
+      draftStoreForTest ?? platform.createPlatformImIngressStore();
+  bool get _durableDrafts => ownerForTest == null || draftStoreForTest != null;
+  OutboxPayloadCipher get _draftCipher =>
+      draftCipherForTest ?? OutboxPayloadCipher.instance;
   String Function()? ownerForTest;
   Future<int> Function(String, String?)? writeForTest;
   Future<String?> Function(String)? readForTest;
@@ -29,6 +73,9 @@ class ConversationDraftService {
   static final ConversationDraftService instance = ConversationDraftService._();
   final Map<String, Future<void>> _tails = {};
   final Map<String, int> _versions = {};
+  final Map<String, ConversationDraftEdit> _edits = {};
+  final Set<String> _pendingEdits = {};
+  final Set<String> _mirrorRepairPending = {};
   String get _owner =>
       ownerForTest?.call() ?? ContactSocialCacheStore.safeLoginUserId();
 
@@ -43,19 +90,113 @@ class ConversationDraftService {
     return 'c2c_$id';
   }
 
-  Future<void> _write(String rawId, String? text) {
-    final id = _sdkId(rawId);
+  bool isCurrentEdit(ConversationDraftEdit edit) =>
+      identical(_edits[edit.key], edit) &&
+      SessionIdentityService.instance
+          .isCurrent(edit.identity, currentOwnerUserId: _owner);
+
+  ConversationDraftEdit beginEditing(String conversationID) {
     final identity =
         SessionIdentityService.instance.capture(ownerUserId: _owner);
+    final id = _sdkId(conversationID);
+    final key = '${identity.ownerUserId}|${identity.generation}|$id';
+    final previous = _edits[key];
+    final pendingText = _pendingEdits.contains(key) ? previous?.text : null;
+    final edit = ConversationDraftEdit._(identity, id, Object(), 0, pendingText,
+        pendingText == null ? null : previous?.draftId);
+    _edits.removeWhere((_, value) => !SessionIdentityService.instance
+        .isCurrent(value.identity, currentOwnerUserId: _owner));
+    _edits[key] = edit;
+    // A new page takes over an accepted edit that has not reached the SDK yet.
+    // Invalidating the old editor must not discard that pending content.
+    if (pendingText != null) {
+      _write(id, pendingText, expectedEdit: edit).catchError((Object error) {
+        ConversationDraftLeaveTrace.stage('draft_handoff_write_failed',
+            conversationId: id,
+            extras: <String, Object?>{
+              'mirrorOnly': error is DraftMirrorWriteException
+            });
+      });
+    }
+    return edit;
+  }
+
+  ConversationDraftEdit? recordEdit(
+      ConversationDraftEdit previous, String text) {
+    if (!isCurrentEdit(previous)) return null;
+    final edit = ConversationDraftEdit._(
+        previous.identity,
+        previous.conversationID,
+        previous.editorIdentity,
+        previous.revision + 1,
+        text);
+    _edits[edit.key] = edit;
+    _pendingEdits.add(edit.key);
+    return edit;
+  }
+
+  Future<ImDraftAcceptance> _protectEdit(
+      ConversationDraftEdit edit, String text) async {
+    final protected = await _draftCipher.protect(
+        ownerUserId: edit.identity.ownerUserId, plaintext: text);
+    if (protected == null)
+      throw StateError('durable draft encryption unavailable');
+    return ImDraftAcceptance(
+        ownerUserId: edit.identity.ownerUserId,
+        conversationId: edit.conversationID,
+        draftId: edit.draftId,
+        protectedText: protected.value);
+  }
+
+  ImDraftSubmissionContext submissionContext(ConversationDraftEdit edit) =>
+      ImDraftSubmissionContext(
+          isCurrent: () => isCurrentEdit(edit),
+          prepare: () async {
+            final draft = await _protectEdit(edit, edit.text ?? '');
+            if (isCurrentEdit(edit))
+              await _draftStore.transaction(
+                  (tx) => (tx as ImDraftTransaction).saveDraftHead(draft));
+            return draft;
+          });
+
+  bool mirrorRepairPending(ConversationDraftEdit edit) =>
+      _mirrorRepairPending.contains(edit.key);
+
+  Future<void> _write(String rawId, String? text,
+      {ConversationDraftEdit? expectedEdit}) {
+    final id = _sdkId(rawId);
+    final identity = expectedEdit?.identity ??
+        SessionIdentityService.instance.capture(ownerUserId: _owner);
     if (id.isEmpty || identity.ownerUserId.isEmpty) return Future.value();
+    if (expectedEdit != null &&
+        (expectedEdit.conversationID != id || !isCurrentEdit(expectedEdit))) {
+      return Future.value();
+    }
     final key = '${identity.ownerUserId}|${identity.generation}|$id';
     final version = (_versions[key] ?? 0) + 1;
     _versions[key] = version;
     bool current() =>
         _versions[key] == version &&
+        (expectedEdit == null || isCurrentEdit(expectedEdit)) &&
         SessionIdentityService.instance
             .isCurrent(identity, currentOwnerUserId: _owner);
+    // The durable edit must not wait behind a hung SDK write for the same
+    // conversation. SDK calls still retain their original serial order.
+    final durableSaved = _durableDrafts
+        ? (() async {
+            if (!current()) return;
+            final edit = expectedEdit ??
+                ConversationDraftEdit._(identity, id, Object(), 0, text);
+            final draft = await _protectEdit(edit, text ?? '');
+            if (!current()) return;
+            await _draftStore.transaction((tx) async {
+              if (current())
+                await (tx as ImDraftTransaction).saveDraftHead(draft);
+            });
+          })()
+        : Future<void>.value();
     final next = (_tails[key] ?? Future<void>.value()).then((_) async {
+      await durableSaved;
       if (!current()) return;
       final int code;
       if (writeForTest != null) {
@@ -80,11 +221,18 @@ class ConversationDraftService {
         conversationId: id,
         draftText: text ?? '',
       );
-      if (commitForTest != null) {
-        await commitForTest!(id, text ?? '');
-      } else {
-        final commit = await _commitDraft(id, text ?? '', canCommit: current);
-        if (current()) await _notifyList(commit);
+      if (expectedEdit != null) _pendingEdits.remove(key);
+      try {
+        if (commitForTest != null) {
+          await commitForTest!(id, text ?? '');
+        } else {
+          final commit = await _commitDraft(id, text ?? '', canCommit: current);
+          if (current()) await _notifyList(commit);
+        }
+        if (current()) _mirrorRepairPending.remove(key);
+      } catch (error) {
+        _mirrorRepairPending.add(key);
+        throw DraftMirrorWriteException(error);
       }
     });
     late Future<void> tail;
@@ -103,11 +251,14 @@ class ConversationDraftService {
   Future<void> persistDraft({
     required String conversationID,
     required String rawInputText,
+    ConversationDraftEdit? expectedEdit,
   }) =>
-      _write(conversationID, rawInputText);
+      _write(conversationID, rawInputText, expectedEdit: expectedEdit);
 
-  Future<void> clearDraft({required String conversationID}) =>
-      _write(conversationID, null);
+  Future<void> clearDraft(
+          {required String conversationID,
+          ConversationDraftEdit? expectedEdit}) =>
+      _write(conversationID, null, expectedEdit: expectedEdit);
 
   /// Clears all IDs known to represent the same active conversation. This is
   /// used after send because group routes can expose both a bare IM ID and a
@@ -122,13 +273,51 @@ class ConversationDraftService {
     }
   }
 
-  Future<String?> loadDraftText({required String conversationID}) async {
+  Future<String?> loadDraftText(
+      {required String conversationID,
+      ConversationDraftEdit? expectedEdit}) async {
     final id = _sdkId(conversationID);
     if (id.isEmpty) {
       return null;
     }
-    final identity =
+    final identity = expectedEdit?.identity ??
         SessionIdentityService.instance.capture(ownerUserId: _owner);
+    if (expectedEdit != null && !isCurrentEdit(expectedEdit)) return null;
+    if (expectedEdit != null && _pendingEdits.contains(expectedEdit.key)) {
+      return expectedEdit.text;
+    }
+    if (_durableDrafts) {
+      final head = await _draftStore.transaction((tx) =>
+          (tx as ImDraftTransaction).findDraftHead(identity.ownerUserId, id));
+      if (head != null) {
+        if ((expectedEdit != null && !isCurrentEdit(expectedEdit)) ||
+            !SessionIdentityService.instance
+                .isCurrent(identity, currentOwnerUserId: _owner)) return null;
+        if (head['accepted_operation_id'] != null) {
+          // The operation survived, but a crash may have left the SDK draft.
+          // Repair through the same account queue and current edit fence.
+          if (expectedEdit != null) {
+            unawaited(_write(id, null, expectedEdit: expectedEdit)
+                .catchError((Object error) {
+              ConversationDraftLeaveTrace.stage(
+                  'accepted_draft_cleanup_pending',
+                  conversationId: id,
+                  extras: {'errorType': error.runtimeType.toString()});
+            }));
+          }
+          return null;
+        }
+        final saved = await _draftCipher.reveal(
+            ownerUserId: identity.ownerUserId,
+            value: head['protected_text'] as String);
+        if ((expectedEdit != null && !isCurrentEdit(expectedEdit)) ||
+            !SessionIdentityService.instance
+                .isCurrent(identity, currentOwnerUserId: _owner)) return null;
+        if (saved == null)
+          throw StateError('durable draft cannot be decrypted');
+        return saved.isEmpty ? null : saved;
+      }
+    }
     final String? text;
     if (readForTest != null) {
       text = await readForTest!(id);
@@ -141,9 +330,28 @@ class ConversationDraftService {
       }
       text = result.data?.draftText;
     }
-    if (!SessionIdentityService.instance
-        .isCurrent(identity, currentOwnerUserId: _owner)) {
+    if ((expectedEdit != null && !isCurrentEdit(expectedEdit)) ||
+        !SessionIdentityService.instance
+            .isCurrent(identity, currentOwnerUserId: _owner)) {
       return null;
+    }
+    final key = '${identity.ownerUserId}|${identity.generation}|$id';
+    if (_mirrorRepairPending.contains(key)) {
+      bool current() =>
+          SessionIdentityService.instance
+              .isCurrent(identity, currentOwnerUserId: _owner) &&
+          (expectedEdit == null || isCurrentEdit(expectedEdit));
+      try {
+        if (commitForTest != null) {
+          await commitForTest!(id, text ?? '');
+        } else {
+          final commit = await _commitDraft(id, text ?? '', canCommit: current);
+          if (current()) await _notifyList(commit);
+        }
+        if (current()) _mirrorRepairPending.remove(key);
+      } catch (_) {
+        // SDK remains authoritative even when its derived mirror is unavailable.
+      }
     }
     return (text?.trim().isEmpty ?? true) ? null : text;
   }

@@ -6,7 +6,7 @@ import 'dart:io' show Platform;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart'
-    show kDebugMode, kIsWeb, kReleaseMode, visibleForTesting;
+    show kDebugMode, kIsWeb, kReleaseMode, visibleForTesting, ValueNotifier, ValueListenable;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -29,10 +29,13 @@ class ApiClient {
   static void Function()? onTransportSuccess;
   static void Function()? onTransportFailure;
 
-  bool _handlingAuthExpired = false;
+  int? _handlingAuthExpiredGeneration;
   bool _suppressAuthExpired = false;
   bool _logoutInProgress = false;
   int _credentialGeneration = 0;
+  final ValueNotifier<int> _sessionRevision = ValueNotifier<int>(0);
+
+  ValueListenable<int> get sessionRevision => _sessionRevision;
 
   static const String _tokenKey = 'auth_token';
   static const String _tokenSecureKey = 'auth_token_secure';
@@ -149,6 +152,15 @@ class ApiClient {
           return;
         options.extra[_requestCredentialGeneration] = _credentialGeneration;
         final path = _requestPath(options);
+        if (!_isPublicPath(path) && isJwtExpired(_token)) {
+          unawaited(expireSessionIfNeeded());
+          handler.reject(DioError(
+            requestOptions: options,
+            type: DioErrorType.cancel,
+            error: '身份信息过期，请重新登录',
+          ));
+          return;
+        }
         if (_isPublicPath(path)) {
           options.headers.remove('Authorization');
         } else {
@@ -196,6 +208,15 @@ class ApiClient {
           ));
           return;
         }
+        final authError = DioError(
+          requestOptions: response.requestOptions,
+          response: response,
+          type: DioErrorType.response,
+        );
+        if (await handleSessionExpiryError(authError)) {
+          handler.reject(authError);
+          return;
+        }
         handler.next(response);
       },
       onError: (error, handler) async {
@@ -210,9 +231,8 @@ class ApiClient {
         }
         if (accountDisabledMessage(error.response) != null) {
           await _handleAccountDisabled(error.response!);
-        } else if (_shouldNotifyAuthExpired(error)) {
-          _logAuthExpiredTrigger(error);
-          await _notifyAuthExpired();
+        } else {
+          await handleSessionExpiryError(error);
         }
         handler.next(error);
       },
@@ -301,7 +321,12 @@ class ApiClient {
 
   bool _requestUsedCurrentToken(DioError error) {
     final currentToken = _token;
-    if (!isValidJwt(currentToken)) {
+    // A token may expire while the request is in flight. Compare its identity,
+    // not its remaining lifetime, and fence even same-token relogins.
+    final generation =
+        error.requestOptions.extra[_requestCredentialGeneration];
+    if (currentToken == null || currentToken.isEmpty ||
+        (generation != null && generation != _credentialGeneration)) {
       return false;
     }
 
@@ -484,6 +509,7 @@ class ApiClient {
 
   void setSuppressAuthExpired(bool value) {
     _suppressAuthExpired = value;
+    if (!value) _sessionRevision.value++;
   }
 
   void setLogoutInProgress(bool value) {
@@ -495,9 +521,46 @@ class ApiClient {
     final t = token.trim();
     if (t.isEmpty) return false;
     if (_looksLikeJwt(t)) {
-      return true;
+      return !isJwtExpired(t);
     }
     return _looksLikeOpaqueToken(t);
+  }
+
+  /// Decode only the local expiry deadline. Server authentication remains
+  /// authoritative for revocation and tokens without a JWT expiry claim.
+  static DateTime? jwtExpiresAt(String? token) {
+    final parts = token?.trim().split('.');
+    if (parts == null || parts.length != 3) return null;
+    try {
+      final payload = jsonDecode(
+          utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))));
+      if (payload is! Map) return null;
+      final exp = payload['exp'];
+      if (exp is! num || !exp.isFinite) return null;
+      return DateTime.fromMillisecondsSinceEpoch((exp * 1000).floor(),
+          isUtc: true);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static bool isJwtExpired(String? token, {DateTime? now}) {
+    final deadline = jwtExpiresAt(token);
+    return deadline != null && !deadline.isAfter(now ?? DateTime.now());
+  }
+
+  Future<bool> expireSessionIfNeeded({DateTime? now}) async {
+    if (_logoutInProgress || !isJwtExpired(_token, now: now)) return false;
+    await _notifyAuthExpired();
+    return true;
+  }
+
+  /// Also used by authenticated clients outside the main Dio instance.
+  Future<bool> handleSessionExpiryError(DioError error) async {
+    if (!_shouldNotifyAuthExpired(error)) return false;
+    _logAuthExpiredTrigger(error);
+    await _notifyAuthExpired();
+    return true;
   }
 
   static bool _looksLikeJwt(String token) {
@@ -555,20 +618,20 @@ class ApiClient {
   }
 
   Future<void> _notifyAuthExpired() async {
-    if (_suppressAuthExpired) {
+    if (_suppressAuthExpired || _logoutInProgress) {
       return;
     }
     final callback = onAuthExpired;
-    if (callback == null || _handlingAuthExpired) {
+    final generation = _credentialGeneration;
+    if (callback == null || _handlingAuthExpiredGeneration == generation) {
       return;
     }
-    _handlingAuthExpired = true;
+    _handlingAuthExpiredGeneration = generation;
     try {
       await callback();
-    } finally {
-      Future<void>.delayed(const Duration(seconds: 2), () {
-        _handlingAuthExpired = false;
-      });
+    } catch (_) {
+      // SessionExpiryService still navigates in its finally block if SDK
+      // cleanup fails. Do not leave requests or timer callbacks unhandled.
     }
   }
 
@@ -588,7 +651,8 @@ class ApiClient {
     print(
       'API_LOG auth-expired trigger: '
       'path=$path status=$status code=${code.isEmpty ? '-' : code} '
-      'suppressed=$_suppressAuthExpired handling=$_handlingAuthExpired',
+      'suppressed=$_suppressAuthExpired '
+      'handling=${_handlingAuthExpiredGeneration == _credentialGeneration}',
     );
   }
 
@@ -768,6 +832,7 @@ class ApiClient {
         if (legacyToken != null) {
           await prefs.remove(_tokenKey);
         }
+        _sessionRevision.value++;
       });
 
   Future<void> saveToken(String token, {String? userId}) =>
@@ -795,6 +860,7 @@ class ApiClient {
         }
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_tokenKey);
+        _sessionRevision.value++;
       });
 
   Future<bool> saveAuthenticatedUserIdIfCurrent({
@@ -840,6 +906,7 @@ class ApiClient {
     _credentialGeneration++;
     _token = null;
     _authenticatedUserId = null;
+    _sessionRevision.value++;
     await _secure.delete(key: _tokenSecureKey);
     await _secure.delete(key: _authUserIdSecureKey);
     final prefs = await SharedPreferences.getInstance();

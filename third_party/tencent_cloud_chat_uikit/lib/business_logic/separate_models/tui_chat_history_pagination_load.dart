@@ -332,9 +332,11 @@ class HistoryPaginationLoadRunner {
           'haveMoreData': pagination.haveMoreData,
         },
       );
+      // A duplicate did not commit a page for this caller. The older-page UI
+      // uses this result as its commit signal, not as a has-more flag.
       return direction == LoadDirection.latest
           ? pagination.haveMoreLatestData
-          : pagination.haveMoreData;
+          : false;
     }
     final isPreviousPagination =
         (lastMsgID != null || lastMsgSeq > 0 || lastMsg != null) &&
@@ -371,7 +373,9 @@ class HistoryPaginationLoadRunner {
           'haveMoreData': pagination.haveMoreData,
         },
       );
-      return pagination.haveMoreData;
+      // Another older cursor owns the active request. Reporting has-more as a
+      // successful load would release the UI edge latch without adding rows.
+      return false;
     }
     pagination.historyLoadingKeys.add(requestKey);
     if (pagination.historyLoadingKeys.length == 1) {

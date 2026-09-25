@@ -3254,6 +3254,13 @@ class _ConversationState extends State<Conversation> {
       return;
     }
     _openingConversationID = conversationID;
+    final openCacheKey =
+        _chatCacheConversationKey(selectedConv) ?? conversationID;
+    ChatOpenPerfLog.beginOpen(conversationID: openCacheKey,
+        phase: 'conv_item_tap', extras: <String, Object?>{
+          'source': widget.onConversationChanged == null ? 'list' : 'embedded',
+        });
+    final openTrace = ChatOpenPerfLog.captureCurrent(conversationKey: openCacheKey);
     unawaited(
       ConversationSyncService.instance.retainOpenedGroupConversation(
         selectedConv,
@@ -3290,19 +3297,18 @@ class _ConversationState extends State<Conversation> {
         'embedded': widget.onConversationChanged != null,
       },
     );
-    await ConversationUnreadClearService.clearLocalForOpenFast(
+    await ChatOpenPerfLog.measure('entry_local_unread_clear', () =>
+        ConversationUnreadClearService.clearLocalForOpenFast(
       conversation: selectedConv,
       markViewModelReadLocally: _controller.model.markConversationReadLocally,
-    );
+    ), trace: openTrace, source: 'list');
 
-    final openCacheKey =
-        _chatCacheConversationKey(selectedConv) ?? conversationID;
     ConversationHistoryWarmScheduler.instance.touchMemoryWarm(openCacheKey);
     final isGroup = selectedConv.type == 2 ||
         (selectedConv.groupID?.trim().isNotEmpty ?? false);
-    ChatOpenPerfLog.beginOpen(
+    ChatOpenPerfLog.mark('entry_local_ready',
       conversationID: openCacheKey,
-      phase: 'conv_item_tap',
+      trace: openTrace,
       extras: <String, Object?>{
         'rawConvID': conversationID,
         'isGroup': isGroup,
@@ -3320,10 +3326,6 @@ class _ConversationState extends State<Conversation> {
             .hasInitialHistoryLoaded(openCacheKey),
       },
     );
-    final openTrace = ChatOpenPerfLog.captureCurrent(
-      conversationKey: openCacheKey,
-    );
-
     final embeddedChat = widget.onConversationChanged != null;
     if (embeddedChat) {
       final previous = _embeddedActiveConversationID;
@@ -3344,20 +3346,6 @@ class _ConversationState extends State<Conversation> {
       selectedConv,
       notify: embeddedChat,
     );
-
-    if (PlatformOfficialAccountService.isPlatformOfficialAccount(
-      selectedConv.userID,
-    )) {
-      unawaited(
-        PlatformOfficialAccountService.ensureReadyForChat(
-          userId: selectedConv.userID,
-        ).then((_) {
-          if (mounted) {
-            setState(() {});
-          }
-        }),
-      );
-    }
 
     if (!mounted) {
       if (pushChatRoute) {
@@ -3391,10 +3379,10 @@ class _ConversationState extends State<Conversation> {
         unawaited(() async {
           try {
             final coordinator = ChatOpenViewportCoordinator.instance;
-            final prepareTask = coordinator.prepareOpenViewport(
+            final prepareTask = ChatOpenPerfLog.withTrace(openTrace, () => coordinator.prepareOpenViewport(
               conversation: selectedConv,
               source: 'list',
-            );
+            ));
             final listRequestId = coordinator.currentRequestId;
             final snap = await prepareTask;
             if (!coordinator.isCurrent(
@@ -3451,6 +3439,8 @@ class _ConversationState extends State<Conversation> {
           context,
           selectedConv,
           entryUnreadCount: entryUnreadCount,
+          openTrace: openTrace,
+          openSource: 'list',
         );
         ChatOpenPerfLog.mark('navigator_pop_back', trace: openTrace);
         ConversationDraftLeaveTrace.stage(

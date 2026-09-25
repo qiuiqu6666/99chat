@@ -20,6 +20,7 @@ import 'package:tencent_cloud_chat_demo/src/services/account_session_service.dar
 import 'package:tencent_cloud_chat_demo/src/services/app_update_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/interaction_idle_scheduler.dart';
 import 'package:tencent_cloud_chat_demo/src/create_group.dart';
+import 'package:tencent_cloud_chat_demo/src/pages/channel_intro_page.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/wallet/wallet_screen.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/settings/notification_settings_page.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/settings/settings_page.dart';
@@ -84,7 +85,7 @@ class HomePageState extends State<HomePage> {
   final Set<int> _visitedTabs = <int>{};
   final GlobalKey _plusActionKey = GlobalKey();
 
-  /// 加号图标旋转（圈数），每次 +0.25 为顺时针 90°。
+  /// 加号图标旋转（圈数），每次点击顺时针增加 0.125 圈（45°）。
   double _plusIconTurns = 0;
   final TIMUIKitConversationController _conversationController =
       TIMUIKitConversationController();
@@ -149,6 +150,17 @@ class HomePageState extends State<HomePage> {
           ),
         },
         {
+          "id": "createChannel",
+          "icon": Icons.campaign_rounded,
+          "label": AppI18n.of(context).t(
+            zhHans: '创建频道',
+            zhHant: '建立頻道',
+            en: 'Create Channel',
+            ja: 'チャンネルを作成',
+            ko: '채널 만들기',
+          ),
+        },
+        {
           "id": "scanQRCode",
           "icon": Icons.qr_code_scanner_rounded,
           "label": AppI18n.of(
@@ -178,6 +190,17 @@ class HomePageState extends State<HomePage> {
             en: 'Create Group',
             ja: 'グループを作成',
             ko: '그룹 만들기',
+          ),
+        },
+        {
+          "id": "createChannel",
+          "icon": Icons.campaign_rounded,
+          "label": AppI18n.of(context).t(
+            zhHans: '创建频道',
+            zhHant: '建立頻道',
+            en: 'Create Channel',
+            ja: 'チャンネルを作成',
+            ko: '채널 만들기',
           ),
         },
         {
@@ -1048,6 +1071,9 @@ class HomePageState extends State<HomePage> {
           ),
         );
         break;
+      case "createChannel":
+        ChannelIntroPage.show(context);
+        break;
       case "scanQRCode":
         QRScannerLauncher.open(context);
         break;
@@ -1076,7 +1102,7 @@ class HomePageState extends State<HomePage> {
 
   void _rotatePlusIconClockwise() {
     if (!mounted) return;
-    setState(() => _plusIconTurns += 0.25);
+    setState(() => _plusIconTurns += 0.125);
   }
 
   Widget _buildPlusMenuIconButton(VoidCallback onPressed) {
@@ -1104,7 +1130,8 @@ class HomePageState extends State<HomePage> {
         Overlay.of(context).context.findRenderObject() as RenderBox;
     final Offset offset = button.localToGlobal(Offset.zero, ancestor: overlay);
     final media = MediaQuery.of(context);
-    final menuConstraints = homeQuickMenuConstraints(media.copyWith(size: overlay.size));
+    final menuConstraints =
+        homeQuickMenuConstraints(media.copyWith(size: overlay.size));
     final menuWidth = menuConstraints.maxWidth;
     final rightInset = media.padding.right + 8;
     final menuLeft = overlay.size.width - menuWidth - rightInset;
@@ -1118,17 +1145,18 @@ class HomePageState extends State<HomePage> {
       constraints: menuConstraints,
       shape: HomeQuickMenuShape(
         arrowX: offset.dx + button.size.width / 2 - menuLeft,
-        borderColor: menuIsDark ? const Color(0xFF383A40) : const Color(0xFFE9EAEE),
+        borderColor:
+            menuIsDark ? const Color(0xFF383A40) : const Color(0xFFE9EAEE),
       ),
       position: RelativeRect.fromLTRB(
         menuLeft,
         offset.dy + button.size.height + 2,
         rightInset,
         0,
-      ),      items: _getTooltipMenus(context, theme),
+      ),
+      items: _getTooltipMenus(context, theme),
     );
     if (!mounted) return;
-    _rotatePlusIconClockwise();
     if (selected != null) {
       _handleTapTooltipItem(selected);
     }
@@ -1472,9 +1500,11 @@ class HomePageState extends State<HomePage> {
             // so the nested conversation viewport never changes during toggles.
             bottomNavigationBar: isEditing
                 ? (conversationEditActionBarBuilders[
-                        _conversationScopeForTab(currentIndex)]?.call(theme) ??
-                    SizedBox(height: kBottomNavigationBarHeight +
-                        MediaQuery.paddingOf(context).bottom))
+                            _conversationScopeForTab(currentIndex)]
+                        ?.call(theme) ??
+                    SizedBox(
+                        height: kBottomNavigationBarHeight +
+                            MediaQuery.paddingOf(context).bottom))
                 : Builder(
                     builder: (context) {
                       // Keep the Material navigation bar's minimum content height;
@@ -1705,7 +1735,8 @@ class _WalletBellIconPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_WalletBellIconPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(_WalletBellIconPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 /// Six rounded teeth with a transparent annulus and solid center.
@@ -1777,7 +1808,8 @@ class _SettingsGearIconPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_SettingsGearIconPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(_SettingsGearIconPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class NavigationBarData {

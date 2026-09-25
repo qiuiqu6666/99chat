@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/contracts/contracts.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/history_search_coordinator.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_send_coordinator.dart';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/tencent_conversation_read_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/utils/custom_message/c2c_peer_rejected_tip_message.dart';
@@ -1387,7 +1388,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     );
     unawaited(
       ImOutgoingSendCoordinator.instance
-          .adoptProviderHistory(historyList)
+          .adoptProviderHistory(historyList, source: ImProviderEvidenceSource.sdkHistory)
           .catchError((Object error) {
         debugPrint(
           'OUTBOX_HISTORY_ADOPTION_FAILURE '
@@ -2071,6 +2072,9 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   }
 
   final Map<String, Future<OpenHydrateResult>> _openHydrateInFlightByConv = {};
+  // Weak keys avoid retaining abandoned page guards once a flight is evicted.
+  final Expando<bool Function()> _openHydrateCanPublish =
+      Expando<bool Function()>('openHydrateCanPublish');
   final Map<String, OpenHydrateResult> _openHydrateResultByConv =
       <String, OpenHydrateResult>{};
   late final WindowMessageReceiptCache _messageReadReceiptMap =
@@ -3665,19 +3669,70 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     );
   }
 
+  final Map<String, VoidCallback> _outboxResultSubscriptions = {};
+  final Map<String, String> _outboxSubscriptionConversations = {};
+
+  void _observeOutgoingResult(ImCoordinatedSendResult live, String convID,
+      String clientId, ConvType convType, GroupReceiptAllowType? groupType) {
+    final view = live.resultView;
+    final identity = live.identity;
+    if (view == null || identity == null || live.currentOutboxResult?.deliveryConfirmed == true) return;
+    final key = identity.scope.ownerUserId + '|' + identity.operationId;
+    if (_outboxResultSubscriptions.containsKey(key)) return;
+    void remove() {
+      _outboxSubscriptionConversations.remove(key);
+      _outboxResultSubscriptions.remove(key)?.call();
+    }
+    void changed() {
+      final snapshot = live.snapshot();
+      if (!snapshot.isCurrentSession) { remove(); return; }
+      if (snapshot.outcomeUnknown) return;
+      final applied = applyOutgoingSendResult(snapshot.sdkResult, convID,
+          clientId, convType, groupType, null, coordinatedResult: snapshot);
+      if (snapshot.currentOutboxResult?.deliveryConfirmed == true) {
+        remove();
+        final message = snapshot.sdkResult.data;
+        if (applied && message != null) {
+          // Projection only: do not replay messageDidSend or clear input.
+          final session = snapshot.accountGeneration == null ? null : SessionIdentity(
+            ownerUserId: identity.scope.ownerUserId, generation: snapshot.accountGeneration!);
+          unawaited(ConversationSyncService.instance.patchConversationLastMessage(
+            conversationID: identity.scope.conversationId, message: message, identity: session)
+              .catchError((Object error) { outputLogger.i('outbox preview repair: ' + error.runtimeType.toString()); }));
+        }
+      }
+    }
+    view.addListener(changed);
+    _outboxSubscriptionConversations[key] = convID;
+    _outboxResultSubscriptions[key] = () => view.removeListener(changed);
+  }
+
   bool applyOutgoingSendResult(
     V2TimValueCallback<V2TimMessage> sendMsgRes,
     String convID,
     String clientId,
     ConvType convType,
     GroupReceiptAllowType? groupType,
-    ValueChanged<String>? setInputField,
-  ) {
+    ValueChanged<String>? setInputField, {
+    ImCoordinatedSendResult? coordinatedResult,
+  }) {
+    if (coordinatedResult != null) {
+      _observeOutgoingResult(coordinatedResult, convID, clientId, convType, groupType);
+      coordinatedResult = coordinatedResult.snapshot();
+      final identity = coordinatedResult.identity;
+      if (identity != null && coordinatedResult.accountGeneration != null &&
+          !SessionIdentityService.instance.isCurrent(SessionIdentity(
+              ownerUserId: identity.scope.ownerUserId,
+              generation: coordinatedResult.accountGeneration!))) return false;
+      if (coordinatedResult.outcomeUnknown) return false;
+      sendMsgRes = coordinatedResult.sdkResult;
+    }
     final dataMsgID = sendMsgRes.data?.msgID;
     if (isOutgoingMediaCancelled(clientId) ||
         isOutgoingMediaCancelled(dataMsgID)) {
       return false;
     }
+    if (!_mayProjectOutgoingResult(convID, clientId, sendMsgRes)) return false;
     try {
       updateMessage(
         sendMsgRes,
@@ -3686,6 +3741,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
         convType,
         groupType,
         setInputField,
+        stateVersion: coordinatedResult?.currentOutboxResult?.stateVersion,
       );
       if (sendMsgRes.code != 0) {
         markOutgoingSendFailedByIdentity(
@@ -3711,6 +3767,35 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       return false;
     }
   }
+
+  bool _mayProjectOutgoingResult(String conversationID, String clientId,
+      V2TimValueCallback<V2TimMessage> result) {
+    final storageKey = _resolveMessageListStorageKey(conversationID);
+    final tombstones = _messageReconciliationWriter.tombstonesFor(storageKey);
+    final message = result.data;
+    final ids = <String>{clientId, message?.id ?? '', message?.msgID ?? '',
+        readOutgoingStableId(message) ?? ''}..remove('');
+    if (ids.any(tombstones.contains)) return false;
+    final list = _mergedAliasMessageList(storageKey);
+    final index = message == null
+        ? list.indexWhere((row) => row.id == clientId)
+        : _findMessageIndexForUpdate(list, clientId, message);
+    if (index < 0) return true;
+    final previous = list[index];
+    if (previous.status == MessageStatus.V2TIM_MSG_STATUS_LOCAL_REVOKED) return false;
+    // This is an existing confirmed row, not merely a nonempty sync msgID.
+    return result.code == 0 ||
+        previous.status != MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC;
+  }
+
+  /// Recheck after awaits, before publishing previews or lifecycle effects.
+  /// Delivery evidence may settle Outbox without reviving removed content.
+  bool mayPublishOutgoingSendCompletion(String conversationID, String clientId,
+      ImCoordinatedSendResult result) =>
+      result.isCurrentSession && !result.outcomeUnknown &&
+      !isOutgoingMediaCancelled(clientId) &&
+      !isOutgoingMediaCancelled(result.sdkResult.data?.msgID) &&
+      _mayProjectOutgoingResult(conversationID, clientId, result.sdkResult);
 
   void insertPeerRejectedLocalTip(
     String conversationID,
@@ -6534,7 +6619,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   }) {
     final key = conversationID.trim();
     final existing = _findOpenHydrateInFlight(key);
-    if (existing != null) {
+    if (existing != null && (_openHydrateCanPublish[existing]?.call() ?? true)) {
       final joinTrace = ChatOpenPerfLog.captureCurrent(conversationKey: key);
       ChatOpenPerfLog.markHydrateJoined(
         ChatOpenPerfLog.lastPrepareRequestId,
@@ -6589,7 +6674,10 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       trace: ownerTrace,
     );
     late final Future<OpenHydrateResult> task;
+    final ownerSpan = ChatOpenPerfLog.queueSpan('hydrate_producer',
+        trace: ownerTrace, source: 'shared_local');
     task = Future<OpenHydrateResult>.microtask(() async {
+      ownerSpan?.start();
       var kind = OpenHydrateResultKind.aborted;
       ChatOpenPerfLog.mark(
         'app_hydrate_started',
@@ -6601,7 +6689,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
         trace: ownerTrace,
       );
       try {
-        if (canPublish() && await load()) {
+        if (canPublish() && await ChatOpenPerfLog.withSpan(ownerSpan, load)) {
           kind = rawMessageCount(key) > 0
               ? OpenHydrateResultKind.committedMessages
               : OpenHydrateResultKind.committedEmpty;
@@ -6650,12 +6738,19 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
           trace: ownerTrace,
         );
       }
+      ownerSpan?.finish(outcome: kind.name, extras: <String, Object?>{
+        'rawCount': result.resultCount,
+        'committed': result.firstWindowCommitted,
+      });
       return result;
     }).whenComplete(() {
+      ownerSpan?.finish(outcome: 'error');
+      final stillOwner = identical(_findOpenHydrateInFlight(key), task);
       _openHydrateInFlightByConv
           .removeWhere((_, value) => identical(value, task));
-      markOpenChatHydrateSettled(key);
+      if (stillOwner) markOpenChatHydrateSettled(key);
     });
+    _openHydrateCanPublish[task] = canPublish;
     for (final alias in _historyFlagKeys(key)) {
       _openHydrateInFlightByConv[alias] = task;
     }
@@ -6953,6 +7048,13 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   }
 
   void removeMessageList(String conversationID) {
+    final subscriptions = _outboxSubscriptionConversations.entries
+        .where((entry) => _isSameConversationID(entry.value, conversationID))
+        .map((entry) => entry.key).toList(growable: false);
+    for (final key in subscriptions) {
+      _outboxSubscriptionConversations.remove(key);
+      _outboxResultSubscriptions.remove(key)?.call();
+    }
     clearOpenHydrateResult(conversationID);
     _openHydrateInFlightByConv.removeWhere(
       (key, _) => _isSameConversationID(key, conversationID),
@@ -7445,6 +7547,9 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   }
 
   clearData() {
+    for (final cancel in _outboxResultSubscriptions.values) { cancel(); }
+    _outboxResultSubscriptions.clear();
+    _outboxSubscriptionConversations.clear();
     invalidateBoundedHistorySessions();
     _writerProjectionAuthorities.clear();
     // Flush all buffered inbound messages before clearing state so SDK
@@ -10243,6 +10348,14 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       ingressSequence: ingressSequence,
       projectMessageList: projectMessageList,
     );
+    if (message.isSelf == true) {
+      unawaited(ImOutgoingSendCoordinator.instance
+          .adoptProviderHistory(<V2TimMessage>[message], source: ImProviderEvidenceSource.sdkRealtime)
+          .catchError((Object error) {
+        debugPrint('[IM_SEND_COORDINATOR] realtime result repair pending: ${error.runtimeType}');
+        return 0;
+      }));
+    }
   }
 
   Future<void> applyAppMessageModified(
@@ -10828,7 +10941,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       },
     );
     onCoordinatedResult?.call(coordinatedSend);
-    final sendMsgRes = coordinatedSend.sdkResult;
+    var sendMsgRes = coordinatedSend.sdkResult;
     // IM-08: when the SDK Future resolves OutcomeUnknown, the dispatch path
     // cannot prove the provider accepted or rejected the operation. The
     // Outbox main + recovery copy already record OutcomeUnknown; the
@@ -10837,7 +10950,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     // projection here would resurrect an in-flight message or flash a
     // red retry icon on a still-pending send.
     var projectionCommitted = true;
-    if (isEditStatusMessage == false && !coordinatedSend.outcomeUnknown) {
+    if (isEditStatusMessage == false) {
       projectionCommitted = applyOutgoingSendResult(
         sendMsgRes,
         convID,
@@ -10845,11 +10958,12 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
         convType,
         receiptGroupType,
         setInputField,
+        coordinatedResult: coordinatedSend,
       );
     } else if (coordinatedSend.outcomeUnknown) {
       projectionCommitted = false;
     }
-    if (!coordinatedSend.outcomeUnknown) {
+    if (mayPublishOutgoingSendCompletion(convID, id, coordinatedSend)) {
       insertPeerRejectedLocalTip(
         convID,
         sendMsgRes.code,
@@ -10861,7 +10975,9 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
         coordinatedSend,
       );
     }
-    if (_lifeCycle?.messageDidSend != null) {
+    sendMsgRes = coordinatedSend.sdkResult;
+    if (_lifeCycle?.messageDidSend != null &&
+        mayPublishOutgoingSendCompletion(convID, id, coordinatedSend)) {
       _lifeCycle!.messageDidSend(sendMsgRes);
     }
 
@@ -12190,8 +12306,10 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     String id,
     ConvType convType,
     GroupReceiptAllowType? groupType,
-    ValueChanged<String>? setInputField,
-  ) {
+    ValueChanged<String>? setInputField, {
+    int? stateVersion,
+  }) {
+    if (!_mayProjectOutgoingResult(convID, id, sendMsgRes)) return;
     final storageConvID = _resolveMessageListStorageKey(convID);
     List<V2TimMessage> currentHistoryMsgList =
         _messageListMap[storageConvID] ?? _collectAuthoritativeMessages(convID);
@@ -12333,7 +12451,10 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     final authoritativeSendCommit = commitMessageDelta(
       MessageDelta<V2TimMessage>(
         conversationKey: storageConvID,
-        eventID: 'send_adoption:$stableIdentity:${resolvedMessage.msgID ?? ''}',
+        // A later committed result is a new event for the same message.
+        // Legacy callbacks still distinguish failure from confirmed success.
+        eventID: 'send_adoption:$stableIdentity:${resolvedMessage.msgID ?? ''}:'
+            '${stateVersion ?? resolvedMessage.status}',
         kind: MessageDeltaKind.optimisticAdoption,
         source: MessageDeltaSource.sendPipeline,
         generation: messageDeltaGenerationFor(storageConvID),
@@ -12440,6 +12561,8 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       return false;
     }
     final previous = list[index];
+    if (previous.status == MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC ||
+        previous.status == MessageStatus.V2TIM_MSG_STATUS_LOCAL_REVOKED) return false;
     final failed = _cloneMessage(previous);
     failed.status = MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL;
     if (localCustomData != null) {

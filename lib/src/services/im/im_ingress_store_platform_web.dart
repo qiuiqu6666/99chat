@@ -5,13 +5,18 @@ import 'dart:js_interop';
 import 'package:web/web.dart';
 
 import 'im05_contracts.dart';
+import 'im05_persistence.dart';
+import 'outbox_draft_submission.dart';
 import 'im_ingress_store.dart';
 import 'inbox_recovery_policy.dart';
 import 'message_persist_coordinator.dart';
 
 ImIngressStore createPlatformImIngressStore() => WebImIngressStore();
 
-class WebImIngressStore implements ImIngressStore {
+class WebImIngressStore implements ImIngressStore, ImOutboxObservationScope {
+  static final Object _observationScope = Object();
+  @override
+  Object get outboxObservationScope => _observationScope;
   static const _dbName = 'xj_chat_message_ingress_v1';
   static const _storeName = 'state';
   static const _dbVersion = 1;
@@ -62,7 +67,11 @@ class WebImIngressStore implements ImIngressStore {
     );
     try {
       final result = await action(transaction);
+      final snapshots = await transaction.committedOutboxes();
       await completion;
+      for (final (main, copy) in snapshots) {
+        Im05Persistence.publishCommitted(outboxObservationScope, main, copy);
+      }
       return result;
     } catch (error) {
       try {
@@ -75,10 +84,105 @@ class WebImIngressStore implements ImIngressStore {
   }
 }
 
-class _WebImIngressTransaction implements ImIngressTransaction {
+class _WebImIngressTransaction
+    with ImOutboxCommitTracking
+    implements ImIngressTransaction, ImDraftTransaction {
   _WebImIngressTransaction(this._store);
 
   final IDBObjectStore _store;
+
+  /// Walks keys without materializing the object store. The callback is
+  /// synchronous so every cursor continuation remains inside the same
+  /// IndexedDB transaction.
+  Future<void> _scanPrefix(
+    String prefix,
+    bool Function(String key, String value) visit, {
+    String? afterKey,
+  }) {
+    final completer = Completer<void>();
+    final request = _store.openCursor(
+      IDBKeyRange.lowerBound((afterKey ?? prefix).toJS, afterKey != null),
+    );
+    request.onsuccess = ((Event _) {
+      if (completer.isCompleted) return;
+      try {
+        final result = request.result;
+        if (result == null || result.isUndefinedOrNull) {
+          completer.complete();
+          return;
+        }
+        final cursor = result as IDBCursorWithValue;
+        final key = (cursor.key as JSString).toDart;
+        if (!key.startsWith(prefix)) {
+          completer.complete();
+          return;
+        }
+        final raw = cursor.value;
+        if (raw != null &&
+            !raw.isUndefinedOrNull &&
+            !visit(key, (raw as JSString).toDart)) {
+          completer.complete();
+          return;
+        }
+        cursor.continue_();
+      } catch (error, stack) {
+        completer.completeError(error, stack);
+      }
+    }).toJS;
+    request.onerror = ((Event _) {
+      if (!completer.isCompleted) {
+        completer.completeError(
+          StateError(request.error?.message ?? 'IndexedDB cursor failed'),
+        );
+      }
+    }).toJS;
+    return completer.future;
+  }
+
+  @override
+  Future<Map<String, Object?>?> findDraftHead(
+          String owner, String conversation) async =>
+      _decodeMap(await _get('draft|' + owner + '|' + conversation));
+  @override
+  Future<void> saveDraftHead(ImDraftAcceptance draft) async {
+    final old = await findDraftHead(draft.ownerUserId, draft.conversationId);
+    final acceptedOperation = await _get('draft-accepted|' +
+        draft.ownerUserId +
+        '|' +
+        draft.conversationId +
+        '|' +
+        draft.draftId);
+    if (acceptedOperation != null && old != null) return;
+    await _put(
+        'draft|' + draft.ownerUserId + '|' + draft.conversationId,
+        jsonEncode({
+          'draft_id': draft.draftId,
+          'protected_text': draft.protectedText,
+          'accepted_operation_id': acceptedOperation
+        }));
+  }
+
+  @override
+  Future<void> acceptDraft(ImDraftAcceptance draft, String operationId) async {
+    final key = 'draft-accepted|' +
+        draft.ownerUserId +
+        '|' +
+        draft.conversationId +
+        '|' +
+        draft.draftId;
+    final old = await _get(key);
+    if (old != null && old != operationId)
+      throw StateError('draft already accepted by another operation');
+    await _put(key, operationId);
+    var head = await findDraftHead(draft.ownerUserId, draft.conversationId);
+    if (head == null) {
+      await saveDraftHead(draft);
+      head = await findDraftHead(draft.ownerUserId, draft.conversationId);
+    }
+    if (head!['draft_id'] == draft.draftId)
+      await _put('draft|' + draft.ownerUserId + '|' + draft.conversationId,
+          jsonEncode({...head, 'accepted_operation_id': operationId}));
+  }
 
   String _inboxKey(String owner, String namespace, String eventId) =>
       'inbox|$owner|$namespace|$eventId';
@@ -160,25 +264,18 @@ class _WebImIngressTransaction implements ImIngressTransaction {
     required int processingTimeoutMs,
     required int limit,
   }) async {
-    final raw = await _request(_store.getAll(null, 1000));
-    if (raw == null || raw.isUndefinedOrNull) {
-      return const <ImInboxRecord>[];
-    }
-    final values = (raw as JSArray<JSAny?>).toDart;
     final staleBefore = nowMs - processingTimeoutMs;
     final records = <ImInboxRecord>[];
-    for (final value in values) {
-      final stringValue = value as JSString?;
-      if (stringValue == null) continue;
-      final map = _decodeMap(stringValue.toDart);
-      if (map == null) continue;
+    await _scanPrefix('inbox|$ownerUserId|', (_, value) {
+      final map = _decodeMap(value);
+      if (map == null) return true;
       final record = imInboxRecordFromStorageMap(map);
       final event = record.event;
       if (event.ownerUserId != ownerUserId ||
           event.accountGeneration != accountGeneration ||
           (domainGeneration != null &&
               event.domainGeneration != domainGeneration)) {
-        continue;
+        return true;
       }
       if (isInboxRecordDue(
         record,
@@ -187,7 +284,8 @@ class _WebImIngressTransaction implements ImIngressTransaction {
       )) {
         records.add(record);
       }
-    }
+      return true;
+    });
     records.sort((left, right) {
       final priority = left.recoveryPriority.compareTo(right.recoveryPriority);
       if (priority != 0) return priority;
@@ -207,26 +305,33 @@ class _WebImIngressTransaction implements ImIngressTransaction {
     required int nowMs,
     required int processingTimeoutMs,
   }) async {
-    final raw = await _request(_store.getAll(null, 1000));
-    if (raw == null || raw.isUndefinedOrNull) {
-      return const InboxRecoveryCounts(pendingCount: 0, dueCount: 0);
-    }
-    final values = (raw as JSArray<JSAny?>).toDart;
-    final records = <ImInboxRecord>[];
-    for (final value in values) {
-      final stringValue = value as JSString?;
-      if (stringValue == null) continue;
-      final map = _decodeMap(stringValue.toDart);
-      if (map == null) continue;
-      records.add(imInboxRecordFromStorageMap(map));
-    }
-    return inboxRecoveryCountsFrom(
-      records,
-      ownerUserId: ownerUserId,
-      accountGeneration: accountGeneration,
-      domainGeneration: domainGeneration,
-      nowMs: nowMs,
-      processingTimeoutMs: processingTimeoutMs,
+    var pending = 0;
+    var due = 0;
+    int? oldest;
+    final staleBefore = nowMs - processingTimeoutMs;
+    await _scanPrefix('inbox|$ownerUserId|', (_, value) {
+      final map = _decodeMap(value);
+      if (map == null) return true;
+      final record = imInboxRecordFromStorageMap(map);
+      final event = record.event;
+      if (event.ownerUserId != ownerUserId ||
+          event.accountGeneration != accountGeneration ||
+          (domainGeneration != null &&
+              event.domainGeneration != domainGeneration) ||
+          record.status == ImInboxStatus.completed ||
+          record.status == ImInboxStatus.abandoned) return true;
+      pending++;
+      final observed = event.observedAtMs;
+      if (oldest == null || observed < oldest!) oldest = observed;
+      if (isInboxRecordDue(record, nowMs: nowMs, staleBeforeMs: staleBefore))
+        due++;
+      return true;
+    });
+    return InboxRecoveryCounts(
+      pendingCount: pending,
+      dueCount: due,
+      oldestPendingAgeMs:
+          oldest == null ? 0 : (nowMs - oldest!).clamp(0, 1 << 31),
     );
   }
 
@@ -320,6 +425,7 @@ class _WebImIngressTransaction implements ImIngressTransaction {
     required int fencingToken,
     required int nowMs,
     int? committedAtMs,
+    bool completeRecoveryCopies = false,
   }) async {
     if (!isValidImInboxTransition(expectedStatus, nextStatus)) return false;
     final currentLease = await findWriterLease(ownerUserId);
@@ -341,6 +447,29 @@ class _WebImIngressTransaction implements ImIngressTransaction {
         committedAtMs: committedAtMs,
       ),
     );
+    if (completeRecoveryCopies && nextStatus == ImInboxStatus.completed) {
+      final operation = current.event.operationId;
+      if (operation?.startsWith('receipt-compat-batch:') != true) {
+        throw StateError('invalid recovery aggregate completion');
+      }
+      final siblings = <ImInboxRecord>[];
+      await _scanPrefix('inbox|$ownerUserId|$eventNamespace|', (_, value) {
+        final map = _decodeMap(value);
+        if (map == null ||
+            !map.containsKey('event_id') ||
+            map['owner_user_id'] != ownerUserId ||
+            map['event_namespace'] != eventNamespace ||
+            map['operation_id'] != operation ||
+            map['event_id'] == eventId ||
+            map['status'] == ImInboxStatus.completed.name) return true;
+        siblings.add(imInboxRecordFromStorageMap(map));
+        return true;
+      });
+      for (final sibling in siblings) {
+        await insertInbox(sibling.copyWith(
+            status: ImInboxStatus.completed, committedAtMs: nowMs));
+      }
+    }
     return true;
   }
 
@@ -539,8 +668,10 @@ class _WebImIngressTransaction implements ImIngressTransaction {
     required String ownerUserId,
     required String operationId,
   }) async {
+    observedOutboxes.add((ownerUserId, operationId));
     final map = _decodeMap(await _get(_outboxKey(ownerUserId, operationId)));
-    return map == null ? null : imOutboxFromStorageMap(map);
+    if (map == null || map['owner_user_id'] != ownerUserId) return null;
+    return imOutboxFromStorageMap(map);
   }
 
   @override
@@ -549,20 +680,43 @@ class _WebImIngressTransaction implements ImIngressTransaction {
     required String conversationId,
     required String sdkLocalId,
   }) async {
-    final records = await listOutboxesForRecovery(
-      ownerUserId: ownerUserId,
-      states: ImOutboxState.values,
-      limit: 10000,
-    );
-    final matches = records
-        .where(
-          (record) =>
-              record.conversationId == conversationId &&
-              record.sdkMessageId == sdkLocalId,
-        )
-        .toList(growable: false)
-      ..sort((a, b) => b.updatedAtMs.compareTo(a.updatedAtMs));
-    return matches.isEmpty ? null : matches.first;
+    ImOutboxRecord? latest;
+    await _scanPrefix('outbox|', (_, value) {
+      final map = _decodeMap(value);
+      if (map == null || !map.containsKey('operation_id')) return true;
+      final record = imOutboxFromStorageMap(map);
+      if (record.ownerUserId == ownerUserId &&
+          record.conversationId == conversationId &&
+          record.sdkMessageId == sdkLocalId &&
+          (latest == null || record.updatedAtMs > latest!.updatedAtMs)) {
+        latest = record;
+      }
+      return true;
+    });
+    return latest;
+  }
+
+  @override
+  Future<bool> hasOtherRetryChild({
+    required String ownerUserId,
+    required String parentOperationId,
+    required String excludingOperationId,
+  }) async {
+    // Retry records predate a parent index. Visit the complete outbox range,
+    // but stop as soon as one conflicting child is found.
+    var found = false;
+    await _scanPrefix('outbox|', (_, value) {
+      final map = _decodeMap(value);
+      if (map != null &&
+          map['owner_user_id'] == ownerUserId &&
+          map['retry_of_operation_id'] == parentOperationId &&
+          map['operation_id'] != excludingOperationId) {
+        found = true;
+        return false;
+      }
+      return true;
+    });
+    return found;
   }
 
   @override
@@ -570,25 +724,24 @@ class _WebImIngressTransaction implements ImIngressTransaction {
     required String ownerUserId,
     required List<ImOutboxState> states,
     required int limit,
+    String? afterOperationId,
   }) async {
     if (states.isEmpty || limit <= 0) return const <ImOutboxRecord>[];
-    final raw = await _request(_store.getAll(null, 1000));
-    if (raw == null || raw.isUndefinedOrNull) {
-      return const <ImOutboxRecord>[];
-    }
     final allowed = states.toSet();
     final records = <ImOutboxRecord>[];
-    for (final value in (raw as JSArray<JSAny?>).toDart) {
-      final stringValue = value as JSString?;
-      if (stringValue == null) continue;
-      final map = _decodeMap(stringValue.toDart);
-      if (map == null || !map.containsKey('operation_id')) continue;
+    await _scanPrefix('outbox|', (_, value) {
+      final map = _decodeMap(value);
+      if (map == null || !map.containsKey('operation_id')) return true;
       final record = imOutboxFromStorageMap(map);
       if (record.ownerUserId == ownerUserId && allowed.contains(record.state)) {
         records.add(record);
+        if (afterOperationId != null && records.length >= limit) return false;
       }
+      return true;
+    }, afterKey: afterOperationId == null ? null : 'outbox|$afterOperationId');
+    if (afterOperationId == null) {
+      records.sort((a, b) => a.updatedAtMs.compareTo(b.updatedAtMs));
     }
-    records.sort((a, b) => a.updatedAtMs.compareTo(b.updatedAtMs));
     return records.take(limit).toList(growable: false);
   }
 
@@ -620,7 +773,8 @@ class _WebImIngressTransaction implements ImIngressTransaction {
     if (current == null || current.state != expectedState) return false;
     await _put(
       _outboxKey(record.ownerUserId, record.operationId),
-      jsonEncode(imOutboxToStorageMap(record)),
+      jsonEncode(imOutboxToStorageMap(
+          record.copyWith(stateVersion: current.stateVersion + 1))),
     );
     return true;
   }
@@ -633,7 +787,9 @@ class _WebImIngressTransaction implements ImIngressTransaction {
     final map = _decodeMap(
       await _get(_outboxRecoveryKey(ownerUserId, operationId)),
     );
-    return map == null ? null : imOutboxRecoveryFromStorageMap(map);
+    return map == null || map['owner_user_id'] != ownerUserId
+        ? null
+        : imOutboxRecoveryFromStorageMap(map);
   }
 
   @override
@@ -643,6 +799,7 @@ class _WebImIngressTransaction implements ImIngressTransaction {
     final key = _outboxRecoveryKey(record.ownerUserId, record.operationId);
     if (await _get(key) != null) return false;
     await _put(key, jsonEncode(imOutboxRecoveryToStorageMap(record)));
+    await _bumpMainVersion(record);
     return true;
   }
 
@@ -668,7 +825,18 @@ class _WebImIngressTransaction implements ImIngressTransaction {
       _outboxRecoveryKey(record.ownerUserId, record.operationId),
       jsonEncode(imOutboxRecoveryToStorageMap(record)),
     );
+    await _bumpMainVersion(record);
     return true;
+  }
+
+  Future<void> _bumpMainVersion(ImOutboxRecoveryRecord copy) async {
+    final main = await findOutbox(
+        ownerUserId: copy.ownerUserId, operationId: copy.operationId);
+    if (main != null)
+      await _put(
+          _outboxKey(main.ownerUserId, main.operationId),
+          jsonEncode(imOutboxToStorageMap(
+              main.copyWith(stateVersion: main.stateVersion + 1))));
   }
 
   Future<bool> _hasCurrentLease(

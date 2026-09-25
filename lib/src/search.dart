@@ -35,6 +35,7 @@ import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_friendsh
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/conversation/conversation_services.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+import 'package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/search_chat_entry.dart';
 
 @visibleForTesting
@@ -338,30 +339,34 @@ class _SearchState extends State<Search> {
                 .clamp(480, 680)
                 .toDouble(),
             child: (onClose) => TIMUIKitSearchMsgDetail(
-                isAutoFocus: false,
-                currentConversation: conversation,
-                keyword: keyword,
-                searchBarBuilder: searchBar(onCancel: onClose),
-                emptyStateBuilder: _buildSearchEmptyState,
-                pickSearchDate: showChatHistoryDatePicker,
-                messageAbstractBuilder: buildReplyAbstractMessage,
-                onTapConversation: (V2TimConversation conversation,
-                    V2TimMessage? message) {
-                  handleTapConversation(
-                    conversation,
-                    message,
-                    closeWidePopup: onClose,
-                  );
-                },
-                memberPresenceLabelBuilder: (userId, imOnline) =>
-                    _searchMemberPresenceLabel(context, userId, imOnline),
-                memberPresenceLoadingChecker: (userId, imOnline) =>
-                    _searchMemberPresenceLoading(context, userId, imOnline),
-                onMemberListLoaded: (userIds) =>
-                    _onSearchMemberListLoaded(context, userIds),
-                memberPresenceListenable:
-                    Provider.of<PresenceProvider>(context, listen: false),
-              ),
+                  isAutoFocus: false,
+                  currentConversation: conversation,
+                  hideGroupMemberShortcut: GroupLocalStore.instance
+                          .readCached(groupId: conversation.groupID ?? '')
+                          ?.isChannel ==
+                      true,
+                  keyword: keyword,
+                  searchBarBuilder: searchBar(onCancel: onClose),
+                  emptyStateBuilder: _buildSearchEmptyState,
+                  pickSearchDate: showChatHistoryDatePicker,
+                  messageAbstractBuilder: buildReplyAbstractMessage,
+                  onTapConversation:
+                      (V2TimConversation conversation, V2TimMessage? message) {
+                    handleTapConversation(
+                      conversation,
+                      message,
+                      closeWidePopup: onClose,
+                    );
+                  },
+                  memberPresenceLabelBuilder: (userId, imOnline) =>
+                      _searchMemberPresenceLabel(context, userId, imOnline),
+                  memberPresenceLoadingChecker: (userId, imOnline) =>
+                      _searchMemberPresenceLoading(context, userId, imOnline),
+                  onMemberListLoaded: (userIds) =>
+                      _onSearchMemberListLoaded(context, userIds),
+                  memberPresenceListenable:
+                      Provider.of<PresenceProvider>(context, listen: false),
+                ),
             theme: theme);
       } else {
         Navigator.push(
@@ -435,6 +440,11 @@ class _SearchState extends State<Search> {
                     child: TIMUIKitSearchMsgDetail(
                       isAutoFocus: widget.isAutoFocus,
                       currentConversation: widget.conversation!,
+                      hideGroupMemberShortcut: GroupLocalStore.instance
+                              .readCached(
+                                  groupId: widget.conversation!.groupID ?? '')
+                              ?.isChannel ==
+                          true,
                       onTapConversation: handleTapConversation,
                       keyword: widget.initKeyword ?? "",
                       searchBarBuilder: searchBar(),
@@ -444,7 +454,8 @@ class _SearchState extends State<Search> {
                       memberPresenceLabelBuilder: (userId, imOnline) =>
                           _searchMemberPresenceLabel(context, userId, imOnline),
                       memberPresenceLoadingChecker: (userId, imOnline) =>
-                          _searchMemberPresenceLoading(context, userId, imOnline),
+                          _searchMemberPresenceLoading(
+                              context, userId, imOnline),
                       onMemberListLoaded: (userIds) =>
                           _onSearchMemberListLoaded(context, userIds),
                       memberPresenceListenable:

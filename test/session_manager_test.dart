@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -139,6 +140,31 @@ SessionManager manager({
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('locally expired JWT blocks cached IM restore even when auth is offline',
+      () async {
+    final payload = base64Url.encode(utf8.encode(jsonEncode({
+      'sub': 'a',
+      'exp': DateTime.now().millisecondsSinceEpoch ~/ 1000 - 60,
+    }))).replaceAll('=', '');
+    final store = FakeSessionStore()
+      ..token = 'eyJhbGciOiJIUzI1NiJ9.$payload.signature'
+      ..userId = 'a'
+      ..credential = (1, 'still-valid-im-credential');
+    final auth = FakeAuthRepository()
+      ..meCall = (() async => throw StateError('network offline'));
+    final im = FakeImClient();
+    final session = manager(store: store, auth: auth, im: im);
+
+    await session.restore();
+
+    expect(session.state.isLoggedOut, isTrue);
+    expect(store.cleared, isTrue);
+    expect(im.initializeCalls, 0);
+    expect(im.connectCalls, 0);
+    expect(auth.meCalls, 0);
+    expect(auth.sigCalls, 0);
+  });
+
   test('restores with a valid cached UserSig before calling auth APIs',
       () async {
     final store = FakeSessionStore()

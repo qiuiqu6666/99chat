@@ -66,6 +66,9 @@ class TIMUIKitSearchMsgDetail extends StatefulWidget {
   /// Same abstract source as conversation last-message / reply quote for CUSTOM.
   final String? Function(V2TimMessage message)? messageAbstractBuilder;
 
+  /// Channels broadcast as one identity, so searching by member is irrelevant.
+  final bool hideGroupMemberShortcut;
+
   const TIMUIKitSearchMsgDetail({
     super.key,
     this.isAutoFocus = true,
@@ -81,6 +84,7 @@ class TIMUIKitSearchMsgDetail extends StatefulWidget {
     this.emptyStateBuilder,
     this.pickSearchDate,
     this.messageAbstractBuilder,
+    this.hideGroupMemberShortcut = false,
   });
 
   @override
@@ -219,7 +223,8 @@ class TIMUIKitSearchMsgDetailState
               builder: (_) => TIMUIKitConversationMemberPickerPage(
                 groupId: groupId,
                 memberPresenceLabelBuilder: widget.memberPresenceLabelBuilder,
-                memberPresenceLoadingChecker: widget.memberPresenceLoadingChecker,
+                memberPresenceLoadingChecker:
+                    widget.memberPresenceLoadingChecker,
                 onMemberListLoaded: widget.onMemberListLoaded,
                 presenceListenable: widget.memberPresenceListenable,
               ),
@@ -228,7 +233,8 @@ class TIMUIKitSearchMsgDetailState
               builder: (_) => TIMUIKitConversationMemberPickerPage(
                 groupId: groupId,
                 memberPresenceLabelBuilder: widget.memberPresenceLabelBuilder,
-                memberPresenceLoadingChecker: widget.memberPresenceLoadingChecker,
+                memberPresenceLoadingChecker:
+                    widget.memberPresenceLoadingChecker,
                 onMemberListLoaded: widget.onMemberListLoaded,
                 presenceListenable: widget.memberPresenceListenable,
               ),
@@ -388,11 +394,12 @@ class TIMUIKitSearchMsgDetailState
           label: TIM_t('日期'),
           onTap: () => _openDateSearch(theme),
         ),
-        buildShortcut(
-          icon: Icons.person_outline,
-          label: TIM_t('群成员'),
-          onTap: _openMemberSearch,
-        ),
+        if (!widget.hideGroupMemberShortcut)
+          buildShortcut(
+            icon: Icons.person_outline,
+            label: TIM_t('群成员'),
+            onTap: _openMemberSearch,
+          ),
       ],
     ];
 

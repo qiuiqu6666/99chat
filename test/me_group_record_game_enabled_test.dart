@@ -45,4 +45,26 @@ void main() {
       expect(record.copyWith(gameEnabled: false).gameEnabled, isFalse);
     });
   });
+
+  test('Community channel marker survives partial IM profile updates', () {
+    final channel = MeGroupRecord.fromJson({
+      'groupId': '@TGS#channel',
+      'groupType': 'Community',
+      'groupName': '公告频道',
+      'channel': true,
+    });
+    expect(channel.isChannel, isTrue);
+    expect(channel.copyWith(groupName: '新名称').isChannel, isTrue);
+    final partial = MeGroupRecord.fromJson({
+      'groupId': '@TGS#channel',
+      'groupType': 'Community',
+      'groupName': '新名称',
+    });
+    expect(partial.resolvingMissingFieldsFrom(channel).isChannel, isTrue);
+    expect(MeGroupRecord.fromJson({
+      'groupId': '@TGS#super',
+      'groupType': 'Community',
+      'groupName': '超级大群',
+    }).isChannel, isFalse);
+  });
 }

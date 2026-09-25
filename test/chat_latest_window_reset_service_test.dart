@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_history_recovery_coordinator.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_latest_window_reset_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_latest_window_trust.dart';
+import 'package:tencent_cloud_chat_demo/src/services/chat_open_viewport_coordinator.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_viewport/chat_viewport_collection.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_viewport/chat_viewport_models.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_viewport/open_viewport_cache.dart';
@@ -126,7 +127,8 @@ void main() {
     localLoader = null;
     syncPending = false;
     transportReady = true;
-    ChatLatestWindowResetService.debugEnvironment = LatestWindowResetEnvironment(
+    ChatLatestWindowResetService.debugEnvironment =
+        LatestWindowResetEnvironment(
       recoveryEpoch: () => epoch,
       transportReady: () => transportReady,
       serverSyncPending: () => syncPending,
@@ -197,7 +199,8 @@ void main() {
   }
 
   int attachPage(String key, {ConvType type = ConvType.c2c}) {
-    global.setCurrentConversation(CurrentConversation(key, type), notify: false);
+    global.setCurrentConversation(CurrentConversation(key, type),
+        notify: false);
     ChatViewportCollection.instance.attach(
       conversationKey: key,
       identity: const SessionIdentity(
@@ -208,6 +211,233 @@ void main() {
     );
     return ChatViewportCollection.instance.openGeneration;
   }
+
+  group('recovery must release the opening placeholder', () {
+    for (final inPage in <bool>[false, true]) {
+      test('fresh SDK group page with deleted seq installs (inPage=$inPage)',
+          () async {
+        const key = 'g_deleted_seq';
+        final conversation = groupConversation(
+          groupID: key,
+          lastMessage: _msg(100, groupID: key),
+        );
+        final generation = attachPage(key, type: ConvType.group);
+        global.setMessageListPosition(key, HistoryMessagePosition.bottom);
+        global.setFollowingLatest(key, true, notify: false);
+        cloudLoader = (_) async => _peek(<V2TimMessage>[
+              _msg(100, groupID: key),
+              _msg(99, groupID: key),
+              _msg(97, groupID: key),
+            ]);
+        final service = ChatLatestWindowResetService.instance;
+        final future = inPage
+            ? service.runInPage(
+                conversation: conversation,
+                globalModel: global,
+                openGeneration: generation,
+                reason: 'test_return',
+              )
+            : service.runForOpen(
+                conversation: conversation,
+                globalModel: global,
+                openGeneration: generation,
+              );
+        try {
+          expect(await future.timeout(const Duration(seconds: 1)),
+              LatestWindowResetOutcome.trusted);
+          expect(global.hasInitialHistoryLoaded(key), isTrue);
+          expect(global.rawMessageList(key)!.map((m) => m.seq),
+              <String>['100', '99', '97']);
+          expect(cloudCalls, 1);
+        } finally {
+          ChatViewportCollection.instance.detachUi(
+            conversationKey: key,
+            openGeneration: generation,
+          );
+          await future;
+          global.removeMessageList(key);
+        }
+      });
+    }
+
+    test('fresh latest page can load before conversation preview arrives',
+        () async {
+      const key = 'c2c_no_preview';
+      final generation = attachPage(key);
+      cloudLoader = (_) async => _peek(_window(100, 3));
+      final future = ChatLatestWindowResetService.instance.runForOpen(
+        conversation: c2cConversation(userID: 'no_preview'),
+        globalModel: global,
+        openGeneration: generation,
+      );
+      try {
+        expect(await future.timeout(const Duration(seconds: 1)),
+            LatestWindowResetOutcome.trusted);
+        expect(global.hasInitialHistoryLoaded(key), isTrue);
+        expect(global.rawMessageCount(key), 3);
+      } finally {
+        ChatViewportCollection.instance.detachUi(
+          conversationKey: key,
+          openGeneration: generation,
+        );
+        await future;
+      }
+    });
+
+    test('a seq gap in an unverified fallback still waits for cloud proof',
+        () async {
+      const key = 'g_unverified_gap';
+      final conversation = groupConversation(
+        groupID: key,
+        lastMessage: _msg(100, groupID: key),
+      );
+      final generation = attachPage(key, type: ConvType.group);
+      final secondStarted = Completer<void>();
+      final verified = Completer<void>();
+      cloudLoader = (_) async {
+        if (cloudCalls > 1) {
+          secondStarted.complete();
+          await verified.future;
+        }
+        return _peek(<V2TimMessage>[
+          _msg(100, groupID: key),
+          _msg(98, groupID: key),
+        ], receivedCloudResponse: cloudCalls > 1);
+      };
+      final future = ChatLatestWindowResetService.instance.runForOpen(
+        conversation: conversation,
+        globalModel: global,
+        openGeneration: generation,
+      );
+      try {
+        await secondStarted.future.timeout(const Duration(seconds: 1));
+        expect(global.hasInitialHistoryLoaded(key), isFalse);
+        expect(global.rawMessageCount(key), 0);
+        expect(ChatLatestWindowTrust.instance.trustedEpochFor(key), isNull);
+      } finally {
+        verified.complete();
+      }
+      expect(await future.timeout(const Duration(seconds: 1)),
+          LatestWindowResetOutcome.trusted);
+      expect(cloudCalls, 2);
+    });
+
+    test('chat entry coordinator gives the reopened page a new hydrate owner',
+        () async {
+      const key = 'c2c_entry_reopen';
+      final conversation = c2cConversation(
+        userID: 'entry_reopen',
+        lastMessage: _msg(100),
+      );
+      final firstGeneration = attachPage(key);
+      final oldResponse = Completer<ConversationPeekLoadResult>();
+      final started = Completer<void>();
+      cloudLoader = (_) async {
+        if (cloudCalls == 1) {
+          started.complete();
+          return oldResponse.future;
+        }
+        return _peek(_window(100, 3));
+      };
+      final coordinator = ChatOpenViewportCoordinator.instance;
+      final first = coordinator.ensureLocalSnapshotForOpen(
+        conversation: conversation,
+        timeout: const Duration(seconds: 1),
+      );
+      await started.future;
+      final oldReset =
+          ChatLatestWindowResetService.instance.inFlightFutureFor(key)!;
+      ChatViewportCollection.instance.detachUi(
+        conversationKey: key,
+        openGeneration: firstGeneration,
+      );
+      attachPage(key);
+      try {
+        expect(
+            await coordinator.ensureLocalSnapshotForOpen(
+              conversation: conversation,
+              timeout: const Duration(seconds: 1),
+            ),
+            isTrue);
+        expect(global.hasInitialHistoryLoaded(key), isTrue);
+        expect(cloudCalls, 2);
+      } finally {
+        oldResponse.complete(_peek(_window(50, 3)));
+        await oldReset;
+        await first;
+      }
+      expect(global.rawMessageList(key)!.first.seq, '100');
+      expect(ChatLatestWindowResetService.instance.needsLatestWindowReset(key),
+          isFalse);
+    });
+
+    test('temporary load exception retries without abandoning first paint',
+        () async {
+      const key = 'c2c_load_retry';
+      final generation = attachPage(key);
+      cloudLoader = (_) async {
+        if (cloudCalls == 1) throw StateError('temporary SDK failure');
+        return _peek(_window(100, 3));
+      };
+      final outcome = await ChatLatestWindowResetService.instance
+          .runForOpen(
+            conversation:
+                c2cConversation(userID: 'load_retry', lastMessage: _msg(100)),
+            globalModel: global,
+            openGeneration: generation,
+          )
+          .timeout(const Duration(seconds: 1));
+      expect(outcome, LatestWindowResetOutcome.trusted);
+      expect(global.hasInitialHistoryLoaded(key), isTrue);
+      expect(global.hasActiveHistoryReconciliation(key), isFalse);
+      expect(cloudCalls, 2);
+    });
+
+    test('reopened page replaces a pending operation from the previous page',
+        () async {
+      const key = 'c2c_reopen';
+      final conversation =
+          c2cConversation(userID: 'reopen', lastMessage: _msg(100));
+      final firstGeneration = attachPage(key);
+      final oldResponse = Completer<ConversationPeekLoadResult>();
+      final started = Completer<void>();
+      cloudLoader = (_) async {
+        if (cloudCalls == 1) {
+          started.complete();
+          return oldResponse.future;
+        }
+        return _peek(_window(100, 3));
+      };
+      final service = ChatLatestWindowResetService.instance;
+      final first = service.runForOpen(
+        conversation: conversation,
+        globalModel: global,
+        openGeneration: firstGeneration,
+      );
+      await started.future;
+      ChatViewportCollection.instance.detachUi(
+        conversationKey: key,
+        openGeneration: firstGeneration,
+      );
+      final secondGeneration = attachPage(key);
+      final second = service.runForOpen(
+        conversation: conversation,
+        globalModel: global,
+        openGeneration: secondGeneration,
+      );
+      try {
+        expect(await second.timeout(const Duration(seconds: 1)),
+            LatestWindowResetOutcome.trusted);
+        expect(cloudCalls, 2);
+      } finally {
+        oldResponse.complete(_peek(_window(50, 3)));
+        await first;
+        await second;
+      }
+      expect(global.rawMessageList(key)!.first.seq, '100');
+      expect(service.needsLatestWindowReset(key), isFalse);
+    });
+  });
 
   group('OpenViewportCache epoch stamp', () {
     test('stale epoch makes peek return null', () {
@@ -228,7 +458,8 @@ void main() {
       final key = 'c2c_u1';
       global.setMessageList(key, _window(100, 5), replace: true);
       final openGeneration = attachPage(key);
-      localLoader = (_) async => _peek(_window(560, 20), receivedCloudResponse: false);
+      localLoader =
+          (_) async => _peek(_window(560, 20), receivedCloudResponse: false);
 
       final outcome = await ChatLatestWindowResetService.instance.runForOpen(
         conversation: conversation,
@@ -271,13 +502,15 @@ void main() {
       expect(global.rawMessageCount(groupID), 0);
     });
 
-    test('network online after offline provisional starts CLOUD reset', () async {
+    test('network online after offline provisional starts CLOUD reset',
+        () async {
       network.value = NetworkReachability.offline;
       final preview = _msg(600, userID: 'u2');
       final conversation = c2cConversation(userID: 'u2', lastMessage: preview);
       final key = 'c2c_u2';
       final openGeneration = attachPage(key);
-      localLoader = (_) async => _peek(_window(560, 20), receivedCloudResponse: false);
+      localLoader =
+          (_) async => _peek(_window(560, 20), receivedCloudResponse: false);
 
       expect(
         await ChatLatestWindowResetService.instance.runForOpen(
@@ -302,8 +535,7 @@ void main() {
       final inFlight =
           ChatLatestWindowResetService.instance.inFlightFutureFor(key);
       expect(inFlight, isNotNull);
-      final onlineOutcome = await inFlight!
-          .timeout(const Duration(seconds: 2));
+      final onlineOutcome = await inFlight!.timeout(const Duration(seconds: 2));
       expect(onlineOutcome, LatestWindowResetOutcome.trusted);
       expect(ChatLatestWindowTrust.instance.trustedEpochFor(key), epoch);
       expect(global.rawMessageList(key)!.first.seq, '600');

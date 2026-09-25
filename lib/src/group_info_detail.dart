@@ -31,11 +31,13 @@ import 'package:tencent_cloud_chat_uikit/ui/widgets/avatar.dart';
 class GroupInfoDetailPage extends StatefulWidget {
   final V2TimGroupInfo groupInfo;
   final TUIGroupProfileModel? model;
+  final bool isChannel;
 
   const GroupInfoDetailPage({
     Key? key,
     required this.groupInfo,
     this.model,
+    this.isChannel = false,
   }) : super(key: key);
 
   @override
@@ -412,7 +414,8 @@ class _GroupInfoDetailPageState extends State<GroupInfoDetailPage> {
             : (theme.conversationItemBgColor ??
                 theme.wideBackgroundColor ??
                 Colors.white);
-        final scaffoldBackgroundColor = isDarkBackground ? darkPageBg : lightPageBg;
+        final scaffoldBackgroundColor =
+            isDarkBackground ? darkPageBg : lightPageBg;
         final dividerColor = isDarkBackground
             ? darkDivider
             : (theme.weakDividerColor ?? const Color(0xFFF0F0F0));
@@ -430,35 +433,35 @@ class _GroupInfoDetailPageState extends State<GroupInfoDetailPage> {
             appBar: inSideColumn
                 ? null
                 : AppBar(
-              title: Text(
-                TIM_t("群资料"),
-                style: TextStyle(
-                  color: theme.appbarTextColor ?? theme.darkTextColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              iconTheme: IconThemeData(
-                color: theme.primaryColor ?? const Color(0xFF1E90FF),
-              ),
-              automaticallyImplyLeading: false,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                color: theme.primaryColor ?? const Color(0xFF1E90FF),
-                onPressed: () => Navigator.of(context).maybePop(),
-              ),
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              shadowColor: Colors.transparent,
-              backgroundColor: scaffoldBackgroundColor,
-            ),
+                    title: Text(
+                      widget.isChannel ? '频道资料' : TIM_t("群资料"),
+                      style: TextStyle(
+                        color: theme.appbarTextColor ?? theme.darkTextColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    iconTheme: IconThemeData(
+                      color: theme.primaryColor ?? const Color(0xFF1E90FF),
+                    ),
+                    automaticallyImplyLeading: false,
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                      color: theme.primaryColor ?? const Color(0xFF1E90FF),
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    ),
+                    surfaceTintColor: Colors.transparent,
+                    elevation: 0,
+                    scrolledUnderElevation: 0,
+                    shadowColor: Colors.transparent,
+                    backgroundColor: scaffoldBackgroundColor,
+                  ),
             body: Column(
               children: [
                 SizedBox(height: isDarkBackground ? 8 : 0),
                 _buildAvatarRow(
                   theme: theme,
-                  title: TIM_t("群头像"),
+                  title: widget.isChannel ? '频道头像' : TIM_t("群头像"),
                   groupName: _groupName,
                   backgroundColor: itemBackgroundColor,
                   titleTextColor: titleTextColor,
@@ -471,12 +474,13 @@ class _GroupInfoDetailPageState extends State<GroupInfoDetailPage> {
                 ),
                 _buildTextRow(
                   theme: theme,
-                  title: TIM_t("群聊名称"),
+                  title: widget.isChannel ? '频道名称' : TIM_t("群聊名称"),
                   value: _groupName,
                   backgroundColor: itemBackgroundColor,
                   titleTextColor: titleTextColor,
                   valueTextColor: valueTextColor,
-                  onTap: _canManage() ? () => _openEditGroupName(context) : null,
+                  onTap:
+                      _canManage() ? () => _openEditGroupName(context) : null,
                 ),
               ],
             ),

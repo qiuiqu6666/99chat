@@ -27,6 +27,7 @@ class MeGroupRecord {
     this.noticeUpdatedBy = '',
     this.isAllMuted = false,
     this.gameEnabled = false,
+    this.isChannel = false,
     Set<String>? suppliedFields,
   }) : _suppliedFields =
             suppliedFields == null ? null : Set.unmodifiable(suppliedFields);
@@ -83,6 +84,8 @@ class MeGroupRecord {
           supplied.contains('isAllMuted') ? isAllMuted : previous.isAllMuted,
       gameEnabled:
           supplied.contains('gameEnabled') ? gameEnabled : previous.gameEnabled,
+      isChannel:
+          supplied.contains('isChannel') ? isChannel : previous.isChannel,
     );
   }
 
@@ -108,6 +111,7 @@ class MeGroupRecord {
 
   /// 后端群资料开关；缺失或无法解析时按关闭处理。
   final bool gameEnabled;
+  final bool isChannel;
 
   MeGroupRecord copyWith({
     String? groupId,
@@ -128,6 +132,7 @@ class MeGroupRecord {
     String? noticeUpdatedBy,
     bool? isAllMuted,
     bool? gameEnabled,
+    bool? isChannel,
   }) {
     return MeGroupRecord(
       groupId: groupId ?? this.groupId,
@@ -148,6 +153,7 @@ class MeGroupRecord {
       noticeUpdatedBy: noticeUpdatedBy ?? this.noticeUpdatedBy,
       isAllMuted: isAllMuted ?? this.isAllMuted,
       gameEnabled: gameEnabled ?? this.gameEnabled,
+      isChannel: isChannel ?? this.isChannel,
       suppliedFields: _suppliedFields == null
           ? null
           : <String>{
@@ -169,6 +175,7 @@ class MeGroupRecord {
               if (noticeUpdatedBy != null) 'noticeUpdatedBy',
               if (isAllMuted != null) 'isAllMuted',
               if (gameEnabled != null) 'gameEnabled',
+              if (isChannel != null) 'isChannel',
             },
     );
   }
@@ -183,6 +190,9 @@ class MeGroupRecord {
     );
     // 本地存储/REST 用后端群 ID，禁止加成 `@TGS#_@TGS#`。
     final apiId = ChatIdFormat.apiGroupId(rawGroupId);
+    final isChannel = parseBoolLikeIM(
+      json['channel'] ?? json['isChannel'] ?? json['is_channel'],
+    );
     final groupId = apiId.isNotEmpty ? apiId : rawGroupId;
     return MeGroupRecord(
       groupId: groupId,
@@ -225,6 +235,7 @@ class MeGroupRecord {
             )
           : (preserveIsAllMutedFrom?.isAllMuted ?? false),
       gameEnabled: parseBoolLikeIM(json['gameEnabled'] ?? json['game_enabled']),
+      isChannel: isChannel,
       suppliedFields: <String>{
         if (json['groupType'] != null || json['group_type'] != null)
           'groupType',
@@ -283,6 +294,10 @@ class MeGroupRecord {
           'isAllMuted',
         if (json['gameEnabled'] != null || json['game_enabled'] != null)
           'gameEnabled',
+        if (json.containsKey('channel') ||
+            json.containsKey('isChannel') ||
+            json.containsKey('is_channel'))
+          'isChannel',
       },
     );
   }
@@ -372,6 +387,7 @@ class MeGroupRecord {
               : (preserveFrom?.noticeUpdatedBy ?? '')),
       isAllMuted: info.isAllMuted ?? preserveFrom?.isAllMuted ?? false,
       gameEnabled: gameFromCustom ?? (preserveFrom?.gameEnabled ?? false),
+      isChannel: preserveFrom?.isChannel ?? false,
     );
   }
 
@@ -508,8 +524,7 @@ class GroupMemberRecord {
       invitedByNickname: invitedByNickname.isNotEmpty
           ? invitedByNickname
           : previous.invitedByNickname,
-      joinChannel:
-          joinChannel.isNotEmpty ? joinChannel : previous.joinChannel,
+      joinChannel: joinChannel.isNotEmpty ? joinChannel : previous.joinChannel,
       joinedAt: joinedAt > 0 ? joinedAt : previous.joinedAt,
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,7 @@ import 'package:tencent_cloud_chat_demo/src/services/im/outbox_payload_cipher.da
 import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_media_staging.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_message_recreator.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im_connect_status_service.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_priority_enum.dart';
 import 'package:tencent_cloud_chat_sdk/enum/offlinePushInfo.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
@@ -28,20 +30,91 @@ class OutgoingOutboxRecoveryService {
       OutgoingOutboxRecoveryService._();
 
   Future<void>? _inFlight;
+  Timer? _wakeTimer;
+  DateTime? _wakeAt;
+  SessionIdentity? _scanIdentity;
+  String? _continuationOperationId;
+  bool _rescanRequested = false;
+  bool _runDeferred = false;
+  Duration _nextWakeDelay = const Duration(minutes: 1);
+
+  /// A normal send will attempt dispatch immediately after Prepared commits.
+  /// This delayed check covers a lost handoff without racing that foreground
+  /// dispatch on the same event-loop turn.
+  void wakeAfterPreparedCommit() {
+    if (_inFlight != null) {
+      _rescanRequested = true;
+      return;
+    }
+    _armWake(const Duration(seconds: 1));
+  }
+
+  void _armWake(Duration delay) {
+    final identity = SessionIdentityService.instance.capture();
+    if (identity.ownerUserId.isEmpty) return;
+    final target = DateTime.now().add(delay);
+    if (_wakeTimer?.isActive == true &&
+        _wakeAt != null &&
+        !_wakeAt!.isAfter(target)) return;
+    _wakeTimer?.cancel();
+    _wakeAt = target;
+    _wakeTimer = Timer(delay, () {
+      _wakeTimer = null;
+      _wakeAt = null;
+      if (!SessionIdentityService.instance.isCurrent(identity)) return;
+      if (!ImConnectStatusService.isTransportReady) {
+        _armWake(const Duration(minutes: 1));
+        return;
+      }
+      unawaited(recoverPending().catchError((Object error) {
+        debugPrint(
+            'OUTBOX_RECOVERY wake failed errorType=${error.runtimeType}');
+      }));
+    });
+  }
 
   Future<void> recoverPending() {
+    _wakeTimer?.cancel();
+    _wakeTimer = null;
+    _wakeAt = null;
     final running = _inFlight;
-    if (running != null) return running;
+    if (running != null) {
+      _rescanRequested = true;
+      return running;
+    }
+    final identity = SessionIdentityService.instance.capture();
+    if (_scanIdentity != identity) {
+      _scanIdentity = identity;
+      _continuationOperationId = null;
+      _rescanRequested = false;
+    }
     late final Future<void> task;
-    task = _recover().whenComplete(() {
-      if (identical(_inFlight, task)) _inFlight = null;
+    task = _recover(identity).catchError((Object error, StackTrace stack) {
+      _runDeferred = true;
+      _nextWakeDelay = const Duration(seconds: 5);
+      Error.throwWithStackTrace(error, stack);
+    }).whenComplete(() {
+      if (!identical(_inFlight, task)) return;
+      _inFlight = null;
+      if (!SessionIdentityService.instance.isCurrent(identity)) return;
+      if (_runDeferred) {
+        _armWake(_nextWakeDelay);
+      } else if (_continuationOperationId != null) {
+        _armWake(const Duration(milliseconds: 100));
+      } else if (_rescanRequested) {
+        _rescanRequested = false;
+        _armWake(Duration.zero);
+      } else {
+        _armWake(_nextWakeDelay);
+      }
     });
     _inFlight = task;
     return task;
   }
 
-  Future<void> _recover() async {
-    final identity = SessionIdentityService.instance.capture();
+  Future<void> _recover(SessionIdentity identity) async {
+    _runDeferred = false;
+    _nextWakeDelay = const Duration(minutes: 1);
     if (identity.ownerUserId.isEmpty) return;
     var context = await ConversationSyncService.instance
         .messageCoreLeaseForOutgoingSend();
@@ -53,32 +126,13 @@ class OutgoingOutboxRecoveryService {
       context = await ConversationSyncService.instance
           .messageCoreLeaseForOutgoingSend();
     }
-    if (context == null || context.ownerUserId != identity.ownerUserId) return;
-    final persistence = Im05Persistence(store: context.store);
-    final activeRows = await persistence.listOutboxesForRecovery(
-      ownerUserId: identity.ownerUserId,
-      states: const <ImOutboxState>[
-        ImOutboxState.created,
-        ImOutboxState.preparing,
-        ImOutboxState.prepared,
-        ImOutboxState.dispatchIntent,
-        ImOutboxState.sending,
-        ImOutboxState.outcomeUnknown,
-        ImOutboxState.retryable,
-        ImOutboxState.acknowledged,
-        ImOutboxState.manualRequired,
-        ImOutboxState.pausedByLogout,
-      ],
-      limit: 5000,
-    );
-    // If the safety scan hit its cap, preserve everything instead of deleting
-    // a directory whose Outbox row may be beyond this page.
-    if (activeRows.length < 5000) {
-      await OutgoingMediaStager.instance.cleanupOrphans(
-        activeRootPaths: activeRows.map((row) => row.mediaLocalRef),
-      );
-      await OutgoingMediaStager.instance.cleanupLiveOrphans();
+    if (context == null || context.ownerUserId != identity.ownerUserId) {
+      _runDeferred = true;
+      _nextWakeDelay = const Duration(seconds: 5);
+      return;
     }
+    final persistence = Im05Persistence(store: context.store);
+    var cursor = _continuationOperationId ?? '';
     for (var page = 0; page < 10; page++) {
       final rows = await persistence.listOutboxesForRecovery(
         ownerUserId: identity.ownerUserId,
@@ -88,21 +142,26 @@ class OutgoingOutboxRecoveryService {
           ImOutboxState.sending,
         ],
         limit: 100,
+        afterOperationId: cursor,
       );
-      if (rows.isEmpty) return;
-      var madeProgress = false;
+      if (rows.isEmpty) {
+        _continuationOperationId = null;
+        await _cleanupOrphansAfterScan(identity, persistence);
+        return;
+      }
+      var stateAdvancedCount = 0;
       for (final row in rows) {
         if (!SessionIdentityService.instance.isCurrent(identity)) return;
+        cursor = row.operationId;
         if (row.state != ImOutboxState.prepared) {
-          madeProgress = await persistence.recordOutcomeUnknown(
-                ownerUserId: identity.ownerUserId,
-                operationId: row.operationId,
-                leaseOwnerId: context.lease.leaseOwnerId,
-                fencingToken: context.lease.fencingToken,
-                nowMs: DateTime.now().millisecondsSinceEpoch,
-                resultCode: 'recovered_after_dispatch_intent',
-              ) ||
-              madeProgress;
+          if (await persistence.recordOutcomeUnknown(
+            ownerUserId: identity.ownerUserId,
+            operationId: row.operationId,
+            leaseOwnerId: context.lease.leaseOwnerId,
+            fencingToken: context.lease.fencingToken,
+            nowMs: DateTime.now().millisecondsSinceEpoch,
+            resultCode: 'recovered_after_dispatch_intent',
+          )) stateAdvancedCount++;
           continue;
         }
         final plaintext = await OutboxPayloadCipher.instance.reveal(
@@ -111,17 +170,16 @@ class OutgoingOutboxRecoveryService {
         );
         final envelope = plaintext == null ? null : _decodeEnvelope(plaintext);
         if (envelope == null) {
-          madeProgress = await persistence.markPreparedOutboxManualRequired(
-                ownerUserId: identity.ownerUserId,
-                operationId: row.operationId,
-                reason: plaintext == null
-                    ? 'payload_key_unavailable_or_ciphertext_invalid'
-                    : 'payload_envelope_invalid',
-                leaseOwnerId: context.lease.leaseOwnerId,
-                fencingToken: context.lease.fencingToken,
-                nowMs: DateTime.now().millisecondsSinceEpoch,
-              ) ||
-              madeProgress;
+          if (await persistence.markPreparedOutboxManualRequired(
+            ownerUserId: identity.ownerUserId,
+            operationId: row.operationId,
+            reason: plaintext == null
+                ? 'payload_key_unavailable_or_ciphertext_invalid'
+                : 'payload_envelope_invalid',
+            leaseOwnerId: context.lease.leaseOwnerId,
+            fencingToken: context.lease.fencingToken,
+            nowMs: DateTime.now().millisecondsSinceEpoch,
+          )) stateAdvancedCount++;
           debugPrint(
             'OUTBOX_RECOVERY manual required for prepared payload '
             'operationId=${row.operationId}',
@@ -135,15 +193,14 @@ class OutgoingOutboxRecoveryService {
         if (!SessionIdentityService.instance.isCurrent(identity)) return;
         if (recreated?.messageInfo == null ||
             (recreated?.id?.trim().isEmpty ?? true)) {
-          madeProgress = await persistence.markPreparedOutboxManualRequired(
-                ownerUserId: identity.ownerUserId,
-                operationId: row.operationId,
-                reason: 'message_recreation_failed',
-                leaseOwnerId: context.lease.leaseOwnerId,
-                fencingToken: context.lease.fencingToken,
-                nowMs: DateTime.now().millisecondsSinceEpoch,
-              ) ||
-              madeProgress;
+          if (await persistence.markPreparedOutboxManualRequired(
+            ownerUserId: identity.ownerUserId,
+            operationId: row.operationId,
+            reason: 'message_recreation_failed',
+            leaseOwnerId: context.lease.leaseOwnerId,
+            fencingToken: context.lease.fencingToken,
+            nowMs: DateTime.now().millisecondsSinceEpoch,
+          )) stateAdvancedCount++;
           debugPrint(
             'OUTBOX_RECOVERY manual required; cannot recreate payload '
             'operationId=${row.operationId}',
@@ -167,16 +224,59 @@ class OutgoingOutboxRecoveryService {
           operationIdOverride: row.operationId,
           clientCorrelationIdOverride: row.clientCorrelationId,
         );
-        madeProgress =
-            result.state != ExternalMessageSendState.blocked || madeProgress;
+        if (result.state != ExternalMessageSendState.blocked) {
+          stateAdvancedCount++;
+        }
         if (result.state == ExternalMessageSendState.blocked) {
           debugPrint(
             'OUTBOX_RECOVERY blocked operationId=${row.operationId}',
           );
         }
       }
-      if (rows.length < 100 || !madeProgress) return;
+      debugPrint('OUTBOX_RECOVERY scanned=${rows.length} '
+          'advanced=$stateAdvancedCount page=$page');
+      if (rows.length < 100) {
+        _continuationOperationId = null;
+        await _cleanupOrphansAfterScan(identity, persistence);
+        return;
+      }
+      _continuationOperationId = cursor;
       await Future<void>.delayed(Duration.zero);
+    }
+  }
+
+  Future<void> _cleanupOrphansAfterScan(
+    SessionIdentity identity,
+    Im05Persistence persistence,
+  ) async {
+    if (!SessionIdentityService.instance.isCurrent(identity)) return;
+    try {
+      final activeRows = await persistence.listOutboxesForRecovery(
+        ownerUserId: identity.ownerUserId,
+        states: const <ImOutboxState>[
+          ImOutboxState.created,
+          ImOutboxState.preparing,
+          ImOutboxState.prepared,
+          ImOutboxState.dispatchIntent,
+          ImOutboxState.sending,
+          ImOutboxState.outcomeUnknown,
+          ImOutboxState.retryable,
+          ImOutboxState.acknowledged,
+          ImOutboxState.manualRequired,
+          ImOutboxState.pausedByLogout,
+        ],
+        limit: 5000,
+      );
+      if (!SessionIdentityService.instance.isCurrent(identity)) return;
+      // A capped reference set is not safe evidence for file deletion.
+      if (activeRows.length >= 5000) return;
+      await OutgoingMediaStager.instance.cleanupOrphans(
+        activeRootPaths: activeRows.map((row) => row.mediaLocalRef),
+      );
+      await OutgoingMediaStager.instance.cleanupLiveOrphans();
+    } catch (error) {
+      debugPrint('OUTBOX_RECOVERY orphan cleanup deferred '
+          'errorType=${error.runtimeType}');
     }
   }
 }

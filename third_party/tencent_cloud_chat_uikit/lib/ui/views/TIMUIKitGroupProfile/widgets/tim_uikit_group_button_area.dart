@@ -13,6 +13,7 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_info.dart'
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_member_full_info.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_group_member_full_info.dart';
 import 'package:tencent_cloud_chat_demo/utils/navigation_routes.dart';
+import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_statelesswidget.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_group_profile_model.dart';
@@ -37,6 +38,8 @@ import '/theme/tui_theme.dart';
 class GroupProfileButtonArea extends TIMUIKitStatelessWidget {
   final String groupID;
   final TUIGroupProfileModel model;
+  final bool isChannel;
+  final bool asChannelMoreMenu;
   final sdkInstance = TIMUIKitCore.getSDKInstance();
   final coreInstance = TIMUIKitCore.getInstance();
   final TIMUIKitChatController _timuiKitChatController =
@@ -44,8 +47,23 @@ class GroupProfileButtonArea extends TIMUIKitStatelessWidget {
   final TUIChatGlobalModel _chatGlobalModel =
       serviceLocator<TUIChatGlobalModel>();
 
-  GroupProfileButtonArea(this.groupID, this.model, {Key? key})
+  GroupProfileButtonArea(this.groupID, this.model,
+      {Key? key, this.isChannel = false, this.asChannelMoreMenu = false})
       : super(key: key);
+
+  String _operationLabel(String id, String groupLabel) {
+    if (!isChannel) return groupLabel;
+    switch (id) {
+      case 'transimitOwner':
+        return '转让创建人';
+      case 'quitGroup':
+        return '退出频道';
+      case 'dismissGroup':
+        return '解散频道';
+      default:
+        return groupLabel;
+    }
+  }
 
   final _operationList = [
     {"label": TIM_t("清空消息"), "id": "clearHistory"},
@@ -654,7 +672,7 @@ class GroupProfileButtonArea extends TIMUIKitStatelessWidget {
                   }
                 },
                 child: Text(
-                  e["label"]!,
+                  _operationLabel(e["id"]!, e["label"]!),
                   style: TextStyle(color: theme.cautionColor),
                 ))
             : InkWell(
@@ -676,7 +694,7 @@ class GroupProfileButtonArea extends TIMUIKitStatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 18),
                   color: itemBackgroundColor,
                   child: Text(
-                    e["label"]!,
+                    _operationLabel(e["id"]!, e["label"]!),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: theme.cautionColor, fontSize: 15),
                   ),
@@ -690,6 +708,119 @@ class GroupProfileButtonArea extends TIMUIKitStatelessWidget {
     final theme = value.theme;
     final groupInfo = model.groupInfo;
     final isOwner = _isGroupOwner(groupInfo);
+
+    if (asChannelMoreMenu && isChannel) {
+      final i18n = AppI18n.of(context);
+      final blue = theme.primaryColor ?? const Color(0xFF1E90FF);
+      final canDismiss = isOwner &&
+          _ownerShouldDismiss(groupInfo?.groupType ?? '');
+      return Expanded(
+        child: PopupMenuButton<String>(
+          tooltip: i18n.t(
+            zhHans: '更多', zhHant: '更多', en: 'More', ja: 'その他', ko: '더보기'),
+          position: PopupMenuPosition.under,
+          offset: const Offset(0, 10),
+          elevation: 10,
+          shadowColor: const Color(0x330B2547),
+          color: theme.conversationItemBgColor ?? Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: const BorderSide(color: Color(0xFFE8EDF5)),
+          ),
+          constraints: const BoxConstraints(minWidth: 224, maxWidth: 260),
+          onSelected: (action) {
+            if (action == 'clear') {
+              _clearHistory(context, theme);
+            } else if (canDismiss) {
+              _dismissGroup(context, theme);
+            } else {
+              _quitGroup(context, theme);
+            }
+          },
+          itemBuilder: (menuContext) => [
+            PopupMenuItem<String>(
+              value: 'clear',
+              height: 64,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEF5FF),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: const Icon(Icons.delete_sweep_outlined,
+                      size: 21, color: Color(0xFF2784E8)),
+                ),
+                const SizedBox(width: 12),
+                Flexible(child: Text(i18n.t(
+                  zhHans: '清空聊天记录', zhHant: '清空聊天記錄',
+                  en: 'Clear chat history', ja: 'チャット履歴を消去', ko: '채팅 기록 지우기'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF26374D), fontSize: 15, fontWeight: FontWeight.w500,
+                  ))),
+              ]),
+            ),
+            const PopupMenuItem<String>(
+              enabled: false,
+              height: 1,
+              padding: EdgeInsets.symmetric(horizontal: 14),
+              child: Divider(height: 1, thickness: 1, color: Color(0xFFEDF1F6)),
+            ),
+            PopupMenuItem<String>(
+              value: 'leave',
+              height: 64,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF0EE),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(
+                    canDismiss ? Icons.delete_outline_rounded : Icons.logout_rounded,
+                    size: 21,
+                    color: const Color(0xFFE94B43),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Flexible(child: Text(i18n.t(
+                  zhHans: canDismiss ? '解散频道' : '退出',
+                  zhHant: canDismiss ? '解散頻道' : '退出',
+                  en: canDismiss ? 'Delete channel' : 'Leave',
+                  ja: canDismiss ? 'チャンネルを削除' : '退出',
+                  ko: canDismiss ? '채널 삭제' : '나가기'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFE94B43), fontSize: 15, fontWeight: FontWeight.w500,
+                  ))),
+              ]),
+            ),
+          ],
+          child: Container(
+            height: 72,
+            decoration: BoxDecoration(
+              color: theme.conversationItemBgColor ?? Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.more_horiz, color: blue),
+              const SizedBox(height: 5),
+              Text(i18n.t(
+                zhHans: '更多', zhHant: '更多', en: 'More', ja: 'その他', ko: '더보기'),
+                style: TextStyle(color: blue, fontSize: 14)),
+            ]),
+          ),
+        ),
+      );
+    }
 
     final isDesktopScreen =
         TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;

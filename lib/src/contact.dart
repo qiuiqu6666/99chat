@@ -111,7 +111,8 @@ class _ContactState extends State<Contact> {
   void dispose() {
     _friendShipModel.removeListener(_onFriendshipModelChanged);
     ImSdkRelationshipDirectory.instance.removeListener(_onDirectoryChange);
-    PeerProfileRefreshBus.instance.revision.removeListener(_onPeerProfileRefresh);
+    PeerProfileRefreshBus.instance.revision
+        .removeListener(_onPeerProfileRefresh);
     super.dispose();
   }
 
@@ -162,8 +163,7 @@ class _ContactState extends State<Contact> {
   }
 
   Future<void> _readImFriends() async {
-    final identity =
-        _identity ?? SessionIdentityService.instance.capture();
+    final identity = _identity ?? SessionIdentityService.instance.capture();
     try {
       final loader = Contact.debugLoadImFriends;
       if (loader != null) {
@@ -299,6 +299,7 @@ class _ContactState extends State<Contact> {
         unawaited(_openNewFriends());
         break;
       case "groupList":
+      case "channelList":
         final isWideScreen =
             TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
         if (isWideScreen) {
@@ -307,7 +308,7 @@ class _ContactState extends State<Contact> {
             context,
             AppMaterialPageRoute(
               settings: const RouteSettings(name: AppRoutes.myGroupList),
-              builder: (context) => const GroupList(),
+              builder: (context) => GroupList(channelOnly: id == "channelList"),
             ),
           );
         }
@@ -368,7 +369,18 @@ class _ContactState extends State<Contact> {
         ? 48.0
         : 46.0;
     final Widget avatar;
-    if (id == 'groupNotice') {
+    if (id == 'channelList') {
+      avatar = Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(
+          color: Color(0xFF2389F5),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(Icons.campaign_rounded,
+            color: Colors.white, size: size * 0.58),
+      );
+    } else if (id == 'groupNotice') {
       avatar = buildConversationSystemEntryAvatar(
         conversationGroupNoticeEntryIconAsset,
         size: size,
@@ -577,6 +589,19 @@ class _ContactState extends State<Contact> {
                           onTap: () {
                             _topListItemTap("groupList");
                           },
+                        ),
+                      if (!isWideScreen)
+                        TopListItem(
+                          name: i18n.t(
+                            zhHans: '频道',
+                            zhHant: '頻道',
+                            en: 'Channels',
+                            ja: 'チャンネル',
+                            ko: '채널',
+                          ),
+                          id: "channelList",
+                          icon: _buildTopEntryAvatar("channelList"),
+                          onTap: () => _topListItemTap("channelList"),
                         ),
                     ],
                     onTapItem: (item) {

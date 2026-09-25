@@ -239,6 +239,8 @@ class InitStep {
     BuildContext context,
     Future<void> Function() initIMSDKAndAddIMListeners,
   ) async {
+    if (await ApiClient.instance.expireSessionIfNeeded()) return;
+    if (!context.mounted) return;
     final token = ApiClient.instance.token;
     _sessionLog(
       'SESSION_LOG InitStep checkLogin start '

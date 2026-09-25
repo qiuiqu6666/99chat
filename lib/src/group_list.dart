@@ -11,6 +11,7 @@ import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/app_chat_route.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_local/group_local_perf_flags.dart';
+import 'package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_local/group_membership_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_local/my_group_az_skeleton.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_local/my_group_list_controller.dart';
@@ -29,10 +30,12 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/screen_utils.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/az_list_view.dart';
 
 class GroupList extends StatefulWidget {
+  final bool channelOnly;
   final void Function(V2TimGroupInfo groupInfo, V2TimConversation conversation)?
       onTapItem;
 
-  const GroupList({Key? key, this.onTapItem}) : super(key: key);
+  const GroupList({Key? key, this.onTapItem, this.channelOnly = false})
+      : super(key: key);
 
   @override
   State<GroupList> createState() => _GroupListState();
@@ -141,11 +144,11 @@ class _GroupListState extends State<GroupList> {
       child: Center(
         child: Text(
           i18n.format(
-            zhHans: '共{count}个群',
-            zhHant: '共{count}個群',
-            en: '{count} groups',
-            ja: 'グループ {count} 件',
-            ko: '그룹 {count}개',
+            zhHans: widget.channelOnly ? '共{count}个频道' : '共{count}个群',
+            zhHant: widget.channelOnly ? '共{count}個頻道' : '共{count}個群',
+            en: widget.channelOnly ? '{count} channels' : '{count} groups',
+            ja: widget.channelOnly ? 'チャンネル {count} 件' : 'グループ {count} 件',
+            ko: widget.channelOnly ? '채널 {count}개' : '그룹 {count}개',
             vars: {'count': count.toString()},
           ),
           style: TextStyle(
@@ -256,8 +259,9 @@ class _GroupListState extends State<GroupList> {
                           ],
                         ),
                       ),
-                      if (groupListSelfRoleKind(skeleton.myRole) !=
-                          GroupListSelfRoleKind.member) ...[
+                      if (!widget.channelOnly &&
+                          groupListSelfRoleKind(skeleton.myRole) !=
+                              GroupListSelfRoleKind.member) ...[
                         const SizedBox(width: 8),
                         GroupListSelfRoleBadge(role: skeleton.myRole),
                       ],
@@ -287,20 +291,22 @@ class _GroupListState extends State<GroupList> {
     if (_controller.isLoading && _controller.isEmpty) {
       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     }
-    if (_controller.isEmpty) {
+    final showList = _controller.azShowList
+        .where((row) => row.memberInfo.isChannel == widget.channelOnly)
+        .toList();
+    if (!_controller.isLoading && showList.isEmpty) {
       return AppEmptyState(
         message: i18n.t(
-          zhHans: '暂无群聊',
-          zhHant: '暫無群聊',
-          en: 'No groups yet',
-          ja: 'グループはありません',
-          ko: '그룹이 없습니다',
+          zhHans: widget.channelOnly ? '暂无频道' : '暂无群聊',
+          zhHant: widget.channelOnly ? '暫無頻道' : '暫無群聊',
+          en: widget.channelOnly ? 'No channels yet' : 'No groups yet',
+          ja: widget.channelOnly ? 'チャンネルはありません' : 'グループはありません',
+          ko: widget.channelOnly ? '채널이 없습니다' : '그룹이 없습니다',
         ),
       );
     }
 
-    final showList = _controller.azShowList;
-    if (!identical(_effectiveListSource, showList)) {
+    if (widget.channelOnly || !identical(_effectiveListSource, showList)) {
       _effectiveListSource = showList;
       _effectiveList = <ISuspensionBeanImpl>[
         ...showList,
@@ -329,7 +335,11 @@ class _GroupListState extends State<GroupList> {
           itemBuilder: (context, index) {
             final memberInfo = effectiveList[index].memberInfo;
             if (memberInfo == _footerMarker) {
-              return _buildGroupCountFooter(context, _controller.displayCount);
+              return _buildGroupCountFooter(
+                  context,
+                  widget.channelOnly
+                      ? showList.length
+                      : _controller.displayCount);
             }
             return _buildOptimizedItem(
               context,
@@ -349,21 +359,25 @@ class _GroupListState extends State<GroupList> {
       emptyBuilder: (_) {
         return AppEmptyState(
           message: i18n.t(
-            zhHans: '暂无群聊',
-            zhHant: '暫無群聊',
-            en: 'No groups yet',
-            ja: 'グループはありません',
-            ko: '그룹이 없습니다',
+            zhHans: widget.channelOnly ? '暂无频道' : '暂无群聊',
+            zhHant: widget.channelOnly ? '暫無頻道' : '暫無群聊',
+            en: widget.channelOnly ? 'No channels yet' : 'No groups yet',
+            ja: widget.channelOnly ? 'チャンネルはありません' : 'グループはありません',
+            ko: widget.channelOnly ? '채널이 없습니다' : '그룹이 없습니다',
           ),
         );
       },
       groupCollector: (groupInfo) {
         final groupID = groupInfo?.groupID ?? '';
-        return !groupID.contains('im_discuss_');
+        final isChannel =
+            GroupLocalStore.instance.readCached(groupId: groupID)?.isChannel ??
+                false;
+        return !groupID.contains('im_discuss_') &&
+            isChannel == widget.channelOnly;
       },
       searchKeyword: _searchKeyword,
       isShowIndexBar: true,
-      showSelfRoleBadge: true,
+      showSelfRoleBadge: !widget.channelOnly,
       showGroupCount: true,
       groupCountFooterBuilder: _buildGroupCountFooter,
     );
@@ -393,11 +407,11 @@ class _GroupListState extends State<GroupList> {
         controller: _searchController,
         onChanged: _onSearchChanged,
         hint: i18n.t(
-            zhHans: '搜索群聊',
-            zhHant: '搜尋群聊',
-            en: 'Search groups',
-            ja: 'グループを検索',
-            ko: '그룹 검색'),
+            zhHans: widget.channelOnly ? '搜索频道' : '搜索群聊',
+            zhHant: widget.channelOnly ? '搜尋頻道' : '搜尋群聊',
+            en: widget.channelOnly ? 'Search channels' : 'Search groups',
+            ja: widget.channelOnly ? 'チャンネルを検索' : 'グループを検索',
+            ko: widget.channelOnly ? '채널 검색' : '그룹 검색'),
       );
 
   Widget _buildPageBody(AppI18n i18n) {
@@ -426,11 +440,11 @@ class _GroupListState extends State<GroupList> {
           surfaceTintColor: Colors.transparent,
           title: Text(
             i18n.t(
-              zhHans: '群聊',
-              zhHant: '群聊',
-              en: 'Groups',
-              ja: 'グループ',
-              ko: '그룹',
+              zhHans: widget.channelOnly ? '频道' : '群聊',
+              zhHant: widget.channelOnly ? '頻道' : '群聊',
+              en: widget.channelOnly ? 'Channels' : 'Groups',
+              ja: widget.channelOnly ? 'チャンネル' : 'グループ',
+              ko: widget.channelOnly ? '채널' : '그룹',
             ),
             style: TextStyle(
               color:

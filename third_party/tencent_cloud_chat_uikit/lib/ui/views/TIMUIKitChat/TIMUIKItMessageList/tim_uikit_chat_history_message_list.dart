@@ -219,6 +219,7 @@ class _TIMUIKitHistoryMessageListState
   int _latestPaginationGeneration = 0;
   int _previousPaginationGeneration = 0;
   bool Function()? _previousLoadWindowIsCurrent;
+  bool _retiredPreviousWindowLoadPending = false;
   final ValueNotifier<bool> _topHistoryLoadingVisible =
       ValueNotifier<bool>(false);
   final ChatListViewportInsertController _viewportInsert =
@@ -9287,6 +9288,9 @@ class _TIMUIKitHistoryMessageListState
 
   ChatPreviousLoadDecision _evaluatePreviousLoadIntent(
       _PreviousLoadIntent intent) {
+    if (!widget.model.isLoadingChatHistory) {
+      _retiredPreviousWindowLoadPending = false;
+    }
     final userGesture = intent.source == _PreviousLoadSource.edgeGesture ||
         intent.source == _PreviousLoadSource.shortTouch;
     final canWait = userGesture || intent.source == _PreviousLoadSource.trimResume;
@@ -9322,6 +9326,10 @@ class _TIMUIKitHistoryMessageListState
     if (_paginationUi.isLoadingPrevious ||
         _paginationUi.loadPreviousTask != null ||
         _paginationUi.isLoadingLatest ||
+        // A non-UI history reader may own the model cursor. Keep this edge
+        // gesture queued until it settles instead of consuming a no-op result.
+        (widget.model.isLoadingChatHistory &&
+            !_retiredPreviousWindowLoadPending) ||
         _historyWindowTrimUi.isBusy ||
         global.historyWindowPaginationBlocked(intent.conversationID) ||
         _isSearchJumpStabilizing ||
@@ -9403,7 +9411,10 @@ class _TIMUIKitHistoryMessageListState
       userGesture: source == _PreviousLoadSource.edgeGesture ||
           source == _PreviousLoadSource.shortTouch,
       evaluate: () => _evaluatePreviousLoadIntent(intent),
-      load: () => _loadPrevious(intent),
+      load: () {
+        _retiredPreviousWindowLoadPending = false;
+        return _loadPrevious(intent);
+      },
       onDecision: (decision) {
         if (!mounted) return;
         if (!identical(widget.model, model) ||
@@ -9771,6 +9782,12 @@ class _TIMUIKitHistoryMessageListState
   }
 
   void _invalidatePreviousPagination() {
+    // A retired window may still have an SDK future. Its loading flag must
+    // not block a gesture on the replacement window.
+    if (_previousLoadWindowIsCurrent?.call() == false &&
+        widget.model.isLoadingChatHistory) {
+      _retiredPreviousWindowLoadPending = true;
+    }
     _previousPaginationGeneration++;
     _previousLoadWindowIsCurrent = null;
     _shortViewportPreviousPointer = null;

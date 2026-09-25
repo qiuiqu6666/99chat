@@ -165,6 +165,45 @@ void main() {
       );
     });
 
+    test('keyset scan reaches the 101st Prepared behind 100 blocked rows',
+        () async {
+      final store = InMemoryImIngressStore();
+      final persistence = Im05Persistence(store: store);
+      await store.transaction<void>((transaction) async {
+        for (var index = 0; index <= 100; index++) {
+          final id = 'operation-${index.toString().padLeft(3, '0')}';
+          await transaction.insertOutboxIfAbsent(ImOutboxRecord(
+            operationId: id,
+            ownerUserId: 'alice',
+            conversationId: 'c2c_bob',
+            clientCorrelationId: 'corr-$id',
+            messageType: 1,
+            payloadReference: '{}',
+            payloadHash: 'hash-$id',
+            state: ImOutboxState.prepared,
+            createdAtMs: 10,
+            updatedAtMs: 10,
+          ));
+        }
+      });
+
+      final first = await persistence.listOutboxesForRecovery(
+        ownerUserId: 'alice',
+        states: const <ImOutboxState>[ImOutboxState.prepared],
+        limit: 100,
+        afterOperationId: '',
+      );
+      final next = await persistence.listOutboxesForRecovery(
+        ownerUserId: 'alice',
+        states: const <ImOutboxState>[ImOutboxState.prepared],
+        limit: 100,
+        afterOperationId: first.last.operationId,
+      );
+
+      expect(first, hasLength(100));
+      expect(next.map((row) => row.operationId), <String>['operation-100']);
+    });
+
     test('replays each commit stage idempotently', () async {
       final store = InMemoryImIngressStore();
       final lease = await _acquire(store, nowMs: 10);

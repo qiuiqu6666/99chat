@@ -1,4 +1,18 @@
 import 'dart:async';
+import 'package:tencent_cloud_chat_demo/src/services/im/outbox_draft_submission.dart';
+
+/// Captured before the input is cleared. Identity is never reused by another
+/// page/conversation, even when its local revision starts from zero.
+class ChatDraftSubmission implements ImDurableTextSubmission {
+  @override
+  ImDraftSubmissionContext? durableContext;
+  ChatDraftSubmission._(
+      this.editorIdentity, this.revision, this.text, this.persistenceToken);
+  final Object editorIdentity;
+  final int revision;
+  final String text;
+  Object? persistenceToken;
+}
 
 /// Debounced local draft text for the open chat page.
 class ChatDraftController {
@@ -7,11 +21,31 @@ class ChatDraftController {
   int _writeGeneration = 0;
   int _stateRevision = 0;
   bool _sendClearBarrier = false;
+  Object _editorIdentity = Object();
   int get writeGeneration => _writeGeneration;
   bool get shouldSuppressLifecyclePersist => _sendClearBarrier;
   int get stateRevision => _stateRevision;
 
   static const Duration debounceDuration = Duration(milliseconds: 250);
+
+  ChatDraftSubmission captureSubmission(String value,
+          {Object? persistenceToken}) =>
+      ChatDraftSubmission._(
+          _editorIdentity, _stateRevision, value, persistenceToken);
+
+  bool ownsSubmission(ChatDraftSubmission submission) =>
+      identical(submission.editorIdentity, _editorIdentity) &&
+      submission.revision == _stateRevision;
+
+  /// A send clear belongs to its submission, not to a new user edit.
+  bool clearForSubmission(ChatDraftSubmission submission) {
+    if (!ownsSubmission(submission)) return false;
+    _writeGeneration++;
+    cancelDebounce();
+    text = null;
+    _sendClearBarrier = true;
+    return true;
+  }
 
   void setTextImmediate(String? value) {
     final trimmed = value?.trim() ?? '';
@@ -59,14 +93,19 @@ class ChatDraftController {
     cancelDebounce();
   }
 
-  void markSendCompleted() {
+  bool markSendCompleted([ChatDraftSubmission? submission]) {
+    if (submission != null) return clearForSubmission(submission);
+    // Compatibility for callers that complete synchronously. Asynchronous
+    // send results must always pass their captured submission.
     _sendClearBarrier = true;
     clear();
+    return true;
   }
 
   /// Invalidates work owned by the previous conversation while allowing the
   /// new conversation to start persisting immediately.
   void beginConversation() {
+    _editorIdentity = Object();
     _sendClearBarrier = false;
     clear();
   }

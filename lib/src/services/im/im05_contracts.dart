@@ -205,6 +205,9 @@ class ImOutboxRecord {
     this.fencingToken = 0,
     this.recoveryLag = false,
     this.recoveryConflict = false,
+    this.stateVersion = 1,
+    this.retryOfOperationId,
+    this.retryOfStateVersion,
   });
 
   final String operationId;
@@ -234,6 +237,9 @@ class ImOutboxRecord {
   final int fencingToken;
   final bool recoveryLag;
   final bool recoveryConflict;
+  final int stateVersion;
+  final String? retryOfOperationId;
+  final int? retryOfStateVersion;
 
   ImOutboxRecord copyWith({
     ImOutboxState? state,
@@ -249,6 +255,7 @@ class ImOutboxRecord {
     int? fencingToken,
     bool? recoveryLag,
     bool? recoveryConflict,
+    int? stateVersion,
   }) {
     return ImOutboxRecord(
       operationId: operationId,
@@ -278,6 +285,9 @@ class ImOutboxRecord {
       fencingToken: fencingToken ?? this.fencingToken,
       recoveryLag: recoveryLag ?? this.recoveryLag,
       recoveryConflict: recoveryConflict ?? this.recoveryConflict,
+      stateVersion: stateVersion ?? this.stateVersion,
+      retryOfOperationId: retryOfOperationId,
+      retryOfStateVersion: retryOfStateVersion,
     );
   }
 }
@@ -376,10 +386,17 @@ abstract interface class Im05Transaction {
     required String sdkLocalId,
   });
 
+  Future<bool> hasOtherRetryChild({
+    required String ownerUserId,
+    required String parentOperationId,
+    required String excludingOperationId,
+  });
+
   Future<List<ImOutboxRecord>> listOutboxesForRecovery({
     required String ownerUserId,
     required List<ImOutboxState> states,
     required int limit,
+    String? afterOperationId,
   });
 
   Future<bool> insertOutboxIfAbsent(ImOutboxRecord record);
@@ -435,7 +452,8 @@ bool isValidImOutboxRecoveryTransition(
       (expected == ImOutboxCopyState.outcomeUnknown &&
           next == ImOutboxCopyState.reconciled) ||
       (expected == ImOutboxCopyState.reconciled &&
-          next == ImOutboxCopyState.gcEligible);
+          (next == ImOutboxCopyState.gcEligible ||
+              next == ImOutboxCopyState.reconciled));
 }
 
 bool isValidImEffectTransition(
@@ -461,6 +479,7 @@ bool isValidImOutboxTransition(ImOutboxState expected, ImOutboxState next) {
           next == ImOutboxState.pausedByLogout;
     case ImOutboxState.dispatchIntent:
       return next == ImOutboxState.sending ||
+          next == ImOutboxState.acknowledged ||
           next == ImOutboxState.outcomeUnknown;
     case ImOutboxState.sending:
       return next == ImOutboxState.acknowledged ||
@@ -480,10 +499,13 @@ bool isValidImOutboxTransition(ImOutboxState expected, ImOutboxState next) {
       return next == ImOutboxState.prepared ||
           next == ImOutboxState.abandonedByUser;
     case ImOutboxState.completed:
-    case ImOutboxState.failedTerminal:
     case ImOutboxState.manualRequired:
-    case ImOutboxState.abandonedByUser:
       return false;
+    case ImOutboxState.failedTerminal:
+    case ImOutboxState.abandonedByUser:
+      // Only exact provider evidence in Im05Persistence may take this edge.
+      // It settles delivery; message deletion/revoke remains a separate rule.
+      return next == ImOutboxState.acknowledged;
   }
 }
 
@@ -625,6 +647,9 @@ Map<String, Object?> imOutboxToStorageMap(ImOutboxRecord record) =>
       'fencing_token': record.fencingToken,
       'recovery_lag': record.recoveryLag ? 1 : 0,
       'recovery_conflict': record.recoveryConflict ? 1 : 0,
+      'state_version': record.stateVersion,
+      'retry_of_operation_id': record.retryOfOperationId,
+      'retry_of_state_version': record.retryOfStateVersion,
     };
 
 ImOutboxRecord imOutboxFromStorageMap(Map<String, Object?> row) =>
@@ -660,6 +685,9 @@ ImOutboxRecord imOutboxFromStorageMap(Map<String, Object?> row) =>
       fencingToken: _int(row['fencing_token']),
       recoveryLag: _int(row['recovery_lag']) != 0,
       recoveryConflict: _int(row['recovery_conflict']) != 0,
+      stateVersion: _optionalInt(row['state_version']) ?? 1,
+      retryOfOperationId: _optionalString(row['retry_of_operation_id']),
+      retryOfStateVersion: _optionalInt(row['retry_of_state_version']),
     );
 
 Map<String, Object?> imOutboxRecoveryToStorageMap(

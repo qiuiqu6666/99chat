@@ -10,7 +10,9 @@ void main() {
     ).readAsStringSync();
     expect(
       source,
-      contains('current?.state == ImOutboxState.outcomeUnknown'),
+      // Retry eligibility now belongs to the committed verdict. Actual
+      // dispatch/unknown behavior is covered by round2_dispatch_and_draft_test.
+      contains('return verdict.canRetry;'),
     );
     expect(source, contains('if (!shouldSettleAsFailed) continue;'));
   });

@@ -12,6 +12,8 @@ import 'package:tencent_cloud_chat_demo/src/friend_application_helper.dart';
 import 'package:tencent_cloud_chat_demo/src/models/friend_request_record.dart';
 import 'package:tencent_cloud_chat_demo/src/services/block_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_local/friend_sync_service.dart';
+import 'package:tencent_cloud_chat_demo/src/services/c2c_friend_message_guard.dart';
+import 'package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart';
 import 'package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/app_dialog.dart';
 import 'package:tencent_cloud_chat_demo/utils/custom_message/friend_became_friends_message.dart';
@@ -890,6 +892,13 @@ class _AddFriendPageState extends State<AddFriendPage> {
       if (!mounted) return;
 
       if (result.isAutoAccepted || result.isRestored) {
+        // The server has confirmed the relationship. Release an open chat's
+        // blocked input now; contacts protocol sync can finish afterward.
+        C2cFriendMessageGuard.trustCanSendHint(
+          widget.userID,
+          source: C2cFriendMessageGuard.becameFriendsTrustSource,
+        );
+        PeerProfileRefreshBus.instance.notify(widget.userID);
         unawaited(FriendSyncService.instance.onBecameFriends(
           peerUserId: widget.userID,
           nickname: _getShowName(),

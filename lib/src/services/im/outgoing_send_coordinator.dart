@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'outbox_draft_submission.dart';
+import 'outbox_retry_identity.dart';
+import 'writer_lease.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
@@ -11,9 +14,11 @@ import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/im05_persistence.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/outbox_payload_cipher.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_media_staging.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_outbox_recovery_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/tencent_message_adapter.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/message_conversation_id.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_elem_type.dart';
+import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_priority_enum.dart';
 import 'package:tencent_cloud_chat_sdk/enum/offlinePushInfo.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
@@ -24,29 +29,127 @@ import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.
 
 class ImCoordinatedSendResult {
   const ImCoordinatedSendResult({
-    required this.sdkResult,
+    required V2TimValueCallback<V2TimMessage> sdkResult,
     required this.usedOutbox,
     this.identity,
     this.accountGeneration,
     this.domainGeneration,
     this.dispatchDecision,
-    this.outcomeUnknown = false,
-  });
+    bool outcomeUnknown = false,
+    this.outboxResult,
+    this.resultView,
+    this.localStatePending = false,
+  })  : _sdkResult = sdkResult,
+        _outcomeUnknown = outcomeUnknown;
 
-  final V2TimValueCallback<V2TimMessage> sdkResult;
+  final V2TimValueCallback<V2TimMessage> _sdkResult;
   final bool usedOutbox;
   final OutgoingIdentityContract? identity;
   final int? accountGeneration;
   final int? domainGeneration;
   final ImOutboxDispatchDecision? dispatchDecision;
-  final bool outcomeUnknown;
+  final bool _outcomeUnknown;
+  final ImOutboxResultVerdict? outboxResult;
+  final ImOutboxResultView? resultView;
+  final bool localStatePending;
+
+  /// Capture once at a UI consumption boundary; every derived field then
+  /// reads the same committed verdict instead of a changing live view.
+  ImCoordinatedSendResult snapshot() => ImCoordinatedSendResult(
+      sdkResult: _sdkResult,
+      usedOutbox: usedOutbox,
+      identity: identity,
+      accountGeneration: accountGeneration,
+      domainGeneration: domainGeneration,
+      dispatchDecision: dispatchDecision,
+      outcomeUnknown: _outcomeUnknown,
+      outboxResult: currentOutboxResult,
+      localStatePending: localStatePending);
+
+  bool get isCurrentSession =>
+      identity == null ||
+      accountGeneration == null ||
+      SessionIdentityService.instance.isCurrent(SessionIdentity(
+          ownerUserId: identity!.scope.ownerUserId,
+          generation: accountGeneration!));
+
+  ImOutboxResultVerdict? get currentOutboxResult {
+    final published = resultView?.current;
+    if (published != null &&
+        published.stateVersion >= (outboxResult?.stateVersion ?? 0)) {
+      return published;
+    }
+    return outboxResult;
+  }
+
+  bool get outcomeUnknown {
+    if (!isCurrentSession) return true;
+    if (currentOutboxResult?.deliveryConfirmed == true) return false;
+    if (localStatePending) return _sdkResult.code != 0;
+    final result = currentOutboxResult;
+    if (result != null) return !result.deliveryConfirmed && !result.canRetry;
+    return _outcomeUnknown;
+  }
+
+  /// Downstream consumers receive the adjudicated state, never an old SDK code
+  /// that contradicts newer durable evidence for this operation.
+  V2TimValueCallback<V2TimMessage> get sdkResult {
+    if (!isCurrentSession) {
+      return V2TimValueCallback<V2TimMessage>(
+          code: -2,
+          desc: 'send belongs to an earlier session',
+          data: _sdkResult.data);
+    }
+    final result = currentOutboxResult;
+    if (localStatePending &&
+        _sdkResult.code == 0 &&
+        result?.deliveryConfirmed != true) {
+      return _sdkResult;
+    }
+    if (result == null) return _sdkResult;
+    final code = result.deliveryConfirmed
+        ? 0
+        : result.canRetry
+            ? (int.tryParse(result.main?.resultCode ?? '') ?? -1)
+            : -2;
+    var message = _sdkResult.data;
+    final serverId = result.main?.serverMsgId;
+    if (message != null && serverId != null && serverId.isNotEmpty) {
+      message = _cloneMessageForOutbox(message) ?? message;
+      message.msgID = serverId;
+      message.id = result.main?.sdkMessageId ?? message.id;
+    }
+    return V2TimValueCallback<V2TimMessage>(
+        code: code,
+        desc: result.deliveryConfirmed
+            ? 'delivery confirmed'
+            : result.canRetry
+                ? _sdkResult.desc
+                : 'delivery pending reconciliation',
+        data: message);
+  }
 
   bool get canCompleteProjection =>
-      usedOutbox && identity != null && sdkResult.code == 0;
+      isCurrentSession &&
+      usedOutbox &&
+      (!localStatePending || currentOutboxResult?.deliveryConfirmed == true) &&
+      identity != null &&
+      sdkResult.code == 0;
 }
 
+enum ImProviderEvidenceSource { sdkHistory, sdkRealtime, appProjection }
+
 class ImOutgoingSendCoordinator {
-  ImOutgoingSendCoordinator._();
+  ImOutgoingSendCoordinator._()
+      : _leaseContext =
+            ConversationSyncService.instance.messageCoreLeaseForOutgoingSend;
+
+  @visibleForTesting
+  ImOutgoingSendCoordinator.forTesting({
+    required Future<ImMessageCoreLeaseContext?> Function() leaseContext,
+  }) : _leaseContext = leaseContext;
+
+  final Future<ImMessageCoreLeaseContext?> Function() _leaseContext;
 
   static final ImOutgoingSendCoordinator instance =
       ImOutgoingSendCoordinator._();
@@ -61,8 +164,7 @@ class ImOutgoingSendCoordinator {
   }) async {
     final localId = sdkLocalId.trim();
     if (localId.isEmpty) return false;
-    final context = await ConversationSyncService.instance
-        .messageCoreLeaseForOutgoingSend();
+    final context = await _leaseContext();
     if (context == null) return false;
     final scope = AccountScopedConversationKey.tryParse(
       ownerUserId: context.ownerUserId,
@@ -122,6 +224,8 @@ class ImOutgoingSendCoordinator {
     String? clientCorrelationIdOverride,
     void Function(String syncMsgID)? onSyncMsgID,
     SessionIdentity? expectedSessionIdentity,
+    String? retryOfSdkLocalId,
+    void Function()? onDispatchGranted,
   }) async {
     final localId = sdkLocalId.trim();
     if (localId.isEmpty) {
@@ -130,8 +234,7 @@ class ImOutgoingSendCoordinator {
         desc: 'sdkLocalId is required',
       );
     }
-    final context = await ConversationSyncService.instance
-        .messageCoreLeaseForOutgoingSend();
+    final context = await _leaseContext();
     if (expectedSessionIdentity != null &&
         (!SessionIdentityService.instance.isCurrent(expectedSessionIdentity) ||
             context?.ownerUserId != expectedSessionIdentity.ownerUserId ||
@@ -179,13 +282,42 @@ class ImOutgoingSendCoordinator {
     }
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final persistence = Im05Persistence(store: context.store);
+    ImOutboxRecord? retryParent;
+    if (retryOfSdkLocalId != null) {
+      retryParent = await persistence.findOutboxBySdkLocalId(
+          ownerUserId: context.ownerUserId,
+          conversationId: scope.storageKey,
+          sdkLocalId: retryOfSdkLocalId);
+      final verdict = retryParent == null
+          ? null
+          : await persistence.readOutboxResult(
+              ownerUserId: context.ownerUserId,
+              operationId: retryParent.operationId);
+      if (verdict?.canRetry != true || !persistOutbox)
+        return _blocked(
+            fallbackMessage: fallbackMessage,
+            outcomeUnknown: true,
+            desc: 'retry requires current durable failure');
+      retryParent = verdict!.main;
+    }
+    final retryKey = retryParent == null ? null : outboxRetryKey(retryParent);
+    if (retryParent != null && retryKey == null) {
+      return _blocked(
+          fallbackMessage: fallbackMessage,
+          outcomeUnknown: true,
+          desc: 'retry requires a durable failed dispatch attempt');
+    }
     final operationId = operationIdOverride?.trim().isNotEmpty == true
         ? operationIdOverride!.trim()
-        : newOutgoingOperationId();
+        : retryKey == null
+            ? newOutgoingOperationId()
+            : 'retry_$retryKey';
     final clientCorrelationId =
         clientCorrelationIdOverride?.trim().isNotEmpty == true
             ? clientCorrelationIdOverride!.trim()
-            : newOutgoingClientCorrelationId();
+            : retryKey == null
+                ? newOutgoingClientCorrelationId()
+                : 'retry_corr_$retryKey';
     // The SDK-created local message is already the bubble adopted by the UI.
     // Recreating it here produces a second local id: the SDK sends that second
     // message while the visible bubble stays attached to the first one. This
@@ -195,7 +327,7 @@ class ImOutgoingSendCoordinator {
     final sendMessage = fallbackMessage;
     var outboxMessage = fallbackMessage;
     String? stagedMediaRoot;
-    if (persistOutbox && !recoverPreparedOutbox) {
+    if (persistOutbox && !recoverPreparedOutbox && retryParent == null) {
       // Staging rewrites local paths. Apply that mutation only to a detached
       // Outbox copy so the live SDK/UI message continues to use its original
       // path and identity. Recovery may recreate an SDK message later from
@@ -247,7 +379,7 @@ class ImOutgoingSendCoordinator {
     final messageKind = _messageKindFor(
       (outboxMessage ?? sendMessage)?.elemType,
     );
-    final plaintextEnvelope = recoveredPrepared == null
+    final plaintextEnvelope = recoveredPrepared == null && retryParent == null
         ? _encodeOutgoingEnvelope(
             message: outboxMessage,
             sdkLocalId: sendLocalId,
@@ -272,6 +404,7 @@ class ImOutgoingSendCoordinator {
               )
             : null;
     final payloadEnvelope = recoveredPrepared?.main?.payloadReference ??
+        retryParent?.payloadReference ??
         (persistOutbox ? protectedPayload?.value : plaintextEnvelope);
     if (persistOutbox && payloadEnvelope == null) {
       await OutgoingMediaStager.instance.cleanup(stagedMediaRoot);
@@ -284,6 +417,7 @@ class ImOutgoingSendCoordinator {
     // Encryption intentionally uses a fresh nonce on every send, so a
     // ciphertext hash would change even when the logical message is identical.
     final payloadFingerprint = recoveredPrepared?.main?.payloadHash ??
+        retryParent?.payloadHash ??
         sha256
             .convert(
                 utf8.encode(plaintextEnvelope ?? 'sdkLocalId:$sendLocalId'))
@@ -307,28 +441,51 @@ class ImOutgoingSendCoordinator {
       sdkLocalId: sendLocalId,
     );
     final sendGeneration = ++_sendOperationGeneration;
+    final dispatchAttemptId =
+        'attempt:${identity.operationId}:$sendGeneration:$nowMs';
+    final resultView = persistOutbox
+        ? persistence.watchOutboxResult(
+            context.ownerUserId, identity.operationId)
+        : null;
 
+    final draftContext =
+        recoverPreparedOutbox ? null : ImDraftSubmissionContext.current;
+    final draftAcceptance = persistOutbox && draftContext != null
+        ? await draftContext.prepare()
+        : null;
     if (persistOutbox) {
       final main = ImOutboxRecord(
         operationId: identity.operationId,
+        retryOfOperationId: recoveredPrepared?.main?.retryOfOperationId ??
+            retryParent?.operationId,
+        retryOfStateVersion: recoveredPrepared?.main?.retryOfStateVersion ??
+            retryParent?.stateVersion,
         ownerUserId: context.ownerUserId,
         conversationId: scope.storageKey,
         clientCorrelationId: identity.clientCorrelationId,
         messageType:
             (outboxMessage ?? sendMessage)?.elemType ?? messageKind.index,
         payloadReference: payloadEnvelope!,
-        mediaLocalRef: stagedMediaRoot ??
+        mediaLocalRef: recoveredPrepared?.main?.mediaLocalRef ??
+            retryParent?.mediaLocalRef ??
+            stagedMediaRoot ??
             _mediaLocalReference(outboxMessage ?? sendMessage),
         encryptionVersion: recoveredPrepared?.main?.encryptionVersion ??
+            retryParent?.encryptionVersion ??
             (protectedPayload == null
                 ? null
                 : ProtectedOutboxPayload.encryptionVersion),
-        keyId: recoveredPrepared?.main?.keyId ?? protectedPayload?.keyId,
+        keyId: recoveredPrepared?.main?.keyId ??
+            retryParent?.keyId ??
+            protectedPayload?.keyId,
         cipherAlgorithm: recoveredPrepared?.main?.cipherAlgorithm ??
+            retryParent?.cipherAlgorithm ??
             (protectedPayload == null
                 ? null
                 : ProtectedOutboxPayload.cipherAlgorithm),
-        nonce: recoveredPrepared?.main?.nonce ?? protectedPayload?.nonce,
+        nonce: recoveredPrepared?.main?.nonce ??
+            retryParent?.nonce ??
+            protectedPayload?.nonce,
         payloadHash: identity.payloadFingerprint,
         contentChecksum: identity.payloadFingerprint,
         sdkMessageId: sendLocalId,
@@ -354,6 +511,7 @@ class ImOutgoingSendCoordinator {
           await persistence.prepareOutbox(
             main: main,
             recoveryCopy: recovery,
+            draftAcceptance: draftAcceptance,
             leaseOwnerId: context.lease.leaseOwnerId,
             fencingToken: context.lease.fencingToken,
             nowMs: nowMs,
@@ -364,15 +522,31 @@ class ImOutgoingSendCoordinator {
           identity: identity,
           usedOutbox: true,
           decision: prepared.decision,
+          outboxResult: ImOutboxResultVerdict.fromDispatchAssessment(prepared),
+          resultView: resultView,
+          accountGeneration: context.accountGeneration,
+          domainGeneration: context.domainGeneration,
           outcomeUnknown: prepared.requiresOutcomeQuery,
           desc: 'outbox dispatch rejected: ${prepared.decision.name}',
         );
       }
+      if (!recoverPreparedOutbox) {
+        OutgoingOutboxRecoveryService.instance.wakeAfterPreparedCommit();
+      }
+      // The two Outbox records and draft ownership are committed together.
+      // A UI failure cannot undo durable acceptance or trigger another send.
+      if (draftContext != null) {
+        try {
+          draftContext.accepted(identity.operationId);
+        } catch (error) {
+          debugPrint('draft acceptance projection failed: ' +
+              error.runtimeType.toString());
+        }
+      }
       final dispatch = await persistence.recordDispatchIntent(
         ownerUserId: context.ownerUserId,
         operationId: identity.operationId,
-        dispatchAttemptId:
-            'attempt:${identity.operationId}:$sendGeneration:$nowMs',
+        dispatchAttemptId: dispatchAttemptId,
         leaseOwnerId: context.lease.leaseOwnerId,
         fencingToken: context.lease.fencingToken,
         nowMs: nowMs,
@@ -383,6 +557,10 @@ class ImOutgoingSendCoordinator {
           identity: identity,
           usedOutbox: true,
           decision: dispatch.decision,
+          outboxResult: ImOutboxResultVerdict.fromDispatchAssessment(dispatch),
+          resultView: resultView,
+          accountGeneration: context.accountGeneration,
+          domainGeneration: context.domainGeneration,
           outcomeUnknown: dispatch.requiresOutcomeQuery,
           desc: 'outbox dispatch rejected: ${dispatch.decision.name}',
         );
@@ -403,11 +581,28 @@ class ImOutgoingSendCoordinator {
           identity: identity,
           usedOutbox: true,
           decision: ImOutboxDispatchDecision.fencingRejected,
+          resultView: resultView,
+          accountGeneration: context.accountGeneration,
+          domainGeneration: context.domainGeneration,
           desc: 'outbox sending transition rejected',
         );
       }
     }
 
+    if (!SessionIdentityService.instance.isCurrent(SessionIdentity(
+        ownerUserId: context.ownerUserId,
+        generation: context.accountGeneration))) {
+      return ImCoordinatedSendResult(
+          sdkResult: V2TimValueCallback<V2TimMessage>(
+              code: -2,
+              desc: 'session changed before SDK dispatch',
+              data: fallbackMessage),
+          usedOutbox: persistOutbox,
+          identity: identity,
+          accountGeneration: context.accountGeneration,
+          domainGeneration: context.domainGeneration,
+          outcomeUnknown: true);
+    }
     final adapter = TencentMessageAdapter(
       port: TUIKitMessageServicePort(messageService),
       platform: ImPlatform.unknown,
@@ -423,6 +618,11 @@ class ImOutgoingSendCoordinator {
         }
       },
     );
+    try {
+      onDispatchGranted?.call();
+    } catch (error) {
+      debugPrint('outbox dispatch UI pending: ${error.runtimeType}');
+    }
     final sdk = await adapter.send(
       identity: identity,
       sdkLocalId: sendLocalId,
@@ -445,63 +645,44 @@ class ImOutgoingSendCoordinator {
       desc: sdk.resultDesc ?? '',
       data: sdk.data?.message ?? sendMessage ?? fallbackMessage,
     );
-    var providerConfirmed = false;
+    ImOutboxResultVerdict? verdict;
+    var localStatePending = false;
     if (persistOutbox) {
       final now = DateTime.now().millisecondsSinceEpoch;
-      if (sdk.isSuccess) {
-        await persistence.recordOutboxSdkSucceeded(
-          ownerUserId: context.ownerUserId,
-          operationId: identity.operationId,
-          leaseOwnerId: context.lease.leaseOwnerId,
-          fencingToken: context.lease.fencingToken,
-          nowMs: now,
-          sdkLocalId: sendLocalId,
-          serverMsgId: formalIdentity.serverMsgId,
-          resultCode: '${callback.code}',
-        );
-      } else if (sdk.isOutcomeUnknown) {
-        final recorded = await persistence.recordOutcomeUnknown(
-          ownerUserId: context.ownerUserId,
-          operationId: identity.operationId,
-          leaseOwnerId: context.lease.leaseOwnerId,
-          fencingToken: context.lease.fencingToken,
-          nowMs: now,
-          resultCode: '${callback.code}',
-        );
-        if (!recorded) {
-          providerConfirmed = await _providerAlreadyConfirmed(
-            persistence,
+      try {
+        if (sdk.isOutcomeUnknown) {
+          await persistence.recordOutcomeUnknown(
             ownerUserId: context.ownerUserId,
             operationId: identity.operationId,
+            leaseOwnerId: context.lease.leaseOwnerId,
+            fencingToken: context.lease.fencingToken,
+            nowMs: now,
+            resultCode: callback.code.toString(),
+          );
+          verdict = await persistence.readOutboxResult(
+              ownerUserId: context.ownerUserId,
+              operationId: identity.operationId);
+        } else {
+          verdict = await persistence.adjudicateOutboxSdkResult(
+            ownerUserId: context.ownerUserId,
+            operationId: identity.operationId,
+            expectedAttemptId: dispatchAttemptId,
+            succeeded: sdk.isSuccess,
+            leaseOwnerId: context.lease.leaseOwnerId,
+            fencingToken: context.lease.fencingToken,
+            nowMs: now,
+            sdkLocalId: sendLocalId,
+            serverMsgId: formalIdentity.serverMsgId,
+            resultCode: callback.code.toString(),
           );
         }
-      } else {
-        unawaited(() async {
-          try {
-            await persistence.recordOutboxSdkFailed(
-              ownerUserId: context.ownerUserId,
-              operationId: identity.operationId,
-              leaseOwnerId: context.lease.leaseOwnerId,
-              fencingToken: context.lease.fencingToken,
-              nowMs: now,
-              sdkLocalId: sendLocalId,
-              serverMsgId: formalIdentity.serverMsgId,
-              resultCode: '${callback.code}',
-            );
-          } catch (error) {
-            debugPrint(
-              '[IM_SEND_COORDINATOR] recordOutboxSdkFailed error=$error',
-            );
-          }
-        }());
+      } catch (error) {
+        // A valid SDK success remains success. A failed local transaction is
+        // pending repair, never permission to dispatch this operation again.
+        localStatePending = true;
+        debugPrint(
+            '[IM_SEND_COORDINATOR] result persistence pending: ${error.runtimeType}');
       }
-    }
-    if (providerConfirmed) {
-      callback = V2TimValueCallback<V2TimMessage>(
-        code: 0,
-        desc: 'provider evidence confirmed delivery',
-        data: sdk.data?.message ?? fallbackMessage,
-      );
     }
     return ImCoordinatedSendResult(
       sdkResult: callback,
@@ -509,7 +690,10 @@ class ImOutgoingSendCoordinator {
       identity: formalIdentity,
       accountGeneration: context.accountGeneration,
       domainGeneration: context.domainGeneration,
-      outcomeUnknown: sdk.isOutcomeUnknown && !providerConfirmed,
+      outcomeUnknown: sdk.isOutcomeUnknown,
+      outboxResult: verdict,
+      resultView: resultView,
+      localStatePending: localStatePending,
     );
   }
 
@@ -518,47 +702,60 @@ class ImOutgoingSendCoordinator {
   ) async {
     final identity = result.identity;
     if (!result.canCompleteProjection || identity == null) return false;
-    final context = await ConversationSyncService.instance
-        .messageCoreLeaseForOutgoingSend();
-    if (context == null ||
-        context.ownerUserId != identity.scope.ownerUserId ||
-        context.accountGeneration != result.accountGeneration ||
-        context.domainGeneration != result.domainGeneration) {
+    try {
+      final context = await ConversationSyncService.instance
+          .messageCoreLeaseForOutgoingSend();
+      if (context == null ||
+          context.ownerUserId != identity.scope.ownerUserId ||
+          context.accountGeneration != result.accountGeneration ||
+          context.domainGeneration != result.domainGeneration) {
+        return false;
+      }
+      final persistence = Im05Persistence(store: context.store);
+      final assessment = await persistence.recoverOutbox(
+        ownerUserId: context.ownerUserId,
+        operationId: identity.operationId,
+      );
+      final completed = await persistence.completeOutboxProjection(
+        ownerUserId: context.ownerUserId,
+        operationId: identity.operationId,
+        leaseOwnerId: context.lease.leaseOwnerId,
+        fencingToken: context.lease.fencingToken,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+      );
+      if (completed) {
+        await OutgoingMediaStager.instance.cleanup(
+          assessment.main?.mediaLocalRef,
+        );
+      }
+      return completed;
+    } catch (error) {
+      debugPrint(
+          '[IM_SEND_COORDINATOR] projection checkpoint pending: ${error.runtimeType}');
       return false;
     }
-    final persistence = Im05Persistence(store: context.store);
-    final assessment = await persistence.recoverOutbox(
-      ownerUserId: context.ownerUserId,
-      operationId: identity.operationId,
-    );
-    final completed = await persistence.completeOutboxProjection(
-      ownerUserId: context.ownerUserId,
-      operationId: identity.operationId,
-      leaseOwnerId: context.lease.leaseOwnerId,
-      fencingToken: context.lease.fencingToken,
-      nowMs: DateTime.now().millisecondsSinceEpoch,
-    );
-    if (completed) {
-      await OutgoingMediaStager.instance.cleanup(
-        assessment.main?.mediaLocalRef,
-      );
-    }
-    return completed;
   }
 
   /// Reconciles durable unknown sends from an already-committed history page.
   /// Only self messages carrying the exact outgoing identity envelope can
   /// advance an Outbox row.
   Future<int> adoptProviderHistory(
-    Iterable<V2TimMessage> messages,
-  ) async {
-    final context = await ConversationSyncService.instance
-        .messageCoreLeaseForOutgoingSend();
+    Iterable<V2TimMessage> messages, {
+    required ImProviderEvidenceSource source,
+  }) async {
+    if (source == ImProviderEvidenceSource.appProjection) return 0;
+    final context = await _leaseContext();
     if (context == null) return 0;
     final persistence = Im05Persistence(store: context.store);
     var adoptedCount = 0;
     for (final message in messages) {
-      if (message.isSelf != true) continue;
+      if (message.isSelf != true ||
+          message.status != MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC) continue;
+      final sender = message.sender?.trim() ?? '';
+      if (sender != context.ownerUserId ||
+          (message.msgID?.trim().isEmpty ?? true)) {
+        continue;
+      }
       final conversationId = MessageConversationId.fromMessage(
         message,
         loginUserId: context.ownerUserId,
@@ -614,25 +811,16 @@ class ImOutgoingSendCoordinator {
   int _nextTransientIngressSequence() => ++_transientIngressSequence;
 }
 
-Future<bool> _providerAlreadyConfirmed(
-  Im05Persistence persistence, {
-  required String ownerUserId,
-  required String operationId,
-}) async {
-  final assessment = await persistence.recoverOutbox(
-    ownerUserId: ownerUserId,
-    operationId: operationId,
-  );
-  return assessment.main?.state == ImOutboxState.acknowledged ||
-      assessment.main?.state == ImOutboxState.completed;
-}
-
 ImCoordinatedSendResult _blocked({
   required V2TimMessage? fallbackMessage,
   OutgoingIdentityContract? identity,
   bool usedOutbox = false,
   ImOutboxDispatchDecision? decision,
   bool outcomeUnknown = false,
+  ImOutboxResultVerdict? outboxResult,
+  ImOutboxResultView? resultView,
+  int? accountGeneration,
+  int? domainGeneration,
   required String desc,
 }) {
   return ImCoordinatedSendResult(
@@ -645,6 +833,10 @@ ImCoordinatedSendResult _blocked({
     identity: identity,
     dispatchDecision: decision,
     outcomeUnknown: outcomeUnknown,
+    outboxResult: outboxResult,
+    resultView: resultView,
+    accountGeneration: accountGeneration,
+    domainGeneration: domainGeneration,
   );
 }
 

@@ -15,6 +15,7 @@ class MyGroupAzSkeleton {
     this.avatarVersion = 0,
     required this.memberCount,
     required this.myRole,
+    this.isChannel = false,
     required this.indexTag,
   });
 
@@ -25,6 +26,7 @@ class MyGroupAzSkeleton {
   final int avatarVersion;
   final int memberCount;
   final int myRole;
+  final bool isChannel;
   final String indexTag;
 
   String get showName {

@@ -37,6 +37,7 @@ class ChatHeaderTitle extends StatefulWidget {
   final String title;
   final ChatHeaderStateController? headerState;
   final ConvType convType;
+  final bool isChannel;
 
   /// 群聊时用于超级大群红字/火焰；C2C 可空。
   final String? groupType;
@@ -53,6 +54,7 @@ class ChatHeaderTitle extends StatefulWidget {
     required this.title,
     this.headerState,
     required this.convType,
+    this.isChannel = false,
     this.groupType,
     this.onTap,
     required this.theme,
@@ -192,8 +194,9 @@ class _ChatHeaderTitleState extends State<ChatHeaderTitle>
           presence.canViewPreciseLastActive(id, isMutualFriend: _mutual) &&
           presence.resolveOnline(userId: id, imOnline: imOnline),
       showPresenceRow: show && widget.convType == ConvType.c2c && id.isNotEmpty,
-      memberCount:
-          widget.convType == ConvType.group ? widget.headerState?.memberCount : null,
+      memberCount: widget.convType == ConvType.group
+          ? widget.headerState?.memberCount
+          : null,
     );
   }
 
@@ -346,22 +349,21 @@ class _ChatHeaderTitleState extends State<ChatHeaderTitle>
       inherit: false,
       color: conversationGroupTitleColor(
         fallback: fallbackColor,
-        groupType: widget.groupType,
+        groupType: widget.isChannel ? null : widget.groupType,
       ),
       fontSize: 16,
       fontWeight: FontWeight.w500,
       height: isDesktop ? 1.25 : 1.1,
       fontFamily: isDesktop ? desktopFont : null,
-      fontFamilyFallback:
-          isDesktop && desktopFont != null
-              ? AppTokens.desktopUiFontFamilyFallback
-              : null,
+      fontFamilyFallback: isDesktop && desktopFont != null
+          ? AppTokens.desktopUiFontFamilyFallback
+          : null,
       leadingDistribution: TextLeadingDistribution.even,
     );
     if (widget.convType == ConvType.group) {
       return buildGroupTitleWithOptionalFlame(
         name: showName,
-        groupType: widget.groupType,
+        groupType: widget.isChannel ? null : widget.groupType,
         flameSize: 16,
         style: style,
       );
@@ -488,11 +490,19 @@ class _ChatHeaderTitleState extends State<ChatHeaderTitle>
                   if ((view.memberCount ?? 0) > 0)
                     Text(
                       AppI18n.of(context).format(
-                        zhHans: '{option1}位成员',
-                        zhHant: '{option1}位成員',
-                        en: '{option1} members',
-                        ja: 'メンバー{option1}人',
-                        ko: '멤버 {option1}명',
+                        zhHans:
+                            widget.isChannel ? '{option1}位订阅者' : '{option1}位成员',
+                        zhHant:
+                            widget.isChannel ? '{option1}位訂閱者' : '{option1}位成員',
+                        en: widget.isChannel
+                            ? '{option1} subscribers'
+                            : '{option1} members',
+                        ja: widget.isChannel
+                            ? '登録者{option1}人'
+                            : 'メンバー{option1}人',
+                        ko: widget.isChannel
+                            ? '구독자 {option1}명'
+                            : '멤버 {option1}명',
                         vars: {'option1': '${view.memberCount}'},
                       ),
                       maxLines: 1,

@@ -115,6 +115,12 @@ class SessionManager extends ChangeNotifier {
       _set(const SessionState(phase: SessionPhase.loggedOut));
       return;
     }
+    if (ApiClient.isJwtExpired(effectiveToken)) {
+      await _handleSessionInvalidated(
+        SessionInvalidationReason.credentialsExpired,
+      );
+      return;
+    }
     await _store.saveBusinessSession(
       token: effectiveToken,
       userId: effectiveUserId,

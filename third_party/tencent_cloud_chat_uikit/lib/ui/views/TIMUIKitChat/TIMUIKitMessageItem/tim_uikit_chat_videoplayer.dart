@@ -27,6 +27,7 @@ import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_preview_debug.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_preview_slide_frame_capture.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_preview_video_utils.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/image_preview_center_loading_indicator.dart';
 
 /// 竖屏视频锁定竖屏；横屏视频允许随系统自动旋转（含竖屏↔横屏）。
 /// 同一横/竖分类重复调用会跳过，避免进场时 SystemChrome 重建造成抖动。
@@ -70,6 +71,8 @@ class TIMUIKitVideoPlayer extends StatefulWidget {
   /// 初始化彻底失败时回调（与 [onPlayerInitialized] 区分：成功初始化但尚未出帧不算失败）。
   final VoidCallback? onInitFailed;
   final bool deferInitialization;
+  /// Fullscreen routes draw loading above their cover until the first frame.
+  final bool showLoadingIndicator;
 
   const TIMUIKitVideoPlayer({
     super.key,
@@ -85,6 +88,7 @@ class TIMUIKitVideoPlayer extends StatefulWidget {
     this.onPlayerInitialized,
     this.onInitFailed,
     this.deferInitialization = false,
+    this.showLoadingIndicator = true,
   });
 
   @override
@@ -1478,12 +1482,12 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
               ),
             ),
           )
-        else if (_waitingForLocalDownload)
+        else if (_waitingForLocalDownload && widget.showLoadingIndicator)
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const CircularProgressIndicator(color: Colors.white),
+                const ImagePreviewCenterLoadingIndicator(),
                 const SizedBox(height: 16),
                 Text(
                   _downloadProgress > 0
@@ -1494,11 +1498,11 @@ class TIMUIKitVideoPlayerState extends State<TIMUIKitVideoPlayer> {
               ],
             ),
           )
-        else if (!_initFailed)
+        else if (!_initFailed && widget.showLoadingIndicator)
           const Center(
-            child: CircularProgressIndicator(color: Colors.white),
+            child: ImagePreviewCenterLoadingIndicator(),
           )
-        else
+        else if (_initFailed)
           const Center(
             child: Text(
               '视频加载失败',

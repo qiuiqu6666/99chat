@@ -266,6 +266,65 @@ void main() {
     setUp(() => GroupLocalStore.instance.clearForOwner(owner));
     tearDown(() => GroupLocalStore.instance.clearForOwner(owner));
 
+    test('channel marker remains distinct from a paid Community group',
+        () async {
+      final channel = MeGroupRecord.fromJson({
+        'groupId': '@TGS#CHANNEL',
+        'groupType': 'Community',
+        'groupName': '公告',
+        'channel': true,
+      });
+      final supergroup = MeGroupRecord.fromJson({
+        'groupId': '@TGS#SUPER',
+        'groupType': 'Community',
+        'groupName': '讨论',
+        'channel': false,
+      });
+      await GroupLocalStore.instance.replaceAll(
+        ownerUserId: owner,
+        records: [channel, supergroup],
+      );
+      expect(
+          (await GroupLocalStore.instance.read(
+            groupId: '@TGS#CHANNEL',
+            ownerUserId: owner,
+          ))
+              ?.isChannel,
+          isTrue);
+      expect(
+          (await GroupLocalStore.instance.read(
+            groupId: '@TGS#SUPER',
+            ownerUserId: owner,
+          ))
+              ?.isChannel,
+          isFalse);
+      final skeletons = await GroupLocalStore.instance.readAzSkeleton(
+        ownerUserId: owner,
+      );
+      expect(
+        skeletons.singleWhere((row) => row.groupId == '@TGS#CHANNEL').isChannel,
+        isTrue,
+      );
+      expect(
+        skeletons.singleWhere((row) => row.groupId == '@TGS#SUPER').isChannel,
+        isFalse,
+      );
+
+      // An IM-only Community snapshot has no business marker; it must not
+      // turn the channel back into an ordinary supergroup.
+      await GroupLocalStore.instance.replaceAll(
+        ownerUserId: owner,
+        records: [channel.copyWith(isChannel: false), supergroup],
+      );
+      expect(
+          (await GroupLocalStore.instance.read(
+            groupId: '@TGS#CHANNEL',
+            ownerUserId: owner,
+          ))
+              ?.isChannel,
+          isTrue);
+    });
+
     test('unchanged record with missing timestamp keeps stored timestamp',
         () async {
       await GroupLocalStore.instance.replaceAll(

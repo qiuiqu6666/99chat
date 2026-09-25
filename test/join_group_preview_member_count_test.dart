@@ -63,6 +63,20 @@ void main() {
   });
 
   group('GroupJoinApi.groupInfoFromLookup', () {
+    test('carries the channel marker into the subscribe preview', () {
+      final channel = GroupJoinApi.groupInfoFromLookup(<String, dynamic>{
+        'groupId': 'channel-1',
+        'groupType': 'Community',
+        'channel': true,
+      });
+      final group = GroupJoinApi.groupInfoFromLookup(<String, dynamic>{
+        'groupId': 'group-1',
+        'groupType': 'Community',
+      });
+      expect(channel?.customInfo?['isChannel'], 'true');
+      expect(group?.customInfo?['isChannel'], isNull);
+    });
+
     test('reads camelCase and snake_case member counts for every join entry',
         () {
       expect(

@@ -69,8 +69,8 @@ class SessionExpiryService {
                   ko: '다른 기기에서 로그인되었습니다. 다시 로그인해 주세요.',
                 )
               : AppI18n.current.t(
-                  zhHans: '登录状态已过期，请重新登录',
-                  zhHant: '登入狀態已過期，請重新登入',
+                  zhHans: '身份信息过期，请重新登录',
+                  zhHant: '身分資訊過期，請重新登入',
                   en: 'Session expired. Please sign in again.',
                   ja: 'ログインの有効期限が切れました。再度ログインしてください。',
                   ko: '로그인 상태가 만료되었습니다. 다시 로그인해 주세요.',

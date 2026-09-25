@@ -57,6 +57,9 @@ class TIMUIKitGroupProfile extends StatefulWidget {
   /// Mentioned: If you use this builder, [profileWidgetBuilder] and [profileWidgetsOrder] will no longer works.
   final GroupProfileBuilder? builder;
 
+  /// Locally cached channel metadata to display while role detail is loading.
+  final V2TimGroupInfo? channelPreviewInfo;
+
   /// The life cycle hooks for group profile business logic.
   /// You have better to implement the `didLeaveGroup` in it.
   final GroupProfileLifeCycle? lifeCycle;
@@ -81,6 +84,7 @@ class TIMUIKitGroupProfile extends StatefulWidget {
           "[operationListBuilder] and [bottomOperationBuilder] merged into [builder], please use it instead")
       this.operationListBuilder,
       this.builder,
+      this.channelPreviewInfo,
       this.profileWidgetBuilder,
       this.onClickUser,
       this.profileWidgetsOrder,
@@ -152,13 +156,20 @@ class _TIMUIKitGroupProfileState extends TIMUIKitState<TIMUIKitGroupProfile> {
         builder: (context, w) {
           final model = Provider.of<TUIGroupProfileModel>(context);
           model.lifeCycle = widget.lifeCycle;
-          final V2TimGroupInfo? groupInfo = model.groupInfoWithBackendRole;
+          // The app supplies this only for a confirmed local channel record.
+          // REST, IM and conversation projections may spell the same group ID
+          // differently, so exact string equality can hide the entire page.
+          final hasChannelPreview =
+              widget.builder != null && widget.channelPreviewInfo != null;
+          final V2TimGroupInfo? groupInfo = model.groupInfoWithBackendRole ??
+              (hasChannelPreview ? widget.channelPreviewInfo : null);
           final memberList = model.groupMemberList;
           final isDesktopScreen =
               TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
           // Metadata can arrive before the backend permission snapshot. Do not
           // paint a member layout while the current user's role is unknown.
-          if (model.backendSelfRole == null &&
+          if (!hasChannelPreview &&
+              model.backendSelfRole == null &&
               model.hasGroupDetailLoadError &&
               !model.isGroupDetailLoading) {
             return Center(
@@ -168,7 +179,8 @@ class _TIMUIKitGroupProfileState extends TIMUIKitState<TIMUIKitGroupProfile> {
               ),
             );
           }
-          if (groupInfo == null || model.backendSelfRole == null) {
+          if (groupInfo == null ||
+              (model.backendSelfRole == null && !hasChannelPreview)) {
             return Center(
               child: LoadingAnimationWidget.staggeredDotsWave(
                 color: theme.weakTextColor ?? Colors.grey,
@@ -235,7 +247,7 @@ class _TIMUIKitGroupProfileState extends TIMUIKitState<TIMUIKitGroupProfile> {
                             : model.loadManagementMembers,
                         child: Text(TIM_t('群管理权限加载失败，点击重试')),
                       ),
-                      child,
+                      widget.scrollable ? child : Expanded(child: child),
                     ])
                   : child,
             );
@@ -254,7 +266,8 @@ class _TIMUIKitGroupProfileState extends TIMUIKitState<TIMUIKitGroupProfile> {
           }
 
           void toDefaultManagePage() {
-            if (TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop) {
+            if (TUIKitScreenUtils.getFormFactor(context) ==
+                DeviceType.Desktop) {
               Navigator.push(
                   context,
                   MaterialPageRoute(

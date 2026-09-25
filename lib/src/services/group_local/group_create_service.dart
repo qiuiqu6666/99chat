@@ -27,6 +27,11 @@ class GroupCreateParams {
     this.memberUserIds = const <String>[],
     this.avatarUrl,
     this.introduction,
+    this.payPin,
+    this.clientRequestId,
+    this.expectedPriceCurrency,
+    this.expectedPriceMinor,
+    this.channel = false,
   });
 
   final String groupType;
@@ -34,6 +39,11 @@ class GroupCreateParams {
   final List<String> memberUserIds;
   final String? avatarUrl;
   final String? introduction;
+  final String? payPin;
+  final String? clientRequestId;
+  final String? expectedPriceCurrency;
+  final int? expectedPriceMinor;
+  final bool channel;
 }
 
 class GroupCreateOutcome {
@@ -67,7 +77,8 @@ class GroupCreateService {
   bool isLatestCreateFlow(int generation) =>
       generation > 0 && generation == _createFlowGeneration;
 
-  Future<GroupCreateOutcome?> createWithRecovery(GroupCreateParams params) async {
+  Future<GroupCreateOutcome?> createWithRecovery(
+      GroupCreateParams params) async {
     if (_creating) {
       return null;
     }
@@ -173,6 +184,11 @@ class GroupCreateService {
             )
           : null,
       introduction: params.introduction,
+      payPin: params.payPin,
+      clientRequestId: params.clientRequestId,
+      expectedPriceCurrency: params.expectedPriceCurrency,
+      expectedPriceMinor: params.expectedPriceMinor,
+      channel: params.channel,
     );
   }
 
@@ -213,6 +229,7 @@ class GroupCreateService {
         attemptStartedAtMs: attemptStartedAtMs,
         preferredGroupName: params.groupName,
         preferredGroupType: params.groupType,
+        preferredChannel: params.channel,
         currentUserId: currentUserId,
       );
       if (fromLocalSnapshot != null) {
@@ -223,6 +240,7 @@ class GroupCreateService {
         groups: local,
         groupName: params.groupName,
         groupType: params.groupType,
+        preferredChannel: params.channel,
         attemptStartedAtMs: attemptStartedAtMs,
         currentUserId: currentUserId,
         excludeGroupIds: snapshotGroupIds,
@@ -232,14 +250,15 @@ class GroupCreateService {
       }
 
       try {
-        final networkGroups =
-            await GroupMembershipSyncService.instance.listJoinedGroupsFromImSdk();
+        final networkGroups = await GroupMembershipSyncService.instance
+            .listJoinedGroupsFromImSdk();
         final fromNetworkSnapshot = findRecoverableGroupBySnapshot(
           groups: networkGroups,
           beforeGroupIds: snapshotGroupIds,
           attemptStartedAtMs: attemptStartedAtMs,
           preferredGroupName: params.groupName,
           preferredGroupType: params.groupType,
+          preferredChannel: params.channel,
           currentUserId: currentUserId,
         );
         if (fromNetworkSnapshot != null) {
@@ -250,6 +269,7 @@ class GroupCreateService {
           groups: networkGroups,
           groupName: params.groupName,
           groupType: params.groupType,
+          preferredChannel: params.channel,
           attemptStartedAtMs: attemptStartedAtMs,
           currentUserId: currentUserId,
           excludeGroupIds: snapshotGroupIds,
@@ -331,6 +351,7 @@ MeGroupRecord? findRecoverableGroupBySnapshot({
   required int attemptStartedAtMs,
   String? preferredGroupName,
   String? preferredGroupType,
+  bool? preferredChannel,
   String? currentUserId,
   int? nowMs,
 }) {
@@ -339,6 +360,7 @@ MeGroupRecord? findRecoverableGroupBySnapshot({
       .where(
         (group) =>
             group.groupId.trim().isNotEmpty &&
+            (preferredChannel == null || group.isChannel == preferredChannel) &&
             !beforeGroupIds.contains(group.groupId.trim()),
       )
       .toList(growable: false);
@@ -347,7 +369,8 @@ MeGroupRecord? findRecoverableGroupBySnapshot({
   }
 
   final ownedGroups = newGroups
-      .where((group) => isRecoverableCreatedGroup(group, currentUserId: ownerId))
+      .where(
+          (group) => isRecoverableCreatedGroup(group, currentUserId: ownerId))
       .toList(growable: false);
   var candidates = ownedGroups.isNotEmpty ? ownedGroups : newGroups;
 
@@ -436,6 +459,7 @@ MeGroupRecord? findRecoverableCreatedGroup({
   required List<MeGroupRecord> groups,
   required String groupName,
   required String groupType,
+  bool? preferredChannel,
   required int attemptStartedAtMs,
   String? currentUserId,
   Set<String> excludeGroupIds = const <String>{},
@@ -459,6 +483,9 @@ MeGroupRecord? findRecoverableCreatedGroup({
   for (final group in groups) {
     final groupId = group.groupId.trim();
     if (groupId.isEmpty || excluded.contains(groupId)) {
+      continue;
+    }
+    if (preferredChannel != null && group.isChannel != preferredChannel) {
       continue;
     }
     if (normalizedName.isNotEmpty && group.groupName.trim() != normalizedName) {

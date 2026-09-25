@@ -267,6 +267,27 @@ class _PayPasswordPromptState extends State<PayPasswordPrompt> {
       value = value.substring(0, value.length - coin.length).trimRight();
       unit = coin;
     }
+    if (coin.isNotEmpty && double.tryParse(full.trim()) != null) {
+      return Center(
+          child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(full,
+              style: TextStyle(
+                  fontSize: 66.sp,
+                  color: cs.text,
+                  fontWeight: FontWeight.w600,
+                  height: 1.05)),
+          SizedBox(width: 12.w),
+          Semantics(
+              label: coin,
+              child: _PayCoinIcon(
+                  coinCode: (_payCoinCode ?? coin).trim(),
+                  logoUrl: _payLogoUrl,
+                  size: 48.w)),
+        ]),
+      ));
+    }
     if (unit.isEmpty) {
       return Text(
         full,

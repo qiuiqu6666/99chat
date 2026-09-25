@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/message_media_metadata_store.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
@@ -219,17 +220,33 @@ class ConversationPeekService {
     final groupID = isGroup && rawGroupID != null && rawGroupID.isNotEmpty
         ? ChatIdFormat.canonicalGroupStorageId(rawGroupID)
         : null;
-    final result = await MessageHistoryPeekLoader.loadOlderLocalOnlyResult(
-      messageService: _messageService,
-      count: HistoryMessageDartConstant.initialOpenFetchCount,
-      userID: userID,
-      groupID: groupID,
-    );
-    var messages = _dedupeMessages(result.messageList);
-    messages = await _dropMessagesAtOrBeforeHistoryClear(
-      conversation: conversation,
-      messages: messages,
-    );
+    final trace = ChatOpenPerfLog.captureCurrent(
+        conversationKey: conversation.conversationID);
+    final result = await ChatOpenPerfLog.measure(
+        'local_snapshot_wait',
+        () => MessageHistoryPeekLoader.loadOlderLocalOnlyResult(
+              messageService: _messageService,
+              count: HistoryMessageDartConstant.initialOpenFetchCount,
+              userID: userID,
+              groupID: groupID,
+            ),
+        trace: trace,
+        source: 'sdk_local');
+    final messages = await ChatOpenPerfLog.measure(
+        'local_history_filter',
+        () => _dropMessagesAtOrBeforeHistoryClear(
+              conversation: conversation,
+              messages: _dedupeMessages(result.messageList),
+            ),
+        trace: trace,
+        source: 'sdk_local');
+    ChatOpenPerfLog.mark('local_read_result',
+        trace: trace,
+        extras: <String, Object?>{
+          'requestCompleted': true,
+          'rawCount': result.messageList.length,
+          'displayCount': messages.length,
+        });
     // Text and message identity are ready after the SDK local query. Media
     // metadata is enrichment and must not delay the local first frame.
     unawaited(_hydrateLocalMessageMetadata(messages));

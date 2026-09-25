@@ -44,11 +44,6 @@
   
   [self initCameraPreview:sensor];
   
-  [_captureConnection setAutomaticallyAdjustsVideoMirroring:NO];
-  if (mirrorFrontCamera && [_captureConnection isVideoMirroringSupported]) {
-    [_captureConnection setVideoMirrored:mirrorFrontCamera];
-  }
-  
   _captureMode = captureMode;
   
   // By default enable auto flash mode
@@ -171,9 +166,11 @@
   [_capturePhotoOutput setHighResolutionCaptureEnabled:YES];
   [_captureSession addOutput:_capturePhotoOutput];
   
-  // Mirror the preview only on portrait mode
+  // Apply the same front-camera mirror policy to preview and recorded frames.
   [_captureConnection setAutomaticallyAdjustsVideoMirroring:NO];
-  [_captureConnection setVideoMirrored:(_cameraSensorPosition == PigeonSensorPositionFront)];
+  if ([_captureConnection isVideoMirroringSupported]) {
+    [_captureConnection setVideoMirrored:(_cameraSensorPosition == PigeonSensorPositionFront && _mirrorFrontCamera)];
+  }
   [_captureConnection setVideoOrientation:AVCaptureVideoOrientationPortrait];
 }
 
@@ -377,7 +374,7 @@
   _mirrorFrontCamera = value;
   
   if ([_captureConnection isVideoMirroringSupported]) {
-      [_captureConnection setVideoMirrored:value];
+    [_captureConnection setVideoMirrored:(_cameraSensorPosition == PigeonSensorPositionFront && value)];
   }
 }
 
@@ -559,7 +556,7 @@
 /// Record video into the given path
 - (void)recordVideoAtPath:(NSString *)path completion:(nonnull void (^)(FlutterError * _Nullable))completion {
   if (!_videoController.isRecording) {
-    [_videoController recordVideoAtPath:path captureDevice:_captureDevice orientation:_deviceOrientation audioSetupCallback:^{
+    [_videoController recordVideoAtPath:path captureDevice:_captureDevice orientation:_motionController.deviceOrientation audioSetupCallback:^{
       [self setUpCaptureSessionForAudioError:^(NSError *error) {
         completion([FlutterError errorWithCode:@"VIDEO_ERROR" message:@"error when trying to setup audio" details:[error localizedDescription]]);
       }];

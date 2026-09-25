@@ -230,6 +230,10 @@ class GroupJoinApi {
       faceUrl: json['avatarUrl']?.toString() ?? json['avatar_url']?.toString(),
       introduction: json['introduction']?.toString(),
       memberCount: memberCount,
+      customInfo: {
+        if (json['channel'] == true || json['isChannel'] == true)
+          'isChannel': 'true',
+      },
     );
   }
 
@@ -346,8 +350,10 @@ class GroupJoinApi {
         limit: singlePageLimit.clamp(1, 100),
         identity: (item) => item.id,
         load: (offset, limit) => fetchMyJoinApplications(
-          offset: offset, limit: limit,
-          includeHandled: includeHandled, status: status,
+          offset: offset,
+          limit: limit,
+          includeHandled: includeHandled,
+          status: status,
         ),
       ),
     );

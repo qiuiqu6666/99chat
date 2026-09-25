@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tencent_cloud_chat_demo/src/ui/app_tokens.dart';
+import 'package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/group_profile_type_indicators.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/official_account_name_label.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/super_large_group_flame_icon.dart';
@@ -94,6 +95,34 @@ Widget? buildGroupConversationListNickName({
   double badgeSize = 16,
   double flameSize = 14,
 }) {
+  final isChannel = groupId != null &&
+      GroupLocalStore.instance.readCached(groupId: groupId)?.isChannel == true;
+  if (isChannel) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.campaign_rounded,
+          size: 18,
+          color: Color(0xFF2387EE),
+        ),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              height: 1.2,
+              color: fallbackTitleColor ?? AppTokens.textPrimaryLight,
+              fontSize: fontSize,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
   return buildConversationListNickName(
     userId: userId,
     name: name,

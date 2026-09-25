@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tencent_cloud_chat_sdk/enum/history_msg_get_type_enum.dart';
@@ -245,5 +247,72 @@ void main() {
       global.rawMessageList(conversationID)!.map((message) => message.msgID),
       contains('m98'),
     );
+  });
+
+  test('overlapping older requests do not report a page before it commits',
+      () async {
+    model.haveMoreData = true;
+    final entered = Completer<void>();
+    final release = Completer<V2TimMessageListResult>();
+    sdk.page = () {
+      if (!entered.isCompleted) entered.complete();
+      return release.future;
+    };
+
+    final first = model.loadChatRecord(
+      count: 2,
+      lastMsgID: 'm99',
+      lastMsgSeq: 99,
+    );
+    await entered.future;
+    final duplicate = await model.loadChatRecord(
+      count: 2,
+      lastMsgID: 'm99',
+      lastMsgSeq: 99,
+    );
+    expect(duplicate, isFalse,
+        reason: 'the second caller did not commit any older messages');
+    expect(global.rawMessageCount(conversationID), 2);
+
+    release.complete(V2TimMessageListResult(
+      isFinished: false,
+      messageList: <V2TimMessage>[_row(conversationID, 98)],
+    ));
+    expect(await first, isTrue);
+    expect(global.rawMessageCount(conversationID), 3);
+    expect(sdk.cloudCalls, 1);
+  });
+
+  test('a different older cursor cannot claim another request page', () async {
+    model.haveMoreData = true;
+    final entered = Completer<void>();
+    final release = Completer<V2TimMessageListResult>();
+    sdk.page = () {
+      if (!entered.isCompleted) entered.complete();
+      return release.future;
+    };
+
+    final first = model.loadChatRecord(
+      count: 2,
+      lastMsgID: 'm99',
+      lastMsgSeq: 99,
+    );
+    await entered.future;
+    final overlapping = await model.loadChatRecord(
+      count: 2,
+      lastMsgID: 'm100',
+      lastMsgSeq: 100,
+    );
+    expect(overlapping, isFalse,
+        reason: 'a prior pagination request still owns the model');
+    expect(global.rawMessageCount(conversationID), 2);
+
+    release.complete(V2TimMessageListResult(
+      isFinished: false,
+      messageList: <V2TimMessage>[_row(conversationID, 98)],
+    ));
+    expect(await first, isTrue);
+    expect(global.rawMessageCount(conversationID), 3);
+    expect(sdk.cloudCalls, 1);
   });
 }

@@ -11,6 +11,7 @@ MeGroupRecord _group({
   int joinedAt = 0,
   int updatedAt = 0,
   String ownerUserId = '',
+  bool isChannel = false,
 }) {
   return MeGroupRecord(
     groupId: groupId,
@@ -25,6 +26,7 @@ MeGroupRecord _group({
     joinedAt: joinedAt,
     updatedAt: updatedAt,
     ownerUserId: ownerUserId,
+    isChannel: isChannel,
   );
 }
 
@@ -130,6 +132,23 @@ void main() {
   group('findRecoverableCreatedGroup', () {
     final attemptAt = DateTime.utc(2026, 6, 19, 12, 0).millisecondsSinceEpoch;
     final recentAt = attemptAt + 5000;
+
+    test('channel recovery ignores a same-name paid Community group', () {
+      final result = findRecoverableCreatedGroup(
+        groups: [
+          _group(groupId: '@TGS#PAID', groupName: '公告',
+              groupType: 'Community', joinedAt: recentAt),
+          _group(groupId: '@TGS#CHANNEL', groupName: '公告',
+              groupType: 'Community', isChannel: true, joinedAt: recentAt),
+        ],
+        groupName: '公告',
+        groupType: 'Community',
+        preferredChannel: true,
+        attemptStartedAtMs: attemptAt,
+        nowMs: recentAt + 1000,
+      );
+      expect(result?.groupId, '@TGS#CHANNEL');
+    });
 
     test('finds owner group with matching name and type', () {
       final match = _group(

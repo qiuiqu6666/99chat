@@ -194,9 +194,15 @@ previewPhotoSampleBuffer:(CMSampleBufferRef)previewPhotoSampleBuffer
         return UIImageOrientationRight;
       }
     case UIDeviceOrientationLandscapeRight:
-      return (self.sensorPosition == PigeonSensorPositionBack) ? UIImageOrientationUp : UIImageOrientationDown;
+      if (self.sensorPosition == PigeonSensorPositionFront) {
+        return _mirrorFrontCamera ? UIImageOrientationDownMirrored : UIImageOrientationDown;
+      }
+      return UIImageOrientationUp;
     case UIDeviceOrientationLandscapeLeft:
-      return (self.sensorPosition == PigeonSensorPositionBack) ? UIImageOrientationDown : UIImageOrientationUp;
+      if (self.sensorPosition == PigeonSensorPositionFront) {
+        return _mirrorFrontCamera ? UIImageOrientationUpMirrored : UIImageOrientationUp;
+      }
+      return UIImageOrientationDown;
     default:
       return UIImageOrientationLeft;
   }

@@ -149,7 +149,7 @@ class ChatOpenViewportCoordinator {
     final signature = '${identity.ownerUserId}|${identity.generation}|'
         '${last?.msgID}|${last?.seq}|${last?.timestamp}|'
         '${globalModel.messageDeltaClearEpochFor(key)}';
-    final task = globalModel.ensureOpenHydrate(
+    final task = ChatOpenPerfLog.withTrace(hydrateTrace, () => globalModel.ensureOpenHydrate(
       key,
       requestSignature: signature,
       canPublish: () =>
@@ -161,7 +161,7 @@ class ChatOpenViewportCoordinator {
         allowCloudVerification: false,
         logTrace: hydrateTrace,
       ),
-    );
+    ));
     try {
       return (await task.timeout(timeout)).shouldSuppressOrdinaryLoad;
     } on TimeoutException {
@@ -216,11 +216,17 @@ class ChatOpenViewportCoordinator {
       },
       trace: logTrace,
     );
-    final task = globalModel.ensureOpenHydrate(
+    final task = ChatOpenPerfLog.withTrace(logTrace, () => globalModel.ensureOpenHydrate(
       key,
       requestSignature: signature,
       canPublish: () =>
           SessionIdentityService.instance.capture() == identity &&
+          ChatViewportCollection.instance.openGenerationFor(key) ==
+              openGeneration &&
+          !ChatViewportCollection.instance.isOpenGenerationAbandoned(
+            key,
+            openGeneration,
+          ) &&
           globalModel.getSearchJumpStatus(key) == SearchJumpStatus.idle,
       load: () async {
         final outcome = await ChatLatestWindowResetService.instance.runForOpen(
@@ -233,7 +239,7 @@ class ChatOpenViewportCoordinator {
             outcome == LatestWindowResetOutcome.installedProvisional ||
             outcome == LatestWindowResetOutcome.offlineProvisional;
       },
-    );
+    ));
     try {
       return (await task.timeout(timeout)).shouldSuppressOrdinaryLoad;
     } on TimeoutException {

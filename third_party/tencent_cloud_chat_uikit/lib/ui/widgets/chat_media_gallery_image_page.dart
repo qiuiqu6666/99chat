@@ -361,6 +361,12 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
       }
       _lowResolutionRefreshInFlight = true;
       _pendingOriginalRefresh = false;
+      // Refresh may start while ExtendedImage is building its decoded frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _lowResolutionRefreshInFlight) {
+          setState(() {});
+        }
+      });
       try {
         final originalProvider =
             await ChatMessagePreviewImageResolver.refreshOriginal(message);
@@ -415,7 +421,7 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
         );
       } finally {
         if (mounted) {
-          _lowResolutionRefreshInFlight = false;
+          setState(() => _lowResolutionRefreshInFlight = false);
         }
       }
     }
@@ -523,7 +529,9 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
       height: screenSize.height,
       fit: imageFit,
       alignment: display.alignment,
-      gaplessPlayback: true,
+      // Keep the thumbnail in the loading layer, without retaining its
+      // "completed" state while the fullscreen provider is still pending.
+      gaplessPlayback: false,
       filterQuality: PlatformUtils().isWinMacDesktop
           ? FilterQuality.medium
           : FilterQuality.low,
@@ -561,7 +569,6 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
               placeholder: _placeholderForItem(),
               fit: imagePreviewPaintFit(display),
               alignment: display.alignment,
-              showSpinner: widget.entranceSettled,
             );
           case LoadState.completed:
             final imgHeight = state.extendedImageInfo?.image.height ?? 1;
@@ -613,24 +620,28 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
                 screenHeight: screenSize.height,
                 fit: resolved.fit,
               );
-              return SizedBox.expand(
-                child: TallImageScrollPreview(
-                  extendedImageState: state,
-                  maxScale: maxScale,
-                  doubleTapTarget: doubleTapTarget,
-                  slidePageKey: widget.slidePageKey,
-                  slideMetrics: widget.slideMetrics,
-                  displayMode: resolved.mode,
-                  sourcePixelSize: Size(resolved.imageWidth.toDouble(), resolved.imageHeight.toDouble()),
-                  inPageView: widget.inPageView,
-                  galleryScrollGate: widget.galleryScrollGate,
-                  onTap: widget.onTap,
-                  onDismissGestureStarted: widget.onDismissGestureStarted,
-                  onSlideDismiss: widget.onSlideDismiss,
+              return _withOriginalUpgradeSpinner(
+                SizedBox.expand(
+                  child: TallImageScrollPreview(
+                    extendedImageState: state,
+                    maxScale: maxScale,
+                    doubleTapTarget: doubleTapTarget,
+                    slidePageKey: widget.slidePageKey,
+                    slideMetrics: widget.slideMetrics,
+                    displayMode: resolved.mode,
+                    sourcePixelSize: Size(resolved.imageWidth.toDouble(), resolved.imageHeight.toDouble()),
+                    inPageView: widget.inPageView,
+                    galleryScrollGate: widget.galleryScrollGate,
+                    onTap: widget.onTap,
+                    onDismissGestureStarted: widget.onDismissGestureStarted,
+                    onSlideDismiss: widget.onSlideDismiss,
+                  ),
                 ),
               );
             }
-            return GesturedImage(state, key: _gestureKey);
+            return _withOriginalUpgradeSpinner(
+              GesturedImage(state, key: _gestureKey),
+            );
           case LoadState.failed:
             if (_placeholderForItem() != null) {
               return ImagePreviewLoadingLayer(
@@ -669,6 +680,19 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
       onTap: widget.onTap,
       behavior: HitTestBehavior.deferToChild,
       child: SizedBox.expand(child: image),
+    );
+  }
+
+  Widget _withOriginalUpgradeSpinner(Widget child) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        if (_lowResolutionRefreshInFlight && !_originalUpgradeCompleted)
+          const IgnorePointer(
+            child: Center(child: ImagePreviewCenterLoadingIndicator()),
+          ),
+      ],
     );
   }
 }

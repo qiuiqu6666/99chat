@@ -519,8 +519,7 @@ class MessageCoreStore {
 
   Future<T> runTransaction<T>(
     Future<T> Function(DatabaseExecutor transaction) action, {
-    MessagePersistPriority persistPriority =
-        MessagePersistPriority.userHistory,
+    MessagePersistPriority persistPriority = MessagePersistPriority.userHistory,
     MessagePersistSource persistSource = MessagePersistSource.userHistory,
     String conversationId = '',
     int accountGeneration = 0,
@@ -534,7 +533,23 @@ class MessageCoreStore {
       itemCount: itemCount,
       run: () async {
         final db = await _openDb();
-        return db.transaction<T>((transaction) => action(transaction));
+        var actionCompleted = false;
+        try {
+          return await db.transaction<T>((transaction) async {
+            final result = await action(transaction);
+            actionCompleted = true;
+            return result;
+          });
+        } catch (_) {
+          if (actionCompleted) {
+            // COMMIT itself failed. sqflite can leave the native transaction
+            // active; another queued transaction then waits indefinitely.
+            // close performs its forced rollback. Never replay the action.
+            if (identical(_db, db)) _db = null;
+            await SqfliteLifecycleGuard.closeDatabase(db);
+          }
+          rethrow;
+        }
       },
     );
   }

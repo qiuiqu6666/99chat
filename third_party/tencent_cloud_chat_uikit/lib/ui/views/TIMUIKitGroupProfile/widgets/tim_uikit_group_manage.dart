@@ -1144,6 +1144,7 @@ Widget _buildListItem(
 /// 选择管理员
 class GroupProfileSetManagerPage extends StatefulWidget {
   final TUIGroupProfileModel model;
+  final bool isChannel;
   final MemberPresenceLabelBuilder? presenceLabelBuilder;
   final MemberPresenceLoadingChecker? presenceLoadingChecker;
   final MemberPresenceOnlineResolver? presenceOnlineResolver;
@@ -1153,6 +1154,7 @@ class GroupProfileSetManagerPage extends StatefulWidget {
   const GroupProfileSetManagerPage({
     Key? key,
     required this.model,
+    this.isChannel = false,
     this.presenceLabelBuilder,
     this.presenceLoadingChecker,
     this.presenceOnlineResolver,
@@ -1360,7 +1362,9 @@ class _GroupProfileSetManagerPageState
                 children: [
                   if (model.hasManagementMemberListError) retryMessage(),
                   _manageCard(context, theme, [
-                    _groupManageSectionHeader(theme, TIM_t("群主")),
+                    _groupManageSectionHeader(
+                        theme,
+                        widget.isChannel ? TIM_t("创建人") : TIM_t("群主")),
                     ...ownerList
                         .map(
                           (e) => Container(

@@ -295,6 +295,9 @@ class PlatformOfficialAccountService {
     }
     _dismissedLoaded = true;
     await _persistDismissedState(expectedIdentity: identity);
+    if (_isCurrent(identity)) {
+      infoRevision.value++;
+    }
   }
 
   static Future<String?> ensureReadyForChat({String? userId}) async {

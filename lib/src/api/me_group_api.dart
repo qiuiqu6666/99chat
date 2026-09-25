@@ -81,6 +81,7 @@ class MutedGroupMemberRecord {
   final int muteUntilSec;
   final String nameCard;
   final String imRole;
+
   /// Null means omitted; an explicit empty string means no public value.
   final String? nickname;
   final String? avatarUrl;
@@ -95,6 +96,7 @@ class MutedGroupMemberRecord {
       }
       return null;
     }
+
     return MutedGroupMemberRecord(
       nickname: profileField(const ['nickname', 'nickName']),
       avatarUrl: profileField(const ['avatarUrl', 'avatar_url', 'faceUrl']),
@@ -675,8 +677,8 @@ class MeGroupApi {
     final requestSequence = ++_detailRequestSequence;
     _detailRequests[requestKey] = requestSequence;
     final writeGeneration = persistLocally
-        ? GroupLocalStore.instance.beginMetadataWrite(
-            ownerUserId: identity.ownerUserId, groupId: id)
+        ? GroupLocalStore.instance
+            .beginMetadataWrite(ownerUserId: identity.ownerUserId, groupId: id)
         : null;
     try {
       final payload = await NetworkTaskScheduler.instance.run<dynamic>(
@@ -950,6 +952,11 @@ class MeGroupApi {
     String? avatarUrl,
     GroupJoinOptions? joinOptions,
     String? introduction,
+    String? payPin,
+    String? clientRequestId,
+    String? expectedPriceCurrency,
+    int? expectedPriceMinor,
+    bool channel = false,
   }) async {
     final normalizedMembers = memberUserIds
         .map(ChatIdFormat.rawUserUid)
@@ -958,12 +965,19 @@ class MeGroupApi {
     final body = <String, dynamic>{
       'groupType': groupType.trim(),
       'groupName': groupName.trim(),
+      if (channel) 'channel': true,
       if (normalizedMembers.isNotEmpty) 'memberUserIds': normalizedMembers,
       if (avatarUrl != null && avatarUrl.trim().isNotEmpty)
         'avatarUrl': avatarUrl.trim(),
       if (joinOptions != null) 'joinOptions': joinOptions.toJson(),
       if (introduction != null && introduction.trim().isNotEmpty)
         'introduction': introduction.trim(),
+      if (groupType.trim() == 'Community' && !channel) ...{
+        'payPin': payPin,
+        'clientRequestId': clientRequestId,
+        'expectedPriceCurrency': expectedPriceCurrency,
+        'expectedPriceMinor': expectedPriceMinor,
+      },
     };
     final res = await _dio.post('/group', data: body);
     return _parseCreateGroupResponse(res);

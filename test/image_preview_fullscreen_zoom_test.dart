@@ -19,6 +19,7 @@ import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_media_gallery_screen.da
 import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_media_preview_item.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/gestured_image.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/image_screen.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/image_preview_center_loading_indicator.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_slide_metrics.dart';
 
 class _TestImageProvider extends ImageProvider<_TestImageProvider> {
@@ -210,6 +211,9 @@ void main() {
           FlutterError.onError = errorHandler;
           expect(original.loads, greaterThan(0));
           if (scenario == 'slow' || scenario == 'failed') {
+            expect(find.byType(ImagePreviewCenterLoadingIndicator), findsOneWidget);
+            expect(tester.getCenter(find.byType(ImagePreviewCenterLoadingIndicator)),
+                const Offset(200, 400));
             // Away from the loading indicator, the landed thumbnail remains.
             expect(await _pixelAt(tester, boundary, 80, 300),
                 const Color(0xFFFF0000));
@@ -226,6 +230,7 @@ void main() {
           final expected = scenario == 'failed'
               ? const Color(0xFFFF0000)
               : const Color(0xFF0000FF);
+          expect(find.byType(ImagePreviewCenterLoadingIndicator), findsNothing);
           expect(await _pixelAt(tester, boundary, 80, 300), expected);
           expect(await _pixelAt(tester, boundary, 320, 550), expected);
           final route = ModalRoute.of(tester.element(find.byWidget(preview)))!;

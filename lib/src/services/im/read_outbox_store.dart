@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'conversation_read_policy.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/message_core_store.dart';
 
 class ConversationReadOutboxRecord {
@@ -11,6 +12,9 @@ class ConversationReadOutboxRecord {
     required this.lastReadAtMs,
     required this.attemptCount,
     required this.nextRetryAtMs,
+    this.retryReason = '',
+    this.createdAtMs = 0,
+    this.readEventAtMs = 0,
   });
 
   final String ownerUserId;
@@ -21,6 +25,9 @@ class ConversationReadOutboxRecord {
   final int lastReadAtMs;
   final int attemptCount;
   final int nextRetryAtMs;
+  final String retryReason;
+  final int createdAtMs;
+  final int readEventAtMs;
 }
 
 /// Durable conversation mark-read queue, scoped by account.
@@ -57,6 +64,15 @@ class ConversationReadOutboxStore {
       ''');
       final columns = await db.rawQuery('PRAGMA table_info($_table)');
       final names = columns.map((row) => row['name']?.toString()).toSet();
+      if (!names.contains('read_event_at')) {
+        await db.execute(
+            'ALTER TABLE $_table ADD COLUMN read_event_at INTEGER NOT NULL DEFAULT 0');
+        await db.execute('UPDATE $_table SET read_event_at = last_read_at');
+      }
+      if (!names.contains('retry_reason')) {
+        await db.execute(
+            "ALTER TABLE $_table ADD COLUMN retry_reason TEXT NOT NULL DEFAULT ''");
+      }
       if (!names.contains('clean_timestamp')) {
         await db.execute(
           'ALTER TABLE $_table ADD COLUMN clean_timestamp INTEGER NOT NULL DEFAULT 0',
@@ -93,67 +109,78 @@ class ConversationReadOutboxStore {
     if (owner.isEmpty || conversation.isEmpty) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     final requestedReadAt = lastReadAtMs ?? now;
-    ConversationReadOutboxRecord buildRecord(int readAt) =>
-        ConversationReadOutboxRecord(
+    ConversationReadOutboxRecord? merge(ConversationReadOutboxRecord? current) {
+      if (current != null && current.readEventAtMs > requestedReadAt)
+        return null;
+      final timestamp = cleanTimestamp > (current?.cleanTimestamp ?? 0)
+          ? cleanTimestamp
+          : current?.cleanTimestamp ?? 0;
+      final sequence = cleanSequence > (current?.cleanSequence ?? 0)
+          ? cleanSequence
+          : current?.cleanSequence ?? 0;
+      final messageId = lastReadMessageId.trim().isEmpty
+          ? current?.lastReadMessageId ?? ''
+          : lastReadMessageId.trim();
+      final targetAdvanced = current != null &&
+          (timestamp > current.cleanTimestamp ||
+              sequence > current.cleanSequence);
+      final repairedWatermark = targetAdvanced &&
+          current.retryReason == 'blocked:watermark_unavailable' &&
+          ConversationReadPolicy.validTarget(conversation, timestamp, sequence);
+      if (current != null &&
+          current.cleanTimestamp == timestamp &&
+          current.cleanSequence == sequence &&
+          current.lastReadMessageId == messageId) return null;
+      final revision =
+          current != null && current.lastReadAtMs >= requestedReadAt
+              ? current.lastReadAtMs + 1
+              : requestedReadAt;
+      return ConversationReadOutboxRecord(
           ownerUserId: owner,
           conversationId: conversation,
-          lastReadMessageId: lastReadMessageId.trim(),
-          cleanTimestamp: cleanTimestamp > 0 ? cleanTimestamp : 0,
-          cleanSequence: cleanSequence > 0 ? cleanSequence : 0,
-          lastReadAtMs: readAt,
-          attemptCount: 0,
-          nextRetryAtMs: 0,
-        );
+          lastReadMessageId: messageId,
+          cleanTimestamp: timestamp,
+          cleanSequence: sequence,
+          lastReadAtMs: revision,
+          readEventAtMs: requestedReadAt,
+          attemptCount: current?.attemptCount ?? 0,
+          nextRetryAtMs: repairedWatermark ? now : current?.nextRetryAtMs ?? 0,
+          retryReason: repairedWatermark ? '' : current?.retryReason ?? '',
+          createdAtMs: current?.createdAtMs ?? now);
+    }
+
     if (kIsWeb) {
       final key = '$owner|$conversation';
-      final current = _webRows[key];
-      if (current != null && current.lastReadAtMs > requestedReadAt) return;
-      final effectiveReadAt = lastReadAtMs == null &&
-              current != null &&
-              current.lastReadAtMs >= requestedReadAt
-          ? current.lastReadAtMs + 1
-          : requestedReadAt;
-      _webRows[key] = buildRecord(effectiveReadAt);
+      final record = merge(_webRows[key]);
+      if (record != null) _webRows[key] = record;
       return;
     }
     await _ensureSchema();
     await MessageCoreStore.instance.runTransaction<void>((db) async {
-      final current = await db.query(
-        _table,
-        columns: <String>['last_read_at', 'created_at'],
-        where: 'owner_user_id = ? AND conversation_id = ?',
-        whereArgs: <Object?>[owner, conversation],
-        limit: 1,
-      );
-      final currentReadAt =
-          current.isEmpty ? -1 : (current.first['last_read_at'] as int? ?? -1);
-      if (currentReadAt > requestedReadAt) return;
-      final effectiveReadAt =
-          lastReadAtMs == null && currentReadAt >= requestedReadAt
-              ? currentReadAt + 1
-              : requestedReadAt;
-      final record = buildRecord(effectiveReadAt);
-      final createdAt =
-          current.isEmpty ? now : (current.first['created_at'] as int? ?? now);
-      await db.rawInsert(
-        '''
-          INSERT OR REPLACE INTO $_table (
-            owner_user_id, conversation_id, last_read_message_id,
-            clean_timestamp, clean_sequence, last_read_at, attempt_count,
-            next_retry_at, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
-        ''',
-        <Object?>[
-          owner,
-          conversation,
-          record.lastReadMessageId,
-          record.cleanTimestamp,
-          record.cleanSequence,
-          effectiveReadAt,
-          createdAt,
-          now,
-        ],
-      );
+      final rows = await db.query(_table,
+          where: 'owner_user_id = ? AND conversation_id = ?',
+          whereArgs: [owner, conversation],
+          limit: 1);
+      final record = merge(rows.isEmpty ? null : _recordFromRow(rows.single));
+      if (record == null) return;
+      await db.rawInsert('''INSERT OR REPLACE INTO $_table (
+        owner_user_id, conversation_id, last_read_message_id, clean_timestamp, clean_sequence,
+        last_read_at, read_event_at, attempt_count, next_retry_at, retry_reason,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', [
+        owner,
+        conversation,
+        record.lastReadMessageId,
+        record.cleanTimestamp,
+        record.cleanSequence,
+        record.lastReadAtMs,
+        record.readEventAtMs,
+        record.attemptCount,
+        record.nextRetryAtMs,
+        record.retryReason,
+        record.createdAtMs,
+        now
+      ]);
     });
   }
 
@@ -175,16 +202,20 @@ class ConversationReadOutboxStore {
       for (final id in ids) {
         final key = '$owner|$id';
         final current = _webRows[key];
-        if (current != null && current.lastReadAtMs > readAt) continue;
+        if (current != null) continue;
         _webRows[key] = ConversationReadOutboxRecord(
           ownerUserId: owner,
           conversationId: id,
           lastReadMessageId: '',
           cleanTimestamp: 0,
           cleanSequence: 0,
-          lastReadAtMs: readAt,
+          lastReadAtMs: current != null && current.lastReadAtMs >= readAt
+              ? current.lastReadAtMs + 1
+              : readAt,
           attemptCount: 0,
           nextRetryAtMs: 0,
+          createdAtMs: now,
+          readEventAtMs: readAt,
         );
       }
       return;
@@ -202,7 +233,9 @@ class ConversationReadOutboxStore {
         final currentReadAt = current.isEmpty
             ? -1
             : (current.first['last_read_at'] as int? ?? -1);
-        if (currentReadAt > readAt) continue;
+        if (current.isNotEmpty) continue;
+        final effectiveReadAt =
+            currentReadAt >= readAt ? currentReadAt + 1 : readAt;
         final createdAt = current.isEmpty
             ? now
             : (current.first['created_at'] as int? ?? now);
@@ -210,11 +243,11 @@ class ConversationReadOutboxStore {
           '''
           INSERT OR REPLACE INTO $_table (
             owner_user_id, conversation_id, last_read_message_id,
-            clean_timestamp, clean_sequence, last_read_at, attempt_count,
+            clean_timestamp, clean_sequence, last_read_at, read_event_at, attempt_count,
             next_retry_at, created_at, updated_at
-          ) VALUES (?, ?, '', 0, 0, ?, 0, 0, ?, ?)
+          ) VALUES (?, ?, '', 0, 0, ?, ?, 0, 0, ?, ?)
         ''',
-          <Object?>[owner, id, readAt, createdAt, now],
+          <Object?>[owner, id, effectiveReadAt, readAt, createdAt, now],
         );
       }
     });
@@ -306,24 +339,41 @@ class ConversationReadOutboxStore {
   Future<List<ConversationReadOutboxRecord>> listDue({
     required String ownerUserId,
     int limit = 500,
+    String? afterConversationId,
   }) async {
     final owner = ownerUserId.trim();
-    if (owner.isEmpty) return const <ConversationReadOutboxRecord>[];
+    if (owner.isEmpty || limit <= 0)
+      return const <ConversationReadOutboxRecord>[];
     final now = DateTime.now().millisecondsSinceEpoch;
     if (kIsWeb) {
-      return _webRows.values
-          .where((row) => row.ownerUserId == owner && row.nextRetryAtMs <= now)
-          .take(limit)
+      final rows = _webRows.values
+          .where((row) =>
+              row.ownerUserId == owner &&
+              row.nextRetryAtMs >= 0 &&
+              row.nextRetryAtMs <= now &&
+              (afterConversationId == null ||
+                  row.conversationId.compareTo(afterConversationId) > 0))
           .toList(growable: false);
+      if (afterConversationId != null) {
+        rows.sort((a, b) => a.conversationId.compareTo(b.conversationId));
+      }
+      return rows.take(limit).toList(growable: false);
     }
     await _ensureSchema();
     return MessageCoreStore.instance
         .runTransaction<List<ConversationReadOutboxRecord>>((db) async {
       final rows = await db.query(
         _table,
-        where: 'owner_user_id = ? AND next_retry_at <= ?',
-        whereArgs: <Object?>[owner, now],
-        orderBy: 'next_retry_at ASC, updated_at ASC',
+        where: 'owner_user_id = ? AND next_retry_at >= 0 AND next_retry_at <= ?'
+            '${afterConversationId == null ? '' : ' AND conversation_id > ?'}',
+        whereArgs: <Object?>[
+          owner,
+          now,
+          if (afterConversationId != null) afterConversationId
+        ],
+        orderBy: afterConversationId == null
+            ? 'next_retry_at ASC, updated_at ASC'
+            : 'conversation_id ASC',
         limit: limit,
       );
       return rows.map(_recordFromRow).toList(growable: false);
@@ -336,7 +386,7 @@ class ConversationReadOutboxStore {
     if (kIsWeb) {
       int? earliest;
       for (final row in _webRows.values) {
-        if (row.ownerUserId != owner) continue;
+        if (row.ownerUserId != owner || row.nextRetryAtMs < 0) continue;
         if (earliest == null || row.nextRetryAtMs < earliest) {
           earliest = row.nextRetryAtMs;
         }
@@ -347,17 +397,30 @@ class ConversationReadOutboxStore {
     return MessageCoreStore.instance.runTransaction<int?>((db) async {
       final rows = await db.rawQuery(
         'SELECT MIN(next_retry_at) AS earliest FROM $_table '
-        'WHERE owner_user_id = ?',
+        'WHERE owner_user_id = ? AND next_retry_at >= 0',
         <Object?>[owner],
       );
       return rows.isEmpty ? null : rows.first['earliest'] as int?;
     });
   }
 
-  Future<void> markRetry(ConversationReadOutboxRecord record) async {
+  Future<void> markRetry(ConversationReadOutboxRecord record,
+      {int? sdkCode, String? reason, int? notBeforeAtMs}) async {
     final attempt = record.attemptCount + 1;
     final now = DateTime.now().millisecondsSinceEpoch;
-    final next = now + _backoffMs(attempt);
+    var cause = reason ?? ConversationReadPolicy.failureReason(sdkCode ?? -1);
+    if (cause.startsWith('transient:') &&
+        record.createdAtMs > 0 &&
+        now - record.createdAtMs >=
+            const Duration(minutes: 15).inMilliseconds) {
+      cause = 'reconnect:retry_window_elapsed';
+    }
+    final backoffAt = now + _backoffMs(attempt);
+    final next = cause.startsWith('transient:')
+        ? (notBeforeAtMs != null && notBeforeAtMs > backoffAt
+            ? notBeforeAtMs
+            : backoffAt)
+        : -1;
     if (kIsWeb) {
       final key = '${record.ownerUserId}|${record.conversationId}';
       final current = _webRows[key];
@@ -373,6 +436,9 @@ class ConversationReadOutboxStore {
         lastReadAtMs: record.lastReadAtMs,
         attemptCount: attempt,
         nextRetryAtMs: next,
+        retryReason: cause,
+        createdAtMs: record.createdAtMs,
+        readEventAtMs: record.readEventAtMs,
       );
       return;
     }
@@ -383,6 +449,7 @@ class ConversationReadOutboxStore {
         <String, Object?>{
           'attempt_count': attempt,
           'next_retry_at': next,
+          'retry_reason': cause,
           'updated_at': now,
         },
         where: 'owner_user_id = ? AND conversation_id = ? AND last_read_at = ?',
@@ -393,6 +460,87 @@ class ConversationReadOutboxStore {
         ],
       );
     });
+  }
+
+  /// Persists a verified in-memory cooldown without spending another SDK
+  /// attempt. The target revision is checked so an older scan cannot delay W3.
+  Future<void> deferUntilIfCurrent(
+    ConversationReadOutboxRecord record,
+    int notBeforeAtMs,
+  ) async {
+    if (notBeforeAtMs <= DateTime.now().millisecondsSinceEpoch) return;
+    if (kIsWeb) {
+      final key = '${record.ownerUserId}|${record.conversationId}';
+      final current = _webRows[key];
+      if (current == null ||
+          current.lastReadAtMs != record.lastReadAtMs ||
+          current.nextRetryAtMs < 0 ||
+          current.nextRetryAtMs >= notBeforeAtMs) return;
+      _webRows[key] = ConversationReadOutboxRecord(
+        ownerUserId: current.ownerUserId,
+        conversationId: current.conversationId,
+        lastReadMessageId: current.lastReadMessageId,
+        cleanTimestamp: current.cleanTimestamp,
+        cleanSequence: current.cleanSequence,
+        lastReadAtMs: current.lastReadAtMs,
+        attemptCount: current.attemptCount,
+        nextRetryAtMs: notBeforeAtMs,
+        retryReason: 'transient:frequency_cooldown',
+        createdAtMs: current.createdAtMs,
+        readEventAtMs: current.readEventAtMs,
+      );
+      return;
+    }
+    await _ensureSchema();
+    await MessageCoreStore.instance.runTransaction<void>((db) async {
+      await db.update(
+        _table,
+        <String, Object?>{
+          'next_retry_at': notBeforeAtMs,
+          'retry_reason': 'transient:frequency_cooldown',
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'owner_user_id = ? AND conversation_id = ? AND last_read_at = ? '
+            'AND next_retry_at >= 0 AND next_retry_at < ?',
+        whereArgs: <Object?>[
+          record.ownerUserId,
+          record.conversationId,
+          record.lastReadAtMs,
+          notBeforeAtMs,
+        ],
+      );
+    });
+  }
+
+  Future<void> resumeAfterReconnect(String ownerUserId) async {
+    if (kIsWeb) {
+      for (final entry in _webRows.entries.toList()) {
+        final row = entry.value;
+        if (row.ownerUserId != ownerUserId ||
+            !row.retryReason.startsWith('reconnect:')) continue;
+        _webRows[entry.key] = ConversationReadOutboxRecord(
+            ownerUserId: row.ownerUserId,
+            conversationId: row.conversationId,
+            lastReadMessageId: row.lastReadMessageId,
+            cleanTimestamp: row.cleanTimestamp,
+            cleanSequence: row.cleanSequence,
+            lastReadAtMs: row.lastReadAtMs,
+            readEventAtMs: row.readEventAtMs,
+            attemptCount: row.attemptCount,
+            nextRetryAtMs: 0,
+            createdAtMs: row.createdAtMs);
+      }
+      return;
+    }
+    await _ensureSchema();
+    await MessageCoreStore.instance.runTransaction((db) => db.update(
+        _table,
+        {
+          'next_retry_at': 0,
+          'retry_reason': '',
+        },
+        where: "owner_user_id = ? AND retry_reason LIKE 'reconnect:%'",
+        whereArgs: [ownerUserId]));
   }
 
   Future<void> clearOwner(String ownerUserId) async {
@@ -421,6 +569,10 @@ ConversationReadOutboxRecord _recordFromRow(Map<String, Object?> row) {
     lastReadAtMs: row['last_read_at'] as int? ?? 0,
     attemptCount: row['attempt_count'] as int? ?? 0,
     nextRetryAtMs: row['next_retry_at'] as int? ?? 0,
+    retryReason: row['retry_reason'] as String? ?? '',
+    createdAtMs: row['created_at'] as int? ?? 0,
+    readEventAtMs:
+        row['read_event_at'] as int? ?? row['last_read_at'] as int? ?? 0,
   );
 }
 

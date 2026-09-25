@@ -13,6 +13,7 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/image_region_decode_hook.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/tiled_image_preview.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/image_preview_center_loading_indicator.dart';
 
 void main() {
   setUpAll(() {
@@ -77,7 +78,7 @@ void main() {
       home: TiledImagePreview(imageWidth: 1080, imageHeight: 100000),
     ));
     expect(find.text('原图加载失败，点击重试'), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(ImagePreviewCenterLoadingIndicator), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -90,10 +91,10 @@ void main() {
       return completer.future;
     };
     await mount(tester, 1080, 100000);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(ImagePreviewCenterLoadingIndicator), findsOneWidget);
     await tester.pump(const Duration(seconds: 21));
     expect(find.text('原图加载失败，点击重试'), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(ImagePreviewCenterLoadingIndicator), findsNothing);
     // Late native results after timeout must be discarded safely.
     for (final completer in pending) {
       completer.complete(pixel());

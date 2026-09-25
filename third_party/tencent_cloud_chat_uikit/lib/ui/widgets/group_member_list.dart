@@ -86,6 +86,9 @@ class GroupProfileMemberList extends StatefulWidget {
   /// Whether this surface may render or request presence information.
   final bool isShowOnlineStatus;
 
+  /// Overrides the owner badge on surfaces with channel terminology.
+  final String? ownerRoleLabel;
+
   /// 列表为空时自定义占位（如搜索无结果）；未传则显示「暂无群成员」。
   final WidgetBuilder? emptyBuilder;
 
@@ -111,6 +114,7 @@ class GroupProfileMemberList extends StatefulWidget {
     this.onMemberListLoaded,
     this.presenceListenable,
     this.isShowOnlineStatus = true,
+    this.ownerRoleLabel,
     this.emptyBuilder,
   }) : super(key: key);
 
@@ -546,7 +550,9 @@ class _GroupProfileMemberListState
       return null;
     }
     return DirectoryStatusLabel(
-      label: badgeKey == 'owner' ? TIM_t("群主") : TIM_t("管理员"),
+      label: badgeKey == 'owner'
+          ? (widget.ownerRoleLabel ?? TIM_t("群主"))
+          : TIM_t("管理员"),
       color: badgeKey == 'owner'
           ? (theme.primaryColor ?? CommonColor.primaryColor)
           : const Color(0xFFB86E00),

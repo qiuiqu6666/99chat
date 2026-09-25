@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart';
 import 'package:tencent_cloud_chat_sdk/enum/history_msg_get_type_enum.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
@@ -110,7 +111,7 @@ class MessageHistoryPeekLoader {
       source: source,
       count: count,
       run: () async {
-        final response = await messageService.getHistoryMessageListWithComplete(
+        final response = await ChatOpenPerfLog.measure('sdk_cloud_call', () => messageService.getHistoryMessageListWithComplete(
           count: count,
           getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
           userID: userID,
@@ -118,7 +119,7 @@ class MessageHistoryPeekLoader {
           lastMsgID: lastMsgID,
           lastMsgSeq: effectiveSeq,
           lastMsg: lastMsg,
-        );
+        ), conversationID: userID ?? groupID, source: source);
         ChatHistoryTrace.log(
           'peek_cloud_only',
           conversationID: userID ?? groupID,
@@ -249,6 +250,8 @@ class MessageHistoryPeekLoader {
     );
     final inFlight = _inFlightByKey[key];
     if (inFlight != null) {
+      ChatOpenPerfLog.mark('history_loader_reused', conversationID: userID ?? groupID,
+          extras: <String, Object?>{'source': source, 'actualRead': false});
       ChatHistoryTrace.log(
         'history_request_reused',
         conversationID: userID ?? groupID,
@@ -508,8 +511,8 @@ class MessageHistoryPeekLoader {
       groupID: groupID,
       lastMsgSeq: lastMsgSeq,
     );
-    final localResponse =
-        await messageService.getHistoryMessageListWithComplete(
+    final localResponse = await ChatOpenPerfLog.measure('sdk_local_call', () =>
+        messageService.getHistoryMessageListWithComplete(
       count: count,
       getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
       userID: userID,
@@ -517,7 +520,7 @@ class MessageHistoryPeekLoader {
       lastMsgID: lastMsgID,
       lastMsgSeq: requestSeq,
       lastMsg: lastMsg,
-    );
+    ), conversationID: userID ?? groupID, source: source);
     final localMessages = localResponse?.messageList ?? const <V2TimMessage>[];
     // A null response means the SDK did not provide a completion marker.
     // Treat it as retryable instead of latching "no more history".
@@ -544,8 +547,8 @@ class MessageHistoryPeekLoader {
     var cloudMessages = const <V2TimMessage>[];
     // 90 天漫游：本地满窗也可能全是上次登录的旧消息，必须打云端。
     if (!localOnly) {
-      final cloudResponse =
-          await messageService.getHistoryMessageListWithComplete(
+      final cloudResponse = await ChatOpenPerfLog.measure('sdk_cloud_call', () =>
+          messageService.getHistoryMessageListWithComplete(
         count: count,
         getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
         userID: userID,
@@ -553,7 +556,7 @@ class MessageHistoryPeekLoader {
         lastMsgID: lastMsgID,
         lastMsgSeq: requestSeq,
         lastMsg: lastMsg,
-      );
+      ), conversationID: userID ?? groupID, source: source);
       cloudMessages = cloudResponse?.messageList ?? const <V2TimMessage>[];
       isFinished = cloudResponse?.isFinished ?? false;
       // DIAG: SDK 原始返回 - cloud older
@@ -603,12 +606,12 @@ class MessageHistoryPeekLoader {
             },
           );
           try {
-            final after = await messageService.getHistoryMessageListWithComplete(
+            final after = await ChatOpenPerfLog.measure('sdk_local_call', () => messageService.getHistoryMessageListWithComplete(
               count: count,
               getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
               userID: userID,
               groupID: groupID,
-            );
+            ), conversationID: userID ?? groupID, source: 'coverage_diagnostic');
             final afterMessages = after?.messageList ?? const <V2TimMessage>[];
             ChatHistoryTrace.log(
               'local_coverage_diag_after_cloud',

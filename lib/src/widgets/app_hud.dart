@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/message_notification_banner.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/app_hud_indicator.dart';
 
 /// 屏幕居中的灰底白圈 HUD（无文字），用于「点击 → 异步等待 → 提示/跳转」。
 ///
@@ -187,22 +187,8 @@ class _AppHudOverlay extends StatelessWidget {
                   child: child,
                 );
               },
-              child: IgnorePointer(
-                child: Container(
-                  width: 84,
-                  height: 84,
-                  decoration: BoxDecoration(
-                    color: const Color(0xCC4A4A4A),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Center(
-                    child: CupertinoActivityIndicator(
-                      key: ValueKey('app_hud_indicator'),
-                      radius: 16,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+              child: const IgnorePointer(
+                child: AppHudIndicator(),
               ),
             ),
           ),

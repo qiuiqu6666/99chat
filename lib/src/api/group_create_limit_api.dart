@@ -69,18 +69,50 @@ class GroupTypeCreateLimitInfo {
 }
 
 /// v2.0：加入分桶 + 社群创建；Work 创建限制已取消。
+class CommunityCreatePrice {
+  const CommunityCreatePrice(
+      {required this.currency, required this.amountMinor});
+
+  final String currency;
+  final int amountMinor;
+
+  bool get isValid =>
+      amountMinor > 0 &&
+      (currency == '99' || currency == 'USDT' || currency == 'TRX');
+
+  String get displayAmount {
+    final divisor = currency == '99' ? 100 : 1000000;
+    final value = amountMinor / divisor;
+    return value == value.truncateToDouble()
+        ? value.toStringAsFixed(0)
+        : value
+            .toStringAsFixed(currency == '99' ? 2 : 6)
+            .replaceFirst(RegExp(r'0+$'), '')
+            .replaceFirst(RegExp(r'\.$'), '');
+  }
+
+  factory CommunityCreatePrice.fromJson(Map<String, dynamic> json) {
+    return CommunityCreatePrice(
+      currency: json['currency']?.toString() ?? '',
+      amountMinor: GroupTypeCreateLimitInfo._readInt(json['amountMinor']),
+    );
+  }
+}
+
 class GroupCreateLimitsResponse {
   const GroupCreateLimitsResponse({
     required this.enabled,
     this.joinGroups,
     this.communityJoinGroups,
     this.communityGroups,
+    this.communityCreatePrice,
   });
 
   final bool enabled;
   final GroupTypeCreateLimitInfo? joinGroups;
   final GroupTypeCreateLimitInfo? communityJoinGroups;
   final GroupTypeCreateLimitInfo? communityGroups;
+  final CommunityCreatePrice? communityCreatePrice;
 
   /// 仅返回**创建**额度：只有 Community；Work/Public 创建不限制。
   GroupTypeCreateLimitInfo? infoForGroupType(String groupType) {
@@ -160,7 +192,8 @@ class GroupCreateLimitsResponse {
         return GroupTypeCreateLimitInfo.fromJson(raw);
       }
       if (raw is Map) {
-        return GroupTypeCreateLimitInfo.fromJson(Map<String, dynamic>.from(raw));
+        return GroupTypeCreateLimitInfo.fromJson(
+            Map<String, dynamic>.from(raw));
       }
       return null;
     }
@@ -170,6 +203,11 @@ class GroupCreateLimitsResponse {
       joinGroups: parseInfo(json['joinGroups']),
       communityJoinGroups: parseInfo(json['communityJoinGroups']),
       communityGroups: parseInfo(json['communityGroups']),
+      communityCreatePrice: json['communityCreatePrice'] is Map
+          ? CommunityCreatePrice.fromJson(
+              Map<String, dynamic>.from(json['communityCreatePrice'] as Map),
+            )
+          : null,
     );
   }
 }
@@ -187,7 +225,8 @@ class GroupCreateLimitApi {
       return GroupCreateLimitsResponse.fromJson(payload);
     }
     if (payload is Map) {
-      return GroupCreateLimitsResponse.fromJson(Map<String, dynamic>.from(payload));
+      return GroupCreateLimitsResponse.fromJson(
+          Map<String, dynamic>.from(payload));
     }
     return const GroupCreateLimitsResponse(enabled: false);
   }

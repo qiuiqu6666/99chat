@@ -503,6 +503,48 @@ void main() {
     }
   });
 
+  testWidgets('older edge waits for a concurrent no-growth history request',
+      (tester) async {
+    try {
+      sdk.mode = _PageMode.unfinishedEmpty;
+      final handler = FlutterError.onError;
+      await tester.pumpWidget(build());
+      FlutterError.onError = handler;
+      await frames(tester);
+      scroll.jumpTo(scroll.position.maxScrollExtent);
+      await frames(tester, 2);
+
+      final background = model.loadChatRecord(
+        count: 20,
+        lastMsgID: 'm61',
+        lastMsgSeq: 61,
+        lastMsg: _row(model.conversationID, 61),
+      );
+      var backgroundDone = false;
+      background.then((_) => backgroundDone = true);
+      await waitUntil(tester, () => sdk.gatedCalls > 0,
+          'the background history request must hold the SDK cursor');
+      final list = find.byType(CustomScrollView);
+      await tester.drag(list, const Offset(0, 2600), touchSlopY: 0);
+      expect(scroll.offset,
+          greaterThanOrEqualTo(scroll.position.maxScrollExtent - 160));
+      await tester.pump(const Duration(milliseconds: 240));
+      expect(uiOlderLoads, 0,
+          reason: 'the edge intent must wait for the existing model request');
+
+      sdk.firstOlderGate.complete();
+      await waitUntil(tester, () => backgroundDone,
+          'the external history reader must finish before edge retry');
+      expect(await background, isFalse);
+      sdk.recovered = true;
+      await waitUntil(tester, () => currentSeqs().last == 41,
+          'the waiting edge intent must retry after the prior request settles');
+      expect(uiOlderLoads, 1);
+    } finally {
+      await close(tester);
+    }
+  });
+
   testWidgets('an initially exhausted edge admits one reading-window probe',
       (tester) async {
     try {

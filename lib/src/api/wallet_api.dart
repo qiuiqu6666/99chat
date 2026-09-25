@@ -2197,6 +2197,14 @@ class WalletApi {
           ja: '手数料',
           ko: '수수료',
         );
+      case 'GROUP_CREATE':
+        return i18n.t(
+          zhHans: '超级大群创建费',
+          zhHant: '超級大群建立費',
+          en: 'Super group creation fee',
+          ja: 'スーパーグループ作成料金',
+          ko: '슈퍼 그룹 생성 비용',
+        );
       default:
         return income
             ? i18n.t(

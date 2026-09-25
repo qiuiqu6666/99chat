@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:tencent_cloud_chat_demo/src/services/im/outbox_draft_submission.dart';
 import 'dart:math';
 
 import 'package:collection/collection.dart';
@@ -13,6 +14,8 @@ import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_callback.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_callback.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart'
+    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_value_callback.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_member_full_info.dart'
@@ -360,37 +363,75 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
 
   // 和onSubmitted一样，只是保持焦点的不同
   _onEmojiSubmitted() {
+    if (_textAcceptancePending) return;
     lastText = "";
     final text = textEditingController.text.trim();
     final convType = widget.conversationType;
-    conversationModel.clearWebDraft(conversationID: widget.conversationID);
     if (text.isNotEmpty && text != zeroWidthSpace) {
+      final submission = widget.model.lifeCycle?.textWillSubmit?.call(text);
       if (widget.model.repliedMessage != null) {
         MessageUtils.handleMessageError(
-            widget.model.sendReplyMessage(
-              text: text,
-              convID: widget.conversationID,
-              convType: convType,
-              atUserIDList: getUserIdFromMemberInfoMap(),
-            ),
+            _observeTextSubmission(
+                submission,
+                () => widget.model.sendReplyMessage(
+                  text: text,
+                  convID: widget.conversationID,
+                  convType: convType,
+                  atUserIDList: getUserIdFromMemberInfoMap(),
+                )),
             context);
       } else {
         MessageUtils.handleMessageError(
-            widget.model.sendTextMessage(
-              text: text,
-              convID: widget.conversationID,
-              convType: convType,
-            ),
+            _observeTextSubmission(
+                submission,
+                () => widget.model.sendTextMessage(
+                  text: text,
+                  convID: widget.conversationID,
+                  convType: convType,
+                )),
             context);
       }
-      textEditingController.clear();
-      // Controller mutations do not invoke TextField.onChanged. Notify the
-      // host explicitly so its local draft is cleared at send intent instead
-      // of waiting for the asynchronous messageDidSend callback.
-      widget.onChanged?.call("");
+      // The captured input is cleared only by the prepared acceptance callback.
       goDownBottom(fromOutgoingSend: true);
     }
     currentCursor = null;
+  }
+
+  bool _textAcceptancePending = false;
+  Object? _textAcceptanceTicket;
+  Future<V2TimValueCallback<V2TimMessage>?> _observeTextSubmission(
+      Object? submission, Future<V2TimValueCallback<V2TimMessage>?> Function() send) {
+    final completed = widget.model.lifeCycle?.textDidSubmit;
+    final clear = widget.model.lifeCycle?.textDidClearAfterSubmit;
+    final boundary = submission is ImDurableTextSubmission ? submission.durableContext : null;
+    _textAcceptancePending = true;
+    final ticket = Object();
+    _textAcceptanceTicket = ticket;
+    void release() {
+      if (identical(_textAcceptanceTicket, ticket)) {
+        _textAcceptancePending = false;
+        _textAcceptanceTicket = null;
+      }
+    }
+    void accepted() {
+      release();
+      if (boundary != null && !boundary.isCurrent()) return;
+      if (mounted) {
+        textEditingController.clear();
+        _clearMentionState();
+        currentCursor = null;
+        lastText = '';
+        conversationModel.clearWebDraft(conversationID: widget.conversationID);
+      }
+      if (clear != null) { clear(submission); }
+      else if (mounted) { widget.onChanged?.call(''); }
+    }
+    final pending = boundary == null ? send() : boundary.run(send, accepted);
+    if (boundary == null) accepted();
+    return pending.then((result) {
+      if (result != null) completed?.call(submission, result);
+      return result;
+    }).whenComplete(release);
   }
 
   // index为emoji的index,data为baseurl+name
@@ -469,39 +510,44 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
   }
 
   onSubmitted() async {
-    conversationModel.clearWebDraft(conversationID: widget.conversationID);
+    if (_textAcceptancePending) return;
     lastText = "";
     final text = textEditingController.text.trim();
     final convType = widget.conversationType;
     if (text.isNotEmpty && text != zeroWidthSpace) {
+      final submission = widget.model.lifeCycle?.textWillSubmit?.call(text);
       final mentionOccurrences = _mentionOccurrencesForSend(text);
       if (widget.model.repliedMessage != null) {
         MessageUtils.handleMessageError(
-            widget.model.sendReplyMessage(
-                text: text,
-                convID: widget.conversationID,
-                convType: convType,
-                atUserIDList: getUserIdFromMemberInfoMap(),
-                mentionOccurrences: mentionOccurrences),
+            _observeTextSubmission(
+                submission,
+                () => widget.model.sendReplyMessage(
+                    text: text,
+                    convID: widget.conversationID,
+                    convType: convType,
+                    atUserIDList: getUserIdFromMemberInfoMap(),
+                    mentionOccurrences: mentionOccurrences)),
             context);
       } else if (mentionedMembersMap.isNotEmpty) {
-        widget.model.sendTextAtMessage(
-            text: text,
-            convType: widget.conversationType,
-            convID: widget.conversationID,
-            atUserList: getUserIdFromMemberInfoMap(),
-            mentionOccurrences: mentionOccurrences);
+        _observeTextSubmission(
+            submission,
+            () => widget.model.sendTextAtMessage(
+                text: text,
+                convType: widget.conversationType,
+                convID: widget.conversationID,
+                atUserList: getUserIdFromMemberInfoMap(),
+                mentionOccurrences: mentionOccurrences));
       } else {
         MessageUtils.handleMessageError(
-            widget.model.sendTextMessage(
-                text: text, convID: widget.conversationID, convType: convType),
+            _observeTextSubmission(
+                submission,
+                () => widget.model.sendTextMessage(
+                    text: text,
+                    convID: widget.conversationID,
+                    convType: convType)),
             context);
       }
-      textEditingController.clear();
-      widget.onChanged?.call("");
-      currentCursor = null;
-      lastText = "";
-      _clearMentionState();
+      // Keep the complete composer until the durable acceptance boundary.
 
       widget.controller?.markOutgoingMessageSend();
       goDownBottom(fromOutgoingSend: true);
@@ -546,7 +592,8 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
   }
 
   Future<void> _goDownBottomImpl({bool fromOutgoingSend = false}) async {
-    if (!fromOutgoingSend && _shouldSkipBottomScrollForShortHistory() &&
+    if (!fromOutgoingSend &&
+        _shouldSkipBottomScrollForShortHistory() &&
         !widget.model.haveMoreLatestData &&
         !globalModel.memoryWindowMissingNewer(widget.conversationID) &&
         !globalModel.hasDurableHistoryDeferred(widget.conversationID)) {
@@ -563,7 +610,8 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
   }) async {
     if (_hasActiveTextComposition ||
         (!allowKeyboardReturn &&
-            KeyboardViewportTransitionCoordinator.active?.isAnimating == true)) {
+            KeyboardViewportTransitionCoordinator.active?.isAnimating ==
+                true)) {
       return;
     }
     final token = ++_bottomReturnToken;
@@ -802,19 +850,18 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
           model.atPositionY = atPosition.dy;
           isAddingAtSearchWords = true;
         }
-        List<V2TimGroupMemberFullInfo> showAtMemberList = (model
-                    .groupMemberList ??
-                [])
-            .where((element) {
-              final showName = _getShowName(element).toLowerCase();
-              keyword ??= "";
-              return element != null &&
-                  showName.contains(keyword!.toLowerCase()) &&
-                  TencentUtils.checkString(showName) != null &&
-                  element.userID != widget.model.selfMemberInfo?.userID;
-            })
-            .whereType<V2TimGroupMemberFullInfo>()
-            .toList();
+        List<V2TimGroupMemberFullInfo> showAtMemberList =
+            (model.groupMemberList ?? [])
+                .where((element) {
+                  final showName = _getShowName(element).toLowerCase();
+                  keyword ??= "";
+                  return element != null &&
+                      showName.contains(keyword!.toLowerCase()) &&
+                      TencentUtils.checkString(showName) != null &&
+                      element.userID != widget.model.selfMemberInfo?.userID;
+                })
+                .whereType<V2TimGroupMemberFullInfo>()
+                .toList();
 
         showAtMemberList.sort(
             (V2TimGroupMemberFullInfo userA, V2TimGroupMemberFullInfo userB) {
@@ -1039,8 +1086,7 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
   controllerHandler() {
     final actionType = widget.controller?.actionType;
     if (actionType == ActionType.longPressToAt) {
-      final pinToLatestAfterAt =
-          widget.controller?.pinToLatestAfterAt ?? false;
+      final pinToLatestAfterAt = widget.controller?.pinToLatestAfterAt ?? false;
       widget.controller?.pinToLatestAfterAt = false;
       widget.controller?.actionType = null;
       final atUserID = widget.controller?.atUserID;

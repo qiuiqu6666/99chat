@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'im/conversation_read_policy.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/tencent_conversation_read_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im_web_ready_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
@@ -39,9 +40,7 @@ class WebReadService {
   }
 
   int _timestampSeconds(int? value) {
-    final timestamp = value ?? 0;
-    if (timestamp <= 0) return 0;
-    return timestamp > 9999999999 ? timestamp ~/ 1000 : timestamp;
+    return ConversationReadPolicy.conservativeTimestamp(value ?? 0);
   }
 
   String _conversationID(V2TimConversation conversation) {

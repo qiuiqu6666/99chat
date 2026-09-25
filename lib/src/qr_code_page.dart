@@ -38,6 +38,7 @@ enum QRCodePageType { user, group }
 
 class QRCodePage extends StatefulWidget {
   final QRCodePageType type;
+  final bool isChannel;
   final String title;
   final String displayName;
   final String aliasLabel;
@@ -54,6 +55,7 @@ class QRCodePage extends StatefulWidget {
   const QRCodePage({
     Key? key,
     required this.type,
+    this.isChannel = false,
     required this.title,
     required this.displayName,
     required this.aliasLabel,
@@ -640,11 +642,11 @@ class _QRCodePageState extends State<QRCodePage> {
               const SizedBox(height: 14),
               Text(
                 i18n.t(
-                  zhHans: '管理员已关闭群二维码加入方式',
-                  zhHant: '管理員已關閉群 QR 碼加入方式',
-                  en: 'Group admins have disabled joining via QR code',
-                  ja: '管理者がQRコードによる参加を無効にしています',
-                  ko: '관리자가 QR 코드 가입을 비활성화했습니다',
+                  zhHans: widget.isChannel ? '管理员已关闭频道二维码订阅方式' : '管理员已关闭群二维码加入方式',
+                  zhHant: widget.isChannel ? '管理員已關閉頻道 QR 碼訂閱方式' : '管理員已關閉群 QR 碼加入方式',
+                  en: widget.isChannel ? 'Channel admins have disabled subscribing via QR code' : 'Group admins have disabled joining via QR code',
+                  ja: widget.isChannel ? '管理者がQRコードによるチャンネル登録を無効にしています' : '管理者がQRコードによる参加を無効にしています',
+                  ko: widget.isChannel ? '관리자가 QR 코드 채널 구독을 비활성화했습니다' : '관리자가 QR 코드 가입을 비활성화했습니다',
                 ),
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -696,7 +698,15 @@ class _QRCodePageState extends State<QRCodePage> {
               ),
             _ => null,
           };
-    final hintText = widget.type == QRCodePageType.group
+    final hintText = widget.isChannel
+        ? AppI18n.of(context).t(
+            zhHans: '扫描二维码订阅频道',
+            zhHant: '掃描 QR 碼訂閱頻道',
+            en: 'Scan to subscribe to the channel',
+            ja: 'QRコードをスキャンしてチャンネルを登録',
+            ko: 'QR 코드를 스캔하여 채널 구독',
+          )
+        : widget.type == QRCodePageType.group
         ? TIM_t('扫描二维码加入群聊')
         : TIM_t('扫描二维码添加我为联系人');
 
@@ -826,14 +836,11 @@ class _QRCodePageState extends State<QRCodePage> {
                                         Flexible(
                                             child: Text(
                                                 AppI18n.of(context).t(
-                                                    zhHans:
-                                                        '$_groupMemberCount 人',
-                                                    zhHant:
-                                                        '$_groupMemberCount 人',
-                                                    en:
-                                                        '$_groupMemberCount members',
-                                                    ja: '$_groupMemberCount 人',
-                                                    ko: '$_groupMemberCount명'),
+                                                    zhHans: widget.isChannel ? '$_groupMemberCount 位订阅者' : '$_groupMemberCount 人',
+                                                    zhHant: widget.isChannel ? '$_groupMemberCount 位訂閱者' : '$_groupMemberCount 人',
+                                                    en: widget.isChannel ? '$_groupMemberCount subscribers' : '$_groupMemberCount members',
+                                                    ja: widget.isChannel ? '登録者 $_groupMemberCount 人' : '$_groupMemberCount 人',
+                                                    ko: widget.isChannel ? '구독자 $_groupMemberCount명' : '$_groupMemberCount명'),
                                                 style: TextStyle(
                                                     color: palette.secondary,
                                                     fontSize:
@@ -1010,7 +1017,15 @@ class _QRCodePageState extends State<QRCodePage> {
     }
     final i18n = AppI18n.of(context);
     final name = _effectiveDisplayName.trim();
-    final invitation = _isGroupQr
+    final invitation = widget.isChannel
+        ? i18n.t(
+            zhHans: '邀请你订阅频道「$name」\n在 99Chat 查看最新内容：',
+            zhHant: '邀請你訂閱頻道「$name」\n在 99Chat 查看最新內容：',
+            en: 'Subscribe to "$name" on 99Chat for the latest updates:',
+            ja: '99Chatでチャンネル「$name」を登録して最新情報をご覧ください：',
+            ko: '99Chat에서 "$name" 채널을 구독하고 최신 소식을 확인하세요:',
+          )
+        : _isGroupQr
         ? i18n.t(
             zhHans: '邀请你加入「$name」\n一起交流，分享精彩。\n在 99Chat 与我们相聚：',
             zhHant: '邀請你加入「$name」\n一起交流，分享精彩。\n在 99Chat 與我們相聚：',
@@ -1254,9 +1269,17 @@ class _QRCodePageState extends State<QRCodePage> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                  TIM_t(_isGroupQr
-                                                      ? '邀请好友加入群聊'
-                                                      : '扫一扫，添加我为好友'),
+                                                  widget.isChannel
+                                                      ? AppI18n.of(context).t(
+                                                          zhHans: '邀请好友订阅频道',
+                                                          zhHant: '邀請好友訂閱頻道',
+                                                          en: 'Invite friends to subscribe',
+                                                          ja: '友だちをチャンネルに招待',
+                                                          ko: '친구를 채널 구독에 초대',
+                                                        )
+                                                      : TIM_t(_isGroupQr
+                                                          ? '邀请好友加入群聊'
+                                                          : '扫一扫，添加我为好友'),
                                                   style: TextStyle(
                                                       color: palette.title,
                                                       fontSize: 23,

@@ -28,6 +28,37 @@ List<String> groupLiveHttpSources(GroupLivePlayInfo info) {
   return List.unmodifiable(result);
 }
 
+/// Signed URL renewals do not change the live stream being watched.
+bool groupLiveSameStreamSource(String previous, String current) {
+  final oldUri = Uri.tryParse(previous.trim());
+  final newUri = Uri.tryParse(current.trim());
+  if (oldUri == null || newUri == null) return previous == current;
+  if (oldUri.scheme != newUri.scheme ||
+      oldUri.host != newUri.host ||
+      oldUri.port != newUri.port ||
+      oldUri.path != newUri.path ||
+      oldUri.userInfo != newUri.userInfo) {
+    return false;
+  }
+
+  bool isSignature(String key) {
+    final name = key.toLowerCase();
+    return name == 'txsecret' || name == 'txtime';
+  }
+
+  final oldQuery = Map<String, List<String>>.of(oldUri.queryParametersAll)
+    ..removeWhere((key, _) => isSignature(key));
+  final newQuery = Map<String, List<String>>.of(newUri.queryParametersAll)
+    ..removeWhere((key, _) => isSignature(key));
+  if (!setEquals(oldQuery.keys.toSet(), newQuery.keys.toSet())) return false;
+  for (final key in oldQuery.keys) {
+    final oldValues = [...oldQuery[key]!]..sort();
+    final newValues = [...newQuery[key]!]..sort();
+    if (!listEquals(oldValues, newValues)) return false;
+  }
+  return true;
+}
+
 /// Bounded startup wait. Command acknowledgement must never mark a frame ready.
 class GroupLiveStartup extends ChangeNotifier {
   GroupLiveStartup({this.timeout = const Duration(seconds: 12)});

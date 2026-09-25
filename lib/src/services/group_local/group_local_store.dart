@@ -65,6 +65,7 @@ class GroupLocalStore {
   final Map<String, int> _metadataWriteGenerations = <String, int>{};
   int _metadataWriteSequence = 0;
   final Set<String> _fullyCachedOwners = <String>{};
+
   /// Loading the membership cache is a read, not a metadata mutation. Notify
   /// filters once when an owner becomes complete without replaying every row.
   final ValueNotifier<({String ownerUserId, int version})> cacheHydration =
@@ -288,7 +289,8 @@ class GroupLocalStore {
         existing.noticeUpdatedAt == incoming.noticeUpdatedAt &&
         existing.noticeUpdatedBy == incoming.noticeUpdatedBy &&
         existing.isAllMuted == incoming.isAllMuted &&
-        existing.gameEnabled == incoming.gameEnabled;
+        existing.gameEnabled == incoming.gameEnabled &&
+        existing.isChannel == incoming.isChannel;
   }
 
   @visibleForTesting
@@ -336,7 +338,7 @@ class GroupLocalStore {
     final path = p.join(basePath, _dbName);
     _db = await openDatabase(
       path,
-      version: 8,
+      version: 9,
       onOpen: (db) async {
         // FFB-2 扩散：iOS sqflite_darwin 启动期 PRAGMA 救火。失败不阻断 DB open。
         await SqfliteBootstrapHelper.withTag('group').runOnOpenPragmas(db);
@@ -363,6 +365,7 @@ class GroupLocalStore {
             notice_updated_by TEXT NOT NULL DEFAULT '',
             is_all_muted INTEGER NOT NULL DEFAULT 0,
             game_enabled INTEGER NOT NULL DEFAULT 0,
+            is_channel INTEGER NOT NULL DEFAULT 0,
             index_tag TEXT NOT NULL DEFAULT '',
             PRIMARY KEY (owner_user_id, group_id)
           )
@@ -427,6 +430,11 @@ class GroupLocalStore {
           );
           await db.execute(
             'ALTER TABLE $_table ADD COLUMN avatar_version INTEGER NOT NULL DEFAULT 0',
+          );
+        }
+        if (oldVersion < 9) {
+          await db.execute(
+            'ALTER TABLE $_table ADD COLUMN is_channel INTEGER NOT NULL DEFAULT 0',
           );
         }
       },
@@ -685,6 +693,7 @@ class GroupLocalStore {
         'notice_updated_by',
         'is_all_muted',
         'game_enabled',
+        'is_channel',
       ],
       where: 'owner_user_id = ?',
       whereArgs: [owner],
@@ -815,7 +824,7 @@ class GroupLocalStore {
         'SELECT owner_group_user_id, group_id, group_type, group_name, '
         'display_alias, avatar_url, avatar_preview_url, avatar_version, '
         'notice, member_count, my_role, my_name_card, joined_at, updated_at, '
-        'notice_updated_at, notice_updated_by, is_all_muted, game_enabled '
+        'notice_updated_at, notice_updated_by, is_all_muted, game_enabled, is_channel '
         'FROM $_table WHERE owner_user_id = ? '
         'AND group_id IN ($placeholders)',
         <Object?>[owner, ...slice],
@@ -1223,6 +1232,7 @@ class GroupLocalStore {
         'avatar_version',
         'member_count',
         'my_role',
+        'is_channel',
         'index_tag',
       ],
       where: where.toString(),
@@ -1247,6 +1257,7 @@ class GroupLocalStore {
             avatarVersion: skeleton.avatarVersion,
             memberCount: skeleton.memberCount,
             myRole: skeleton.myRole,
+            isChannel: skeleton.isChannel,
             indexTag: MyGroupAzSkeleton.computeIndexTag(
               groupName: skeleton.groupName,
               groupId: skeleton.groupId,
@@ -1376,6 +1387,7 @@ class GroupLocalStore {
       avatarVersion: record.avatarVersion,
       memberCount: record.memberCount,
       myRole: record.myRole,
+      isChannel: record.isChannel,
       indexTag: MyGroupAzSkeleton.computeIndexTag(
         groupName: record.groupName,
         groupId: record.groupId,
@@ -1392,6 +1404,7 @@ class GroupLocalStore {
       avatarVersion: (row['avatar_version'] as int?) ?? 0,
       memberCount: (row['member_count'] as int?) ?? 0,
       myRole: (row['my_role'] as int?) ?? 200,
+      isChannel: (row['is_channel'] as int? ?? 0) != 0,
       indexTag: row['index_tag']?.toString() ?? '',
     );
   }
@@ -1420,7 +1433,7 @@ class GroupLocalStore {
         },
       );
     }
-    final normalized = dedupeGroupRecords(admissible);
+    var normalized = dedupeGroupRecords(admissible);
     if (owner.isEmpty) {
       return;
     }
@@ -1438,6 +1451,12 @@ class GroupLocalStore {
       final existingByKey = <String, MeGroupRecord>{
         for (final item in existing) groupEquivalenceKey(item.groupId): item,
       };
+      normalized = normalized.map((item) {
+        final old = existingByKey[groupEquivalenceKey(item.groupId)];
+        return old?.isChannel == true && !item.isChannel
+            ? item.copyWith(isChannel: true)
+            : item;
+      }).toList(growable: false);
       final guarded = normalized.map((item) {
         final old = existingByKey[groupEquivalenceKey(item.groupId)];
         return acceptsMetadataRecord(existing: old, incoming: item) ||
@@ -1475,6 +1494,17 @@ class GroupLocalStore {
     );
 
     final existing = existingSnapshot ?? await readAll(ownerUserId: owner);
+    final priorChannels = <String>{
+      for (final item in existing)
+        if (item.isChannel) groupEquivalenceKey(item.groupId),
+    };
+    normalized = normalized
+        .map((item) =>
+            priorChannels.contains(groupEquivalenceKey(item.groupId)) &&
+                    !item.isChannel
+                ? item.copyWith(isChannel: true)
+                : item)
+        .toList(growable: false);
     final rawToDelete = groupIdsToDelete(
       existing: existing,
       normalized: normalized,
@@ -2151,6 +2181,7 @@ class GroupLocalStore {
       noticeUpdatedBy: row['notice_updated_by']?.toString() ?? '',
       isAllMuted: (row['is_all_muted'] as int? ?? 0) != 0,
       gameEnabled: (row['game_enabled'] as int? ?? 0) != 0,
+      isChannel: (row['is_channel'] as int? ?? 0) != 0,
     );
   }
 
@@ -2179,6 +2210,7 @@ class GroupLocalStore {
       'notice_updated_by': record.noticeUpdatedBy,
       'is_all_muted': record.isAllMuted ? 1 : 0,
       'game_enabled': record.gameEnabled ? 1 : 0,
+      'is_channel': record.isChannel ? 1 : 0,
       'index_tag': MyGroupAzSkeleton.computeIndexTag(
         groupName: record.groupName,
         groupId: record.groupId,

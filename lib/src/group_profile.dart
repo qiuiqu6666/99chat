@@ -54,6 +54,7 @@ import 'package:tencent_cloud_chat_demo/utils/user_display_profile.dart';
 import 'package:tencent_cloud_chat_demo/utils/profile_page_nav.dart';
 import 'package:tencent_cloud_chat_demo/src/group_manage_page.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/profile_nickname_edit_page.dart';
+import 'package:tencent_cloud_chat_demo/src/pages/channel_type_page.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/group_invite_member_page_meta.dart';
 import 'package:tencent_cloud_chat_demo/utils/app_material_theme.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/group_member/tui_add_group_member.dart';
@@ -61,6 +62,7 @@ import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/group_mem
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/group_member/tui_group_member_list.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/group_profile_widget.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_button_area.dart';
+import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/profile_signature_edit_page.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/widgets/tim_ui_group_profile_widget.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_detail_card.dart';
@@ -83,6 +85,9 @@ String _resolveGroupDisplayAlias(V2TimGroupInfo groupInfo) {
     groupIdFallback: groupInfo.groupID,
   );
 }
+
+String normalizeGroupAliasLeadingAt(String? value) =>
+    (value ?? '').trim().replaceFirst(RegExp(r'^@{2,}'), '@');
 
 class GroupProfilePage extends StatelessWidget {
   final String groupID;
@@ -306,17 +311,16 @@ class GroupProfilePage extends StatelessWidget {
     );
   }
 
-  void _openGroupMemberList(
-    BuildContext context,
-    TUIGroupProfileModel model,
-    List<V2TimGroupMemberFullInfo?> memberList,
-  ) {
+  void _openGroupMemberList(BuildContext context, TUIGroupProfileModel model,
+      List<V2TimGroupMemberFullInfo?> memberList,
+      {bool isChannel = false}) {
     final presence = Provider.of<PresenceProvider>(context, listen: false);
     final localSetting = Provider.of<LocalSetting>(context, listen: false);
     final friendship = serviceLocator<TUIFriendShipViewModel>();
     final page = GroupProfileMemberListPage(
       model: model,
       memberList: memberList,
+      isChannel: isChannel,
       presenceListenable: presence,
       isShowOnlineStatus: localSetting.isShowOnlineStatus,
       presenceLabelBuilder: (userId, imOnline) => presence.onlineLabelFor(
@@ -546,24 +550,73 @@ class GroupProfilePage extends StatelessWidget {
     );
   }
 
-  void _openGroupInfoDetail(
+  void _openChannelAdminSettings(
     BuildContext context,
-    V2TimGroupInfo groupInfo,
     TUIGroupProfileModel model,
   ) {
-    final page = GroupInfoDetailPage(
-      groupInfo: groupInfo,
+    final presence = Provider.of<PresenceProvider>(context, listen: false);
+    final friendship = serviceLocator<TUIFriendShipViewModel>();
+    final page = GroupProfileSetManagerPage(
       model: model,
+      isChannel: true,
+      presenceListenable: presence,
+      presenceLabelBuilder: (userId, imOnline) => presence.onlineLabelFor(
+        userId: userId,
+        imOnline: imOnline,
+        isMutualFriend: friendCanMessage(friendship, userId),
+      ),
+      presenceLoadingChecker: (userId, imOnline) =>
+          presence.isLastSeenLoading(userId: userId, imOnline: imOnline),
+      presenceOnlineResolver: (userId, imOnline) =>
+          presence.resolveOnline(userId: userId, imOnline: imOnline),
+      onMemberPresenceRequested: (userIds) {
+        presence.ensure(userIds, includeVisibility: false);
+      },
     );
     if (DesktopModalLayout.isDesktop(context)) {
       unawaited(_openDesktopSubpage(
         context: context,
         title: AppI18n.of(context).t(
-          zhHans: '群详情',
-          zhHant: '群詳情',
-          en: 'Group Info',
-          ja: 'グループ情報',
-          ko: '그룹 정보',
+          zhHans: '设置管理员',
+          zhHant: '設定管理員',
+          en: 'Set Administrators',
+          ja: '管理者を設定',
+          ko: '관리자 설정',
+        ),
+        page: page,
+        operationKey: TUIKitWideModalOperationKey.custom,
+      ));
+      return;
+    }
+    Navigator.push(
+      context,
+      AppMaterialPageRoute(builder: (context) => page),
+    );
+  }
+
+  void _openGroupInfoDetail(
+    BuildContext context,
+    V2TimGroupInfo groupInfo,
+    TUIGroupProfileModel model,
+  ) {
+    final isChannel = GroupLocalStore.instance
+            .readCached(groupId: groupInfo.groupID)
+            ?.isChannel ==
+        true;
+    final page = GroupInfoDetailPage(
+      groupInfo: groupInfo,
+      model: model,
+      isChannel: isChannel,
+    );
+    if (DesktopModalLayout.isDesktop(context)) {
+      unawaited(_openDesktopSubpage(
+        context: context,
+        title: AppI18n.of(context).t(
+          zhHans: isChannel ? '频道资料' : '群详情',
+          zhHant: isChannel ? '頻道資料' : '群詳情',
+          en: isChannel ? 'Channel profile' : 'Group Info',
+          ja: isChannel ? 'チャンネル情報' : 'グループ情報',
+          ko: isChannel ? '채널 정보' : '그룹 정보',
         ),
         page: page,
         operationKey: TUIKitWideModalOperationKey.custom,
@@ -581,45 +634,40 @@ class GroupProfilePage extends StatelessWidget {
     BuildContext context,
     V2TimGroupInfo groupInfo,
   ) {
+    final isChannel = GroupLocalStore.instance
+            .readCached(groupId: groupInfo.groupID)
+            ?.isChannel ==
+        true;
+    final i18n = AppI18n.of(context);
+    final qrTitle = i18n.t(
+      zhHans: isChannel ? '频道二维码' : '群二维码',
+      zhHant: isChannel ? '頻道 QR 碼' : '群 QR 碼',
+      en: isChannel ? 'Channel QR Code' : 'Group QR Code',
+      ja: isChannel ? 'チャンネルQRコード' : 'グループQRコード',
+      ko: isChannel ? '채널 QR 코드' : '그룹 QR 코드',
+    );
     final page = QRCodePage(
       type: QRCodePageType.group,
-      title: AppI18n.of(context).t(
-        zhHans: '群二维码',
-        zhHant: '群 QR 碼',
-        en: 'Group QR Code',
-        ja: 'グループQRコード',
-        ko: '그룹 QR 코드',
-      ),
+      isChannel: isChannel,
+      title: qrTitle,
       displayName: groupInfo.groupName ?? groupInfo.groupID,
-      aliasLabel: AppI18n.of(context).t(
-        zhHans: '群ID',
-        zhHant: '群ID',
-        en: 'Group ID',
-        ja: 'グループID',
-        ko: '그룹 ID',
+      aliasLabel: i18n.t(
+        zhHans: isChannel ? '频道别名' : '群ID',
+        zhHant: isChannel ? '頻道別名' : '群ID',
+        en: isChannel ? 'Channel alias' : 'Group ID',
+        ja: isChannel ? 'チャンネル名' : 'グループID',
+        ko: isChannel ? '채널 별칭' : '그룹 ID',
       ),
       aliasValue: _resolveGroupDisplayAlias(groupInfo),
       qrPayloadId: ChatIdFormat.canonicalGroupStorageId(groupInfo.groupID),
       faceUrl: groupInfo.faceUrl ?? "",
-      shareText: "${AppI18n.of(context).t(
-        zhHans: '群二维码',
-        zhHant: '群 QR 碼',
-        en: 'Group QR Code',
-        ja: 'グループQRコード',
-        ko: '그룹 QR 코드',
-      )} ${_resolveGroupDisplayAlias(groupInfo)}",
+      shareText: '$qrTitle ${_resolveGroupDisplayAlias(groupInfo)}',
       embedded: DesktopModalLayout.isDesktop(context),
     );
     if (DesktopModalLayout.isDesktop(context)) {
       unawaited(_openDesktopSubpage(
         context: context,
-        title: AppI18n.of(context).t(
-          zhHans: '群二维码',
-          zhHant: '群 QR 碼',
-          en: 'Group QR Code',
-          ja: 'グループQRコード',
-          ko: '그룹 QR 코드',
-        ),
+        title: qrTitle,
         page: page,
         operationKey: TUIKitWideModalOperationKey.custom,
         desktopSize: DesktopModalLayout.qrCode,
@@ -633,7 +681,7 @@ class GroupProfilePage extends StatelessWidget {
   }
 
   Future<void> _copyGroupAlias(BuildContext context, String alias) async {
-    final text = alias.trim();
+    final text = normalizeGroupAliasLeadingAt(alias);
     if (text.isEmpty) {
       return;
     }
@@ -652,6 +700,7 @@ class GroupProfilePage extends StatelessWidget {
     required TUITheme theme,
     required String groupAlias,
     required VoidCallback onQrTap,
+    bool isChannel = false,
   }) {
     final titleColor = theme.darkTextColor ?? Colors.black;
     final valueColor = theme.primaryColor ?? const Color(0xFF1E90FF);
@@ -665,11 +714,11 @@ class GroupProfilePage extends StatelessWidget {
             Expanded(
               child: Text(
                 AppI18n.of(context).t(
-                  zhHans: '群ID',
-                  zhHant: '群ID',
-                  en: 'Group ID',
-                  ja: 'グループID',
-                  ko: '그룹 ID',
+                  zhHans: isChannel ? '频道别名' : '群ID',
+                  zhHant: isChannel ? '頻道別名' : '群ID',
+                  en: isChannel ? 'Channel alias' : 'Group ID',
+                  ja: isChannel ? 'チャンネル名' : 'グループID',
+                  ko: isChannel ? '채널 별칭' : '그룹 ID',
                 ),
                 style: TextStyle(
                   fontSize: 15,
@@ -708,7 +757,7 @@ class GroupProfilePage extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.all(4),
                       child: AppQrIcon(
-                  color: iconColor,
+                        color: iconColor,
                         size: 22,
                       ),
                     ),
@@ -1331,7 +1380,8 @@ class GroupProfilePage extends StatelessWidget {
                               context,
                               localRecord?.displayAlias.trim().isNotEmpty ==
                                       true
-                                  ? localRecord!.displayAlias.trim()
+                                  ? normalizeGroupAliasLeadingAt(
+                                      localRecord!.displayAlias)
                                   : _resolveGroupDisplayAlias(groupInfo)),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1340,7 +1390,8 @@ class GroupProfilePage extends StatelessWidget {
                                   child: Text(
                                 localRecord?.displayAlias.trim().isNotEmpty ==
                                         true
-                                    ? localRecord!.displayAlias.trim()
+                                    ? normalizeGroupAliasLeadingAt(
+                                        localRecord!.displayAlias)
                                     : _resolveGroupDisplayAlias(groupInfo),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -1522,6 +1573,338 @@ class GroupProfilePage extends StatelessWidget {
     );
   }
 
+  Widget _channelAction({
+    required BuildContext context,
+    required TUITheme theme,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: Material(
+        color: theme.conversationItemBgColor ?? Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: SizedBox(
+            height: 72,
+            child:
+                Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(icon, color: theme.primaryColor ?? const Color(0xFF1E90FF)),
+              const SizedBox(height: 5),
+              Text(label,
+                  style: TextStyle(
+                    color: theme.primaryColor ?? const Color(0xFF1E90FF),
+                    fontSize: 14,
+                  )),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openChannelSettings(
+    BuildContext context,
+    TUITheme theme,
+    V2TimGroupInfo groupInfo,
+    List<V2TimGroupMemberFullInfo?> members,
+    TUIGroupProfileModel model,
+  ) {
+    Navigator.push(context, AppMaterialPageRoute(builder: (settingsContext) {
+      final i18n = AppI18n.of(settingsContext);
+      return Scaffold(
+        backgroundColor: const Color(0xFFF4F7FD),
+        appBar: AppBar(
+          title: Text(i18n.t(
+              zhHans: '频道设置',
+              zhHant: '頻道設定',
+              en: 'Channel settings',
+              ja: 'チャンネル設定',
+              ko: '채널 설정')),
+          centerTitle: true,
+          backgroundColor: const Color(0xFFF4F7FD),
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            color: theme.primaryColor,
+            onPressed: () => Navigator.of(settingsContext).pop(),
+          ),
+        ),
+        body: AnimatedBuilder(
+          animation: GroupLocalStore.instance.commitListenable,
+          builder: (settingsContext, _) {
+            final record =
+                GroupLocalStore.instance.readCached(groupId: groupInfo.groupID);
+            final channelName = record?.groupName.trim().isNotEmpty == true
+                ? record!.groupName.trim()
+                : (groupInfo.groupName ?? '');
+            return ListView(padding: const EdgeInsets.all(16), children: [
+              _buildSectionCard(theme, [
+                InkWell(
+                  onTap: () =>
+                      _openGroupInfoDetail(settingsContext, groupInfo, model),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(children: [
+                      AppGroupAvatar(
+                        groupId: groupInfo.groupID,
+                        faceUrl: record?.avatarUrl.trim().isNotEmpty == true
+                            ? record!.avatarUrl
+                            : (groupInfo.faceUrl ?? ''),
+                        showName: channelName,
+                        size: 58,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                          child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                              i18n.t(
+                                  zhHans: '频道名称',
+                                  zhHant: '頻道名稱',
+                                  en: 'Channel name',
+                                  ja: 'チャンネル名',
+                                  ko: '채널 이름'),
+                              style: TextStyle(
+                                  color: theme.weakTextColor, fontSize: 13)),
+                          const SizedBox(height: 4),
+                          Text(channelName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 17, fontWeight: FontWeight.w600)),
+                        ],
+                      )),
+                      Icon(Icons.chevron_right, color: theme.weakTextColor),
+                    ]),
+                  ),
+                ),
+              ]),
+              _buildSectionGap(theme),
+              _buildSectionCard(theme, [
+                _buildArrowRow(
+                  theme: theme,
+                  title: i18n.t(
+                      zhHans: '频道类型',
+                      zhHant: '頻道類型',
+                      en: 'Channel type',
+                      ja: 'チャンネルの種類',
+                      ko: '채널 유형'),
+                  onTap: () => Navigator.push(
+                    settingsContext,
+                    AppMaterialPageRoute(
+                      builder: (_) => ChannelTypePage(
+                        groupId: groupInfo.groupID,
+                        groupName: channelName,
+                      ),
+                    ),
+                  ),
+                ),
+                _buildArrowRow(
+                  theme: theme,
+                  title: i18n.t(
+                      zhHans: '管理员',
+                      zhHant: '管理員',
+                      en: 'Administrators',
+                      ja: '管理者',
+                      ko: '관리자'),
+                  onTap: () => _openChannelAdminSettings(settingsContext, model),
+                ),
+                _buildArrowRow(
+                  theme: theme,
+                  title: i18n.t(
+                      zhHans: '订阅者',
+                      zhHant: '訂閱者',
+                      en: 'Subscribers',
+                      ja: '登録者',
+                      ko: '구독자'),
+                  onTap: () => _openGroupMemberList(
+                      settingsContext, model, members,
+                      isChannel: true),
+                ),
+                if (model.canInviteMember())
+                  _buildArrowRow(
+                    theme: theme,
+                    title: i18n.t(
+                        zhHans: '添加订阅者',
+                        zhHant: '添加訂閱者',
+                        en: 'Add subscribers',
+                        ja: '登録者を追加',
+                        ko: '구독자 추가'),
+                    onTap: () =>
+                        unawaited(_openAddGroupMember(settingsContext, model)),
+                  ),
+              ]),
+              _buildSectionGap(theme),
+              _buildSectionCard(
+                  theme, [GroupProfileButtonArea(groupID, model, isChannel: true)]),
+            ]);
+          },
+        ),
+      );
+    }));
+  }
+
+  Widget _buildMobileChannelProfile(
+    BuildContext context,
+    TUITheme theme,
+    V2TimGroupInfo groupInfo,
+    List<V2TimGroupMemberFullInfo?> members,
+    TUIGroupProfileModel model,
+  ) {
+    final i18n = AppI18n.of(context);
+    final local =
+        GroupLocalStore.instance.readCached(groupId: groupInfo.groupID);
+    final name = local?.groupName.trim().isNotEmpty == true
+        ? local!.groupName.trim()
+        : (groupInfo.groupName ?? '');
+    final count = model.displayedMemberCount(cachedCount: local?.memberCount);
+    final alias = normalizeGroupAliasLeadingAt(
+      local?.displayAlias.trim().isNotEmpty == true
+          ? local!.displayAlias
+          : _resolveGroupDisplayAlias(groupInfo),
+    );
+    final canManage = GroupRolePolicy.isManagerRole(model.backendSelfRole);
+    final muted = (model.conversation?.recvOpt ?? 0) != 0;
+    return Container(
+      color: const Color(0xFFF4F7FD),
+      child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+          children: [
+            Center(
+                child: AppGroupAvatar(
+              groupId: groupInfo.groupID,
+              faceUrl: local?.avatarUrl.trim().isNotEmpty == true
+                  ? local!.avatarUrl
+                  : (groupInfo.faceUrl ?? ''),
+              showName: name,
+              size: 88,
+              enablePreview: true,
+              previewFaceUrl: local?.avatarPreviewUrl,
+            )),
+            const SizedBox(height: 10),
+            Center(
+                child: Text(name,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w700,
+                        color: theme.darkTextColor ?? Colors.black))),
+            const SizedBox(height: 3),
+            Center(
+                child: Text(
+                    i18n.format(
+                        zhHans: '{option1}位订阅者',
+                        zhHant: '{option1}位訂閱者',
+                        en: '{option1} subscribers',
+                        ja: '登録者{option1}人',
+                        ko: '구독자 {option1}명',
+                        vars: {'option1': '$count'}),
+                    style:
+                        TextStyle(color: theme.weakTextColor, fontSize: 14))),
+            const SizedBox(height: 22),
+            Row(children: [
+              _channelAction(
+                  context: context,
+                  theme: theme,
+                  icon: muted
+                      ? Icons.notifications_off_outlined
+                      : Icons.notifications_active_outlined,
+                  label: muted
+                      ? i18n.t(
+                          zhHans: '静音',
+                          zhHant: '靜音',
+                          en: 'Muted',
+                          ja: 'ミュート',
+                          ko: '음소거')
+                      : i18n.t(
+                          zhHans: '接收通知',
+                          zhHant: '接收通知',
+                          en: 'Notifications',
+                          ja: '通知',
+                          ko: '알림'),
+                  onTap: () => unawaited(
+                      _setGroupMessageDisturb(context, model, !muted))),
+              const SizedBox(width: 8),
+              _channelAction(
+                  context: context,
+                  theme: theme,
+                  icon: Icons.search,
+                  label: i18n.t(
+                      zhHans: '搜索',
+                      zhHant: '搜尋',
+                      en: 'Search',
+                      ja: '検索',
+                      ko: '검색'),
+                  onTap: () => _openSearchMessage(context, model.conversation)),
+              const SizedBox(width: 8),
+              GroupProfileButtonArea(groupID, model,
+                  isChannel: true, asChannelMoreMenu: true),
+            ]),
+            const SizedBox(height: 20),
+            _buildSectionCard(theme, [
+              _buildGroupAliasRow(
+                  context: context,
+                  theme: theme,
+                  groupAlias: alias,
+                  isChannel: true,
+                  onQrTap: () => _openGroupQrCode(context, groupInfo)),
+            ]),
+            if (canManage) ...[
+              const SizedBox(height: 14),
+              _buildSectionCard(theme, [
+                _buildArrowRow(
+                    theme: theme,
+                    title: i18n.t(
+                        zhHans: '管理员',
+                        zhHant: '管理員',
+                        en: 'Administrators',
+                        ja: '管理者',
+                        ko: '관리자'),
+                    onTap: () => _openChannelAdminSettings(context, model)),
+                _buildArrowRow(
+                    theme: theme,
+                    title: i18n.t(
+                        zhHans: '订阅者',
+                        zhHant: '訂閱者',
+                        en: 'Subscribers',
+                        ja: '登録者',
+                        ko: '구독자'),
+                    value: '$count',
+                    onTap: () => _openGroupMemberList(context, model, members,
+                        isChannel: true)),
+                if (model.canInviteMember())
+                  _buildArrowRow(
+                    theme: theme,
+                    title: i18n.t(
+                        zhHans: '添加订阅者',
+                        zhHant: '添加訂閱者',
+                        en: 'Add subscribers',
+                        ja: '登録者を追加',
+                        ko: '구독자 추가'),
+                    onTap: () => unawaited(_openAddGroupMember(context, model)),
+                  ),
+                _buildArrowRow(
+                    theme: theme,
+                    title: i18n.t(
+                        zhHans: '频道设置',
+                        zhHant: '頻道設定',
+                        en: 'Channel settings',
+                        ja: 'チャンネル設定',
+                        ko: '채널 설정'),
+                    onTap: () => _openChannelSettings(
+                        context, theme, groupInfo, members, model)),
+              ]),
+            ],
+          ]),
+    );
+  }
+
   Widget _buildMobileGroupProfile(
     BuildContext context,
     TUITheme theme,
@@ -1529,6 +1912,13 @@ class GroupProfilePage extends StatelessWidget {
     List<V2TimGroupMemberFullInfo?> groupMemberList,
     TUIGroupProfileModel model,
   ) {
+    if (GroupLocalStore.instance
+            .readCached(groupId: groupInfo.groupID)
+            ?.isChannel ==
+        true) {
+      return _buildMobileChannelProfile(
+          context, theme, groupInfo, groupMemberList, model);
+    }
     final canManageGroup = _canManageGroup(groupInfo);
     final localRecord = GroupLocalStore.instance.readCached(
       groupId: groupInfo.groupID,
@@ -1550,7 +1940,7 @@ class GroupProfilePage extends StatelessWidget {
     final showMuteSwitch = groupInfo.groupType != GroupType.Meeting;
     final localAlias = localRecord?.displayAlias.trim() ?? '';
     final groupAlias = localAlias.isNotEmpty
-        ? localAlias
+        ? normalizeGroupAliasLeadingAt(localAlias)
         : _resolveGroupDisplayAlias(groupInfo);
 
     final basicRows = <Widget>[
@@ -1720,6 +2110,10 @@ class GroupProfilePage extends StatelessWidget {
             GroupLocalStore.instance.commitListenable,
           ]),
           builder: (context, _) {
+            final isChannel = GroupLocalStore.instance
+                    .readCached(groupId: groupID)
+                    ?.isChannel ==
+                true;
             return Scaffold(
               backgroundColor:
                   isDarkBackground ? appBarBaseColor : const Color(0xFFF5F6F8),
@@ -1732,11 +2126,11 @@ class GroupProfilePage extends StatelessWidget {
                   systemOverlayStyle: overlayStyle,
                   title: Text(
                     AppI18n.of(context).t(
-                      zhHans: '群聊',
-                      zhHant: '群聊',
-                      en: 'Groups',
-                      ja: 'グループ',
-                      ko: '그룹',
+                      zhHans: isChannel ? '频道' : '群聊',
+                      zhHant: isChannel ? '頻道' : '群聊',
+                      en: isChannel ? 'Channel' : 'Groups',
+                      ja: isChannel ? 'チャンネル' : 'グループ',
+                      ko: isChannel ? '채널' : '그룹',
                     ),
                     style: TextStyle(
                       color: theme.appbarTextColor ?? theme.darkTextColor,
@@ -1756,7 +2150,9 @@ class GroupProfilePage extends StatelessWidget {
                   shadowColor: theme.weakDividerColor,
                   backgroundColor: isDarkBackground
                       ? appBarBaseColor
-                      : const Color(0xFFF5F6F8)),
+                      : isChannel
+                          ? const Color(0xFFF4F7FD)
+                          : const Color(0xFFF5F6F8)),
               body: SafeArea(
                 top: false,
                 child: TIMUIKitGroupProfile(
@@ -1764,6 +2160,12 @@ class GroupProfilePage extends StatelessWidget {
                     await GroupLeaveNavigation.returnToMessageList(context);
                   }),
                   groupID: groupID,
+                  scrollable: !isChannel || isWideScreen,
+                  channelPreviewInfo: isChannel && !isWideScreen
+                      ? GroupLocalStore.instance
+                          .readCached(groupId: groupID)
+                          ?.toV2TimGroupInfo()
+                      : null,
                   onClickUser: (V2TimGroupMemberFullInfo memberInfo, _) {
                     final userID = memberInfo.userID.trim();
                     if (userID.isEmpty ||

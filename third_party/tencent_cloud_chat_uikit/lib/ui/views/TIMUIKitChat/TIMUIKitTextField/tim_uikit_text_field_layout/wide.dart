@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:extended_text_field/extended_text_field.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_svg/svg.dart';
@@ -499,7 +500,8 @@ class _TIMUIKitTextFieldLayoutWideState
 
   void _observeMediaSend(Future<dynamic> future) {
     // The task owns its lifetime; observing completion must not read a disposed context.
-    unawaited(future.then<void>((_) {}, onError: (Object error, StackTrace stack) {
+    unawaited(
+        future.then<void>((_) {}, onError: (Object error, StackTrace stack) {
       outputLogger.i('media send failed: ${error.runtimeType}');
     }));
   }
@@ -532,10 +534,10 @@ class _TIMUIKitTextFieldLayoutWideState
               return;
             }
             _observeMediaSend(model.sendFileMessage(
-                    inputElement: uploadInput,
-                    fileName: fileName,
-                    convID: convID,
-                    convType: convType));
+                inputElement: uploadInput,
+                fileName: fileName,
+                convID: convID,
+                convType: convType));
           } else {
             throw TypeError();
           }
@@ -552,10 +554,10 @@ class _TIMUIKitTextFieldLayoutWideState
           final String savePath = file.path;
 
           _observeMediaSend(model.sendFileMessage(
-                  filePath: savePath,
-                  size: size,
-                  convID: convID,
-                  convType: convType));
+              filePath: savePath,
+              size: size,
+              convID: convID,
+              convType: convType));
         } else {
           throw TypeError();
         }
@@ -672,10 +674,10 @@ class _TIMUIKitTextFieldLayoutWideState
         return;
       }
       _observeMediaSend(model.sendImageMessage(
-              inputElement: inputElem,
-              imagePath: tempFile?.path,
-              convID: convID,
-              convType: convType));
+          inputElement: inputElem,
+          imagePath: tempFile?.path,
+          convID: convID,
+          convType: convType));
     } catch (e) {
       // ignore: avoid_print
       outputLogger.i("_sendFileErr: ${e.toString()}");
@@ -719,10 +721,10 @@ class _TIMUIKitTextFieldLayoutWideState
         return;
       }
       _observeMediaSend(model.sendVideoMessage(
-              inputElement: inputElem,
-              videoPath: tempFile?.path,
-              convID: convID,
-              convType: convType));
+          inputElement: inputElem,
+          videoPath: tempFile?.path,
+          convID: convID,
+          convType: convType));
     } catch (e) {
       // ignore: avoid_print
       outputLogger.i("_sendFileErr: ${e.toString()}");
@@ -748,12 +750,14 @@ class _TIMUIKitTextFieldLayoutWideState
       final filePath = originFile.path;
       final snapshotPath = await buildVideoSnapshotForSend(
         videoPath: filePath,
-        devicePixelRatio: mounted ? MediaQuery.devicePixelRatioOf(context) : null,
+        devicePixelRatio:
+            mounted ? MediaQuery.devicePixelRatioOf(context) : null,
       );
       if (!_isCapturedConversationCurrent(convID, convType)) {
         return;
       }
-      _observeMediaSend(model.sendVideoMessage(
+      _observeMediaSend(
+        model.sendVideoMessage(
           videoPath: filePath,
           duration: asset.videoDuration.inSeconds,
           snapshotPath: snapshotPath,
@@ -888,22 +892,22 @@ class _TIMUIKitTextFieldLayoutWideState
 
           if (type == "image") {
             perf.log('desktop_image_send_begin');
-            _observeMediaSend(
-                model.sendImageMessage(
-                    imagePath: savePath, convID: convID, convType: convType));
+            _observeMediaSend(model.sendImageMessage(
+                imagePath: savePath, convID: convID, convType: convType));
             perf.log('desktop_image_send_queued');
           } else if (type == "video") {
             perf.log('desktop_video_snapshot_begin');
             final snapshotPath = await buildVideoSnapshotForSend(
               videoPath: savePath,
-              devicePixelRatio: mounted ? MediaQuery.devicePixelRatioOf(context) : null,
+              devicePixelRatio:
+                  mounted ? MediaQuery.devicePixelRatioOf(context) : null,
             );
             perf.log('desktop_video_send_begin');
             _observeMediaSend(model.sendVideoMessage(
-                    videoPath: savePath,
-                    convID: convID,
-                    convType: convType,
-                    snapshotPath: snapshotPath));
+                videoPath: savePath,
+                convID: convID,
+                convType: convType,
+                snapshotPath: snapshotPath));
             perf.log('desktop_video_send_queued');
           }
         } else {
@@ -1062,6 +1066,13 @@ class _TIMUIKitTextFieldLayoutWideState
                   height: MediaQuery.of(context).size.width * 0.5,
                   child: (onClose) => TIMUIKitSearchMsgDetail(
                         currentConversation: widget.currentConversation,
+                        hideGroupMemberShortcut: GroupLocalStore.instance
+                                .readCached(
+                                    groupId:
+                                        widget.currentConversation.groupID ??
+                                            '')
+                                ?.isChannel ==
+                            true,
                         keyword: '',
                         initMessageList: widget.model
                             .getOriginMessageList()
@@ -1292,126 +1303,124 @@ class _TIMUIKitTextFieldLayoutWideState
             : _ChatUiTokens.textSecondaryLight);
 
     return Container(
-          color: inputBg,
-          child: Column(
-            children: [
-              _buildRepliedMessage(widget.repliedMessage, theme),
-              if (isInputForbidden)
-                TIMUIKitForbiddenInputBar(
-                  text: forbidden,
-                  theme: theme,
-                  backgroundColor: inputBg,
-                )
-              else ...[
-                SizedBox(
-                  height: 0.5,
-                  child: Container(color: dividerColor),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: generateControlBar(widget.model, theme),
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
-                  constraints: const BoxConstraints(minHeight: 50),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: DefaultTextStyle(
-                          style: MessageBubbleTextColor.messageInputTextStyle(
+      color: inputBg,
+      child: Column(
+        children: [
+          _buildRepliedMessage(widget.repliedMessage, theme),
+          if (isInputForbidden)
+            TIMUIKitForbiddenInputBar(
+              text: forbidden,
+              theme: theme,
+              backgroundColor: inputBg,
+            )
+          else ...[
+            SizedBox(
+              height: 0.5,
+              child: Container(color: dividerColor),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: generateControlBar(widget.model, theme),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+              constraints: const BoxConstraints(minHeight: 50),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: DefaultTextStyle(
+                      style: MessageBubbleTextColor.messageInputTextStyle(
+                        fontSize: 14,
+                        color: inputTextColor,
+                        lineHeight: widget.model.chatConfig.textHeight,
+                      ),
+                      child: ExtendedTextField(
+                        scrollController: _scrollController,
+                        autofocus: true,
+                        maxLines:
+                            widget.chatConfig.desktopMessageInputFieldLines,
+                        minLines:
+                            widget.chatConfig.desktopMessageInputFieldLines,
+                        focusNode: widget.focusNode,
+                        onChanged: debounceFunc,
+                        keyboardType: TextInputType.multiline,
+                        onEditingComplete: () {
+                          //   // widget.onSubmitted();
+                        },
+                        textAlignVertical: TextAlignVertical.top,
+                        style: MessageBubbleTextColor.messageInputTextStyle(
+                          fontSize: 14,
+                          color: inputTextColor,
+                          lineHeight: widget.model.chatConfig.textHeight,
+                        ),
+                        decoration: InputDecoration(
+                          hoverColor: Colors.transparent,
+                          border: InputBorder.none,
+                          hintStyle:
+                              MessageBubbleTextColor.messageInputHintStyle(
                             fontSize: 14,
-                            color: inputTextColor,
+                            color: inputHintColor,
                             lineHeight: widget.model.chatConfig.textHeight,
                           ),
-                          child: ExtendedTextField(
-                              scrollController: _scrollController,
-                              autofocus: true,
-                              maxLines: widget
-                                  .chatConfig.desktopMessageInputFieldLines,
-                              minLines: widget
-                                  .chatConfig.desktopMessageInputFieldLines,
-                              focusNode: widget.focusNode,
-                              onChanged: debounceFunc,
-                              keyboardType: TextInputType.multiline,
-                              onEditingComplete: () {
-                                //   // widget.onSubmitted();
-                              },
-                              textAlignVertical: TextAlignVertical.top,
-                              style:
-                                  MessageBubbleTextColor.messageInputTextStyle(
-                                fontSize: 14,
-                                color: inputTextColor,
-                                lineHeight: widget.model.chatConfig.textHeight,
-                              ),
-                              decoration: InputDecoration(
-                                hoverColor: Colors.transparent,
-                                border: InputBorder.none,
-                                hintStyle: MessageBubbleTextColor
-                                    .messageInputHintStyle(
-                                  fontSize: 14,
-                                  color: inputHintColor,
-                                  lineHeight:
-                                      widget.model.chatConfig.textHeight,
-                                ),
-                                fillColor: fieldFill,
-                                filled: true,
-                                isDense: true,
-                                hintText: widget.hintText ?? '',
-                              ),
-                              controller: widget.textEditingController,
-                              specialTextSpanBuilder: widget.isComposingText
-                                  ? null
-                                  : PlatformUtils().isWeb
-                                  ? null
-                                  : DefaultSpecialTextSpanBuilder(
-                                      isUseTencentCloudChatPackage: widget.model.chatConfig
-                                              .stickerPanelConfig?.useTencentCloudChatStickerPackage ??
-                                          true,
-                                      customEmojiStickerList:
-                                          widget.customEmojiStickerList,
-                                      showAtBackground: true),
-                              ),
+                          fillColor: fieldFill,
+                          filled: true,
+                          isDense: true,
+                          hintText: widget.hintText ?? '',
                         ),
+                        controller: widget.textEditingController,
+                        specialTextSpanBuilder: widget.isComposingText
+                            ? null
+                            : PlatformUtils().isWeb
+                                ? null
+                                : DefaultSpecialTextSpanBuilder(
+                                    isUseTencentCloudChatPackage: widget
+                                            .model
+                                            .chatConfig
+                                            .stickerPanelConfig
+                                            ?.useTencentCloudChatStickerPackage ??
+                                        true,
+                                    customEmojiStickerList:
+                                        widget.customEmojiStickerList,
+                                    showAtBackground: true),
                       ),
-                      const SizedBox(width: 8),
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: widget.textEditingController,
-                        builder: (context, value, child) {
-                          final canSend = value.text.trim().isNotEmpty;
-                          final primaryColor =
-                              theme.primaryColor ?? CommonColor.primaryColor;
-                          return TextButton(
-                            onPressed: canSend ? widget.onSubmitted : null,
-                            style: TextButton.styleFrom(
-                              minimumSize: const Size(64, 36),
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 14),
-                              backgroundColor:
-                                  canSend ? primaryColor : dividerColor,
-                              foregroundColor:
-                                  canSend ? Colors.white : inputHintColor,
-                              disabledBackgroundColor: dividerColor,
-                              disabledForegroundColor: inputHintColor,
-                              shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(_ChatUiTokens.rMd),
-                              ),
-                            ),
-                            child: Text(TIM_t("\u53d1\u9001")),
-                          );
-                        },
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
-            ],
-          ),
-        );
+                  const SizedBox(width: 8),
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: widget.textEditingController,
+                    builder: (context, value, child) {
+                      final canSend = value.text.trim().isNotEmpty;
+                      final primaryColor =
+                          theme.primaryColor ?? CommonColor.primaryColor;
+                      return TextButton(
+                        onPressed: canSend ? widget.onSubmitted : null,
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(64, 36),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          backgroundColor:
+                              canSend ? primaryColor : dividerColor,
+                          foregroundColor:
+                              canSend ? Colors.white : inputHintColor,
+                          disabledBackgroundColor: dividerColor,
+                          disabledForegroundColor: inputHintColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(_ChatUiTokens.rMd),
+                          ),
+                        ),
+                        child: Text(TIM_t("\u53d1\u9001")),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }

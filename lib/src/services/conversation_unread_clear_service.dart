@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:tencent_cloud_chat_demo/src/services/im/conversation_read_policy.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart';
@@ -124,6 +125,8 @@ class ConversationUnreadClearService {
   static Future<void> _queueTail = Future<void>.value();
   static DateTime? _lastQueuedSdkCleanAt;
   static Future<void>? _readOutboxRecoveryInFlight;
+  static bool _readOutboxRecoveryRequested = false;
+  static bool _readOutboxReconnectRequested = false;
   static Timer? _readOutboxRetryTimer;
   static int _readOutboxRetryTimerGeneration = 0;
 
@@ -148,6 +151,8 @@ class ConversationUnreadClearService {
     _queueTail = Future<void>.value();
     _lastQueuedSdkCleanAt = null;
     _readOutboxRecoveryInFlight = null;
+    _readOutboxRecoveryRequested = false;
+    _readOutboxReconnectRequested = false;
     _readOutboxRetryTimerGeneration++;
     _readOutboxRetryTimer?.cancel();
     _readOutboxRetryTimer = null;
@@ -196,8 +201,7 @@ class ConversationUnreadClearService {
     }
     final rawTimestamp = conversation.lastMessage?.timestamp ?? 0;
     return _ConversationReadWatermark(
-      timestamp:
-          rawTimestamp > 9999999999 ? rawTimestamp ~/ 1000 : rawTimestamp,
+      timestamp: ConversationReadPolicy.conservativeTimestamp(rawTimestamp),
       sequence: 0,
     );
   }
@@ -1284,13 +1288,17 @@ class ConversationUnreadClearService {
         ownerUserId: owner,
         conversationId: conversationID,
       );
-      if (row == null || (row.cleanTimestamp <= 0 && row.cleanSequence <= 0)) {
+      if (row != null && row.nextRetryAtMs < 0) return;
+      if (row != null &&
+          row.lastReadMessageId.isNotEmpty &&
+          row.cleanTimestamp <= 0 &&
+          row.cleanSequence <= 0) {
         var snapshot = await ConversationLocalStore.instance.conversationById(
           conversationID,
         );
         var watermark = _watermarkFor(
           snapshot,
-          expectedLastMessageId: row?.lastReadMessageId,
+          expectedLastMessageId: row.lastReadMessageId,
         );
         if (!watermark.isValid && _isCurrentSession(sessionGeneration)) {
           snapshot = await TencentConversationReadService.conversationSnapshot(
@@ -1302,17 +1310,15 @@ class ConversationUnreadClearService {
           );
           watermark = _watermarkFor(
             snapshot,
-            expectedLastMessageId: row?.lastReadMessageId,
+            expectedLastMessageId: row.lastReadMessageId,
           );
         }
-        final readAtMs =
-            row?.lastReadAtMs ?? DateTime.now().millisecondsSinceEpoch;
+        final readAtMs = row.lastReadAtMs;
         if (watermark.isValid) {
           await ConversationReadOutboxStore.instance.enqueue(
             ownerUserId: owner,
             conversationId: conversationID,
-            lastReadMessageId:
-                row?.lastReadMessageId ?? snapshot?.lastMessage?.msgID ?? '',
+            lastReadMessageId: row.lastReadMessageId,
             cleanTimestamp: watermark.timestamp,
             cleanSequence: watermark.sequence,
             lastReadAtMs: readAtMs,
@@ -1325,14 +1331,15 @@ class ConversationUnreadClearService {
       }
       final useFullConversationFallback =
           row == null || (row.cleanTimestamp <= 0 && row.cleanSequence <= 0);
-      if (useFullConversationFallback && !allowFullConversationFallback) {
+      if (useFullConversationFallback) {
         ConversationUnreadTrace.log(
           'sdk_clean_deferred',
           conversationID: conversationID,
           extras: <String, Object?>{'reason': 'read_watermark_unavailable'},
         );
         if (row != null) {
-          await ConversationReadOutboxStore.instance.markRetry(row);
+          await ConversationReadOutboxStore.instance
+              .markRetry(row, reason: 'blocked:watermark_unavailable');
         }
         _watermarkUnavailableUntil[conversationID] =
             DateTime.now().add(const Duration(seconds: 30));
@@ -1344,30 +1351,29 @@ class ConversationUnreadClearService {
       if (!_isCurrentSession(sessionGeneration)) return;
       final lastCode = await _cleanSdkWithRetry(
         conversationID,
-        // A zero watermark clears at Tencent's processing boundary. It is an
-        // immediate open fallback only and is never replayed after a delay.
-        delays: useFullConversationFallback
-            ? const <Duration>[Duration.zero]
-            : delays,
+        // Only replay the precise, persisted target captured above.
+        delays: delays,
         breakOnSuccess: breakOnSuccess,
         sessionGeneration: sessionGeneration,
-        cleanTimestamp: row?.cleanTimestamp ?? 0,
-        cleanSequence: row?.cleanSequence ?? 0,
-        allowFullTypeClean: useFullConversationFallback,
+        cleanTimestamp: row.cleanTimestamp,
+        cleanSequence: row.cleanSequence,
+        allowFullTypeClean: false,
       );
       if (!_isCurrentSession(sessionGeneration)) return;
       if (lastCode == 0) {
         _watermarkUnavailableUntil.remove(conversationID);
         _lastSuccessfulSdkClean[conversationID] = DateTime.now();
-        if (row != null) {
-          await ConversationReadOutboxStore.instance.acknowledge(
-            ownerUserId: owner,
-            conversationId: conversationID,
-            lastReadAtMs: row.lastReadAtMs,
-          );
-        }
-      } else if (row != null) {
-        await ConversationReadOutboxStore.instance.markRetry(row);
+        await ConversationReadOutboxStore.instance.acknowledge(
+          ownerUserId: owner,
+          conversationId: conversationID,
+          lastReadAtMs: row.lastReadAtMs,
+        );
+      } else {
+        await ConversationReadOutboxStore.instance.markRetry(row,
+            sdkCode: lastCode,
+            notBeforeAtMs: lastCode == _sdkFrequencyBlockCode
+                ? _frequencyBlockUntil[conversationID]?.millisecondsSinceEpoch
+                : null);
         await _armReadOutboxRetryTimer();
       }
       ConversationUnreadTrace.log(
@@ -1375,9 +1381,9 @@ class ConversationUnreadClearService {
         conversationID: conversationID,
         extras: <String, Object?>{
           'sdkCode': lastCode,
-          'cleanTimestamp': row?.cleanTimestamp ?? 0,
-          'cleanSequence': row?.cleanSequence ?? 0,
-          'fullFallback': useFullConversationFallback,
+          'cleanTimestamp': row.cleanTimestamp,
+          'cleanSequence': row.cleanSequence,
+          'fullFallback': false,
         },
       );
     } catch (e) {
@@ -1390,14 +1396,38 @@ class ConversationUnreadClearService {
   }
 
   /// Replays durable mark-read rows after a real SDK socket connection.
-  static Future<void> recoverPendingReadOutbox() {
+  static Future<void> recoverPendingReadOutbox({bool afterReconnect = false}) {
     final running = _readOutboxRecoveryInFlight;
-    if (running != null) return running;
+    if (running != null) {
+      _readOutboxRecoveryRequested = true;
+      _readOutboxReconnectRequested |= afterReconnect;
+      return running;
+    }
+    _readOutboxRetryTimerGeneration++;
+    _readOutboxRetryTimer?.cancel();
+    _readOutboxRetryTimer = null;
     late final Future<void> task;
-    task = _recoverPendingReadOutbox().whenComplete(() {
+    task = (() async {
+      if (afterReconnect)
+        await ConversationReadOutboxStore.instance.resumeAfterReconnect(
+            SessionIdentityService.instance.capture().ownerUserId);
+      await _recoverPendingReadOutbox();
+    })()
+        .whenComplete(() {
       if (identical(_readOutboxRecoveryInFlight, task)) {
         _readOutboxRecoveryInFlight = null;
-        unawaited(_armReadOutboxRetryTimer());
+        if (_readOutboxRecoveryRequested) {
+          final reconnect = _readOutboxReconnectRequested;
+          _readOutboxRecoveryRequested = false;
+          _readOutboxReconnectRequested = false;
+          unawaited(recoverPendingReadOutbox(afterReconnect: reconnect)
+              .catchError((Object error) {
+            debugPrint('read outbox trailing recovery failed '
+                'errorType=${error.runtimeType}');
+          }));
+        } else {
+          unawaited(_armReadOutboxRetryTimer());
+        }
       }
     });
     _readOutboxRecoveryInFlight = task;
@@ -1407,10 +1437,12 @@ class ConversationUnreadClearService {
   static Future<void> _recoverPendingReadOutbox() async {
     final identity = SessionIdentityService.instance.capture();
     if (identity.ownerUserId.isEmpty) return;
+    var cursor = '';
     for (var page = 0; page < 20; page++) {
       final rows = await ConversationReadOutboxStore.instance.listDue(
         ownerUserId: identity.ownerUserId,
         limit: sdkQueueCap,
+        afterConversationId: cursor,
       );
       if (rows.isEmpty ||
           !SessionIdentityService.instance.isCurrent(identity)) {
@@ -1418,11 +1450,26 @@ class ConversationUnreadClearService {
       }
       for (final row in rows) {
         if (!SessionIdentityService.instance.isCurrent(identity)) return;
+        cursor = row.conversationId;
+        if (ConversationReadPolicy.validTarget(
+          row.conversationId,
+          row.cleanTimestamp,
+          row.cleanSequence,
+        )) {
+          _watermarkUnavailableUntil.remove(row.conversationId);
+        }
         await scheduleSdkUnreadClean(
           conversationID: row.conversationId,
           trigger: SdkUnreadCleanTrigger.recovery,
           hadUnread: true,
         );
+        final frequencyUntil = _frequencyBlockUntil[row.conversationId];
+        if (frequencyUntil != null && frequencyUntil.isAfter(DateTime.now())) {
+          await ConversationReadOutboxStore.instance.deferUntilIfCurrent(
+            row,
+            frequencyUntil.millisecondsSinceEpoch,
+          );
+        }
       }
       if (rows.length < sdkQueueCap) return;
       await Future<void>.delayed(Duration.zero);
@@ -1554,6 +1601,11 @@ class ConversationUnreadClearService {
             'backoffSec': _frequencyBlockBackoff.inSeconds,
             'sdkDesc': result.desc,
           });
+          break;
+        }
+        if (result.code != 0 &&
+            !ConversationReadPolicy.failureReason(result.code)
+                .startsWith('transient:')) {
           break;
         }
         if (shouldStopSdkRetry(

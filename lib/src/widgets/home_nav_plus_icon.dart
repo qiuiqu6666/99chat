@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// 首页 AppBar 右上角加号：自定义资源图，支持按 90° 步进顺时针旋转。
+/// 首页 AppBar 右上角加号：自定义资源图，支持按 45° 步进顺时针旋转。
 class HomeNavPlusIcon extends StatelessWidget {
   const HomeNavPlusIcon({
     super.key,
@@ -10,7 +10,7 @@ class HomeNavPlusIcon extends StatelessWidget {
 
   static const String assetPath = 'assets/home_nav_plus.png';
 
-  /// 旋转圈数，0.25 = 90°。
+  /// 旋转圈数，0.125 = 45°。
   final double turns;
   final double size;
 

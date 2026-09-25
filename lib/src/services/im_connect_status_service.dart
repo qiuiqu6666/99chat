@@ -174,7 +174,9 @@ class ImConnectStatusService extends ChangeNotifier {
     }
     ImSdkRelationshipReconcileService.instance.onSocketConnectSuccess();
     unawaited(
-      ConversationUnreadClearService.recoverPendingReadOutbox().catchError(
+      ConversationUnreadClearService.recoverPendingReadOutbox(
+              afterReconnect: true)
+          .catchError(
         (Object error) => debugPrint(
           'recover conversation read outbox failed '
           'errorType=${error.runtimeType}',

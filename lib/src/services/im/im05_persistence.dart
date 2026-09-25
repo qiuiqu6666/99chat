@@ -1,5 +1,95 @@
+import 'package:flutter/foundation.dart';
+import 'outbox_draft_submission.dart';
+import 'outbox_retry_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store.dart';
+
+enum ImOutboxResultDecision {
+  accepted,
+  duplicate,
+  superseded,
+  staleAttempt,
+  deferred,
+  identityConflict,
+  missing,
+  unavailable,
+  fencingRejected,
+  current,
+}
+
+/// Snapshot of the existing Outbox transaction, not a second send state machine.
+class ImOutboxResultVerdict {
+  factory ImOutboxResultVerdict.fromDispatchAssessment(
+      ImOutboxDispatchAssessment assessment) {
+    final decision = switch (assessment.decision) {
+      ImOutboxDispatchDecision.ready ||
+      ImOutboxDispatchDecision.mainNotPrepared ||
+      ImOutboxDispatchDecision.outcomeUnknown =>
+        ImOutboxResultDecision.current,
+      ImOutboxDispatchDecision.fencingRejected =>
+        ImOutboxResultDecision.fencingRejected,
+      ImOutboxDispatchDecision.mainMissing ||
+      ImOutboxDispatchDecision.recoveryCopyMissing =>
+        ImOutboxResultDecision.missing,
+      _ => ImOutboxResultDecision.identityConflict,
+    };
+    return ImOutboxResultVerdict(
+        decision: decision,
+        main: assessment.main,
+        recoveryCopy: assessment.recoveryCopy,
+        reason: 'dispatch_${assessment.decision.name}');
+  }
+
+  const ImOutboxResultVerdict(
+      {required this.decision,
+      this.main,
+      this.recoveryCopy,
+      this.eventAttemptId,
+      required this.reason});
+  final ImOutboxResultDecision decision;
+  final ImOutboxRecord? main;
+  final ImOutboxRecoveryRecord? recoveryCopy;
+  final String? eventAttemptId;
+  final String reason;
+  ImOutboxState? get currentState => main?.state;
+  int get stateVersion => main?.stateVersion ?? 0;
+  bool get hasTrustedSnapshot =>
+      main != null &&
+      (recoveryCopy != null ||
+          main!.state == ImOutboxState.completed ||
+          main!.state == ImOutboxState.acknowledged) &&
+      decision != ImOutboxResultDecision.identityConflict &&
+      decision != ImOutboxResultDecision.fencingRejected &&
+      decision != ImOutboxResultDecision.missing &&
+      decision != ImOutboxResultDecision.unavailable;
+  bool get deliveryConfirmed =>
+      hasTrustedSnapshot &&
+      (currentState == ImOutboxState.acknowledged ||
+          currentState == ImOutboxState.completed);
+  bool get canRetry =>
+      hasTrustedSnapshot &&
+      (main?.dispatchAttemptId?.isNotEmpty ?? false) &&
+      recoveryCopy?.state == ImOutboxCopyState.resultRecorded &&
+      main?.dispatchAttemptId == recoveryCopy?.dispatchAttemptId &&
+      (currentState == ImOutboxState.failedTerminal ||
+          currentState == ImOutboxState.retryable);
+  bool get accepted =>
+      decision == ImOutboxResultDecision.accepted ||
+      decision == ImOutboxResultDecision.duplicate;
+}
+
+/// Only live consumers retain this view. Published values come from committed
+/// transactions and are ordered by the main record's durable state version.
+class ImOutboxResultView extends ChangeNotifier {
+  ImOutboxResultVerdict? _current;
+  ImOutboxResultVerdict? get current => _current;
+  void _publish(ImOutboxResultVerdict value) {
+    if (_current != null && value.stateVersion <= _current!.stateVersion)
+      return;
+    _current = value;
+    notifyListeners();
+  }
+}
 
 /// First-round persistence coordinator for Commit Journal, Projection
 /// Checkpoint, Effect Ledger, and the two-sided Outbox prepare boundary.
@@ -10,17 +100,130 @@ class Im05Persistence {
   Im05Persistence({required ImIngressStore store}) : _store = store;
 
   final ImIngressStore _store;
+  static final _resultViews =
+      Expando<Map<String, WeakReference<ImOutboxResultView>>>();
+
+  Object get _viewScope => _store is ImOutboxObservationScope
+      ? (_store as ImOutboxObservationScope).outboxObservationScope
+      : _store;
+
+  ImOutboxResultView watchOutboxResult(String ownerUserId, String operationId) {
+    final views = _resultViews[_viewScope] ??= {};
+    views.removeWhere((_, reference) => reference.target == null);
+    final key = '$ownerUserId|$operationId';
+    final view = views[key]?.target ?? ImOutboxResultView();
+    views[key] = WeakReference(view);
+    return view;
+  }
+
+  static void publishCommitted(
+      Object scope, ImOutboxRecord main, ImOutboxRecoveryRecord? copy) {
+    final trusted = copy == null
+        ? main.state == ImOutboxState.completed ||
+            main.state == ImOutboxState.acknowledged
+        : _sameOutboxIdentity(main, copy);
+    if (!trusted) return;
+    final views = _resultViews[scope];
+    views?.removeWhere((_, reference) => reference.target == null);
+    views?[main.ownerUserId + '|' + main.operationId]?.target?._publish(
+        ImOutboxResultVerdict(
+            decision: ImOutboxResultDecision.current,
+            main: main,
+            recoveryCopy: copy,
+            reason: 'committed_snapshot'));
+  }
+
+  ImOutboxResultVerdict _publishResult(ImOutboxResultVerdict result) {
+    if (result.hasTrustedSnapshot) {
+      publishCommitted(_viewScope, result.main!, result.recoveryCopy);
+    }
+    return result;
+  }
+
+  Future<ImOutboxResultVerdict> readOutboxResult({
+    required String ownerUserId,
+    required String operationId,
+  }) async {
+    try {
+      final result =
+          await _store.transaction<ImOutboxResultVerdict>((tx) async {
+        final main = await tx.findOutbox(
+            ownerUserId: ownerUserId, operationId: operationId);
+        final copy = await tx.findOutboxRecovery(
+            ownerUserId: ownerUserId, operationId: operationId);
+        if (main == null) {
+          return ImOutboxResultVerdict(
+              decision: copy == null
+                  ? ImOutboxResultDecision.missing
+                  : ImOutboxResultDecision.deferred,
+              recoveryCopy: copy,
+              reason: copy == null
+                  ? 'no_durable_identity'
+                  : 'main_recovery_pending');
+        }
+        if (copy == null) {
+          return ImOutboxResultVerdict(
+              decision: main.state == ImOutboxState.completed ||
+                      main.state == ImOutboxState.acknowledged
+                  ? ImOutboxResultDecision.current
+                  : ImOutboxResultDecision.deferred,
+              main: main,
+              reason: 'recovery_material_absent');
+        }
+        return ImOutboxResultVerdict(
+            decision: _sameOutboxIdentity(main, copy)
+                ? ImOutboxResultDecision.current
+                : ImOutboxResultDecision.identityConflict,
+            main: main,
+            recoveryCopy: copy,
+            reason: 'durable_snapshot');
+      });
+      return _publishResult(result);
+    } catch (error) {
+      return ImOutboxResultVerdict(
+          decision: ImOutboxResultDecision.unavailable,
+          reason: 'storage_unavailable:' + error.runtimeType.toString());
+    }
+  }
+
+  Future<ImOutboxResultVerdict> adjudicateOutboxSdkResult({
+    required String ownerUserId,
+    required String operationId,
+    required String expectedAttemptId,
+    required bool succeeded,
+    required String leaseOwnerId,
+    required int fencingToken,
+    required int nowMs,
+    String? sdkLocalId,
+    String? serverMsgId,
+    String? resultCode,
+  }) =>
+      _recordOutboxSdkResult(
+          ownerUserId: ownerUserId,
+          operationId: operationId,
+          expectedAttemptId: expectedAttemptId,
+          leaseOwnerId: leaseOwnerId,
+          fencingToken: fencingToken,
+          nowMs: nowMs,
+          nextMainState: succeeded
+              ? ImOutboxState.acknowledged
+              : ImOutboxState.failedTerminal,
+          sdkLocalId: sdkLocalId,
+          serverMsgId: serverMsgId,
+          resultCode: resultCode);
 
   Future<List<ImOutboxRecord>> listOutboxesForRecovery({
     required String ownerUserId,
     required List<ImOutboxState> states,
     int limit = 100,
+    String? afterOperationId,
   }) {
     return _store.transaction<List<ImOutboxRecord>>(
       (transaction) => transaction.listOutboxesForRecovery(
         ownerUserId: ownerUserId,
         states: states,
         limit: limit,
+        afterOperationId: afterOperationId,
       ),
     );
   }
@@ -296,7 +499,10 @@ class Im05Persistence {
         fencingToken: fencingToken,
         nowMs: nowMs,
       );
-      return changed ? persisted : null;
+      return changed
+          ? await transaction.findOutbox(
+              ownerUserId: next.ownerUserId, operationId: next.operationId)
+          : null;
     });
   }
 
@@ -496,6 +702,35 @@ class Im05Persistence {
     });
   }
 
+  Future<bool> _retryParentIsCurrent(
+      ImIngressTransaction tx, ImOutboxRecord child) async {
+    final operation = child.retryOfOperationId;
+    if (operation == null) return true;
+    final parent = await tx.findOutbox(
+        ownerUserId: child.ownerUserId, operationId: operation);
+    final copy = await tx.findOutboxRecovery(
+        ownerUserId: child.ownerUserId, operationId: operation);
+    if (parent == null ||
+        copy == null ||
+        !_sameOutboxIdentity(parent, copy) ||
+        parent.conversationId != child.conversationId ||
+        parent.payloadHash != child.payloadHash) return false;
+    final stableId = outboxRetryOperationId(parent);
+    final legacyId = child.retryOfStateVersion == null
+        ? null
+        : legacyOutboxRetryOperationId(
+            parent.ownerUserId, parent.operationId, child.retryOfStateVersion!);
+    if (child.operationId != stableId && child.operationId != legacyId) {
+      return false;
+    }
+    return ImOutboxResultVerdict(
+            decision: ImOutboxResultDecision.current,
+            main: parent,
+            recoveryCopy: copy,
+            reason: 'retry_parent')
+        .canRetry;
+  }
+
   /// Persists both sides of the Prepared boundary before any SDK call.
   Future<ImOutboxDispatchAssessment> prepareOutbox({
     required ImOutboxRecord main,
@@ -503,6 +738,7 @@ class Im05Persistence {
     required String leaseOwnerId,
     required int fencingToken,
     required int nowMs,
+    ImDraftAcceptance? draftAcceptance,
   }) {
     if (main.state != ImOutboxState.prepared ||
         recoveryCopy.state != ImOutboxCopyState.copyPrepared) {
@@ -517,6 +753,18 @@ class Im05Persistence {
       }
       if (!_sameOutboxIdentity(main, recoveryCopy)) {
         throw const Im05IdentityConflictException('outbox identity conflict');
+      }
+      if (!await _retryParentIsCurrent(transaction, main))
+        return const ImOutboxDispatchAssessment(
+            decision: ImOutboxDispatchDecision.recoveryConflict);
+      if (main.retryOfOperationId != null &&
+          await transaction.hasOtherRetryChild(
+            ownerUserId: main.ownerUserId,
+            parentOperationId: main.retryOfOperationId!,
+            excludingOperationId: main.operationId,
+          )) {
+        return const ImOutboxDispatchAssessment(
+            decision: ImOutboxDispatchDecision.recoveryConflict);
       }
       final currentMain = await transaction.findOutbox(
         ownerUserId: main.ownerUserId,
@@ -541,7 +789,7 @@ class Im05Persistence {
         throw const Im05IdentityConflictException(
             'outbox recovery copy conflict');
       }
-      return _assess(
+      final assessment = _assess(
         main: await transaction.findOutbox(
           ownerUserId: main.ownerUserId,
           operationId: main.operationId,
@@ -552,6 +800,16 @@ class Im05Persistence {
         ),
         leaseValid: true,
       );
+      if (draftAcceptance != null && assessment.canDispatch) {
+        if (draftAcceptance.ownerUserId != main.ownerUserId ||
+            main.conversationId !=
+                main.ownerUserId + '|' + draftAcceptance.conversationId ||
+            transaction is! ImDraftTransaction)
+          throw StateError('draft acceptance scope mismatch');
+        await (transaction as ImDraftTransaction)
+            .acceptDraft(draftAcceptance, main.operationId);
+      }
+      return assessment;
     });
   }
 
@@ -573,7 +831,7 @@ class Im05Persistence {
         fencingToken,
         nowMs,
       );
-      return _assess(
+      final assessment = _assess(
         main: await transaction.findOutbox(
           ownerUserId: ownerUserId,
           operationId: operationId,
@@ -584,6 +842,15 @@ class Im05Persistence {
         ),
         leaseValid: leaseValid,
       );
+      if (assessment.canDispatch &&
+          !await _retryParentIsCurrent(transaction, assessment.main!)) {
+        return ImOutboxDispatchAssessment(
+          decision: ImOutboxDispatchDecision.recoveryConflict,
+          main: assessment.main,
+          recoveryCopy: assessment.recoveryCopy,
+        );
+      }
+      return assessment;
     });
   }
 
@@ -598,7 +865,7 @@ class Im05Persistence {
     required String leaseOwnerId,
     required int fencingToken,
     required int nowMs,
-  }) {
+  }) async {
     if (dispatchAttemptId.trim().isEmpty) {
       throw ArgumentError.value(
         dispatchAttemptId,
@@ -606,7 +873,8 @@ class Im05Persistence {
         'must not be empty',
       );
     }
-    return _store.transaction<ImOutboxDispatchAssessment>((transaction) async {
+    final result = await _store
+        .transaction<ImOutboxDispatchAssessment>((transaction) async {
       final assessment = _assess(
         main: await transaction.findOutbox(
           ownerUserId: ownerUserId,
@@ -625,6 +893,11 @@ class Im05Persistence {
         ),
       );
       if (!assessment.canDispatch) return assessment;
+      if (!await _retryParentIsCurrent(transaction, assessment.main!))
+        return ImOutboxDispatchAssessment(
+            decision: ImOutboxDispatchDecision.recoveryConflict,
+            main: assessment.main,
+            recoveryCopy: assessment.recoveryCopy);
       final main = assessment.main!;
       final copy = assessment.recoveryCopy!;
       final intentMain = main.copyWith(
@@ -668,16 +941,23 @@ class Im05Persistence {
         nowMs: nowMs,
       );
       if (!mainChanged || !copyChanged) {
-        return const ImOutboxDispatchAssessment(
-          decision: ImOutboxDispatchDecision.recoveryConflict,
-        );
+        throw StateError('Outbox dispatch CAS rejected');
       }
       return ImOutboxDispatchAssessment(
         decision: ImOutboxDispatchDecision.ready,
-        main: intentMain,
+        main: await transaction.findOutbox(
+            ownerUserId: ownerUserId, operationId: operationId),
         recoveryCopy: intentCopy,
       );
     });
+    if (result.canDispatch) {
+      _publishResult(ImOutboxResultVerdict(
+          decision: ImOutboxResultDecision.current,
+          main: result.main,
+          recoveryCopy: result.recoveryCopy,
+          reason: 'dispatch_intent_committed'));
+    }
+    return result;
   }
 
   /// Marks a recorded Intent as unknown on both ledgers. This is the only
@@ -759,7 +1039,9 @@ class Im05Persistence {
               fencingToken: fencingToken,
               nowMs: nowMs,
             );
-      return mainChanged && copyChanged;
+      if (!mainChanged || !copyChanged)
+        throw StateError('outcome transition lost conditional update');
+      return true;
     });
   }
 
@@ -827,8 +1109,9 @@ class Im05Persistence {
         fencingToken: fencingToken,
         nowMs: nowMs,
       );
-      if (!copyChanged) return false;
-      return transaction.updateOutboxIfCurrent(
+      if (!copyChanged)
+        throw StateError('recovery transition lost conditional update');
+      final mainChanged = await transaction.updateOutboxIfCurrent(
         record: main.copyWith(
           state: ImOutboxState.manualRequired,
           resultCode: normalizedReason,
@@ -841,6 +1124,9 @@ class Im05Persistence {
         fencingToken: fencingToken,
         nowMs: nowMs,
       );
+      if (!mainChanged)
+        throw StateError('main transition lost conditional update');
+      return true;
     });
   }
 
@@ -899,8 +1185,9 @@ class Im05Persistence {
         fencingToken: fencingToken,
         nowMs: nowMs,
       );
-      if (!copyChanged) return false;
-      return transaction.updateOutboxIfCurrent(
+      if (!copyChanged)
+        throw StateError('recovery transition lost conditional update');
+      final mainChanged = await transaction.updateOutboxIfCurrent(
         record: main.copyWith(
           state: ImOutboxState.abandonedByUser,
           resultCode: 'abandoned_by_user',
@@ -913,6 +1200,9 @@ class Im05Persistence {
         fencingToken: fencingToken,
         nowMs: nowMs,
       );
+      if (!mainChanged)
+        throw StateError('main transition lost conditional update');
+      return true;
     });
   }
 
@@ -936,7 +1226,7 @@ class Im05Persistence {
       sdkLocalId: sdkLocalId,
       serverMsgId: serverMsgId,
       resultCode: resultCode,
-    );
+    ).then((result) => result.accepted);
   }
 
   /// Adopts authoritative provider evidence for an outgoing operation.
@@ -957,99 +1247,23 @@ class Im05Persistence {
     required int nowMs,
     String? sdkLocalId,
     String? serverMsgId,
-  }) {
-    return _store.transaction<bool>((transaction) async {
-      if (!await _hasCurrentLease(
-          transaction, ownerUserId, leaseOwnerId, fencingToken, nowMs)) {
-        return false;
-      }
-      final main = await transaction.findOutbox(
-        ownerUserId: ownerUserId,
-        operationId: operationId,
-      );
-      final copy = await transaction.findOutboxRecovery(
-        ownerUserId: ownerUserId,
-        operationId: operationId,
-      );
-      if (main == null || copy == null || !_sameOutboxIdentity(main, copy)) {
-        return false;
-      }
-      if (main.ownerUserId != ownerUserId ||
-          main.clientCorrelationId != clientCorrelationId ||
-          main.conversationId != conversationId ||
-          main.payloadHash != payloadHash) {
-        return false;
-      }
-      if (main.dispatchAttemptId != null &&
-          copy.dispatchAttemptId != null &&
-          main.dispatchAttemptId != copy.dispatchAttemptId) {
-        return false;
-      }
-      if (main.state == ImOutboxState.completed &&
-          copy.state == ImOutboxCopyState.reconciled) {
-        return true;
-      }
-      if (main.state == ImOutboxState.acknowledged &&
-          (copy.state == ImOutboxCopyState.resultRecorded ||
-              copy.state == ImOutboxCopyState.reconciled)) {
-        return true;
-      }
-
-      final ImOutboxCopyState nextCopyState;
-      if (main.state == ImOutboxState.sending &&
-          copy.state == ImOutboxCopyState.dispatchIntent) {
-        nextCopyState = ImOutboxCopyState.resultRecorded;
-      } else if (main.state == ImOutboxState.outcomeUnknown &&
-          copy.state == ImOutboxCopyState.outcomeUnknown) {
-        nextCopyState = ImOutboxCopyState.reconciled;
-      } else {
-        return false;
-      }
-
-      final providerCopy = ImOutboxRecoveryRecord(
-        ownerUserId: copy.ownerUserId,
-        operationId: copy.operationId,
-        clientCorrelationId: copy.clientCorrelationId,
-        conversationId: copy.conversationId,
-        messageType: copy.messageType,
-        recoveryRevision: copy.recoveryRevision + 1,
-        state: nextCopyState,
-        dispatchAttemptId: copy.dispatchAttemptId,
-        dispatchIntentAtMs: copy.dispatchIntentAtMs,
-        payloadReferenceOrCiphertext: copy.payloadReferenceOrCiphertext,
-        payloadHash: copy.payloadHash,
-        checksum: copy.checksum,
-        sdkLocalId: copy.sdkLocalId ?? sdkLocalId,
-        serverMsgId: serverMsgId ?? copy.serverMsgId,
-        resultCode: 'provider_observed',
-        updatedAtMs: nowMs,
-      );
-      final copyChanged = await transaction.updateOutboxRecoveryIfCurrent(
-        record: providerCopy,
-        expectedState: copy.state,
-        leaseOwnerId: leaseOwnerId,
-        fencingToken: fencingToken,
-        nowMs: nowMs,
-      );
-      if (!copyChanged) return false;
-
-      final providerMain = main.copyWith(
-        state: ImOutboxState.acknowledged,
-        sdkMessageId: main.sdkMessageId ?? sdkLocalId,
-        serverMsgId: serverMsgId,
-        resultCode: 'provider_observed',
-        updatedAtMs: nowMs,
-        leaseOwnerId: leaseOwnerId,
-        fencingToken: fencingToken,
-      );
-      return transaction.updateOutboxIfCurrent(
-        record: providerMain,
-        expectedState: main.state,
-        leaseOwnerId: leaseOwnerId,
-        fencingToken: fencingToken,
-        nowMs: nowMs,
-      );
-    });
+  }) async {
+    final result = await _recordOutboxSdkResult(
+      ownerUserId: ownerUserId,
+      operationId: operationId,
+      leaseOwnerId: leaseOwnerId,
+      fencingToken: fencingToken,
+      nowMs: nowMs,
+      nextMainState: ImOutboxState.acknowledged,
+      providerEvidence: true,
+      expectedCorrelationId: clientCorrelationId,
+      expectedConversationId: conversationId,
+      expectedPayloadHash: payloadHash,
+      sdkLocalId: sdkLocalId,
+      serverMsgId: serverMsgId,
+      resultCode: 'provider_observed',
+    );
+    return result.accepted && result.deliveryConfirmed;
   }
 
   Future<bool> recordOutboxSdkFailed({
@@ -1072,7 +1286,7 @@ class Im05Persistence {
       sdkLocalId: sdkLocalId,
       serverMsgId: serverMsgId,
       resultCode: resultCode,
-    );
+    ).then((result) => result.accepted);
   }
 
   Future<bool> completeOutboxProjection({
@@ -1140,7 +1354,8 @@ class Im05Persistence {
           fencingToken: fencingToken,
           nowMs: nowMs,
         );
-        if (!copyChanged) return false;
+        if (!copyChanged)
+          throw StateError('recovery transition lost conditional update');
       }
       final completed = main.copyWith(
         state: ImOutboxState.completed,
@@ -1148,17 +1363,20 @@ class Im05Persistence {
         leaseOwnerId: leaseOwnerId,
         fencingToken: fencingToken,
       );
-      return transaction.updateOutboxIfCurrent(
+      final mainChanged = await transaction.updateOutboxIfCurrent(
         record: completed,
         expectedState: ImOutboxState.acknowledged,
         leaseOwnerId: leaseOwnerId,
         fencingToken: fencingToken,
         nowMs: nowMs,
       );
+      if (!mainChanged)
+        throw StateError('main transition lost conditional update');
+      return true;
     });
   }
 
-  Future<bool> _recordOutboxSdkResult({
+  Future<ImOutboxResultVerdict> _recordOutboxSdkResult({
     required String ownerUserId,
     required String operationId,
     required String leaseOwnerId,
@@ -1168,104 +1386,145 @@ class Im05Persistence {
     String? sdkLocalId,
     String? serverMsgId,
     String? resultCode,
-  }) {
+    String? expectedAttemptId,
+    bool providerEvidence = false,
+    String? expectedCorrelationId,
+    String? expectedConversationId,
+    String? expectedPayloadHash,
+  }) async {
     if (nextMainState != ImOutboxState.acknowledged &&
         nextMainState != ImOutboxState.failedTerminal) {
       throw ArgumentError.value(nextMainState, 'nextMainState');
     }
-    return _store.transaction<bool>((transaction) async {
+    final result =
+        await _store.transaction<ImOutboxResultVerdict>((transaction) async {
       if (!await _hasCurrentLease(
           transaction, ownerUserId, leaseOwnerId, fencingToken, nowMs)) {
-        return false;
+        return const ImOutboxResultVerdict(
+            decision: ImOutboxResultDecision.fencingRejected,
+            reason: 'writer_lease_rejected');
       }
       final main = await transaction.findOutbox(
-        ownerUserId: ownerUserId,
-        operationId: operationId,
-      );
+          ownerUserId: ownerUserId, operationId: operationId);
       final copy = await transaction.findOutboxRecovery(
-        ownerUserId: ownerUserId,
-        operationId: operationId,
-      );
-      if (main == null || copy == null || !_sameOutboxIdentity(main, copy)) {
-        return false;
+          ownerUserId: ownerUserId, operationId: operationId);
+      ImOutboxResultVerdict verdict(
+              ImOutboxResultDecision decision, String reason) =>
+          ImOutboxResultVerdict(
+              decision: decision,
+              main: main,
+              recoveryCopy: copy,
+              eventAttemptId: expectedAttemptId,
+              reason: reason);
+      if (main == null || copy == null) {
+        return verdict(ImOutboxResultDecision.missing, 'outbox_missing');
       }
-      if (main.dispatchAttemptId != null &&
-          copy.dispatchAttemptId != null &&
-          main.dispatchAttemptId != copy.dispatchAttemptId) {
-        return false;
+      if (!_sameOutboxIdentity(main, copy) ||
+          (main.dispatchAttemptId != null &&
+              copy.dispatchAttemptId != null &&
+              main.dispatchAttemptId != copy.dispatchAttemptId) ||
+          (providerEvidence &&
+              (main.clientCorrelationId != expectedCorrelationId ||
+                  main.conversationId != expectedConversationId ||
+                  main.payloadHash != expectedPayloadHash))) {
+        return verdict(ImOutboxResultDecision.identityConflict,
+            'outbox_identity_conflict');
       }
-      if (main.state == ImOutboxState.completed &&
-          copy.state == ImOutboxCopyState.reconciled) {
-        return true;
+      if (!providerEvidence &&
+          expectedAttemptId != null &&
+          main.dispatchAttemptId != expectedAttemptId) {
+        return verdict(
+            ImOutboxResultDecision.staleAttempt, 'stale_dispatch_attempt');
+      }
+      if (main.state == ImOutboxState.acknowledged ||
+          main.state == ImOutboxState.completed) {
+        return verdict(
+            nextMainState == ImOutboxState.acknowledged
+                ? ImOutboxResultDecision.duplicate
+                : ImOutboxResultDecision.superseded,
+            'delivery_already_confirmed');
       }
       if (main.state == nextMainState &&
           (copy.state == ImOutboxCopyState.resultRecorded ||
               copy.state == ImOutboxCopyState.reconciled)) {
-        return true;
+        return verdict(
+            ImOutboxResultDecision.duplicate, 'result_already_recorded');
       }
-      // IM-08: a late SDK success/failure callback must never silently
-      // overwrite an already-resolved OutcomeUnknown. The single Writer
-      // keeps OutcomeUnknown open until history, realtime or an explicit
-      // recovery query adopts the operation; transitioning it from the
-      // dispatch path would resurrect or fail UI bubbles that the user
-      // is still waiting on.
-      if (main.state != ImOutboxState.sending) {
-        return false;
+      // A late dispatch callback is never a recovery query. Exact provider
+      // evidence may settle an older attempt of the SAME business operation.
+      final providerCanSettle = providerEvidence &&
+          <ImOutboxState>{
+            ImOutboxState.sending,
+            ImOutboxState.dispatchIntent,
+            ImOutboxState.outcomeUnknown,
+            ImOutboxState.failedTerminal,
+            ImOutboxState.abandonedByUser,
+          }.contains(main.state);
+      if (!providerCanSettle && main.state != ImOutboxState.sending) {
+        return verdict(ImOutboxResultDecision.deferred,
+            'state_requires_recovery_evidence');
       }
-
-      if (copy.state == ImOutboxCopyState.dispatchIntent ||
-          copy.state == ImOutboxCopyState.outcomeUnknown) {
-        final nextCopyState = copy.state == ImOutboxCopyState.dispatchIntent
+      if (!<ImOutboxCopyState>{
+        ImOutboxCopyState.dispatchIntent,
+        ImOutboxCopyState.outcomeUnknown,
+        ImOutboxCopyState.resultRecorded,
+        ImOutboxCopyState.reconciled
+      }.contains(copy.state)) {
+        return verdict(
+            ImOutboxResultDecision.identityConflict, 'recovery_state_conflict');
+      }
+      final resultCopy = ImOutboxRecoveryRecord(
+        ownerUserId: copy.ownerUserId,
+        operationId: copy.operationId,
+        clientCorrelationId: copy.clientCorrelationId,
+        conversationId: copy.conversationId,
+        messageType: copy.messageType,
+        recoveryRevision: copy.recoveryRevision + 1,
+        state: copy.state == ImOutboxCopyState.dispatchIntent
             ? ImOutboxCopyState.resultRecorded
-            : ImOutboxCopyState.reconciled;
-        final resultCopy = ImOutboxRecoveryRecord(
-          ownerUserId: copy.ownerUserId,
-          operationId: copy.operationId,
-          clientCorrelationId: copy.clientCorrelationId,
-          conversationId: copy.conversationId,
-          messageType: copy.messageType,
-          recoveryRevision: copy.recoveryRevision + 1,
-          state: nextCopyState,
-          dispatchAttemptId: copy.dispatchAttemptId,
-          dispatchIntentAtMs: copy.dispatchIntentAtMs,
-          payloadReferenceOrCiphertext: copy.payloadReferenceOrCiphertext,
-          payloadHash: copy.payloadHash,
-          checksum: copy.checksum,
-          sdkLocalId: sdkLocalId ?? copy.sdkLocalId,
-          serverMsgId: serverMsgId ?? copy.serverMsgId,
-          resultCode: resultCode ?? copy.resultCode,
-          updatedAtMs: nowMs,
-        );
-        final copyChanged = await transaction.updateOutboxRecoveryIfCurrent(
+            : ImOutboxCopyState.reconciled,
+        dispatchAttemptId: copy.dispatchAttemptId,
+        dispatchIntentAtMs: copy.dispatchIntentAtMs,
+        payloadReferenceOrCiphertext: copy.payloadReferenceOrCiphertext,
+        payloadHash: copy.payloadHash,
+        checksum: copy.checksum,
+        sdkLocalId: copy.sdkLocalId ?? sdkLocalId,
+        serverMsgId: serverMsgId ?? copy.serverMsgId,
+        resultCode: resultCode ?? copy.resultCode,
+        updatedAtMs: nowMs,
+      );
+      final changedCopy = await transaction.updateOutboxRecoveryIfCurrent(
           record: resultCopy,
           expectedState: copy.state,
           leaseOwnerId: leaseOwnerId,
           fencingToken: fencingToken,
-          nowMs: nowMs,
-        );
-        if (!copyChanged) return false;
-      } else if (copy.state != ImOutboxCopyState.resultRecorded &&
-          copy.state != ImOutboxCopyState.reconciled) {
-        return false;
-      }
-
+          nowMs: nowMs);
+      if (!changedCopy) throw StateError('Outbox result copy CAS rejected');
       final resultMain = main.copyWith(
-        state: nextMainState,
-        sdkMessageId: sdkLocalId,
-        serverMsgId: serverMsgId,
-        resultCode: resultCode,
-        updatedAtMs: nowMs,
-        leaseOwnerId: leaseOwnerId,
-        fencingToken: fencingToken,
-      );
-      return transaction.updateOutboxIfCurrent(
-        record: resultMain,
-        expectedState: main.state,
-        leaseOwnerId: leaseOwnerId,
-        fencingToken: fencingToken,
-        nowMs: nowMs,
-      );
+          state: nextMainState,
+          sdkMessageId: main.sdkMessageId ?? sdkLocalId,
+          serverMsgId: serverMsgId,
+          resultCode: resultCode,
+          updatedAtMs: nowMs,
+          leaseOwnerId: leaseOwnerId,
+          fencingToken: fencingToken);
+      final changedMain = await transaction.updateOutboxIfCurrent(
+          record: resultMain,
+          expectedState: main.state,
+          leaseOwnerId: leaseOwnerId,
+          fencingToken: fencingToken,
+          nowMs: nowMs);
+      // Throw, rather than committing only one side of the transaction.
+      if (!changedMain) throw StateError('Outbox result main CAS rejected');
+      return ImOutboxResultVerdict(
+          decision: ImOutboxResultDecision.accepted,
+          main: await transaction.findOutbox(
+              ownerUserId: ownerUserId, operationId: operationId),
+          recoveryCopy: resultCopy,
+          eventAttemptId: expectedAttemptId,
+          reason: providerEvidence ? 'provider_observed' : 'sdk_result');
     });
+    return _publishResult(result);
   }
 
   Future<ImOutboxDispatchAssessment> recoverOutbox({

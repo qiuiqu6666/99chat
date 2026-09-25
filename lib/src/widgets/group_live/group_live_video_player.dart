@@ -97,9 +97,15 @@ class GroupLiveVideoPlayerState extends State<GroupLiveVideoPlayer>
   @override
   void didUpdateWidget(covariant GroupLiveVideoPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final oldSources = groupLiveHttpSources(oldWidget.playInfo);
+    final newSources = groupLiveHttpSources(widget.playInfo);
+    final oldSource = oldSources.isEmpty
+        ? ''
+        : oldSources[_sourceIndex.clamp(0, oldSources.length - 1)];
+    final matchingIndex = newSources
+        .indexWhere((source) => groupLiveSameStreamSource(oldSource, source));
     if (oldWidget.playInfo.liveSessionId != widget.playInfo.liveSessionId ||
-        !listEquals(groupLiveHttpSources(oldWidget.playInfo),
-            groupLiveHttpSources(widget.playInfo))) {
+        matchingIndex < 0) {
       // The first-frame future belongs to one controller lifetime. A new stream
       // must not inherit the completed future or picture of the previous stream.
       _startup.dispose();
@@ -107,6 +113,10 @@ class GroupLiveVideoPlayerState extends State<GroupLiveVideoPlayer>
       unawaited(_player.dispose());
       _sourceIndex = 0;
       _initializePlayback();
+    } else {
+      // Keep the active decoder when only the signed URL or fallback order
+      // changed. A later explicit retry uses the freshly supplied URL.
+      _sourceIndex = matchingIndex;
     }
   }
 
@@ -208,7 +218,10 @@ class GroupLiveVideoPlayerState extends State<GroupLiveVideoPlayer>
   @override
   Widget build(BuildContext context) {
     return Stack(fit: StackFit.expand, children: [
-      _buildVideo(),
+      if (_isFullscreen)
+        const ColoredBox(color: Colors.black)
+      else
+        _buildVideo(),
       if (widget.compact)
         Positioned(
             top: 4,

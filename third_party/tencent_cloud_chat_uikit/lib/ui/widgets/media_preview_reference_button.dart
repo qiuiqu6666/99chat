@@ -9,8 +9,9 @@ class MediaPreviewReferenceButton extends StatelessWidget {
     super.key,
   });
 
-  // Shrink the artwork while preserving the existing 40-unit tap target.
-  static const double visualScale = 0.85;
+  // Match the visible circle and tap target in image and video previews.
+  static const double buttonSize = 40;
+  static const double visualScale = 1;
 
   final IconData icon;
   final String label;
@@ -35,8 +36,8 @@ class MediaPreviewReferenceButton extends StatelessWidget {
                 child: InkWell(
                   onTap: onPressed,
                   child: SizedBox(
-                    width: 40,
-                    height: 40,
+                    width: buttonSize,
+                    height: buttonSize,
                     child: CustomPaint(painter: _ReferenceIconPainter(icon)),
                   ),
                 ),

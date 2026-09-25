@@ -100,10 +100,12 @@ void main() {
                   'offset': 0,
                 }
               : {
-                  'groupId': '@TGS#profile-owned-lifetime',
+                  'groupId': request.path.contains('channel-preview')
+                      ? '@TGS#_@TGS#channel-preview'
+                      : '@TGS#profile-owned-lifetime',
                   'groupType': 'Public',
                   'groupName': 'Owned',
-                  'myRole': 200,
+                  if (!request.path.contains('channel-preview')) 'myRole': 200,
                   'memberCount': 1,
                 },
         },
@@ -195,5 +197,36 @@ void main() {
     void sharedListener() {}
     shared.addListener(sharedListener);
     shared.removeListener(sharedListener);
+  });
+
+  testWidgets('channel preview renders while REST role is unavailable',
+      (tester) async {
+    const group = '@TGS#_@TGS#channel-preview';
+    final errorHandler = FlutterError.onError;
+    addTearDown(() => FlutterError.onError = errorHandler);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: TIMUIKitGroupProfile(
+          groupID: group,
+          scrollable: false,
+          channelPreviewInfo: V2TimGroupInfo(
+            groupID: 'channel-preview',
+            groupType: 'Community',
+            groupName: '频道资料',
+          ),
+          builder: (_, info, __) => ListView(
+            children: [Text(info.groupName ?? '')],
+          ),
+        ),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 50));
+    FlutterError.onError = errorHandler;
+    expect(find.text('频道资料'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    conversations.responses.last.complete(null);
+    await tester.pump(const Duration(milliseconds: 50));
+    FlutterError.onError = errorHandler;
+    expect(tester.takeException(), isNull);
   });
 }

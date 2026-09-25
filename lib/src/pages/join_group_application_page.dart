@@ -51,6 +51,7 @@ class JoinGroupApplicationPage extends StatefulWidget {
   final AddGroupLifeCycle? lifeCycle;
   final ValueChanged<V2TimConversation>? directToChat;
   final GroupJoinSource? joinSource;
+
   /// Membership and metadata already resolved from the current account's DB.
   final bool locallyJoined;
 
@@ -143,9 +144,7 @@ class _JoinGroupApplicationPageState extends State<JoinGroupApplicationPage> {
         ) ??
         false;
     final incomingCount = widget.groupInfo.memberCount ?? 0;
-    if (loaded != null &&
-        (loaded.memberCount ?? 0) <= 0 &&
-        incomingCount > 0) {
+    if (loaded != null && (loaded.memberCount ?? 0) <= 0 && incomingCount > 0) {
       loaded.memberCount = incomingCount;
     }
     if (!mounted) {
@@ -159,6 +158,12 @@ class _JoinGroupApplicationPageState extends State<JoinGroupApplicationPage> {
   }
 
   V2TimGroupInfo get _group => _detail ?? widget.groupInfo;
+
+  bool get _isChannel =>
+      widget.groupInfo.customInfo?['isChannel'] == 'true' ||
+      _detail?.customInfo?['isChannel'] == 'true' ||
+      GroupLocalStore.instance.readCached(groupId: _group.groupID)?.isChannel ==
+          true;
 
   String get _showName {
     final name = _group.groupName?.trim() ?? '';
@@ -269,7 +274,7 @@ class _JoinGroupApplicationPageState extends State<JoinGroupApplicationPage> {
 
   Future<V2TimCallback?> _joinGroup() async {
     final groupID = _group.groupID.trim();
-    final message = _defaultJoinMessage();
+    final message = _isChannel ? '' : _defaultJoinMessage();
     if (widget.lifeCycle?.shouldAddGroup != null &&
         await widget.lifeCycle!.shouldAddGroup(groupID, message, context) ==
             false) {
@@ -283,6 +288,13 @@ class _JoinGroupApplicationPageState extends State<JoinGroupApplicationPage> {
       );
       switch (result.outcome) {
         case GroupJoinOutcome.added:
+          if (_isChannel) {
+            // Joining is complete on the server. Persist its channel marker
+            // before the next chat open, so the subscriber UI is immediate.
+            try {
+              await MeGroupApi.instance.fetchGroupDetail(groupID);
+            } catch (_) {}
+          }
           return V2TimCallback(code: 0, desc: 'ok');
         case GroupJoinOutcome.pending:
           return V2TimCallback(code: 0, desc: 'PENDING');
@@ -318,11 +330,13 @@ class _JoinGroupApplicationPageState extends State<JoinGroupApplicationPage> {
                           _group.groupType) &&
                       desc == 'ok'
                   ? AppI18n.current.t(
-                      zhHans: '已加入群聊',
-                      zhHant: '已加入群聊',
-                      en: 'Joined the group',
-                      ja: 'グループに参加しました',
-                      ko: '그룹에 참가했습니다',
+                      zhHans: _isChannel ? '已订阅频道' : '已加入群聊',
+                      zhHant: _isChannel ? '已訂閱頻道' : '已加入群聊',
+                      en: _isChannel
+                          ? 'Subscribed to channel'
+                          : 'Joined the group',
+                      ja: _isChannel ? 'チャンネルに登録しました' : 'グループに参加しました',
+                      ko: _isChannel ? '채널을 구독했습니다' : '그룹에 참가했습니다',
                     )
                   : AppI18n.current.t(
                       zhHans: '群申请已发送',
@@ -374,18 +388,18 @@ class _JoinGroupApplicationPageState extends State<JoinGroupApplicationPage> {
     final i18n = AppI18n.of(context);
     final actionLabel = _hasJoined
         ? i18n.t(
-            zhHans: '进入群聊',
-            zhHant: '進入群聊',
-            en: 'Enter Group Chat',
-            ja: 'グループチャットに入る',
-            ko: '그룹 채팅 입장',
+            zhHans: _isChannel ? '进入频道' : '进入群聊',
+            zhHant: _isChannel ? '進入頻道' : '進入群聊',
+            en: _isChannel ? 'Enter channel' : 'Enter Group Chat',
+            ja: _isChannel ? 'チャンネルを開く' : 'グループチャットに入る',
+            ko: _isChannel ? '채널 입장' : '그룹 채팅 입장',
           )
         : i18n.t(
-            zhHans: '加入群聊',
-            zhHant: '加入群聊',
-            en: 'Join Group Chat',
-            ja: 'グループに参加',
-            ko: '그룹 가입',
+            zhHans: _isChannel ? '订阅频道' : '加入群聊',
+            zhHant: _isChannel ? '訂閱頻道' : '加入群聊',
+            en: _isChannel ? 'Subscribe to channel' : 'Join Group Chat',
+            ja: _isChannel ? 'チャンネルに登録' : 'グループに参加',
+            ko: _isChannel ? '채널 구독' : '그룹 가입',
           );
     final avatarVersion = GroupLocalStore.instance
             .readCached(groupId: _group.groupID)
@@ -450,11 +464,15 @@ class _JoinGroupApplicationPageState extends State<JoinGroupApplicationPage> {
                         const SizedBox(height: 8),
                         Text(
                           i18n.format(
-                            zhHans: '共{option1}人',
-                            zhHant: '共{option1}人',
-                            en: '{option1} members',
-                            ja: 'メンバー{option1}人',
-                            ko: '멤버 {option1}명',
+                            zhHans:
+                                _isChannel ? '{option1}位订阅者' : '共{option1}人',
+                            zhHant:
+                                _isChannel ? '{option1}位訂閱者' : '共{option1}人',
+                            en: _isChannel
+                                ? '{option1} subscribers'
+                                : '{option1} members',
+                            ja: _isChannel ? '登録者{option1}人' : 'メンバー{option1}人',
+                            ko: _isChannel ? '구독자 {option1}명' : '멤버 {option1}명',
                             vars: {'option1': '$_memberCount'},
                           ),
                           style: TextStyle(

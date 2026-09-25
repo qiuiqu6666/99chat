@@ -104,6 +104,12 @@ import 'package:tencent_cloud_chat_demo/src/services/call_result_repository.dart
 import 'package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_deleted_bus.dart';
 import 'package:tencent_cloud_chat_demo/src/services/local_message_overlay_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im_group_receive_opt.dart';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_notify_sync_service.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/channel_notification_toggle_bar.dart';
+import 'package:tencent_cloud_chat_sdk/enum/receive_message_opt_enum.dart';
+import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/conversation_profile_pin_bar.dart';
 import 'package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart';
 import 'package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart';
@@ -350,10 +356,12 @@ enum _ChatOpenInitStage {
   backgroundEnrichment,
 }
 
-class _ChatState extends State<Chat> with WidgetsBindingObserver {
+class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
   final _agentAccountSession = AgentSessionSnapshot();
   bool get _canUseAgentSession =>
-      mounted && _agentAccountSession.isCurrent && AgentSessionSnapshot.canRequest;
+      mounted &&
+      _agentAccountSession.isCurrent &&
+      AgentSessionSnapshot.canRequest;
 
   final int _externalEntrySourceToken = identityHashCode(Object());
   final TIMUIKitChatController _chatController = TIMUIKitChatController();
@@ -369,10 +377,48 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   final C2cSendPermissionController _c2cPermission =
       C2cSendPermissionController();
   final ChatDraftController _draft = ChatDraftController();
+  ConversationDraftEdit? _draftEdit;
+
+  ConversationDraftEdit _ensureDraftEdit(String conversationId,
+      {bool userEdit = false}) {
+    final service = ConversationDraftService.instance;
+    if (_draftEdit == null ||
+        (userEdit && !service.isCurrentEdit(_draftEdit!))) {
+      _draftEdit = service.beginEditing(conversationId);
+    }
+    return _draftEdit!;
+  }
+
+  Object? _captureTextSubmission(String text) {
+    final service = ConversationDraftService.instance;
+    final edit = service.recordEdit(
+        _ensureDraftEdit(_resolvedConversationID(), userEdit: true), text);
+    if (edit == null) return null;
+    _draftEdit = edit;
+    return _draft.captureSubmission(text, persistenceToken: edit)
+      ..durableContext = service.submissionContext(edit);
+  }
+
+  void _clearSubmittedDraftInput(Object? value) {
+    if (value is! ChatDraftSubmission || !_draft.ownsSubmission(value)) return;
+    final previous = value.persistenceToken;
+    if (previous is! ConversationDraftEdit) return;
+    final edit = ConversationDraftService.instance.recordEdit(previous, '');
+    if (edit == null || !_draft.clearForSubmission(value)) return;
+    value.persistenceToken = edit;
+    _draftEdit = edit;
+    unawaited(_persistChatLocalDraftText('', _draft.writeGeneration,
+        conversationID: edit.conversationID,
+        enforceCurrentGeneration: false,
+        expectedEdit: edit));
+  }
+
   final ChatDraftWriteQueue _draftWrites = ChatDraftWriteQueue();
   final ChatGroupPageSideController _groupSide = ChatGroupPageSideController();
   final GroupLiveChatState _groupLiveState = GroupLiveChatState();
   bool _watchingGroupLive = false;
+  String? _retainedGroupLiveSessionId;
+  int? _retainedGroupLiveChatGeneration;
 
   /// 群聊打开期间兜底拉 `/live/current`：主播 CSS 确认推流后若 TCP 丢失，
   /// 群 Tab 轮询已停，不靠杀进程重进也能看到 LIVE / 可播。
@@ -400,6 +446,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   Future<void>? _openGroupGameEnrichmentInFlight;
   List<V2TimMessage>? _pendingOpenHistoryMediaEnrichment;
   int _chatOpenGeneration = 0;
+  bool _routeReturnRecoveryQueued = false;
+  Future<void>? _overlayReturnRecoveryInFlight;
+  String? _overlayReturnRecoveryConversationId;
   int _viewportOpenGeneration = 0;
   String? _viewportConversationKey;
   ChatPageScopeToken? _pageScope;
@@ -467,9 +516,11 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   String _trackedGlobalLastMsgId = '';
   bool _firstViewportWindowLogged = false;
   TIMUIKitChatConfig? _cachedChatConfig;
+  bool? _lastChannelPresentation;
   String? _cachedConfigKey;
   ToolTipsConfig? _cachedToolTipsConfig;
   MorePanelConfig? _cachedMorePanelConfig;
+  bool _changingChannelNotification = false;
   Timer? _groupMemberAvatarRefreshDebounce;
 
   String _configCacheKey({
@@ -478,7 +529,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     required bool isDarkTheme,
   }) {
     return '${_resolvedConversationID()}_${showReadingStatus}_'
-        '${stickerPackCount}_${isDarkTheme}_'
+        '${stickerPackCount}_${isDarkTheme}_${_isChannelConversation()}_'
         '${AppI18n.current.locale.languageTag}';
   }
 
@@ -799,6 +850,17 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
 
   Widget Function(BuildContext context, Widget child)?
       _resolveChatTextFieldWrapperBuilder(TUITheme theme) {
+    if (_isChannelConversation()) {
+      return (context, child) {
+        if (_canCurrentUserSpeakInGroup()) return child;
+        return ChannelNotificationToggleBar(
+          muted: ConversationNotifySyncService.recvOptToMuted(
+              widget.selectedConversation.recvOpt),
+          busy: _changingChannelNotification,
+          onTap: () => unawaited(_toggleChannelNotification()),
+        );
+      };
+    }
     if (_getConvType() != ConvType.c2c ||
         PlatformOfficialAccountService.showsVerifiedBadge(
           widget.selectedConversation.userID,
@@ -1106,9 +1168,10 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   }
 
   List<MorePanelItem> _buildWalletMorePanelItems(TUITheme theme) {
-    if (PlatformOfficialAccountService.isPlatformOfficialAccount(
-      widget.selectedConversation.userID,
-    )) {
+    if (_isChannelConversation() ||
+        PlatformOfficialAccountService.isPlatformOfficialAccount(
+          widget.selectedConversation.userID,
+        )) {
       return [];
     }
     return [
@@ -1304,8 +1367,10 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       return;
     }
     final loadRevision = _draft.stateRevision;
+    final edit = _ensureDraftEdit(conversationId);
     final text = await ConversationDraftService.instance.loadDraftText(
       conversationID: conversationId,
+      expectedEdit: edit,
     );
     if (!mounted ||
         !_isCurrentConversation(conversationId) ||
@@ -1350,13 +1415,16 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     int generation, {
     String? conversationID,
     bool enforceCurrentGeneration = true,
+    ConversationDraftEdit? expectedEdit,
   }) async {
     final conversationId = (conversationID ?? _resolvedConversationID()).trim();
     if (conversationId.isEmpty) {
       return;
     }
+    final edit = expectedEdit ?? _ensureDraftEdit(conversationId);
     await _draftWrites.enqueue(
       () async {
+        if (!ConversationDraftService.instance.isCurrentEdit(edit)) return;
         if (enforceCurrentGeneration && _draft.shouldSuppressLifecyclePersist) {
           ConversationDraftLeaveTrace.stage(
             'draft_persist_skipped',
@@ -1388,6 +1456,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         await ConversationDraftService.instance.persistDraft(
           conversationID: conversationId,
           rawInputText: text,
+          expectedEdit: edit,
         );
       },
       onError: (error, stackTrace) {
@@ -1401,6 +1470,10 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
 
   void _onChatDraftTextChanged(String text) {
     final conversationId = _resolvedConversationID();
+    final edit = ConversationDraftService.instance
+        .recordEdit(_ensureDraftEdit(conversationId, userEdit: true), text);
+    if (edit == null) return;
+    _draftEdit = edit;
     if (text.trim().isNotEmpty) {
       ConversationDraftLeaveTrace.focus(conversationId);
     }
@@ -1411,8 +1484,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     );
     _draft.onChanged(
       text,
-      persist: (raw, generation) =>
-          unawaited(_persistChatLocalDraftText(raw, generation)),
+      persist: (raw, generation) => unawaited(_persistChatLocalDraftText(
+          raw, generation,
+          conversationID: edit.conversationID, expectedEdit: edit)),
     );
   }
 
@@ -1438,28 +1512,17 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _clearChatLocalDraftAfterSend(String conversationId) async {
-    final id = conversationId.trim();
-    if (id.isEmpty) {
-      return;
-    }
-    // 发送成功后使发送前排队的 debounce 保存失效，否则旧草稿可能在清理后
-    // 又被异步写回本地库，表现为“消息已发出但草稿仍出现”。
-    _draft.markSendCompleted();
-    if (mounted) {
-      _draft.text = null;
-    }
-    final ids = <String>{id, _conversation.conversationID.trim()};
-    final groupId = _conversation.groupID?.trim() ?? '';
-    if (_getConvType() == ConvType.group && groupId.isNotEmpty) {
-      ids.add(groupId);
-      ids.add('group_$groupId');
-    }
+  Future<void> _clearChatLocalDraftAfterSend(
+      ChatDraftSubmission submission) async {
+    final edit = submission.persistenceToken;
+    if (edit is! ConversationDraftEdit ||
+        !ConversationDraftService.instance.isCurrentEdit(edit) ||
+        !_draft.markSendCompleted(submission)) return;
+    final id = edit.conversationID;
     await _draftWrites.enqueue(
       () async {
-        await ConversationDraftService.instance.clearDraftForConversationIds(
-          ids,
-        );
+        await ConversationDraftService.instance
+            .clearDraft(conversationID: id, expectedEdit: edit);
       },
       onError: (error, stackTrace) {
         debugPrint(
@@ -1523,13 +1586,28 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   bool _canCurrentUserSpeakInGroup({int? serverTime}) {
     final model = _chatController.model;
     final selfInfo = model?.selfMemberInfo;
-    final role = selfInfo?.role ??
+    final channel = _isChannelConversation();
+    final localGroup = channel
+        ? GroupLocalStore.instance.readCached(
+            groupId: _conversation.groupID ??
+                widget.selectedConversation.groupID ??
+                '')
+        : null;
+    final selfId =
+        ChatIdFormat.rawUserUid(ContactSocialCacheStore.safeLoginUserId());
+    final localRole = localGroup != null &&
+            selfId.isNotEmpty &&
+            ChatIdFormat.rawUserUid(localGroup.ownerUserId) == selfId
+        ? GroupMemberRoleType.V2TIM_GROUP_MEMBER_ROLE_OWNER
+        : localGroup?.myRole;
+    final role = (localRole != null && localRole > 0 ? localRole : null) ??
+        selfInfo?.role ??
         model?.groupInfo?.role ??
         GroupMemberRoleType.V2TIM_GROUP_MEMBER_ROLE_MEMBER;
     final now = serverTime ?? (DateTime.now().millisecondsSinceEpoch ~/ 1000);
     return GroupRolePolicy.canSpeakInGroup(
       role: role,
-      isAllMuted: model?.groupInfo?.isAllMuted == true,
+      isAllMuted: channel || model?.groupInfo?.isAllMuted == true,
       muteUntilSeconds: selfInfo?.muteUntil ?? 0,
       nowSeconds: now,
     );
@@ -1564,7 +1642,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
           muteGeneration == _openLifecycle.muteFetchGeneration &&
           owner == GroupLocalStore.instance.currentOwnerUserId() &&
           ChatIdFormat.groupIdsEquivalent(
-            groupId, widget.selectedConversation.groupID,
+            groupId,
+            widget.selectedConversation.groupID,
           );
       if (!isCurrent()) return;
       final muteSw = Stopwatch()..start();
@@ -1580,11 +1659,13 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
           },
         );
         if (muteStatus == null) return;
+        final effectiveAllMuted =
+            muteStatus.isAllMuted || _isChannelConversation();
         await GroupLocalStore.instance.patch(
           ownerUserId: owner,
           groupId: groupId,
           transform: (current) => isCurrent()
-              ? current.copyWith(isAllMuted: muteStatus.isAllMuted)
+              ? current.copyWith(isAllMuted: effectiveAllMuted)
               : current,
         );
         if (!isCurrent()) return;
@@ -1595,7 +1676,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
           await model.updateSelfMuteStatus(
             groupID: groupId,
             muteUntil: muteStatus.muteUntil,
-            isAllMuted: muteStatus.isAllMuted,
+            isAllMuted: effectiveAllMuted,
           );
           return true;
         }
@@ -2196,8 +2277,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     final treatAsSent = event == WalletOrderEvents.cardSent ||
         (event.isEmpty && already) ||
         (already && event != WalletOrderEvents.cardNeedSend);
-    final treatAsNeedSend = event == WalletOrderEvents.cardNeedSend ||
-        (event.isEmpty && !already);
+    final treatAsNeedSend =
+        event == WalletOrderEvents.cardNeedSend || (event.isEmpty && !already);
 
     if (treatAsSent) {
       await _onWalletCardSentEvent(data);
@@ -2603,8 +2684,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         final messageData = jsonEncode(card.toJson());
         final created =
             await sdkInstance.getMessageManager().createCustomMessage(
-          data: messageData,
-        );
+                  data: messageData,
+                );
         final msg = created.data?.messageInfo;
         if (created.code != 0 || msg == null) {
           if (mounted) {
@@ -2777,8 +2858,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         return null;
       },
       customMessageItemBuilder: (message, isShowJump, clearJump) {
-        if (attachmentUploadTaskId(message,
-            ApiClient.instance.authenticatedUserId) != null) {
+        if (attachmentUploadTaskId(
+                message, ApiClient.instance.authenticatedUserId) !=
+            null) {
           return const SizedBox.shrink();
         }
         final isWallet = CustomMessageElem.isWalletCardMessage(message);
@@ -2812,6 +2894,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         );
       },
       renderingDirectionCallback: (message) {
+        if (_isChannelConversation()) {
+          return RenderingDirectionResult(isSelf: false);
+        }
         final isCallOutgoing = CustomMessageElem.isC2CCallOutgoing(message);
         if (isCallOutgoing != null) {
           V2TimUserFullInfo? userFullInfo;
@@ -2988,8 +3073,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     _headerState.setSnapshot(
       conversationFaceUrl: _headerConversationFaceUrl(),
       titleText: _getHeaderTitleText(),
-      memberCount:
-          _getConvType() == ConvType.group ? _groupMemberCount : null,
+      memberCount: _getConvType() == ConvType.group ? _groupMemberCount : null,
       notify: notify,
     );
   }
@@ -3340,6 +3424,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     final androidLightUi =
         AndroidPerformanceProfile.instance.reduceHeavyVisualEffects;
     return TIMUIKitChatConfig(
+      isShowAvatar: !_isChannelConversation(),
+      isShowSelfNameInGroup: false,
+      isShowOthersNameInGroup: !_isChannelConversation(),
       stickerPanelConfig: stickerPanelConfig,
       timeDividerConfig: TimeDividerConfig(
         timestampParser: formatChatTimeDivider,
@@ -3735,8 +3822,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     if (_getConvType() != ConvType.group) return false;
     final groupId = widget.selectedConversation.groupID?.trim() ?? '';
     if (groupId.isEmpty) return false;
-    final role = GroupLocalStore.instance.readCached(groupId: groupId)?.myRole ??
-        _currentGroupInfo()?.role;
+    final role =
+        GroupLocalStore.instance.readCached(groupId: groupId)?.myRole ??
+            _currentGroupInfo()?.role;
     return GroupRolePolicy.isManagerRole(role);
   }
 
@@ -3932,7 +4020,11 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     if (convId.isNotEmpty) {
       _chatController.globalChatModel.beginGeometryViewportTransition(convId);
     }
-    setState(() => _watchingGroupLive = true);
+    setState(() {
+      _retainedGroupLiveSessionId = session.liveSessionId;
+      _retainedGroupLiveChatGeneration = _chatOpenGeneration;
+      _watchingGroupLive = true;
+    });
     _syncChatTopFixState();
     if (convId.isNotEmpty) {
       _scheduleEndGeometryViewportTransition(convId);
@@ -3981,13 +4073,12 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   }
 
   Future<void> _prepareOfficialAccountChat() async {
-    final userId = widget.selectedConversation.userID;
-    if (!PlatformOfficialAccountService.isPlatformOfficialAccount(userId) &&
+    final userId = widget.selectedConversation.userID?.trim() ?? '';
+    final isPlatformAccount =
+        PlatformOfficialAccountService.isPlatformOfficialAccount(userId);
+    if (!isPlatformAccount &&
         !PlatformOfficialAccountService.isVerifiedBadgeAccount(userId)) {
       return;
-    }
-    if (PlatformOfficialAccountService.isPlatformOfficialAccount(userId)) {
-      await PlatformOfficialAccountService.ensureReadyForChat(userId: userId);
     }
     if (!mounted) {
       return;
@@ -4001,7 +4092,118 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       _cachedHeaderFaceUrl = resolvedFace;
       _syncChatHeaderState();
     }
+    if (isPlatformAccount) {
+      final openedConversationId = _resolvedConversationID();
+      // The standard C2C local snapshot and cloud verification own history.
+      // Account profile/settings work must not start at tap time or make a
+      // second local + cloud history request compete with the first window.
+      unawaited(() async {
+        try {
+          await PlatformOfficialAccountService.ensureReadyForChat(
+            userId: userId,
+          );
+        } catch (error) {
+          debugPrint('Official account preparation failed: $error');
+          return;
+        }
+        if (!mounted || !_isCurrentConversation(openedConversationId)) {
+          return;
+        }
+        final refreshedFace = PlatformOfficialAccountService.resolveFaceUrl(
+          userId: userId,
+          conversationFaceUrl: _conversation.faceUrl,
+        );
+        if (refreshedFace.isNotEmpty) {
+          _conversation.faceUrl = refreshedFace;
+          _cachedHeaderFaceUrl = refreshedFace;
+          _syncChatHeaderState();
+        }
+        final conversationKey = _getConvID()?.trim() ?? '';
+        final messages = serviceLocator<TUIChatGlobalModel>()
+            .messageListMap[conversationKey];
+        if (messages != null && messages.isNotEmpty) {
+          _normalizeOfficialAccountMessageAvatars(userId, messages);
+          _normalizeSelfMessageAvatars(messages);
+          setState(() {});
+        }
+      }());
+      return;
+    }
     await _hydrateOfficialAccountMessageList();
+  }
+
+  Future<void> _toggleChannelNotification() async {
+    if (_changingChannelNotification || !_isChannelConversation()) return;
+    final conversation = widget.selectedConversation;
+    final groupId = conversation.groupID?.trim() ?? '';
+    if (groupId.isEmpty) return;
+    final muted =
+        ConversationNotifySyncService.recvOptToMuted(conversation.recvOpt);
+    final nextOpt = muted
+        ? ReceiveMsgOptEnum.V2TIM_RECEIVE_MESSAGE
+        : ReceiveMsgOptEnum.V2TIM_RECEIVE_NOT_NOTIFY_MESSAGE;
+    setState(() => _changingChannelNotification = true);
+    try {
+      final result = await ImGroupReceiveOpt.setGroupReceiveMessageOpt(
+        messageService: serviceLocator<MessageService>(),
+        groupID: groupId,
+        opt: nextOpt,
+      );
+      if (!mounted ||
+          !ChatIdFormat.groupIdsEquivalent(
+              widget.selectedConversation.groupID, groupId)) return;
+      if (result.code != 0) {
+        ToastUtils.toastForce(
+            AppI18n.of(context).t(
+              zhHans: '通知设置失败，请重试',
+              zhHant: '通知設定失敗，請重試',
+              en: 'Could not update notifications. Try again.',
+              ja: '通知設定に失敗しました。再試行してください。',
+              ko: '알림 설정에 실패했습니다. 다시 시도해 주세요.',
+            ),
+            context: context);
+        return;
+      }
+      conversation.recvOpt = nextOpt.index;
+      ChatSessionController.instance.applyRecvOptLocally(
+        conversationID: conversation.conversationID,
+        recvOpt: nextOpt.index,
+        snapshot: conversation,
+      );
+      try {
+        await ConversationSyncService.instance.applyConversationMuteLocally(
+          conversationID: conversation.conversationID,
+          recvOpt: nextOpt.index,
+          snapshot: conversation,
+        );
+      } catch (error) {
+        debugPrint('channel notification local sync failed: $error');
+      }
+    } catch (error) {
+      if (mounted) {
+        ToastUtils.toastForce(
+            AppI18n.of(context).t(
+              zhHans: '通知设置失败，请重试',
+              zhHant: '通知設定失敗，請重試',
+              en: 'Could not update notifications. Try again.',
+              ja: '通知設定に失敗しました。再試行してください。',
+              ko: '알림 설정에 실패했습니다. 다시 시도해 주세요.',
+            ),
+            context: context);
+      }
+    } finally {
+      if (mounted) setState(() => _changingChannelNotification = false);
+    }
+  }
+
+  bool _isChannelConversation() {
+    if (_getConvType() != ConvType.group) return false;
+    final groupId = _conversation.groupID?.trim() ??
+        widget.selectedConversation.groupID?.trim() ??
+        '';
+    return groupId.isNotEmpty &&
+        GroupLocalStore.instance.readCached(groupId: groupId)?.isChannel ==
+            true;
   }
 
   Future<void> _hydrateOfficialAccountMessageList() async {
@@ -4522,11 +4724,20 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final localMute = localSelf?.muteUntil ?? 0;
     final existingMute = existing?.muteUntil ?? 0;
-    final isAllMuted = localGroup?.isAllMuted == true;
-    final role = localGroup?.myRole ??
-        localSelf?.role ??
-        existing?.role ??
-        GroupMemberRoleType.V2TIM_GROUP_MEMBER_ROLE_MEMBER;
+    final isAllMuted =
+        localGroup?.isAllMuted == true || localGroup?.isChannel == true;
+    final isLocalOwner = localGroup != null &&
+        selfId.isNotEmpty &&
+        ChatIdFormat.rawUserUid(localGroup.ownerUserId) ==
+            ChatIdFormat.rawUserUid(selfId);
+    final localRole = localGroup?.myRole ?? 0;
+    final role = isLocalOwner
+        ? GroupMemberRoleType.V2TIM_GROUP_MEMBER_ROLE_OWNER
+        : localRole > 0
+            ? localRole
+            : localSelf?.role ??
+                existing?.role ??
+                GroupMemberRoleType.V2TIM_GROUP_MEMBER_ROLE_MEMBER;
     final exempt = GroupRolePolicy.isMuteExemptRole(role);
 
     int effectiveMute = existingMute > localMute ? existingMute : localMute;
@@ -4558,6 +4769,12 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       final model = _chatController.model;
       if (model == null || !mounted) {
         return;
+      }
+      // Mute updates only change muteUntil; they do not carry the member role.
+      // Seed the role first so a newly created channel is never kept as an
+      // ordinary, permanently muted member in the chat model.
+      if (model.selfMemberInfo?.role != role) {
+        model.updateSelfMemberInfo(seeded, groupID: groupId);
       }
       if (isAllMuted || effectiveMute > nowSec) {
         await model.updateSelfMuteStatus(
@@ -4752,6 +4969,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         title: _getHeaderTitleText(),
         headerState: _headerState,
         convType: _getConvType(),
+        isChannel: _isChannelConversation(),
         groupType: _headerGroupType(),
         onTap: headerInteractive ? _chatHeaderProfileTap : null,
         theme: theme,
@@ -4923,6 +5141,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     if (groupId.isEmpty) {
       return;
     }
+    _refreshChannelPresentation();
     unawaited(_applyCurrentGroupStoreCommit(groupId));
     unawaited(_refreshGroupSnapshotCount());
   }
@@ -4944,8 +5163,22 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         !containsCurrentGroup) {
       return;
     }
+    _refreshChannelPresentation();
     unawaited(_applyCurrentGroupStoreCommit(groupId));
     unawaited(_refreshGroupSnapshotCount());
+  }
+
+  void _refreshChannelPresentation() {
+    final isChannel = _isChannelConversation();
+    if (_lastChannelPresentation == isChannel) return;
+    _lastChannelPresentation = isChannel;
+    if (isChannel && _groupSide.groupNoticeBanner.isNotEmpty) {
+      _groupSide.groupNoticeBanner = '';
+      _syncChatTopFixState();
+    }
+    _invalidateChatConfigCache();
+    setState(() {});
+    unawaited(_seedSelfMemberFromLocalStore());
   }
 
   void _onGroupMemberStoreCommit() {
@@ -5170,7 +5403,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
           widget.selectedConversation.faceUrl = snapshot.avatarUrl;
           _cachedHeaderFaceUrl = snapshot.avatarUrl;
         }
-        if (!localPlaceholder || _groupSide.groupNoticeBanner.isEmpty) {
+        if (_isChannelConversation()) {
+          _groupSide.groupNoticeBanner = '';
+        } else if (!localPlaceholder || _groupSide.groupNoticeBanner.isEmpty) {
           _groupSide.groupNoticeBanner = snapshot.notice;
         }
         final headerChanged = _groupMemberCount != prevCount ||
@@ -5202,6 +5437,13 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     required String groupId,
     required String notice,
   }) async {
+    if (_isChannelConversation()) {
+      if (_groupSide.groupNoticeBanner.isNotEmpty) {
+        _groupSide.groupNoticeBanner = '';
+        _syncChatTopFixState();
+      }
+      return;
+    }
     var body = notice.trim();
     if (body.isNotEmpty &&
         await GroupNoticeMarqueeDismissService.instance.isDismissed(
@@ -6065,15 +6307,18 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   Widget _buildChatTopFixWidget() {
     return Column(mainAxisSize: MainAxisSize.min, children: [
       ChatAttachmentUploadOverlayBinding(
-        key: ValueKey('attachment-tasks:${ApiClient.instance.authenticatedUserId}:${_getConvID()}'),
-        target: ChatAttachmentTarget.fromConversationId(_getConvID() ?? '',
+        key: ValueKey(
+            'attachment-tasks:${ApiClient.instance.authenticatedUserId}:${_getConvID()}'),
+        target: ChatAttachmentTarget.fromConversationId(
+          _getConvID() ?? '',
           isGroup: _getConvType() == ConvType.group,
         ),
       ),
       ChatTopFixView(
         controller: _topFixState,
         onShowNotice: (notice) => unawaited(_showGroupNoticeFull(notice)),
-        onDismissNotice: (notice) => unawaited(_dismissGroupNoticeBanner(notice)),
+        onDismissNotice: (notice) =>
+            unawaited(_dismissGroupNoticeBanner(notice)),
         onGroupLiveTap: _onGroupLiveBannerTap,
         onCloseGroupLiveWatch: _closeGroupLiveWatch,
       ),
@@ -6082,7 +6327,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
 
   /// 读取当前群公告并刷新跑马灯（[forcedText] 优先，用于实时事件）。
   Future<void> _loadGroupNoticeBanner({String? forcedText}) async {
-    if (_getConvType() != ConvType.group) {
+    if (_getConvType() != ConvType.group || _isChannelConversation()) {
       if (_groupSide.groupNoticeBanner.isNotEmpty) {
         _groupSide.groupNoticeBanner = '';
         _syncChatTopFixState();
@@ -6134,10 +6379,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       final isDesktopOverlay =
           TUIKitScreenUtils.getFormFactor(overlayContext) == DeviceType.Desktop;
       final bottomSafePadding = MediaQuery.of(overlayContext).padding.bottom;
-      final scrollMaxHeight =
-          (MediaQuery.sizeOf(overlayContext).height *
-                  (isDesktopOverlay ? 0.45 : 0.55))
-              .clamp(120.0, 400.0);
+      final scrollMaxHeight = (MediaQuery.sizeOf(overlayContext).height *
+              (isDesktopOverlay ? 0.45 : 0.55))
+          .clamp(120.0, 400.0);
 
       return Padding(
         padding: EdgeInsets.fromLTRB(
@@ -6430,16 +6674,16 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     if (TUIKitScreenUtils.getFormFactor(context) != DeviceType.Desktop) {
       return null;
     }
-    if (!_watchingGroupLive) {
-      return null;
-    }
     final session = _groupLiveState.activeSession;
-    if (session == null) {
+    if (session == null ||
+        session.liveSessionId != _retainedGroupLiveSessionId ||
+        _retainedGroupLiveChatGeneration != _chatOpenGeneration) {
       return null;
     }
     return GroupLiveWatchFloat(
       key: ValueKey<String>('watch-float-${session.liveSessionId}'),
       session: session,
+      visible: _watchingGroupLive,
       anchorFaceUrl: _groupLiveWatchAnchorFaceUrl(
         groupId: session.groupId,
         anchorUserId: session.anchorUserId,
@@ -6474,9 +6718,10 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     }
     final i18n = AppI18n.of(context);
     final setupOnly = _groupSide.sangongNeedsSetup;
-    final settleLabel = !setupOnly && _sangongAdminRound?.canVoidResettle == true
-        ? SangongRoundSettleFlow.lastSettledCaption(i18n)
-        : null;
+    final settleLabel =
+        !setupOnly && _sangongAdminRound?.canVoidResettle == true
+            ? SangongRoundSettleFlow.lastSettledCaption(i18n)
+            : null;
     return GroupGameFloatingEntry(
       key: ValueKey<String>('group-game-${_resolvedConversationID()}'),
       theme: theme,
@@ -6531,7 +6776,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     final conversationId = _resolvedConversationID();
     try {
       final entry = await AgentRebateApi.instance.fetchEntryContext(groupId);
-      if (!_canUseAgentSession || !_isCurrentConversation(conversationId)) return;
+      if (!_canUseAgentSession || !_isCurrentConversation(conversationId))
+        return;
       final enabled = entry.showAgentEntry && entry.tenantId.isNotEmpty;
       if (enabled) SangongGameHttp.setTenantId(entry.tenantId);
       if (mounted && enabled != _groupSide.sangongAgentEntryEnabled) {
@@ -6549,7 +6795,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   }
 
   Widget? _buildSangongAgentFloatingEntry(TUITheme theme) {
-    if (!_canUseAgentSession || _getConvType() != ConvType.group ||
+    if (!_canUseAgentSession ||
+        _getConvType() != ConvType.group ||
         !_groupSide.sangongAgentEntryEnabled) {
       return null;
     }
@@ -6659,6 +6906,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   }
 
   bool _canShowGroupNoticePopup() {
+    if (_isChannelConversation()) return false;
     if (GroupNoticeRefreshBus.instance.isSideProfilePanelOpen) {
       return false;
     }
@@ -6730,8 +6978,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       if (!mounted || generation != _chatOpenPhaseGeneration) {
         return;
       }
-      final resolved = await resolvedFuture ??
-          await _resolveGroupNoticePopup();
+      final resolved = await resolvedFuture ?? await _resolveGroupNoticePopup();
       if (!mounted ||
           generation != _chatOpenPhaseGeneration ||
           resolved == null) {
@@ -6747,12 +6994,17 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     }
   }
 
-  Future<({String groupId, String notice, String signature, int? lastInfoTime})?>
-      _resolveGroupNoticePopup({
+  Future<
+      ({
+        String groupId,
+        String notice,
+        String signature,
+        int? lastInfoTime
+      })?> _resolveGroupNoticePopup({
     String? forcedNoticeText,
     int? pushTs,
   }) async {
-    if (_getConvType() != ConvType.group) {
+    if (_getConvType() != ConvType.group || _isChannelConversation()) {
       return null;
     }
     final groupId = widget.selectedConversation.groupID?.trim() ?? '';
@@ -6807,9 +7059,14 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   }
 
   Future<void> _presentResolvedGroupNotice(
-    ({String groupId, String notice, String signature, int? lastInfoTime})
-        resolved,
+    ({
+      String groupId,
+      String notice,
+      String signature,
+      int? lastInfoTime
+    }) resolved,
   ) {
+    if (_isChannelConversation()) return Future<void>.value();
     return _presentGroupNoticeOverlay(
       notice: resolved.notice,
       lastInfoTime: resolved.lastInfoTime,
@@ -7247,6 +7504,29 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   /// `restoreScrollAfterMediaPreview` 负责；强刷会在下滑关闭时闪一下。
   Future<void> _recoverChatHistoryAfterOverlayReturn({
     required String reason,
+  }) {
+    final conversationID = _resolvedConversationID();
+    final running = _overlayReturnRecoveryInFlight;
+    if (running != null &&
+        MessageConversationId.sameConversation(
+          _overlayReturnRecoveryConversationId,
+          conversationID,
+        )) {
+      return running;
+    }
+    final task = _performChatHistoryAfterOverlayReturn(reason: reason);
+    _overlayReturnRecoveryInFlight = task;
+    _overlayReturnRecoveryConversationId = conversationID;
+    return task.whenComplete(() {
+      if (identical(_overlayReturnRecoveryInFlight, task)) {
+        _overlayReturnRecoveryInFlight = null;
+        _overlayReturnRecoveryConversationId = null;
+      }
+    });
+  }
+
+  Future<void> _performChatHistoryAfterOverlayReturn({
+    required String reason,
   }) async {
     if (!mounted) {
       return;
@@ -7274,6 +7554,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       return;
     }
     _restoreActiveChatRegistry();
+    // A maintained route already owns its message anchors and relative offset.
+    // Ordinary returns must not reset its window or schedule a stale scroll.
+    if (_hasVisibleHistoryMessages()) return;
     _clearMountedDisplayListCache();
     final convKey = _getConvID()?.trim() ?? '';
     if (convKey.isNotEmpty &&
@@ -7284,24 +7567,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     }
     if (!_hasVisibleHistoryMessages()) {
       await _reloadChatHistoryIfEmpty(reason: reason);
-    } else {
-      // 有缓存消息仍空白时：贴底 + 轻量刷新驱动列表重绘。
-      try {
-        final scroll = _chatController.scrollController;
-        if (scroll != null && scroll.hasClients) {
-          scroll.jumpTo(scroll.position.minScrollExtent);
-        }
-      } catch (_) {}
-      ChatDiagLog.log(
-        'ChatHistory',
-        'overlay_return_refresh_ui',
-        conversationID: _resolvedConversationID(),
-        extras: <String, Object?>{
-          'reason': reason,
-          'rawCount':
-              convKey.isEmpty ? 0 : globalModel.rawMessageCount(convKey),
-        },
-      );
     }
     if (mounted) {
       setState(() {});
@@ -7317,7 +7582,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     }
     final convId = _resolvedConversationID();
     final convKey = _getConvID()?.trim() ?? '';
-    final reloadTrace = ChatOpenPerfLog.captureCurrent(conversationKey: convKey);
+    final reloadTrace =
+        ChatOpenPerfLog.captureCurrent(conversationKey: convKey);
     if (convId.isEmpty ||
         !MessageConversationId.sameConversation(
           ActiveChatRegistry.instance.activeConversationId,
@@ -7886,9 +8152,11 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
       );
       // Thin snapshots need history just as urgently as empty ones. Only a
       // complete first window can defer verification without delaying reveal.
-      final previewAhead = ConversationPreviewHistorySync.isPreviewAheadOfCachedHistory(
+      final previewAhead =
+          ConversationPreviewHistorySync.isPreviewAheadOfCachedHistory(
         preview: _conversation.lastMessage,
-        cached: globalModel.rawMessageList(conversationKey) ?? const <V2TimMessage>[],
+        cached: globalModel.rawMessageList(conversationKey) ??
+            const <V2TimMessage>[],
       );
       final delay = completeLocalWindow && !previewAhead
           ? const Duration(milliseconds: 700)
@@ -8051,7 +8319,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     final latestPreview = await _fetchConversationPreviewLastMessage();
     if (!mounted ||
         generation != _chatOpenPhaseGeneration ||
-        !SessionIdentityService.instance.isCurrent(verificationIdentity)) return;
+        !SessionIdentityService.instance.isCurrent(verificationIdentity))
+      return;
     final verificationConversation =
         V2TimConversation.fromJson(_conversation.toJson())
           ..lastMessage = latestPreview;
@@ -9353,6 +9622,13 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
     // 会话，不能在回调时重新取“当前会话”，否则 A 发送成功会清掉 B 草稿。
     final lifecycleConversationId = _resolvedConversationID();
     _chatLifeCycle = ChatLifeCycle(
+      textWillSubmit: _captureTextSubmission,
+      textDidClearAfterSubmit: _clearSubmittedDraftInput,
+      textDidSubmit: (submission, result) {
+        if (result.code == 0 && submission is ChatDraftSubmission) {
+          unawaited(_clearChatLocalDraftAfterSend(submission));
+        }
+      },
       newMessageWillMount: (V2TimMessage message) async {
         _handleGroupLiveIncomingMessage(message);
         unawaited(
@@ -9407,9 +9683,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         final conversationId = lifecycleConversationId.isNotEmpty
             ? lifecycleConversationId
             : _resolvedConversationID();
-        if (sendMsgRes.code == 0 && conversationId.isNotEmpty) {
-          unawaited(_clearChatLocalDraftAfterSend(conversationId));
-        }
         // 己方发送不走通知侧 patch；SDK onConversationChanged 若因群 ID
         // 形态/非成员门禁落库失败，列表预览会空，再进页会误标 empty-loaded。
         if (sendMsgRes.code == 0 && conversationId.isNotEmpty) {
@@ -9548,6 +9821,10 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      appRouteObserver.subscribe(this, route);
+    }
     if (!_groupSide.pendingGroupNoticeRecheck ||
         _groupSide.flushingPendingGroupNotice) {
       return;
@@ -9631,43 +9908,49 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
   }
 
   @override
-  void activate() {
-    super.activate();
-    final route = ModalRoute.of(context);
-    if (route != null && route.isCurrent) {
-      _restoreActiveChatRegistry(routeVisible: true);
-      final globalModel = serviceLocator<TUIChatGlobalModel>();
-      // 与 deactivate 对称：媒体预览 / 相册 / 钱包盖层自管滚动与 UI（021），
-      // 禁止走「贴底 + setState」强刷，否则下滑关闭时消息列表会闪一下。
-      if (globalModel.isMediaPreviewOverlayOpen ||
-          globalModel.isRestoringScrollAfterMediaPreview ||
-          globalModel.isMediaPickerOverlayOpen ||
-          globalModel.isWalletOverlayOpen) {
+  void didPushNext() {
+    // A maintained chat route is not deactivated when another page covers it.
+    ActiveChatRegistry.instance.updateRouteVisible(false);
+  }
+
+  @override
+  void didPopNext() {
+    _scheduleRouteReturnRecovery();
+  }
+
+  void _scheduleRouteReturnRecovery() {
+    if (_routeReturnRecoveryQueued) {
+      return;
+    }
+    _routeReturnRecoveryQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _routeReturnRecoveryQueued = false;
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
         return;
       }
-      // 真·二级页返回：空列表重拉，有消息则贴底刷新，避免整页空白。
-      // If a previous-direction pagination is in flight, skip the
-      // aggressive jumpTo+setState to avoid discarding the in-flight page.
-      // Fall back to a 2s timeout guard.
-      final model = _chatController.model;
-      final hasInFlightPrevious = model != null && model.isLoadingChatHistory;
-      if (hasInFlightPrevious) {
-        _restoreActiveChatRegistry(routeVisible: true);
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) {
-            unawaited(
-              _recoverChatHistoryAfterOverlayReturn(
-                reason: 'route_reactivated',
-              ),
-            );
-            unawaited(
-              _retryWalletCardsForConversation(
-                source: WalletCardSendSource.recovery,
-              ),
-            );
-          }
-        });
-      } else {
+      _recoverAfterRouteBecameCurrent();
+    });
+  }
+
+  void _recoverAfterRouteBecameCurrent() {
+    _restoreActiveChatRegistry(routeVisible: true);
+    final globalModel = serviceLocator<TUIChatGlobalModel>();
+    if (globalModel.isMediaPreviewOverlayOpen ||
+        globalModel.isRestoringScrollAfterMediaPreview ||
+        globalModel.isMediaPickerOverlayOpen ||
+        globalModel.isWalletOverlayOpen) {
+      return;
+    }
+    final generation = _chatOpenGeneration;
+    final conversationID = _resolvedConversationID();
+    final route = ModalRoute.of(context);
+    final model = _chatController.model;
+    if (model?.isLoadingChatHistory == true) {
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!_isChatOpenGenerationCurrent(generation, conversationID) ||
+            route?.isCurrent != true) {
+          return;
+        }
         unawaited(
           _recoverChatHistoryAfterOverlayReturn(reason: 'route_reactivated'),
         );
@@ -9676,12 +9959,31 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
             source: WalletCardSendSource.recovery,
           ),
         );
-      }
+      });
+      return;
+    }
+    unawaited(
+      _recoverChatHistoryAfterOverlayReturn(reason: 'route_reactivated'),
+    );
+    unawaited(
+      _retryWalletCardsForConversation(
+        source: WalletCardSendSource.recovery,
+      ),
+    );
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    final route = ModalRoute.of(context);
+    if (route != null && route.isCurrent) {
+      _scheduleRouteReturnRecovery();
     }
   }
 
   @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _mobileCommitGuard.advancePage();
     _chatOpenGeneration++;
@@ -10579,6 +10881,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
         );
       }
       _draft.beginConversation();
+      _draftEdit = null;
       _mobileCommitGuard.advanceConversation();
       _beginChatOpenGeneration();
       _chatOpenPhaseGeneration = _openLifecycle.beginConversation();
@@ -10975,10 +11278,13 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
                         return projectChatMessageOverlays(
                           formalMessages: formal,
                           overlays: hideRepresentedAttachmentUploads(
-                            overlays: overlays, formalMessages: formal,
+                            overlays: overlays,
+                            formalMessages: formal,
                             owner: ApiClient.instance.authenticatedUserId,
-                            pendingTasks: ChatAttachmentService.instance.tasksFor(
-                              ChatAttachmentTarget.fromConversationId(_getConvID() ?? '',
+                            pendingTasks:
+                                ChatAttachmentService.instance.tasksFor(
+                              ChatAttachmentTarget.fromConversationId(
+                                  _getConvID() ?? '',
                                   isGroup: _getConvType() == ConvType.group),
                             ),
                           ),
@@ -11034,6 +11340,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
                               title: _getHeaderTitleText(),
                               headerState: _headerState,
                               convType: _getConvType(),
+                              isChannel: _isChannelConversation(),
                               groupType: _headerGroupType(),
                               onTap: _chatHeaderProfileTap,
                               theme: theme,
@@ -11042,10 +11349,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
                               icon: const Icon(
                                 Icons.arrow_back_ios_new_rounded,
                               ),
-                              color: theme.primaryColor ??
-                                  const Color(0xFF1E90FF),
-                              onPressed: () =>
-                                  Navigator.of(context).maybePop(),
+                              color:
+                                  theme.primaryColor ?? const Color(0xFF1E90FF),
+                              onPressed: () => Navigator.of(context).maybePop(),
                             ),
                             iconTheme: IconThemeData(
                               color:
@@ -11095,6 +11401,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver {
                                             title: _getHeaderTitleText(),
                                             headerState: _headerState,
                                             convType: _getConvType(),
+                                            isChannel: _isChannelConversation(),
                                             groupType: _headerGroupType(),
                                             onTap: _chatHeaderProfileTap,
                                             theme: theme,

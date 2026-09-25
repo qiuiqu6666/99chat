@@ -9,32 +9,32 @@ void main() {
     chatSource = File('lib/src/chat.dart').readAsStringSync();
   });
 
-  test('activate gates media overlay before route_reactivated recover', () {
-    final activateAt = chatSource.indexOf('void activate()');
-    expect(activateAt, greaterThanOrEqualTo(0));
-    // Window is larger than 900 chars now that a pagination-in-flight guard
-    // (plan 8B) sits between the media gate and the recover call.
-    final activateBody = chatSource.substring(activateAt, activateAt + 1600);
+  test('route return gates media overlay before recovering history', () {
+    final recoveryAt = chatSource.indexOf(
+      'void _recoverAfterRouteBecameCurrent()',
+    );
+    expect(recoveryAt, greaterThanOrEqualTo(0));
+    final recoveryBody = chatSource.substring(recoveryAt, recoveryAt + 1900);
 
-    expect(activateBody.contains('isMediaPreviewOverlayOpen'), isTrue);
+    expect(recoveryBody.contains('isMediaPreviewOverlayOpen'), isTrue);
     expect(
-      activateBody.contains('isRestoringScrollAfterMediaPreview'),
+      recoveryBody.contains('isRestoringScrollAfterMediaPreview'),
       isTrue,
     );
-    expect(activateBody.contains('isMediaPickerOverlayOpen'), isTrue);
-    expect(activateBody.contains('isWalletOverlayOpen'), isTrue);
+    expect(recoveryBody.contains('isMediaPickerOverlayOpen'), isTrue);
+    expect(recoveryBody.contains('isWalletOverlayOpen'), isTrue);
 
-    final mediaGate = activateBody.indexOf('isMediaPreviewOverlayOpen');
+    final mediaGate = recoveryBody.indexOf('isMediaPreviewOverlayOpen');
     final recoverCall =
-        activateBody.indexOf("_recoverChatHistoryAfterOverlayReturn");
+        recoveryBody.indexOf("_recoverChatHistoryAfterOverlayReturn");
     expect(mediaGate, greaterThanOrEqualTo(0));
     expect(recoverCall, greaterThan(mediaGate));
-    expect(activateBody.contains("reason: 'route_reactivated'"), isTrue);
+    expect(recoveryBody.contains("reason: 'route_reactivated'"), isTrue);
   });
 
   test('recover skips aggressive jumpTo for media route_reactivated', () {
     final recoverAt = chatSource.indexOf(
-      'Future<void> _recoverChatHistoryAfterOverlayReturn',
+      'Future<void> _performChatHistoryAfterOverlayReturn',
     );
     expect(recoverAt, greaterThanOrEqualTo(0));
     final recoverBody = chatSource.substring(recoverAt, recoverAt + 2800);

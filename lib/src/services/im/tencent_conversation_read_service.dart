@@ -1,4 +1,5 @@
 import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
+import 'conversation_read_policy.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_callback.dart'
@@ -17,13 +18,20 @@ class TencentConversationReadService {
     required String conversationID,
     required bool isGroup,
     required SessionIdentity capturedIdentity,
+    bool explicitFullConversationClear = false,
   }) async {
     final id = _rawPeerID(conversationID, isGroup: isGroup);
-    if (id.isEmpty) {
+    if (id.isEmpty || id == 'c2c' || id == 'group') {
       return V2TimCallback(code: -1, desc: 'empty_conversation_id');
     }
     if (!_isCurrent(capturedIdentity)) {
       return _staleIdentity();
+    }
+    // Old page lifecycle callbacks carry no visible-message watermark.
+    // They must not clear newer/unseen messages; the read outbox owns those
+    // bounded acknowledgements. Full clears require an explicit user action.
+    if (!explicitFullConversationClear) {
+      return V2TimCallback(code: -1, desc: 'read_watermark_unavailable');
     }
     final result = isGroup
         ? await messageService.markGroupMessageAsRead(groupID: id)
@@ -45,7 +53,8 @@ class TencentConversationReadService {
     if (!_isCurrent(capturedIdentity)) {
       return _staleIdentity();
     }
-    if (!allowFullTypeClean && cleanTimestamp <= 0 && cleanSequence <= 0) {
+    if (!ConversationReadPolicy.validTarget(id, cleanTimestamp, cleanSequence,
+        explicitTypeClear: allowFullTypeClean)) {
       return V2TimCallback(code: -1, desc: 'read_watermark_unavailable');
     }
     final result = await TencentImSDKPlugin.v2TIMManager

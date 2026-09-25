@@ -3,7 +3,6 @@ import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/contracts/account_scoped_conversation_key.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/contracts/outgoing_identity_contract.dart';
-import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/im05_persistence.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
@@ -11,7 +10,7 @@ import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 
 /// 发送失败消息策略：
 /// - 已失败（SEND_FAIL）→ 显示红色感叹号，**不**在进会话/恢复时自动重发
-/// - 卡住的发送中（SENDING）→ 落成 SEND_FAIL，交给用户手动点感叹号重发
+/// - 卡住的发送中（SENDING）→ 仅在 Outbox 已确认失败时展示失败
 class ChatFailedMessageRetryService {
   ChatFailedMessageRetryService._();
 
@@ -35,10 +34,9 @@ class ChatFailedMessageRetryService {
     return null;
   }
 
-  /// Routes a stuck sending message through the Outbox failure path before
-  /// the UI projection is updated. Returns false only when the durable state
-  /// is OutcomeUnknown, which must remain sending until provider evidence or
-  /// an explicit user action resolves it.
+  /// A timer is not failure evidence. A known Outbox operation may expose a
+  /// retry only when its current durable verdict allows one. Missing identity
+  /// and unavailable storage do not prove that dispatch is safe.
   @visibleForTesting
   Future<bool> recordOutboxFailureForStuckMessage({
     required String storageKey,
@@ -47,21 +45,25 @@ class ChatFailedMessageRetryService {
     String resultCode = '-1',
   }) async {
     final localId = sdkLocalId.trim();
-    if (localId.isEmpty) return true;
+    if (localId.isEmpty) return false;
     final type = detectConversationType(storageKey);
-    if (type == null) return true;
+    if (type == null) return false;
     final identity = SessionIdentityService.instance.capture();
-    if (identity.ownerUserId.isEmpty) return true;
+    if (identity.ownerUserId.isEmpty) return false;
     final scope = AccountScopedConversationKey.tryParse(
       ownerUserId: identity.ownerUserId,
       conversationType: type,
       conversationId: storageKey,
     );
-    if (scope == null) return true;
+    if (scope == null) return false;
     final leaseContext = await ConversationSyncService.instance
         .messageCoreLeaseForOutgoingSend();
-    if (leaseContext == null) return true;
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (leaseContext == null ||
+        !SessionIdentityService.instance.isCurrent(identity) ||
+        leaseContext.ownerUserId != identity.ownerUserId ||
+        leaseContext.accountGeneration != identity.generation) {
+      return false;
+    }
     final persistence = Im05Persistence(store: leaseContext.store);
     final resolved = await persistence.findOutboxBySdkLocalId(
       ownerUserId: identity.ownerUserId,
@@ -70,25 +72,11 @@ class ChatFailedMessageRetryService {
     );
     final operationId = resolved?.operationId ??
         hashOutgoingOperationId(scope: scope, sdkLocalId: localId);
-    final current = resolved ??
-        await leaseContext.store.transaction(
-          (transaction) => transaction.findOutbox(
-            ownerUserId: identity.ownerUserId,
-            operationId: operationId,
-          ),
-        );
-    if (current?.state == ImOutboxState.outcomeUnknown) return false;
-    await persistence.recordOutboxSdkFailed(
-      ownerUserId: identity.ownerUserId,
-      operationId: operationId,
-      leaseOwnerId: leaseContext.lease.leaseOwnerId,
-      fencingToken: leaseContext.lease.fencingToken,
-      nowMs: nowMs,
-      sdkLocalId: localId,
-      serverMsgId: serverMsgId,
-      resultCode: resultCode,
-    );
-    return true;
+    final verdict = await persistence.readOutboxResult(
+        ownerUserId: identity.ownerUserId, operationId: operationId);
+    if (!SessionIdentityService.instance.isCurrent(identity)) return false;
+    // Absence alone does not prove that this is a legacy, never-accepted send.
+    return verdict.canRetry;
   }
 
   /// 将卡住的「发送中」落成发送失败（红感叹号），不自动重发。
@@ -98,6 +86,7 @@ class ChatFailedMessageRetryService {
     Duration stuckLongerThan = const Duration(seconds: 15),
   }) async {
     final globalModel = serviceLocator<TUIChatGlobalModel>();
+    final identity = SessionIdentityService.instance.capture();
     final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final stuckBefore = nowSeconds - stuckLongerThan.inSeconds;
     final filterId = conversationID?.trim() ?? '';
@@ -122,14 +111,25 @@ class ChatFailedMessageRetryService {
         if (ts > 0 && ts > stuckBefore) {
           continue;
         }
-        // 先把失败写进 Outbox 主记录（如果能定位 scope）；Outbox 不可达
-        // 时仍然更新 UI 投影，保证原有的兜底体验不丢。
-        final shouldSettleAsFailed = await recordOutboxFailureForStuckMessage(
-          storageKey: convID,
-          sdkLocalId: message.id ?? '',
-          serverMsgId: message.msgID,
-          resultCode: 'stuck_sending',
-        );
+        final storageKey = detectConversationType(convID) != null
+            ? convID
+            : (message.groupID?.isNotEmpty == true ||
+                    conversationType == ConvType.group)
+                ? 'group_$convID'
+                : 'c2c_$convID';
+        final bool shouldSettleAsFailed;
+        try {
+          shouldSettleAsFailed = await recordOutboxFailureForStuckMessage(
+            storageKey: storageKey,
+            sdkLocalId: message.id ?? '',
+            serverMsgId: message.msgID,
+            resultCode: 'stuck_sending',
+          );
+        } catch (_) {
+          // Local persistence unavailable is not proof the SDK send failed.
+          continue;
+        }
+        if (!SessionIdentityService.instance.isCurrent(identity)) return;
         if (!shouldSettleAsFailed) continue;
         globalModel.markOutgoingSendFailedByIdentity(
           conversationID: convID,

@@ -201,14 +201,8 @@ class ContactsProtocolSyncService with WidgetsBindingObserver {
     final owner = identity.ownerUserId;
     final sessionKey = '$owner|${identity.generation}';
     try {
-      if (!_projectedSessions.contains(sessionKey)) {
-        final cached =
-            await FriendLocalStore.instance.readAll(ownerUserId: owner);
-        if (!_isCurrent(identity)) return;
-        await _projectSnapshot(
-            identity: identity, before: cached, after: cached);
-        _projectedSessions.add(sessionKey);
-      }
+      await _ensureDirectoryProjection(identity);
+      if (!_isCurrent(identity)) return;
       final job = await FriendLocalStore.instance.readSyncJob(
         ownerUserId: owner,
       );
@@ -267,7 +261,42 @@ class ContactsProtocolSyncService with WidgetsBindingObserver {
         debugPrint(
             'ContactsProtocolSync: retry pending reason=$reason error=$error');
       }
+    } finally {
+      // IM login may reset the directory during a successful or failed remote
+      // request. Restore unchanged friends before releasing waiting pages.
+      if (_isCurrent(identity) &&
+          !ImSdkRelationshipDirectory.instance.hasCompleteFriendSnapshot) {
+        try {
+          await _ensureDirectoryProjection(identity);
+        } catch (error) {
+          _projectedSessions.remove(sessionKey);
+          if (kDebugMode) {
+            debugPrint(
+                'ContactsProtocolSync: directory restore failed error=$error');
+          }
+        }
+      }
     }
+  }
+
+  Future<void> _ensureDirectoryProjection(SessionIdentity identity) async {
+    if (!_isCurrent(identity)) return;
+    final sessionKey = '${identity.ownerUserId}|${identity.generation}';
+    final directory = ImSdkRelationshipDirectory.instance;
+    // Session hydration and directory lifetime are independent: IM login
+    // resets the latter without clearing this service's session marker.
+    // Use snapshot completeness, not count, so a genuinely empty address book
+    // remains valid and confirmed deletions are not restored from old memory.
+    if (_projectedSessions.contains(sessionKey) &&
+        directory.hasCompleteFriendSnapshot) {
+      return;
+    }
+    final cached = await FriendLocalStore.instance.readAll(
+      ownerUserId: identity.ownerUserId,
+    );
+    if (!_isCurrent(identity)) return;
+    await _projectSnapshot(identity: identity, before: cached, after: cached);
+    if (_isCurrent(identity)) _projectedSessions.add(sessionKey);
   }
 
   bool _isTerminalAuth(SyncProtocolException error) {

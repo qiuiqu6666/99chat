@@ -30,6 +30,7 @@ class GroupProfileMemberListPage extends StatefulWidget {
   final void Function(List<String> userIds)? onMemberListLoaded;
   final Listenable? presenceListenable;
   final bool isShowOnlineStatus;
+  final bool isChannel;
 
   GroupProfileMemberListPage({
     Key? key,
@@ -41,6 +42,7 @@ class GroupProfileMemberListPage extends StatefulWidget {
     this.onMemberListLoaded,
     this.presenceListenable,
     this.isShowOnlineStatus = true,
+    this.isChannel = false,
   }) : super(key: key);
 
   @override
@@ -140,7 +142,9 @@ class GroupProfileMemberListPageState
           ]),
         );
     final hasLocalRows = members.isNotEmpty ||
-        model.groupMemberList.whereType<V2TimGroupMemberFullInfo>().isNotEmpty ||
+        model.groupMemberList
+            .whereType<V2TimGroupMemberFullInfo>()
+            .isNotEmpty ||
         model.hasLocalManagementPreview;
     if (!model.hasLoadedManagementMembers && !hasLocalRows) {
       return Center(
@@ -156,11 +160,12 @@ class GroupProfileMemberListPageState
           if (model.hasManagementMemberListError) retryMessage(),
           GroupMemberSearchTextField(
             onTextChange: _handleSearchText,
-            hintText: TIM_t('搜索群成员'),
+            hintText: widget.isChannel ? '搜索订阅者' : TIM_t('搜索群成员'),
           ),
         ],
       ),
       memberList: members,
+      ownerRoleLabel: widget.isChannel ? '创建人' : null,
       removeMember: _kickedOffMember,
       canSlideDelete: model.canKickOffMember(),
       canRemoveMember: model.canKickMember,
@@ -182,8 +187,10 @@ class GroupProfileMemberListPageState
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
                     _cloudSearch.usedCloud
-                        ? TIM_t('未找到匹配的群成员')
-                        : TIM_t('当前已加载成员中无匹配结果'),
+                        ? (widget.isChannel ? '未找到匹配的订阅者' : TIM_t('未找到匹配的群成员'))
+                        : (widget.isChannel
+                            ? '当前已加载订阅者中无匹配结果'
+                            : TIM_t('当前已加载成员中无匹配结果')),
                     style: TextStyle(
                       fontSize: 13,
                       color: theme.weakTextColor ?? const Color(0xFF9CA3AF),
@@ -219,8 +226,10 @@ class GroupProfileMemberListPageState
         return Scaffold(
           appBar: AppBar(
             title: Text(
-              TIM_t_para("群成员({{option1}}人)", "群成员($option1人)")(
-                  option1: option1),
+              widget.isChannel
+                  ? '$option1位订阅者'
+                  : TIM_t_para("群成员({{option1}}人)", "群成员($option1人)")(
+                      option1: option1),
               style: TextStyle(color: theme.appbarTextColor, fontSize: 17),
             ),
             shadowColor: theme.weakBackgroundColor,

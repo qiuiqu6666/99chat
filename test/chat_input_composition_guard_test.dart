@@ -17,7 +17,7 @@ void main() {
     expect(source.contains('Duration(milliseconds: 48)'), isFalse);
     expect(source.contains('syncScrollWithKeyboard'), isFalse);
     expect(
-      source.contains(
+      source.replaceAll(RegExp(r'\s+'), ' ').contains(
         'KeyboardViewportTransitionCoordinator.active?.isAnimating == true',
       ),
       isTrue,
@@ -58,10 +58,10 @@ void main() {
   test('host has a barrier in both lifecycle save and send cleanup paths', () {
     final source = File('lib/src/chat.dart').readAsStringSync();
     expect(source.contains('shouldSuppressLifecyclePersist'), isTrue);
-    expect(source.contains('markSendCompleted()'), isTrue);
-    expect(source.contains('sendMsgRes.code == 0 && conversationId.isNotEmpty'),
-        isTrue);
-    expect(source.contains('clearDraftForConversationIds'), isTrue);
+    expect(source, contains('markSendCompleted(submission)'));
+    expect(source, contains('textWillSubmit: _captureTextSubmission'));
+    expect(source, contains('textDidClearAfterSubmit: _clearSubmittedDraftInput'));
+    expect(source, contains('expectedEdit: edit'));
   });
 
   test('programmatic send clear is forwarded to the draft owner', () {
@@ -73,7 +73,7 @@ void main() {
         RegExp(r'textEditingController\.clear\(\);').allMatches(source).length,
         2);
     expect(
-        RegExp(r'widget\.onChanged\?\.call\(""\);').allMatches(source).length,
+        RegExp(r'_notifySubmissionClear\(submission\);').allMatches(source).length,
         2);
   });
 

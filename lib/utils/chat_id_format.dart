@@ -5,7 +5,8 @@ class ChatIdFormat {
   static const int _groupIdCacheMax = 4096;
   static final Map<String, String> _normalizedGroupIdCache = <String, String>{};
   static final Map<String, String> _canonicalGroupIdCache = <String, String>{};
-  static final Map<String, String?> _groupEquivalenceTokenCache = <String, String?>{};
+  static final Map<String, String?> _groupEquivalenceTokenCache =
+      <String, String?>{};
 
   static void _cachePut<T>(Map<String, T> cache, String key, T value) {
     if (cache.length >= _groupIdCacheMax && !cache.containsKey(key)) {
@@ -13,6 +14,7 @@ class ChatIdFormat {
     }
     cache[key] = value;
   }
+
   ChatIdFormat._();
 
   /// 腾讯云 IM「默认分配」社群完整 ID 前缀（`@TGS#_@TGS#{short}`）。
@@ -199,7 +201,8 @@ class ChatIdFormat {
       return ordered;
     }
 
-    final short = communityShortSuffix(normalized) ?? groupEquivalenceToken(raw);
+    final short =
+        communityShortSuffix(normalized) ?? groupEquivalenceToken(raw);
     if (short != null &&
         short.isNotEmpty &&
         !short.toUpperCase().contains('TGS#')) {
@@ -245,8 +248,8 @@ class ChatIdFormat {
     final api = apiGroupId(source);
     final normalized = normalizeGroupId(source);
     final upper = source.toUpperCase();
-    final inputIsFullCommunity = upper.startsWith('@TGS#_@TGS#') ||
-        upper.startsWith('TGS#_@TGS#');
+    final inputIsFullCommunity =
+        upper.startsWith('@TGS#_@TGS#') || upper.startsWith('TGS#_@TGS#');
 
     if (isCustomCommunityId(source) || isCustomCommunityId(normalized)) {
       add(normalized);
@@ -799,7 +802,8 @@ class ChatIdFormat {
   /// - 短码真源 / `@TGS#_mc…` → 返回误加成 `group_@TGS#_@TGS#…`
   /// - 仍传入误加成完整形态 → 返回应保留的 `group_{short}` 的「对侧」完整行
   ///   （调用方通常已 normalize；此分支兼容未剥短的原文）
-  static String? supersededBareShortConversationId(String? conversationOrGroupId) {
+  static String? supersededBareShortConversationId(
+      String? conversationOrGroupId) {
     final raw = (conversationOrGroupId ?? '').trim();
     if (raw.isEmpty) {
       return null;

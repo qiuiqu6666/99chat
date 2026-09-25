@@ -24,6 +24,7 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_videoplayer.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_media_preview_item.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/image_hero.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/image_preview_center_loading_indicator.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_video_chrome.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_slide_metrics.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_slide_shell.dart';
@@ -557,7 +558,7 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
   Widget _buildSlideBody(Orientation orientation) {
     if (_recoveringVideo) {
       return const Center(
-          child: CircularProgressIndicator(color: Colors.white));
+          child: ImagePreviewCenterLoadingIndicator());
     }
     if (_shouldBuildPlayer) {
       final attachmentPlayerKey = _playerKey;
@@ -570,6 +571,7 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
             : widget.externalVideo,
         resolveVideo: _playerItem.resolveVideo,
         deferInitialization: true,
+        showLoadingIndicator: false,
         preferOnlinePlayback: true,
         isSending:
             _playerMessage.status == MessageStatus.V2TIM_MSG_STATUS_SENDING,
@@ -667,6 +669,13 @@ class _VideoScreenState extends TIMUIKitState<VideoScreen>
                     ),
                   ),
                 ),
+              ),
+            if (_shouldBuildPlayer &&
+                _heroOverlayVisible &&
+                _heroOverlayOpacity > 0 &&
+                !_closing)
+              const IgnorePointer(
+                child: Center(child: ImagePreviewCenterLoadingIndicator()),
               ),
             if (!_shouldBuildPlayer)
               Center(

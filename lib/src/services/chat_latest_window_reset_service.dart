@@ -282,7 +282,13 @@ class ChatLatestWindowResetService {
     _contextByKey[key] = _ResetContext(conversation, globalModel);
     if (!needsLatestWindowReset(key)) return LatestWindowResetOutcome.skipped;
     final existing = _inFlightByKey[key];
-    if (existing != null) return existing.future;
+    if (existing != null) {
+      if (_opIsCurrent(existing)) return existing.future;
+      // A reopened page must not wait for a request bound to the page it left.
+      // That request still checks its generation before publishing a response.
+      final wake = existing.syncWake;
+      if (wake != null && !wake.isCompleted) wake.complete();
+    }
 
     final op = _ResetOperation(
       id: ++_opSequence,
@@ -543,8 +549,10 @@ class ChatLatestWindowResetService {
 
   LatestWindowResetOutcome _endInvalid(_ResetOperation op) {
     // The page / session this operation belonged to is gone. Whatever it had
-    // installed stays provisional so the next open re-arms the reset.
-    _provisionalKeys.add(op.conversationKey);
+    // installed stays provisional, unless a newer operation has taken over.
+    if (identical(_inFlightByKey[op.conversationKey], op)) {
+      _provisionalKeys.add(op.conversationKey);
+    }
     return op.installedProvisional
         ? LatestWindowResetOutcome.installedProvisional
         : LatestWindowResetOutcome.skipped;
@@ -594,7 +602,22 @@ class ChatLatestWindowResetService {
       requestedSource: MessageReconciliationSource.cloud,
       networkState: networkBefore,
     );
-    final result = await _env.loadCloud(conversation);
+    final ConversationPeekLoadResult result;
+    try {
+      result = await _env.loadCloud(conversation);
+    } catch (error) {
+      globalModel.failHistoryReconciliation(
+        request: request,
+        reason: 'latest_window_reset_load_failed',
+      );
+      _trace('latest_window_reset_retry_error', op, extras: <String, Object?>{
+        'attempt': attempt,
+        'error': error.toString(),
+      });
+      return _opIsCurrent(op)
+          ? _AttemptOutcome.retry
+          : _AttemptOutcome.superseded;
+    }
     final networkAfter = globalModel.messageReconciliationNetworkState;
     final syncPendingAfter = _env.serverSyncPending();
     final provenance = MessageReconciliationProvenance.resolve(
@@ -603,7 +626,8 @@ class ChatLatestWindowResetService {
       afterResponse: networkAfter,
     );
     final epochAfter = _env.recoveryEpoch();
-    final fresh = freshnessProven(
+    final fresh = result.receivedCloudResponse &&
+        freshnessProven(
           cloudTransportConfirmed: provenance.cloudTransportConfirmed,
           networkOnline: _env.networkOnline,
           transportReady: _env.transportReady(),
@@ -663,16 +687,24 @@ class ChatLatestWindowResetService {
     //    of the data being validated.
     final edge = latestEdgeMatchesPreview(preview: preview, rawWindow: raw);
     final contiguous = windowIsSelfContiguous(rawWindow: raw, isGroup: isGroup);
-    if (!edge.matched || !contiguous) {
+    // SDK pages omit deleted/unavailable messages, so numeric seq gaps do not
+    // prove that a fresh latest-page response is incomplete. Keep the strict
+    // continuity check for unverified/local fallback data. A missing preview
+    // is also not a stale edge: the fresh SDK page can establish that edge.
+    final edgeAccepted = edge.matched ||
+        (preview == null && fresh && rawConfirmedLatest(raw) != null);
+    final windowAccepted = contiguous || fresh;
+    if (!edgeAccepted || !windowAccepted) {
       globalModel.failHistoryReconciliation(
         request: request,
-        reason: !edge.matched
+        reason: !edgeAccepted
             ? 'latest_window_reset_edge_mismatch'
             : 'latest_window_reset_not_contiguous',
       );
       _trace('latest_window_reset_reject_raw', op, extras: <String, Object?>{
         'attempt': attempt,
         'edgeMatched': edge.matched,
+        'edgeAccepted': edgeAccepted,
         'contiguous': contiguous,
         'fresh': fresh,
         'rawNewestSeq': raw.first.seq,
@@ -783,7 +815,8 @@ class ChatLatestWindowResetService {
       });
     }
 
-    final canCertify = provenance.cloudTransportConfirmed &&
+    final canCertify = result.receivedCloudResponse &&
+        provenance.cloudTransportConfirmed &&
         _env.networkOnline &&
         _env.transportReady() &&
         !_env.serverSyncPending();

@@ -44,6 +44,12 @@ class HomeQuickActionTile extends StatelessWidget {
           en: 'Start a group conversation',
           ja: 'グループチャットを開始',
           ko: '그룹 대화 시작'),
+      'createChannel' => i18n.t(
+          zhHans: '发布内容，供订阅者阅读',
+          zhHant: '發佈內容，供訂閱者閱讀',
+          en: 'Publish posts for subscribers',
+          ja: '購読者に投稿を公開',
+          ko: '구독자에게 게시물 발행'),
       _ => i18n.t(
           zhHans: '扫描二维码添加好友',
           zhHant: '掃描 QR 碼添加好友',
@@ -148,6 +154,18 @@ class _QuickActionPainter extends CustomPainter {
             ..lineTo(25, 30)
             ..cubicTo(26, 27, 25, 24, 23, 21),
           fill);
+    } else if (id == 'createChannel') {
+      canvas.drawCircle(const Offset(18, 18), 14, fill);
+      canvas.drawPath(
+          Path()
+            ..moveTo(10, 16)
+            ..lineTo(26, 10)
+            ..lineTo(26, 26)
+            ..lineTo(10, 20)
+            ..close(),
+          Paint()..color = Colors.white);
+      canvas.drawRect(
+          const Rect.fromLTWH(8, 15, 4, 7), Paint()..color = Colors.white);
     } else {
       final p = Path();
       p.moveTo(4, 11);

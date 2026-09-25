@@ -1,4 +1,6 @@
+import 'app_hud_indicator.dart';
 import 'media_preview_reference_button.dart';
+import 'media_preview_save_notice.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
@@ -151,7 +153,7 @@ class MediaPreviewBottomBar extends StatelessWidget {
 
   final VoidCallback? onShare;
   final VoidCallback? onEdit;
-  final VoidCallback? onDownload;
+  final Future<void> Function()? onDownload;
   final VoidCallback? onDelete;
   final VoidCallback? onOpenMedia;
   final VoidCallback? onTogglePlayback;
@@ -179,10 +181,7 @@ class MediaPreviewBottomBar extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            _BottomAction(
-              icon: Icons.download_rounded,
-              onPressed: onDownload,
-            ),
+            _ImageSaveAction(onPressed: onDownload),
           ],
         ),
       );
@@ -243,10 +242,7 @@ class MediaPreviewBottomBar extends StatelessWidget {
                 ),
                 const SizedBox(width: actionSpacing),
               ],
-              _BottomAction(
-                icon: Icons.download_rounded,
-                onPressed: onDownload,
-              ),
+              _ImageSaveAction(onPressed: onDownload),
               if (onOpenMedia != null) ...[
                 const SizedBox(width: actionSpacing),
                 MediaPreviewGalleryButton(onPressed: onOpenMedia!),
@@ -285,7 +281,7 @@ class MediaPreviewDesktopOverlayChrome extends StatelessWidget {
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
   final VoidCallback? onShare;
-  final VoidCallback? onDownload;
+  final Future<void> Function()? onDownload;
   final VoidCallback? onMore;
   final VoidCallback? onRotate;
 
@@ -349,10 +345,7 @@ class MediaPreviewDesktopOverlayChrome extends StatelessWidget {
                 onPressed: onRotate,
               ),
               const SizedBox(width: 4),
-              _BottomAction(
-                icon: Icons.download_rounded,
-                onPressed: onDownload,
-              ),
+              _ImageSaveAction(onPressed: onDownload),
               const SizedBox(width: 4),
               _BottomAction(
                 icon: Icons.more_horiz_rounded,
@@ -364,6 +357,85 @@ class MediaPreviewDesktopOverlayChrome extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ImageSaveAction extends StatefulWidget {
+  const _ImageSaveAction({this.onPressed});
+
+  final Future<void> Function()? onPressed;
+
+  @override
+  State<_ImageSaveAction> createState() => _ImageSaveActionState();
+}
+
+class _ImageSaveActionState extends State<_ImageSaveAction> {
+  bool _saving = false;
+  OverlayEntry? _savingOverlay;
+
+  void _removeSavingOverlay() {
+    final entry = _savingOverlay;
+    _savingOverlay = null;
+    entry?.remove();
+    entry?.dispose();
+  }
+
+  @override
+  void dispose() {
+    _removeSavingOverlay();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final action = widget.onPressed;
+    if (_saving || action == null) return;
+    setState(() => _saving = true);
+    try {
+      final entry = OverlayEntry(
+        builder: (_) => Positioned.fill(
+          child: Stack(
+            children: [
+              const ModalBarrier(
+                color: Colors.transparent,
+                dismissible: false,
+              ),
+              Center(
+                child: Semantics(
+                  label: TIM_t('正在保存…'),
+                  liveRegion: true,
+                  child: const AppHudIndicator(
+                    key: ValueKey('image-save-loading'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      Overlay.of(context, rootOverlay: true).insert(entry);
+      _savingOverlay = entry;
+      // Save callbacks publish their own result notices. Paint the indicator
+      // first and give it a short visible lead-in, even for a cached image.
+      await WidgetsBinding.instance.endOfFrame;
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      if (!mounted) return;
+      await action();
+    } catch (error) {
+      debugPrint('[ImageSave] action_failed type=${error.runtimeType}');
+      _removeSavingOverlay();
+      if (mounted) MediaPreviewSaveNotice.show(context, success: false);
+    } finally {
+      _removeSavingOverlay();
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => MediaPreviewReferenceButton(
+        key: const ValueKey('image-inline-save'),
+        icon: Icons.download_rounded,
+        label: TIM_t('保存'),
+        onPressed: _saving || widget.onPressed == null ? null : _save,
+      );
 }
 
 class MediaPreviewGalleryButton extends StatelessWidget {

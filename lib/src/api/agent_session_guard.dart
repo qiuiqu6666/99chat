@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:dio/dio.dart';
 import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
@@ -63,6 +65,7 @@ class AgentSessionInterceptor extends Interceptor {
     if (_handles(options)) {
       if (rejectStaleRequest(options, handler)) return;
       if (!AgentSessionSnapshot.canRequest) {
+        unawaited(ApiClient.instance.expireSessionIfNeeded());
         handler.reject(_cancel(options));
         return;
       }
@@ -72,19 +75,32 @@ class AgentSessionInterceptor extends Interceptor {
   }
 
   @override
-  void onResponse(Response response, ResponseInterceptorHandler handler) {
+  void onResponse(Response response, ResponseInterceptorHandler handler) async {
     if (_isStale(response.requestOptions)) {
       handler.reject(_cancel(response.requestOptions));
+      return;
+    }
+    final error = DioError(
+      requestOptions: response.requestOptions,
+      response: response,
+      type: DioErrorType.response,
+    );
+    if (_handles(response.requestOptions) &&
+        await ApiClient.instance.handleSessionExpiryError(error)) {
+      handler.reject(error);
       return;
     }
     handler.next(response);
   }
 
   @override
-  void onError(DioError err, ErrorInterceptorHandler handler) {
+  void onError(DioError err, ErrorInterceptorHandler handler) async {
     if (_isStale(err.requestOptions)) {
       handler.reject(_cancel(err.requestOptions));
       return;
+    }
+    if (_handles(err.requestOptions)) {
+      await ApiClient.instance.handleSessionExpiryError(err);
     }
     handler.next(err);
   }

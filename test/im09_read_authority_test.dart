@@ -32,7 +32,21 @@ V2TimCallback _success() => V2TimCallback(code: 0, desc: 'ok');
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('normalizes C2C and group ids before the SDK authority call', () async {
+  test('page lifecycle without a watermark never invokes a full SDK clear',
+      () async {
+    final service = _FakeMessageService();
+    final result = await TencentConversationReadService.markRead(
+        messageService: service,
+        conversationID: 'c2c_bob',
+        isGroup: false,
+        capturedIdentity:
+            SessionIdentityService.instance.capture(ownerUserId: 'alice'));
+    expect(result.desc, 'read_watermark_unavailable');
+    expect(service.calls, isEmpty);
+  });
+
+  test('normalizes explicit C2C and group clears before the SDK authority call',
+      () async {
     final service = _FakeMessageService();
     final identity =
         SessionIdentityService.instance.capture(ownerUserId: 'alice');
@@ -42,12 +56,14 @@ void main() {
       conversationID: 'c2c_bob',
       isGroup: false,
       capturedIdentity: identity,
+      explicitFullConversationClear: true,
     );
     final group = await TencentConversationReadService.markRead(
       messageService: service,
       conversationID: 'group_@TGS#room',
       isGroup: true,
       capturedIdentity: identity,
+      explicitFullConversationClear: true,
     );
 
     expect(c2c.code, 0);
@@ -68,6 +84,7 @@ void main() {
       conversationID: 'c2c_bob',
       isGroup: false,
       capturedIdentity: identity,
+      explicitFullConversationClear: true,
     );
     await Future<void>.delayed(Duration.zero);
     SessionIdentityService.instance.invalidate(reason: 'test_account_switch');

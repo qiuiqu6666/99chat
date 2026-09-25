@@ -1,23 +1,27 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 
-/// 发布版可见：进入聊天页耗时追踪。过滤关键字：`[ChatOpenPerf]`
+/// 进入聊天页耗时追踪。过滤关键字：`[ChatOpenPerf]`
 ///
 /// 用法：Xcode / `flutter logs` / Android logcat 搜 `ChatOpenPerf`。
 /// 每条含 `elapsedMs`（距点击）与 `deltaMs`（距上一里程碑），以及 `region` 中文阶段名。
-/// Debug 和 Profile 默认输出，Release 永不输出。
+/// Debug 采集账本；Profile 通过 CHAT_OPEN_PROFILE 启用。Release 永不输出。
 class ChatOpenPerfLog {
   ChatOpenPerfLog._();
 
   /// Debug 构建仍采集账本，便于测试与必要时重开控制台。
   static const bool enabled = kDebugMode;
 
-  /// Profile 构建关闭控制台；需要真机采样时再改回 true。
-  static const bool enabledInProfile = false;
+  /// Enable device sampling without modifying source or release behavior.
+  static const bool enabledInProfile =
+      bool.fromEnvironment('CHAT_OPEN_PROFILE');
 
   /// 高频控制台输出开关。关闭后仍写 debugSink / 计数器。
-  static const bool consoleOutputEnabled = false;
+  static const bool consoleOutputEnabled = bool.fromEnvironment(
+      'CHAT_OPEN_PERF_CONSOLE',
+      defaultValue: enabledInProfile);
 
   static bool get isEnabled =>
       !kReleaseMode && (enabled || (kProfileMode && enabledInProfile));
@@ -37,6 +41,10 @@ class ChatOpenPerfLog {
     t0Ms: 0,
   );
   static _ChatOpenTraceLedger? _current;
+  static final Object _traceZoneKey = Object();
+  static final Object _spanZoneKey = Object();
+  static int _traceSequence = 0;
+  static int _spanSequence = 0;
 
   static int? _hydrateOwnerRequestId;
   static int lastPrepareRequestId = 0;
@@ -159,6 +167,14 @@ class ChatOpenPerfLog {
     'applied',
     'coldstart',
     'iscurrenttab',
+    'spanid',
+    'parentspanid',
+    'stage',
+    'queuewaitus',
+    'executionus',
+    'totalus',
+    'displaycount',
+    'actualread',
   };
 
   static String get sessionId => _current?.sessionId ?? '';
@@ -172,12 +188,34 @@ class ChatOpenPerfLog {
     int? requestId,
     String? conversationKey,
   }) {
-    final current = _current;
+    final inherited = Zone.current[_traceZoneKey] as ChatOpenTraceContext?;
+    if (inherited != null &&
+        (conversationKey == null ||
+            _sameConversation(inherited.conversationKey, conversationKey))) {
+      return ChatOpenTraceContext(
+          session: inherited.session,
+          chatOpenTraceId: inherited.chatOpenTraceId,
+          requestId: requestId ?? inherited.requestId,
+          conversationKey: conversationKey ?? inherited.conversationKey,
+          t0Ms: inherited.t0Ms);
+    }
+    var current = _current;
+    if (conversationKey != null &&
+        (current == null ||
+            !_sameConversation(current.convId, conversationKey))) {
+      current = null;
+      for (final ledger in _ledgers.reversed) {
+        if (_sameConversation(ledger.convId, conversationKey)) {
+          current = ledger;
+          break;
+        }
+      }
+    }
     if (current == null) {
       return ChatOpenTraceContext(
         session: '-',
         chatOpenTraceId: '-',
-        requestId: requestId ?? lastPrepareRequestId,
+        requestId: requestId ?? 0,
         conversationKey: (conversationKey ?? '').trim(),
         t0Ms: 0,
       );
@@ -185,10 +223,63 @@ class ChatOpenPerfLog {
     return ChatOpenTraceContext(
       session: current.sessionId,
       chatOpenTraceId: current.sessionId,
-      requestId: requestId ?? lastPrepareRequestId,
+      requestId: requestId ?? current.lastRequestId,
       conversationKey: (conversationKey ?? current.convId).trim(),
       t0Ms: current.t0Ms,
     );
+  }
+
+  static bool _sameConversation(String a, String b) =>
+      a == b ||
+      a == 'c2c_$b' ||
+      b == 'c2c_$a' ||
+      a == 'group_$b' ||
+      b == 'group_$a';
+
+  static T withTrace<T>(ChatOpenTraceContext trace, T Function() action) =>
+      runZoned(action, zoneValues: <Object, Object>{_traceZoneKey: trace});
+
+  static T withSpan<T>(ChatOpenSpan? span, T Function() action) => span == null
+      ? action()
+      : runZoned(action, zoneValues: <Object, Object>{
+          _traceZoneKey: span.trace,
+          _spanZoneKey: span.spanId
+        });
+
+  static ChatOpenSpan? queueSpan(
+    String stage, {
+    ChatOpenTraceContext? trace,
+    String? conversationID,
+    String source = 'unknown',
+    String? parentSpanId,
+  }) =>
+      isEnabled
+          ? ChatOpenSpan._(
+              stage,
+              trace ?? captureCurrent(conversationKey: conversationID),
+              source,
+              'span_${++_spanSequence}',
+              parentSpanId ?? Zone.current[_spanZoneKey] as String?)
+          : null;
+
+  static Future<T> measure<T>(
+    String stage,
+    Future<T> Function() action, {
+    ChatOpenTraceContext? trace,
+    String? conversationID,
+    String source = 'unknown',
+  }) async {
+    if (!isEnabled) return action();
+    final context = trace ?? captureCurrent(conversationKey: conversationID);
+    final span = queueSpan(stage, trace: context, source: source)!..start();
+    try {
+      final result = await withSpan(span, action);
+      span.finish();
+      return result;
+    } catch (_) {
+      span.finish(outcome: 'error');
+      rethrow;
+    }
   }
 
   /// 点会话 / 即将打开聊天时调用，开启一轮会话时钟。
@@ -202,7 +293,8 @@ class ChatOpenPerfLog {
     }
     final id = conversationID.trim();
     final t0Ms = DateTime.now().millisecondsSinceEpoch;
-    final sessionId = 'open_${t0Ms.toRadixString(36)}_${_hashId(id)}';
+    final sessionId =
+        'open_${t0Ms.toRadixString(36)}_${_hashId(id)}_${++_traceSequence}';
     final ledger = _ChatOpenTraceLedger(
       sessionId: sessionId,
       convId: id,
@@ -237,8 +329,7 @@ class ChatOpenPerfLog {
     if (!isEnabled) {
       return;
     }
-    final ctx = trace ??
-        captureCurrent(conversationKey: conversationID);
+    final ctx = trace ?? captureCurrent(conversationKey: conversationID);
     final ledger = _ledgerFor(ctx);
     _tally(ledger, event, extras);
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -340,9 +431,8 @@ class ChatOpenPerfLog {
     final now = DateTime.now().millisecondsSinceEpoch;
     _print(
       'open_trace_summary',
-      conversationID: ctx.conversationKey.isEmpty
-          ? ledger.convId
-          : ctx.conversationKey,
+      conversationID:
+          ctx.conversationKey.isEmpty ? ledger.convId : ctx.conversationKey,
       extras: <String, Object?>{
         'session': ledger.sessionId,
         'chatOpenTraceId': ledger.sessionId,
@@ -369,9 +459,7 @@ class ChatOpenPerfLog {
         'uikitProducerCount': ledger.uikitProducerCount,
         'lastIgnoredReason': ledger.lastIgnoredReason,
         'lastRejectReason': ledger.lastRejectReason,
-        'note': phase == 'settle_2s'
-            ? '2s 观察窗，不是打开完成态'
-            : '打开链路计数快照',
+        'note': phase == 'settle_2s' ? '2s 观察窗，不是打开完成态' : '打开链路计数快照',
       },
     );
   }
@@ -383,9 +471,8 @@ class ChatOpenPerfLog {
     final now = DateTime.now().millisecondsSinceEpoch;
     _print(
       'open_summary',
-      conversationID: ctx.conversationKey.isEmpty
-          ? ledger.convId
-          : ctx.conversationKey,
+      conversationID:
+          ctx.conversationKey.isEmpty ? ledger.convId : ctx.conversationKey,
       extras: <String, Object?>{
         'session': ledger.sessionId,
         'chatOpenTraceId': ledger.sessionId,
@@ -415,6 +502,7 @@ class ChatOpenPerfLog {
       source: source,
       trace: captureCurrent(requestId: requestId),
     );
+    _ledgerFor(snap.trace!).lastRequestId = requestId;
     _prepareSnaps.add(snap);
     while (_prepareSnaps.length > 8) {
       _prepareSnaps.removeAt(0);
@@ -785,6 +873,10 @@ class ChatOpenPerfLog {
       // ignore: avoid_print
       print(line);
     }
+    if (kProfileMode && enabledInProfile) {
+      developer.Timeline.instantSync('ChatOpenPerf.$event',
+          arguments: <String, Object?>{'record': line});
+    }
   }
 
   static String _hashId(String value) {
@@ -820,6 +912,9 @@ class ChatOpenPerfLog {
 
   static bool _isSensitiveIdentifierKey(String key) {
     return key == 'key' ||
+        key == 'owner' ||
+        key == 'user' ||
+        key.endsWith('ids') ||
         key == 'conversationkey' ||
         key.endsWith('id') ||
         key.contains('convid') ||
@@ -830,7 +925,16 @@ class ChatOpenPerfLog {
   }
 
   static bool _isSensitiveContentKey(String key) {
-    return key == 'lastmessage' ||
+    return key.contains('token') ||
+        key.contains('usersig') ||
+        key.contains('authorization') ||
+        key.contains('password') ||
+        key.contains('signature') ||
+        key.contains('url') ||
+        key.contains('payload') ||
+        key == 'error' ||
+        key == 'stack' ||
+        key == 'lastmessage' ||
         key == 'messagebody' ||
         key == 'content' ||
         key == 'text';
@@ -842,6 +946,59 @@ class ChatOpenPerfLog {
       return normalized;
     }
     return '${normalized.substring(0, 157)}...';
+  }
+}
+
+/// queueWaitUs ends at start; executionUs ends at finish. A timeout on a
+/// caller does not finish the producer span or imply its work was cancelled.
+class ChatOpenSpan {
+  ChatOpenSpan._(
+      this.stage, this.trace, this.source, this.spanId, this.parentSpanId);
+  final String stage, source, spanId;
+  final String? parentSpanId;
+  final ChatOpenTraceContext trace;
+  final Stopwatch _clock = Stopwatch()..start();
+  int? _startedAtUs;
+  bool _finished = false;
+  developer.TimelineTask? _timeline;
+
+  void start() {
+    if (_startedAtUs != null || _finished) return;
+    _startedAtUs = _clock.elapsedMicroseconds;
+    ChatOpenPerfLog.mark('span_start', trace: trace, extras: <String, Object?>{
+      'stage': stage,
+      'spanId': spanId,
+      'parentSpanId': parentSpanId,
+      'source': source,
+      'queueWaitUs': _startedAtUs,
+    });
+    if (kProfileMode && ChatOpenPerfLog.enabledInProfile) {
+      _timeline = developer.TimelineTask()
+        ..start('ChatOpen.$stage', arguments: <String, Object?>{
+          'traceId': trace.chatOpenTraceId,
+          'spanId': spanId
+        });
+    }
+  }
+
+  void finish(
+      {String outcome = 'completed', Map<String, Object?> extras = const {}}) {
+    if (_finished) return;
+    start();
+    _finished = true;
+    _clock.stop();
+    _timeline?.finish();
+    ChatOpenPerfLog.mark('span_end', trace: trace, extras: <String, Object?>{
+      'stage': stage,
+      'spanId': spanId,
+      'parentSpanId': parentSpanId,
+      'source': source,
+      'queueWaitUs': _startedAtUs,
+      'executionUs': _clock.elapsedMicroseconds - _startedAtUs!,
+      'totalUs': _clock.elapsedMicroseconds,
+      'outcome': outcome,
+      ...extras,
+    });
   }
 }
 
@@ -879,6 +1036,7 @@ class ChatOpenPrepareWorkSnapshot {
 }
 
 class _ChatOpenTraceLedger {
+  int lastRequestId = 0;
   _ChatOpenTraceLedger({
     required this.sessionId,
     required this.convId,

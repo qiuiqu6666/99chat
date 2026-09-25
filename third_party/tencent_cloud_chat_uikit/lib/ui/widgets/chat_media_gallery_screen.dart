@@ -31,6 +31,7 @@ import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageIt
 import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_media_gallery_image_page.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_media_preview_item.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/gestured_image.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/image_preview_center_loading_indicator.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_backdrop_scope.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_chrome.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/media_preview_video_chrome.dart';
@@ -1137,9 +1138,9 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
     }
   }
 
-  Future<void> _handleDownload() async {
+  Future<void> _handleDownload([ChatMediaPreviewItem? target]) async {
     try {
-      final item = _currentItem;
+      final item = target ?? _currentItem;
       if (item.type == ChatMediaPreviewType.video) {
         final elem = item.resolveVideo == null
             ? item.videoElement
@@ -1383,9 +1384,14 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
     final elem = _currentItem.videoElement;
     return ColoredBox(
       color: Colors.black,
-      child: elem == null
-          ? const SizedBox.shrink()
-          : buildMediaPreviewVideoSnapshot(context, elem),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (elem != null) buildMediaPreviewVideoSnapshot(context, elem),
+          if (_coverShieldOpacity > 0)
+            const Center(child: ImagePreviewCenterLoadingIndicator()),
+        ],
+      ),
     );
   }
 
@@ -1399,6 +1405,7 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
       externalVideo: item.resolveVideo != null,
       resolveVideo: item.resolveVideo,
       deferInitialization: true,
+      showLoadingIndicator: false,
       preferOnlinePlayback: true,
       isSending: message.status == MessageStatus.V2TIM_MSG_STATUS_SENDING,
       onAspectRatioResolved: (ratio) {
@@ -1704,7 +1711,7 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
                 onShare: item.forwardFn,
                 onDownload: item.downloadFn == null && !isVideo
                     ? null
-                    : _handleDownload,
+                    : () => _handleDownload(item),
                 onMore: _showMoreMenu,
               )
             else ...[
@@ -1740,7 +1747,7 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
                     item.editFn == null ? null : () => item.editFn!(context),
                 onDownload: item.downloadFn == null && !isVideo
                     ? null
-                    : _handleDownload,
+                    : () => _handleDownload(item),
                 onOpenMedia: widget.onOpenMedia != null
                     ? _handleOpenMedia
                     : null,

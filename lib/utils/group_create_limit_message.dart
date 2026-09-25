@@ -6,7 +6,7 @@ import 'package:tencent_cloud_chat_sdk/enum/group_type.dart';
 class GroupCreateLimitMessage {
   GroupCreateLimitMessage._();
 
-  static const int standardGroupMemberLimit = 2000;
+  static const int standardGroupMemberLimit = 6000;
   static const int superGroupMemberLimit = 100000;
 
   static AppI18n get _i => AppI18n.current;

@@ -204,7 +204,7 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                 bottom: 0,
                 height: insets.bottom +
                     (compact ? 88 : 126) +
-                    (hasActions ? 56 : 0),
+                    (hasActions ? MediaPreviewReferenceButton.buttonSize + 16 : 0),
                 child: const IgnorePointer(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -220,8 +220,10 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
               Positioned(
                 left: insets.left + 8,
                 right: insets.right + 20,
-                bottom:
-                    insets.bottom + (hasActions ? 56 : (compact ? 4 : 8)),
+                bottom: insets.bottom +
+                    (hasActions
+                        ? MediaPreviewReferenceButton.buttonSize + 16
+                        : (compact ? 4 : 8)),
                 child: Row(
                   children: [
                     _VideoButton(
@@ -309,8 +311,8 @@ class MediaPreviewVideoChromeState extends State<MediaPreviewVideoChrome>
                   color: Colors.black.withValues(alpha: 0.45),
                   shape: const CircleBorder(),
                   child: const SizedBox(
-                    width: 40,
-                    height: 40,
+                    width: MediaPreviewReferenceButton.buttonSize,
+                    height: MediaPreviewReferenceButton.buttonSize,
                     child: Center(
                       child: CupertinoActivityIndicator(
                         radius: 9,

@@ -4,6 +4,9 @@ import 'im_inbox_recovery_query.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/contracts/contracts.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
+import 'im05_persistence.dart';
+import 'outbox_state_version_schema.dart';
+import 'outbox_draft_submission.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/inbox_recovery_policy.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/message_core_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/message_persist_coordinator.dart';
@@ -205,7 +208,29 @@ abstract interface class ImIngressTransaction implements Im05Transaction {
 
 /// Adapter from the project's existing SQLite owner to the IM persistence
 /// contract. It deliberately exposes only IM table operations.
-class ConversationLocalImIngressStore implements ImIngressStore {
+abstract interface class ImOutboxObservationScope {
+  Object get outboxObservationScope;
+}
+
+mixin ImOutboxCommitTracking implements ImIngressTransaction {
+  final Set<(String, String)> observedOutboxes = {};
+  Future<List<(ImOutboxRecord, ImOutboxRecoveryRecord?)>>
+      committedOutboxes() async {
+    final result = <(ImOutboxRecord, ImOutboxRecoveryRecord?)>[];
+    for (final (owner, operation) in observedOutboxes.toList()) {
+      final main = await findOutbox(ownerUserId: owner, operationId: operation);
+      if (main != null)
+        result.add((
+          main,
+          await findOutboxRecovery(ownerUserId: owner, operationId: operation)
+        ));
+    }
+    return result;
+  }
+}
+
+class ConversationLocalImIngressStore
+    implements ImIngressStore, ImOutboxObservationScope {
   ConversationLocalImIngressStore({
     ConversationLocalStore? owner,
     MessageCoreStore? core,
@@ -216,33 +241,103 @@ class ConversationLocalImIngressStore implements ImIngressStore {
   /// migration tooling. Production construction uses [MessageCoreStore].
   final ConversationLocalStore? _legacyOwner;
   final MessageCoreStore _core;
+  bool _outboxSchemaReady = false;
+  @override
+  Object get outboxObservationScope => _legacyOwner ?? _core;
 
   @override
   Future<T> transaction<T>(
     Future<T> Function(ImIngressTransaction transaction) action, {
     MessagePersistPriority persistPriority = MessagePersistPriority.realtime,
-  }) {
-    if (_legacyOwner != null) {
-      return _legacyOwner!.runLegacyImIngressTransaction<T>(
-        (transaction) => action(_SqliteImIngressTransaction(transaction)),
-      );
+  }) async {
+    List<(ImOutboxRecord, ImOutboxRecoveryRecord?)> committed = [];
+    Future<T> run(DatabaseExecutor database) async {
+      if (!_outboxSchemaReady) await ensureOutboxStateVersionSchema(database);
+      final tx = _SqliteImIngressTransaction(database);
+      final result = await action(tx);
+      committed = await tx.committedOutboxes();
+      return result;
     }
-    return _core.runTransaction<T>(
-      (transaction) => action(_SqliteImIngressTransaction(transaction)),
-      persistPriority: persistPriority,
-      persistSource: persistPriority == MessagePersistPriority.realtime
-          ? MessagePersistSource.realtime
-          : persistPriority == MessagePersistPriority.userHistory
-              ? MessagePersistSource.userHistory
-              : MessagePersistSource.backgroundRepair,
-    );
+
+    final result = _legacyOwner != null
+        ? await _legacyOwner!.runLegacyImIngressTransaction<T>(run)
+        : await _core.runTransaction<T>(run,
+            persistPriority: persistPriority,
+            persistSource: persistPriority == MessagePersistPriority.realtime
+                ? MessagePersistSource.realtime
+                : persistPriority == MessagePersistPriority.userHistory
+                    ? MessagePersistSource.userHistory
+                    : MessagePersistSource.backgroundRepair);
+    _outboxSchemaReady = true;
+    // The database future includes COMMIT. No notifications escape rollback.
+    for (final (main, copy) in committed) {
+      Im05Persistence.publishCommitted(outboxObservationScope, main, copy);
+    }
+    return result;
   }
 }
 
-class _SqliteImIngressTransaction implements ImIngressTransaction {
+class _SqliteImIngressTransaction
+    with ImOutboxCommitTracking
+    implements ImIngressTransaction, ImDraftTransaction {
   _SqliteImIngressTransaction(this._db);
 
   final DatabaseExecutor _db;
+
+  @override
+  Future<Map<String, Object?>?> findDraftHead(
+      String owner, String conversation) async {
+    final rows = await _db.query('message_draft_head',
+        where: 'owner_user_id = ? AND conversation_id = ?',
+        whereArgs: [owner, conversation]);
+    return rows.isEmpty ? null : rows.single;
+  }
+
+  @override
+  Future<void> saveDraftHead(ImDraftAcceptance draft) async {
+    final existing =
+        await findDraftHead(draft.ownerUserId, draft.conversationId);
+    final accepted = await _db.query('message_draft_acceptance',
+        where: 'owner_user_id = ? AND conversation_id = ? AND draft_id = ?',
+        whereArgs: [draft.ownerUserId, draft.conversationId, draft.draftId]);
+    final acceptedOperation =
+        accepted.isEmpty ? null : accepted.single['operation_id'];
+    if (acceptedOperation != null && existing != null) return;
+    await _db.insert(
+        'message_draft_head',
+        {
+          'owner_user_id': draft.ownerUserId,
+          'conversation_id': draft.conversationId,
+          'draft_id': draft.draftId,
+          'protected_text': draft.protectedText,
+          'accepted_operation_id': acceptedOperation
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  @override
+  Future<void> acceptDraft(ImDraftAcceptance draft, String operationId) async {
+    final old = await _db.query('message_draft_acceptance',
+        where: 'owner_user_id = ? AND conversation_id = ? AND draft_id = ?',
+        whereArgs: [draft.ownerUserId, draft.conversationId, draft.draftId]);
+    if (old.isNotEmpty && old.single['operation_id'] != operationId)
+      throw StateError('draft already accepted by another operation');
+    await _db.insert(
+        'message_draft_acceptance',
+        {
+          'owner_user_id': draft.ownerUserId,
+          'conversation_id': draft.conversationId,
+          'draft_id': draft.draftId,
+          'operation_id': operationId
+        },
+        conflictAlgorithm: ConflictAlgorithm.ignore);
+    if (await findDraftHead(draft.ownerUserId, draft.conversationId) == null)
+      await saveDraftHead(draft);
+    await _db.update(
+        'message_draft_head', {'accepted_operation_id': operationId},
+        where: 'owner_user_id = ? AND conversation_id = ? AND draft_id = ?',
+        whereArgs: [draft.ownerUserId, draft.conversationId, draft.draftId]);
+  }
 
   static const _inboxTable = 'message_event_inbox';
   static const _leaseTable = 'message_writer_lease';
@@ -822,6 +917,7 @@ class _SqliteImIngressTransaction implements ImIngressTransaction {
     required String ownerUserId,
     required String operationId,
   }) async {
+    observedOutboxes.add((ownerUserId, operationId));
     final rows = await _db.query(
       _outboxTable,
       where: 'owner_user_id = ? AND operation_id = ?',
@@ -848,18 +944,46 @@ class _SqliteImIngressTransaction implements ImIngressTransaction {
   }
 
   @override
+  Future<bool> hasOtherRetryChild({
+    required String ownerUserId,
+    required String parentOperationId,
+    required String excludingOperationId,
+  }) async {
+    final rows = await _db.query(
+      _outboxTable,
+      columns: const <String>['operation_id'],
+      where:
+          'owner_user_id = ? AND retry_of_operation_id = ? AND operation_id != ?',
+      whereArgs: <Object?>[
+        ownerUserId,
+        parentOperationId,
+        excludingOperationId,
+      ],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
+  @override
   Future<List<ImOutboxRecord>> listOutboxesForRecovery({
     required String ownerUserId,
     required List<ImOutboxState> states,
     required int limit,
+    String? afterOperationId,
   }) async {
     if (states.isEmpty || limit <= 0) return const <ImOutboxRecord>[];
     final placeholders = List<String>.filled(states.length, '?').join(',');
+    final keyset = afterOperationId != null;
     final rows = await _db.query(
       _outboxTable,
-      where: 'owner_user_id = ? AND state IN ($placeholders)',
-      whereArgs: <Object?>[ownerUserId, ...states.map((state) => state.name)],
-      orderBy: 'updated_at ASC',
+      where: 'owner_user_id = ? AND state IN ($placeholders)'
+          '${keyset ? ' AND operation_id > ?' : ''}',
+      whereArgs: <Object?>[
+        ownerUserId,
+        ...states.map((state) => state.name),
+        if (keyset) afterOperationId,
+      ],
+      orderBy: keyset ? 'operation_id ASC' : 'updated_at ASC',
       limit: limit,
     );
     return rows.map(imOutboxFromStorageMap).toList(growable: false);
@@ -867,6 +991,7 @@ class _SqliteImIngressTransaction implements ImIngressTransaction {
 
   @override
   Future<bool> insertOutboxIfAbsent(ImOutboxRecord record) async {
+    observedOutboxes.add((record.ownerUserId, record.operationId));
     final inserted = await _db.insert(
       _outboxTable,
       imOutboxToStorageMap(record),
@@ -883,6 +1008,7 @@ class _SqliteImIngressTransaction implements ImIngressTransaction {
     required int fencingToken,
     required int nowMs,
   }) async {
+    observedOutboxes.add((record.ownerUserId, record.operationId));
     if (!isValidImOutboxTransition(expectedState, record.state) ||
         !await _hasCurrentLease(
           record.ownerUserId,
@@ -939,6 +1065,7 @@ class _SqliteImIngressTransaction implements ImIngressTransaction {
     required int fencingToken,
     required int nowMs,
   }) async {
+    observedOutboxes.add((record.ownerUserId, record.operationId));
     if (!isValidImOutboxRecoveryTransition(expectedState, record.state) ||
         !await _hasCurrentLease(
           record.ownerUserId,
@@ -963,6 +1090,8 @@ class _SqliteImIngressTransaction implements ImIngressTransaction {
 }
 
 class InMemoryImIngressStore implements ImIngressStore {
+  final Map<String, Map<String, Object?>> draftHeads = {};
+  final Map<String, String> draftAcceptances = {};
   final Map<String, ImInboxRecord> inbox = <String, ImInboxRecord>{};
   final Map<String, int> counters = <String, int>{};
   final Map<String, ImWriterLeaseRecord> leases =
@@ -984,17 +1113,89 @@ class InMemoryImIngressStore implements ImIngressStore {
     MessagePersistPriority persistPriority = MessagePersistPriority.realtime,
   }) {
     final next = _tail.then<T>(
-      (_) => action(_MemoryImIngressTransaction(this)),
+      (_) async {
+        final rollbacks = <void Function()>[];
+        void capture<K, V>(Map<K, V> map) {
+          final snapshot = Map<K, V>.of(map);
+          rollbacks.add(() => map
+            ..clear()
+            ..addAll(snapshot));
+        }
+
+        capture(inbox);
+        capture(counters);
+        capture(leases);
+        capture(journals);
+        capture(checkpoints);
+        capture(effects);
+        capture(outboxes);
+        capture(outboxRecoveryCopies);
+        capture(draftHeads);
+        capture(draftAcceptances);
+        final tx = _MemoryImIngressTransaction(this);
+        try {
+          final result = await action(tx);
+          final committed = await tx.committedOutboxes();
+          for (final (main, copy) in committed) {
+            Im05Persistence.publishCommitted(this, main, copy);
+          }
+          return result;
+        } catch (_) {
+          for (final restore in rollbacks) {
+            restore();
+          }
+          rethrow;
+        }
+      },
     );
     _tail = next.then<void>((_) {}, onError: (_, __) {});
     return next;
   }
 }
 
-class _MemoryImIngressTransaction implements ImIngressTransaction {
+class _MemoryImIngressTransaction
+    with ImOutboxCommitTracking
+    implements ImIngressTransaction, ImDraftTransaction {
   _MemoryImIngressTransaction(this._store);
 
   final InMemoryImIngressStore _store;
+  @override
+  Future<Map<String, Object?>?> findDraftHead(
+          String owner, String conversation) async =>
+      _store.draftHeads[owner + '|' + conversation];
+  @override
+  Future<void> saveDraftHead(ImDraftAcceptance draft) async {
+    final existing =
+        await findDraftHead(draft.ownerUserId, draft.conversationId);
+    final acceptedOperation = _store.draftAcceptances[
+        draft.ownerUserId + '|' + draft.conversationId + '|' + draft.draftId];
+    if (acceptedOperation != null && existing != null) return;
+    _store.draftHeads[draft.ownerUserId + '|' + draft.conversationId] = {
+      'draft_id': draft.draftId,
+      'protected_text': draft.protectedText,
+      'accepted_operation_id': acceptedOperation
+    };
+  }
+
+  @override
+  Future<void> acceptDraft(ImDraftAcceptance draft, String operationId) async {
+    final key =
+        draft.ownerUserId + '|' + draft.conversationId + '|' + draft.draftId;
+    final old = _store.draftAcceptances[key];
+    if (old != null && old != operationId)
+      throw StateError('draft already accepted by another operation');
+    _store.draftAcceptances[key] = operationId;
+    var head = await findDraftHead(draft.ownerUserId, draft.conversationId);
+    if (head == null) {
+      await saveDraftHead(draft);
+      head = await findDraftHead(draft.ownerUserId, draft.conversationId);
+    }
+    if (head!['draft_id'] == draft.draftId)
+      _store.draftHeads[draft.ownerUserId + '|' + draft.conversationId] = {
+        ...head,
+        'accepted_operation_id': operationId
+      };
+  }
 
   @override
   Future<ImInboxRecord?> findInbox({
@@ -1380,6 +1581,7 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
     required String ownerUserId,
     required String operationId,
   }) async {
+    observedOutboxes.add((ownerUserId, operationId));
     final record = _store.outboxes[operationId];
     return record?.ownerUserId == ownerUserId ? record : null;
   }
@@ -1403,25 +1605,43 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
   }
 
   @override
+  Future<bool> hasOtherRetryChild({
+    required String ownerUserId,
+    required String parentOperationId,
+    required String excludingOperationId,
+  }) async =>
+      _store.outboxes.values.any((row) =>
+          row.ownerUserId == ownerUserId &&
+          row.retryOfOperationId == parentOperationId &&
+          row.operationId != excludingOperationId);
+
+  @override
   Future<List<ImOutboxRecord>> listOutboxesForRecovery({
     required String ownerUserId,
     required List<ImOutboxState> states,
     required int limit,
+    String? afterOperationId,
   }) async {
     if (states.isEmpty || limit <= 0) return const <ImOutboxRecord>[];
     final allowed = states.toSet();
     final rows = _store.outboxes.values
         .where(
           (row) =>
-              row.ownerUserId == ownerUserId && allowed.contains(row.state),
+              row.ownerUserId == ownerUserId &&
+              allowed.contains(row.state) &&
+              (afterOperationId == null ||
+                  row.operationId.compareTo(afterOperationId) > 0),
         )
         .toList(growable: false)
-      ..sort((a, b) => a.updatedAtMs.compareTo(b.updatedAtMs));
+      ..sort((a, b) => afterOperationId == null
+          ? a.updatedAtMs.compareTo(b.updatedAtMs)
+          : a.operationId.compareTo(b.operationId));
     return rows.take(limit).toList(growable: false);
   }
 
   @override
   Future<bool> insertOutboxIfAbsent(ImOutboxRecord record) async {
+    observedOutboxes.add((record.ownerUserId, record.operationId));
     if (_store.outboxes.containsKey(record.operationId)) return false;
     _store.outboxes[record.operationId] = record;
     return true;
@@ -1435,6 +1655,7 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
     required int fencingToken,
     required int nowMs,
   }) async {
+    observedOutboxes.add((record.ownerUserId, record.operationId));
     if (!isValidImOutboxTransition(expectedState, record.state) ||
         !await _hasCurrentLease(
           record.ownerUserId,
@@ -1450,7 +1671,8 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
         current.state != expectedState) {
       return false;
     }
-    _store.outboxes[record.operationId] = record;
+    _store.outboxes[record.operationId] =
+        record.copyWith(stateVersion: current.stateVersion + 1);
     return true;
   }
 
@@ -1471,6 +1693,12 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
       return false;
     }
     _store.outboxRecoveryCopies[record.operationId] = record;
+    final main = _store.outboxes[record.operationId];
+    if (main != null) {
+      _store.outboxes[record.operationId] =
+          main.copyWith(stateVersion: main.stateVersion + 1);
+      observedOutboxes.add((main.ownerUserId, main.operationId));
+    }
     return true;
   }
 
@@ -1482,6 +1710,7 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
     required int fencingToken,
     required int nowMs,
   }) async {
+    observedOutboxes.add((record.ownerUserId, record.operationId));
     if (!isValidImOutboxRecoveryTransition(expectedState, record.state) ||
         !await _hasCurrentLease(
           record.ownerUserId,
@@ -1494,6 +1723,12 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
     final current = _store.outboxRecoveryCopies[record.operationId];
     if (current == null || current.state != expectedState) return false;
     _store.outboxRecoveryCopies[record.operationId] = record;
+    final main = _store.outboxes[record.operationId];
+    if (main != null) {
+      _store.outboxes[record.operationId] =
+          main.copyWith(stateVersion: main.stateVersion + 1);
+      observedOutboxes.add((main.ownerUserId, main.operationId));
+    }
     return true;
   }
 

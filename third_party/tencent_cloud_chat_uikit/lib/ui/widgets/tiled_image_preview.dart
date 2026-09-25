@@ -15,6 +15,7 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/tall_image_gallery_scroll_gate.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/tall_image_scroll_preview.dart';
 import 'interactive_preview_fallback.dart';
+import 'image_preview_center_loading_indicator.dart';
 
 class TiledImagePreview extends StatefulWidget {
   const TiledImagePreview({
@@ -414,7 +415,7 @@ class _TiledImagePreviewState extends State<TiledImagePreview> {
         )
       else if (_tiles.isEmpty)
         const IgnorePointer(
-          child: Center(child: CircularProgressIndicator(color: Colors.white)),
+          child: Center(child: ImagePreviewCenterLoadingIndicator()),
         ),
     ]);
   }

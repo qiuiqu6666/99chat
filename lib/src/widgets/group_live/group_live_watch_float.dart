@@ -15,11 +15,13 @@ class GroupLiveWatchFloat extends StatefulWidget {
     super.key,
     required this.session,
     required this.onClose,
+    this.visible = true,
     this.anchorFaceUrl = '',
   });
 
   final GroupLiveSession session;
   final VoidCallback onClose;
+  final bool visible;
   final String anchorFaceUrl;
 
   static const Size minSize = Size(320, 180);
@@ -236,156 +238,159 @@ class _GroupLiveWatchFloatState extends State<GroupLiveWatchFloat> {
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final stackSize = Size(
-            constraints.maxWidth,
-            constraints.maxHeight,
-          );
-          if (!stackSize.width.isFinite ||
-              !stackSize.height.isFinite ||
-              stackSize.width <= 0 ||
-              stackSize.height <= 0) {
-            return const SizedBox.shrink();
-          }
-          final size = _fittedSize(stackSize, _size);
-          if (size.width <= 0) {
-            return const SizedBox.shrink();
-          }
-          final offset = _clamped(
-            _offset ?? _defaultOffset(stackSize, size),
-            stackSize,
-            size,
-          );
-          const t = GroupLiveWatchFloat.handleThickness;
-          const c = GroupLiveWatchFloat.cornerHandle;
-          const avoid = GroupLiveWatchFloat.closeAvoid;
-          return Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned(
-                left: offset.dx,
-                top: offset.dy,
-                width: size.width,
-                height: size.height,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    GestureDetector(
-                      behavior: HitTestBehavior.deferToChild,
-                      onPanUpdate: (details) =>
-                          _onMove(details.delta, stackSize),
-                      onPanEnd: (_) => _persist(stackSize),
-                      child: Material(
-                        elevation: 8,
-                        shadowColor: Colors.black38,
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(12),
-                        clipBehavior: Clip.antiAlias,
-                        child: GroupLiveInlineWatchBanner(
-                          key: ValueKey(
-                            'watch_${widget.session.liveSessionId}',
+      child: Offstage(
+        offstage: !widget.visible,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final stackSize = Size(
+              constraints.maxWidth,
+              constraints.maxHeight,
+            );
+            if (!stackSize.width.isFinite ||
+                !stackSize.height.isFinite ||
+                stackSize.width <= 0 ||
+                stackSize.height <= 0) {
+              return const SizedBox.shrink();
+            }
+            final size = _fittedSize(stackSize, _size);
+            if (size.width <= 0) {
+              return const SizedBox.shrink();
+            }
+            final offset = _clamped(
+              _offset ?? _defaultOffset(stackSize, size),
+              stackSize,
+              size,
+            );
+            const t = GroupLiveWatchFloat.handleThickness;
+            const c = GroupLiveWatchFloat.cornerHandle;
+            const avoid = GroupLiveWatchFloat.closeAvoid;
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  left: offset.dx,
+                  top: offset.dy,
+                  width: size.width,
+                  height: size.height,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      GestureDetector(
+                        behavior: HitTestBehavior.deferToChild,
+                        onPanUpdate: (details) =>
+                            _onMove(details.delta, stackSize),
+                        onPanEnd: (_) => _persist(stackSize),
+                        child: Material(
+                          elevation: 8,
+                          shadowColor: Colors.black38,
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(12),
+                          clipBehavior: Clip.antiAlias,
+                          child: GroupLiveInlineWatchBanner(
+                            key: ValueKey(
+                              'watch_${widget.session.liveSessionId}',
+                            ),
+                            session: widget.session,
+                            anchorFaceUrl: widget.anchorFaceUrl,
+                            onClose: widget.onClose,
                           ),
-                          session: widget.session,
-                          anchorFaceUrl: widget.anchorFaceUrl,
-                          onClose: widget.onClose,
                         ),
                       ),
-                    ),
-                    _handle(
-                      handle: _LiveResizeHandle.n,
-                      stackSize: stackSize,
-                      cursor: SystemMouseCursors.resizeUpDown,
-                      left: c,
-                      top: 0,
-                      right: avoid.width,
-                      bottom: null,
-                      width: null,
-                      height: t,
-                    ),
-                    _handle(
-                      handle: _LiveResizeHandle.s,
-                      stackSize: stackSize,
-                      cursor: SystemMouseCursors.resizeUpDown,
-                      left: c,
-                      top: null,
-                      right: c,
-                      bottom: 0,
-                      width: null,
-                      height: t,
-                    ),
-                    _handle(
-                      handle: _LiveResizeHandle.w,
-                      stackSize: stackSize,
-                      cursor: SystemMouseCursors.resizeLeftRight,
-                      left: 0,
-                      top: c,
-                      right: null,
-                      bottom: c,
-                      width: t,
-                      height: null,
-                    ),
-                    _handle(
-                      handle: _LiveResizeHandle.e,
-                      stackSize: stackSize,
-                      cursor: SystemMouseCursors.resizeLeftRight,
-                      left: null,
-                      top: avoid.height,
-                      right: 0,
-                      bottom: c,
-                      width: t,
-                      height: null,
-                    ),
-                    _handle(
-                      handle: _LiveResizeHandle.nw,
-                      stackSize: stackSize,
-                      cursor: SystemMouseCursors.resizeUpLeft,
-                      left: 0,
-                      top: 0,
-                      right: null,
-                      bottom: null,
-                      width: c,
-                      height: c,
-                    ),
-                    _handle(
-                      handle: _LiveResizeHandle.ne,
-                      stackSize: stackSize,
-                      cursor: SystemMouseCursors.resizeUpRight,
-                      left: null,
-                      top: 0,
-                      right: avoid.width,
-                      bottom: null,
-                      width: c,
-                      height: c,
-                    ),
-                    _handle(
-                      handle: _LiveResizeHandle.sw,
-                      stackSize: stackSize,
-                      cursor: SystemMouseCursors.resizeDownLeft,
-                      left: 0,
-                      top: null,
-                      right: null,
-                      bottom: 0,
-                      width: c,
-                      height: c,
-                    ),
-                    _handle(
-                      handle: _LiveResizeHandle.se,
-                      stackSize: stackSize,
-                      cursor: SystemMouseCursors.resizeDownRight,
-                      left: null,
-                      top: null,
-                      right: 0,
-                      bottom: 0,
-                      width: c,
-                      height: c,
-                    ),
-                  ],
+                      _handle(
+                        handle: _LiveResizeHandle.n,
+                        stackSize: stackSize,
+                        cursor: SystemMouseCursors.resizeUpDown,
+                        left: c,
+                        top: 0,
+                        right: avoid.width,
+                        bottom: null,
+                        width: null,
+                        height: t,
+                      ),
+                      _handle(
+                        handle: _LiveResizeHandle.s,
+                        stackSize: stackSize,
+                        cursor: SystemMouseCursors.resizeUpDown,
+                        left: c,
+                        top: null,
+                        right: c,
+                        bottom: 0,
+                        width: null,
+                        height: t,
+                      ),
+                      _handle(
+                        handle: _LiveResizeHandle.w,
+                        stackSize: stackSize,
+                        cursor: SystemMouseCursors.resizeLeftRight,
+                        left: 0,
+                        top: c,
+                        right: null,
+                        bottom: c,
+                        width: t,
+                        height: null,
+                      ),
+                      _handle(
+                        handle: _LiveResizeHandle.e,
+                        stackSize: stackSize,
+                        cursor: SystemMouseCursors.resizeLeftRight,
+                        left: null,
+                        top: avoid.height,
+                        right: 0,
+                        bottom: c,
+                        width: t,
+                        height: null,
+                      ),
+                      _handle(
+                        handle: _LiveResizeHandle.nw,
+                        stackSize: stackSize,
+                        cursor: SystemMouseCursors.resizeUpLeft,
+                        left: 0,
+                        top: 0,
+                        right: null,
+                        bottom: null,
+                        width: c,
+                        height: c,
+                      ),
+                      _handle(
+                        handle: _LiveResizeHandle.ne,
+                        stackSize: stackSize,
+                        cursor: SystemMouseCursors.resizeUpRight,
+                        left: null,
+                        top: 0,
+                        right: avoid.width,
+                        bottom: null,
+                        width: c,
+                        height: c,
+                      ),
+                      _handle(
+                        handle: _LiveResizeHandle.sw,
+                        stackSize: stackSize,
+                        cursor: SystemMouseCursors.resizeDownLeft,
+                        left: 0,
+                        top: null,
+                        right: null,
+                        bottom: 0,
+                        width: c,
+                        height: c,
+                      ),
+                      _handle(
+                        handle: _LiveResizeHandle.se,
+                        stackSize: stackSize,
+                        cursor: SystemMouseCursors.resizeDownRight,
+                        left: null,
+                        top: null,
+                        right: 0,
+                        bottom: 0,
+                        width: c,
+                        height: c,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

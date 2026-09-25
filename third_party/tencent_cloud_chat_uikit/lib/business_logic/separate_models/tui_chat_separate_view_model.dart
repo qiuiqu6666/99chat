@@ -28,6 +28,7 @@ import 'package:tencent_cloud_chat_uikit/business_logic/mobile_async_commit_guar
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/contracts/contracts.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_send_coordinator.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/outbox_draft_submission.dart';
 import 'package:tencent_cloud_chat_demo/src/services/c2c_friend_message_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/c2c_blocked_outgoing_message_sync.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_message_recreator.dart';
@@ -5421,6 +5422,8 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     bool? isEditStatusMessage = false,
     bool? isExcludedFromContentModeration,
     bool preserveTargetGroupID = false,
+    String? retryOfSdkLocalId,
+    VoidCallback? onDispatchGranted,
   }) async {
     debugPrint(
       '[IM_SEND_INTENT] conv=$convID type=${convType.name} clientId=$id',
@@ -5550,8 +5553,11 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         // Preserve opaque metadata; it keeps the legacy serial admission.
       }
     }
+    var retryDispatched = false;
     final coordinatedSend = await ImOutgoingSendCoordinator.instance.send(
       messageService: _messageService,
+      retryOfSdkLocalId: retryOfSdkLocalId,
+      onDispatchGranted: () { retryDispatched = true; onDispatchGranted?.call(); },
       sdkLocalId: id,
       conversationId: convType == ConvType.group ? groupID : receiver,
       conversationType: convType == ConvType.group
@@ -5579,7 +5585,8 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         globalModel.bindOutgoingSyncMsgId(convID, id, syncMsgID);
       },
     );
-    final sendMsgRes = coordinatedSend.sdkResult;
+    var sendMsgRes = coordinatedSend.sdkResult;
+    if (retryOfSdkLocalId != null && !retryDispatched) return sendMsgRes;
     if (!canSendCapturedMedia) return sendMsgRes;
     debugPrint(
       '[IM_SEND_COORDINATOR_RESULT] conv=$convID clientId=$id '
@@ -5651,7 +5658,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     // projection here would resurrect an in-flight message or flash a
     // red retry icon on a still-pending send.
     var projectionCommitted = true;
-    if (isEditStatusMessage == false && !coordinatedSend.outcomeUnknown) {
+    if (isEditStatusMessage == false) {
       projectionCommitted = globalModel.applyOutgoingSendResult(
         sendMsgRes,
         convID,
@@ -5659,11 +5666,12 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         convType,
         groupType,
         setInputField,
+        coordinatedResult: coordinatedSend,
       );
     } else if (coordinatedSend.outcomeUnknown) {
       projectionCommitted = false;
     }
-    if (!coordinatedSend.outcomeUnknown) {
+    if (globalModel.mayPublishOutgoingSendCompletion(convID, id, coordinatedSend)) {
       globalModel.insertPeerRejectedLocalTip(
         convID,
         sendMsgRes.code,
@@ -5675,7 +5683,9 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         coordinatedSend,
       );
     }
-    if (lifeCycle?.messageDidSend != null) {
+    sendMsgRes = coordinatedSend.sdkResult;
+    if (lifeCycle?.messageDidSend != null &&
+        globalModel.mayPublishOutgoingSendCompletion(convID, id, coordinatedSend)) {
       lifeCycle!.messageDidSend(sendMsgRes);
     }
 
@@ -6271,7 +6281,14 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     // the composer immediately instead of waiting for the network result. It
     // also prevents an older send completion from clearing a newly selected
     // reply target.
-    repliedMessage = null;
+    final submissionBoundary = ImDraftSubmissionContext.current;
+    if (submissionBoundary == null) {
+      repliedMessage = null;
+    } else {
+      submissionBoundary.onAccepted(() {
+        if (identical(_composerUi.repliedMessage, replyTarget)) repliedMessage = null;
+      });
+    }
     final V2TimMsgCreateInfoResult? textMessageInfo =
         normalizedAtUserIDs.isEmpty
             ? await _messageService.createTextMessage(text: text)
@@ -7587,30 +7604,20 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     if (recreatedId.isEmpty || recreatedMessage == null || !canResend()) {
       return null;
     }
-    _removeOutgoingMessage(
-      convID: convID,
-      clientId: clientId.isEmpty ? null : clientId,
-      msgID: msgID.isEmpty ? null : msgID,
-    );
-    if (msgID.isNotEmpty) {
-      try {
-        await _messageService.deleteMessageFromLocalStorage(
-          msgID: msgID,
-          webMessageInstance: message.messageFromWeb,
-        );
-      } catch (_) {}
-    }
     final outgoing = tools.setUserInfoForMessage(recreatedMessage, recreatedId);
     applyOutgoingStableIdToMessage(outgoing, recreatedId);
-    outgoing.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
-    addSendingMessageID(recreatedId);
-    _prependOutgoingMessageForConversation(
-      convID,
-      outgoing,
-      skipEnterAnimation: true,
-    );
     return _sendMessage(
       id: recreatedId,
+      retryOfSdkLocalId: clientId,
+      onDispatchGranted: () {
+        _removeOutgoingMessage(convID: convID, clientId: clientId.isEmpty ? null : clientId,
+          msgID: msgID.isEmpty ? null : msgID);
+        outgoing.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+        addSendingMessageID(recreatedId);
+        _prependOutgoingMessageForConversation(convID, outgoing, skipEnterAnimation: true);
+        if (msgID.isNotEmpty) unawaited(_messageService.deleteMessageFromLocalStorage(
+          msgID: msgID, webMessageInstance: message.messageFromWeb).then<void>((_) {}, onError: (Object _, StackTrace __) {}));
+      },
       convID: convID,
       convType: convType,
       messageInfo: outgoing,

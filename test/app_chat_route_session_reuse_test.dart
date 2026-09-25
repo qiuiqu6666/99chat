@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/app_chat_route.dart';
+import 'package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart';
 
 void main() {
@@ -112,6 +113,7 @@ void main() {
     expect(await reusedFuture, 'left-chat');
     expect(await existingPush, 'left-chat');
     expect(completed, isTrue);
+    ChatOpenPerfLog.resetForTest();
   });
 
   test('conversation list uses the reuse-aware chat opener', () {

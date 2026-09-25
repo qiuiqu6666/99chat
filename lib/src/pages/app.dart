@@ -37,6 +37,7 @@ import 'package:tencent_cloud_chat_demo/src/services/sqflite_lock_profile_log.da
 import 'package:tencent_cloud_chat_demo/src/services/account_session_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/login_coordinator.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im_connect_status_service.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_outbox_recovery_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im_recovery_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_history_recovery_coordinator.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart';
@@ -148,6 +149,12 @@ class _TencentChatAppState extends State<TencentChatApp>
     );
 
     if (state == AppLifecycleState.resumed) {
+      if (ImConnectStatusService.isTransportReady) {
+        unawaited(OutgoingOutboxRecoveryService.instance
+            .recoverPending()
+            .catchError((Object error) => debugPrint(
+                'resume outgoing outbox failed errorType=${error.runtimeType}')));
+      }
       if (kIsWeb) {
         unawaited(
             WebImRealtimeWatchdog.catchUpNow(reason: 'lifecycle_resumed'));
@@ -463,15 +470,13 @@ class _TencentChatAppState extends State<TencentChatApp>
   initScreenUtils() {
     if (isInitScreenUtils) return;
 
-    final isDesktop = !kIsWeb &&
-        (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
+    final isDesktop =
+        !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
     ScreenUtil.init(
       context,
       designSize: const Size(750, 1624),
       minTextAdapt: true,
-      fontSizeResolver: isDesktop
-          ? (fontSize, _) => fontSize * 0.5
-          : null,
+      fontSizeResolver: isDesktop ? (fontSize, _) => fontSize * 0.5 : null,
     );
     isInitScreenUtils = true;
   }

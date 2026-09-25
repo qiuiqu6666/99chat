@@ -1516,28 +1516,23 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
         fitTallImagesToScreenWidth: widget.fitTallImagesToScreenWidth,
       ),
       alignment: display.alignment,
-      showSpinner: showSpinner ?? _entranceLatch.settled,
+      showSpinner: showSpinner ?? true,
       interactive: interactive,
     );
   }
 
-  Widget _withDesktopOriginalUpgradeSpinner(int index, Widget child) {
-    if (!PlatformUtils().isWinMacDesktop) {
-      return child;
-    }
-    if (!_lowResolutionRefreshInFlight.contains(index) ||
-        _originalUpgradeCompleted.contains(index)) {
-      return child;
-    }
+  Widget _withOriginalUpgradeSpinner(int index, Widget child) {
     return Stack(
       fit: StackFit.expand,
       children: [
         child,
-        const IgnorePointer(
-          child: Center(
-            child: ImagePreviewCenterLoadingIndicator(),
+        if (_lowResolutionRefreshInFlight.contains(index) &&
+            !_originalUpgradeCompleted.contains(index))
+          const IgnorePointer(
+            child: Center(
+              child: ImagePreviewCenterLoadingIndicator(),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -1646,7 +1641,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
         if (mounted &&
             !_isClosing &&
             _lowResolutionRefreshInFlight.contains(index)) {
-          setState(() {});
+          setState(_invalidateSlideBodyCache);
         }
       });
       try {
@@ -1719,6 +1714,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
         );
       } finally {
         if (mounted) {
+          _invalidateSlideBodyCache();
           if (_isClosing || _isSlideDismissActive) {
             _lowResolutionRefreshInFlight.remove(index);
           } else {
@@ -1840,7 +1836,9 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
       height: screenSize.height,
       fit: imageFit,
       alignment: display.alignment,
-      gaplessPlayback: true,
+      // The loading layer retains the thumbnail while the new provider loads.
+      // gaplessPlayback would retain the old "completed" state and hide loading.
+      gaplessPlayback: false,
       filterQuality: PlatformUtils().isWinMacDesktop
           ? FilterQuality.medium
           : FilterQuality.low,
@@ -1934,7 +1932,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
                 screenHeight: screenHeight,
                 fit: display.fit,
               );
-              return _withDesktopOriginalUpgradeSpinner(
+              return _withOriginalUpgradeSpinner(
                 index,
                 SizedBox.expand(
                   child: TallImageScrollPreview(
@@ -1958,7 +1956,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
                 ),
               );
             }
-            return _withDesktopOriginalUpgradeSpinner(
+            return _withOriginalUpgradeSpinner(
               index,
               GesturedImage(state, key: gestureKey),
             );

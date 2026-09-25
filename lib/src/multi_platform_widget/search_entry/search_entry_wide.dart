@@ -7,6 +7,7 @@ import 'package:tencent_cloud_chat_demo/src/conversation.dart'
     show ConversationListScope;
 import 'package:tencent_cloud_chat_demo/src/navigation/app_chat_route.dart';
 import 'package:tencent_cloud_chat_demo/src/create_group.dart';
+import 'package:tencent_cloud_chat_demo/src/pages/channel_intro_page.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/cross_platform/wide_screen/desktop_create_group_host.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
 import 'package:tencent_cloud_chat_demo/src/search_add_page.dart';
@@ -98,6 +99,17 @@ class _SearchEntryWideState extends State<SearchEntryWide> {
             ko: '그룹 만들기',
           )
         },
+        {
+          "id": "createChannel",
+          "icon": Icons.campaign_rounded,
+          "label": AppI18n.of(context).t(
+            zhHans: '创建频道',
+            zhHant: '建立頻道',
+            en: 'Create Channel',
+            ja: 'チャンネルを作成',
+            ko: '채널 만들기',
+          )
+        },
       ];
 
   List<Map<String, dynamic>> _conversationTooltip(BuildContext context) => [
@@ -121,6 +133,17 @@ class _SearchEntryWideState extends State<SearchEntryWide> {
             en: 'Create Group',
             ja: 'グループを作成',
             ko: '그룹 만들기',
+          )
+        },
+        {
+          "id": "createChannel",
+          "icon": Icons.campaign_rounded,
+          "label": AppI18n.of(context).t(
+            zhHans: '创建频道',
+            zhHant: '建立頻道',
+            en: 'Create Channel',
+            ja: 'チャンネルを作成',
+            ko: '채널 만들기',
           )
         },
       ];
@@ -241,6 +264,9 @@ class _SearchEntryWideState extends State<SearchEntryWide> {
               : DesktopCreateGroupScope.c2c,
           convType: GroupTypeForUIKit.community,
         );
+        break;
+      case "createChannel":
+        ChannelIntroPage.show(context);
         break;
     }
   }
@@ -369,7 +395,8 @@ class _SearchEntryWideState extends State<SearchEntryWide> {
                           size: 16,
                         ),
                         const SizedBox(width: 6),
-                        Text(AppI18n.of(context).t(
+                        Text(
+                            AppI18n.of(context).t(
                               zhHans: '搜索',
                               zhHant: '搜尋',
                               en: 'Search',

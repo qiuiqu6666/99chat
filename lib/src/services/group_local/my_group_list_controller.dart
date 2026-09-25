@@ -155,6 +155,7 @@ class MyGroupListController extends ChangeNotifier {
         avatarVersion: record.avatarVersion,
         memberCount: record.memberCount,
         myRole: record.myRole,
+        isChannel: record.isChannel,
         indexTag: MyGroupAzSkeleton.computeIndexTag(
           groupName: record.groupName,
           groupId: record.groupId,
@@ -194,6 +195,7 @@ class MyGroupListController extends ChangeNotifier {
         left.avatarVersion == right.avatarVersion &&
         left.memberCount == right.memberCount &&
         left.myRole == right.myRole &&
+        left.isChannel == right.isChannel &&
         left.indexTag == right.indexTag;
   }
 
