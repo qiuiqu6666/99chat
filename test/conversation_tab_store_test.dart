@@ -212,7 +212,7 @@ void main() {
     ConversationPinSyncService.instance.debugReplacePinnedIdsForTest(const {});
   });
 
-  test('reset keeps realtime rows that arrived while the SDK page was loading',
+  test('reset keeps fresh previews while accepting SDK unread independently',
       () async {
     final tab = ConversationTabStore.instance;
     tab.setItemsForTest(
@@ -266,7 +266,7 @@ void main() {
           'c2c_page_only',
         ]));
     expect(rows['c2c_existing']?.lastMessage?.msgID, 'realtime_new');
-    expect(rows['c2c_existing']?.unreadCount, 3);
+    expect(rows['c2c_existing']?.unreadCount, 0);
   });
 
   test('controller and SDK store share one immutable cached display', () {
@@ -846,7 +846,7 @@ void main() {
     ConversationTabStore.instance.applyPatches([
       _c2c('c2c_old', unread: 3),
       _c2c('c2c_hot', unread: 1),
-    ], reason: 'test');
+    ], reason: 'test', explicitUnreadIds: {'c2c_old', 'c2c_hot'});
     expect(ConversationTabStore.instance.countForType(1), 2);
     expect(
       ConversationTabStore.instance

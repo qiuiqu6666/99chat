@@ -119,6 +119,7 @@ import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversa
 import 'package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_flags.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_unread_clear_service.dart';
+import 'package:tencent_cloud_chat_demo/src/services/chat_entry_read_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_pipeline_clock.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_history_sync_coordinator.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_peek_service.dart';
@@ -1493,6 +1494,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
 
   Future<void> _persistChatLocalDraft() async {
     if (_draft.shouldSuppressLifecyclePersist) {
+      // Sending already queued a clear. Leave must wait for it before the
+      // conversation list reads storage, without saving the sent input again.
+      await _draftWrites.drain();
       return;
     }
     _draft.cancelDebounce();
@@ -9133,23 +9137,36 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
     if (conversationID.isEmpty) {
       return;
     }
-    final isVisible = routeVisible ?? RouteVisibility.isRouteVisible(context);
+    final isVisible =
+        (routeVisible ?? RouteVisibility.isRouteVisible(context)) &&
+        ModalRoute.of(context)?.isCurrent != false;
     final hasMessages = _hasVisibleHistoryMessages();
     final signature = '$conversationID|$isVisible|$hasMessages';
     if (_lastPublishedExternalEntryState == signature) {
       return;
     }
+    // A group alias may resolve to its SDK ID after the first frame.
+    final sameConversation =
+        _lastPublishedExternalEntryState?.startsWith('$conversationID|') ?? false;
+    if (!sameConversation) {
+      _openLifecycle.scheduledVisibleSdkUnreadClean = false;
+    }
     _lastPublishedExternalEntryState = signature;
-    if (hasMessages &&
-        isVisible &&
+    if (isVisible &&
         !_openLifecycle.scheduledVisibleSdkUnreadClean &&
-        (widget.entryUnreadCount ?? 0) > 0) {
+        widget.initFindingMsg == null &&
+        widget.searchJumpAnchor == null) {
       _openLifecycle.scheduledVisibleSdkUnreadClean = true;
+      final generation = _chatOpenGeneration;
       unawaited(
-        ConversationUnreadClearService.scheduleSdkUnreadClean(
-          conversationID: conversationID,
-          trigger: SdkUnreadCleanTrigger.chatVisible,
-          hadUnread: true,
+        ChatEntryReadService.clearOnEntry(
+          conversation: _conversation,
+          isCurrent: () =>
+              _isChatOpenGenerationCurrent(generation, conversationID) &&
+              widget.initFindingMsg == null &&
+              widget.searchJumpAnchor == null &&
+              ModalRoute.of(context)?.isCurrent != false &&
+              RouteVisibility.isRouteVisible(context),
         ),
       );
     }

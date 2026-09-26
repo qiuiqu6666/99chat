@@ -11,6 +11,35 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  test('leave waits for queued draft clear even after an older write fails',
+      () async {
+    final queue = ChatDraftWriteQueue();
+    final releaseWrite = Completer<void>();
+    final releaseClear = Completer<void>();
+    var saved = 'sent';
+    var flushed = false;
+    final write = queue.enqueue(() async {
+      await releaseWrite.future;
+      throw StateError('older write failed');
+    });
+    final clear = queue.enqueue(() async {
+      await releaseClear.future;
+      saved = '';
+    });
+    final leave = queue.drain().then((_) {
+      expect(saved, isEmpty);
+      flushed = true;
+    });
+    await Future<void>.delayed(Duration.zero);
+    expect(flushed, isFalse);
+    releaseWrite.complete();
+    await write;
+    expect(flushed, isFalse);
+    releaseClear.complete();
+    await Future.wait([clear, leave]);
+    expect(flushed, isTrue);
+  });
+
   test('late send success preserves B, its debounce and its leave save', () {
     fakeAsync((clock) {
       final draft = ChatDraftController();

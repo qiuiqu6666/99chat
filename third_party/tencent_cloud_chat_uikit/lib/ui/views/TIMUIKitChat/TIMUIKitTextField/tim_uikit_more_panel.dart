@@ -510,16 +510,6 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
     }
   }
 
-  Future<List<XFile>?> _pickSystemGalleryMedia() async {
-    try {
-      return await ChatGalleryPickUtils.pickSystemGalleryMedia();
-    } catch (error) {
-      // iOS 14 以下、缺少系统能力或厂商实现异常时，交给现有相册组件兜底。
-      outputLogger.i('system media picker unavailable, use fallback: $error');
-      return null;
-    }
-  }
-
   bool _isPickedVideo(XFile file) {
     final mimeType = file.mimeType?.toLowerCase();
     if (mimeType != null && mimeType.isNotEmpty) {
@@ -1757,7 +1747,8 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
 
         if (PlatformUtils().isMobile && !preferCustomPicker) {
           perf.log('system_picker_open');
-          final systemFiles = await _pickSystemGalleryMedia();
+          final systemFiles =
+              await ChatGalleryPickUtils.pickSystemGalleryMedia(perf: perf);
           perf.log(
             'system_picker_returned',
             count: systemFiles?.length ?? 0,
@@ -1872,6 +1863,15 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
           'media_task_failed',
           detail: 'type=${err.runtimeType}',
         );
+        _setMediaState(_MediaWorkState.failed);
+        await dismissPicker();
+        if (mounted &&
+            _isCapturedConversationCurrent(
+              _capturedConversationId(model),
+              _capturedConversationType(model),
+            )) {
+          _showPanelNotice(TIM_t('图片或视频未能发送，请重试'));
+        }
       }
     });
     perf.log('media_task_returned');

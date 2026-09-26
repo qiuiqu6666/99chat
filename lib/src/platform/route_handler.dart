@@ -299,6 +299,29 @@ class RouteHandler {
         return true;
       }
 
+      // A covered chat still owns its loaded window. Resolve it before
+      // pop-to-root, which would destroy that owner and create a second one
+      // while the first route is still finishing its exit transition.
+      final existing = AppChatRouteRegistry.instance.activeRoute(
+        Navigator.of(context),
+        appChatSessionKey(conversation),
+      );
+      if (existing != null) {
+        unawaited(openOrReuseAppChat(
+          context,
+          conversation,
+          entryUnreadCount: conversation.unreadCount ?? 0,
+          openSource: source,
+        ));
+        ExternalChatEntryService.instance.requestActivation(
+          conversationID: conversationID,
+          source: source,
+          reason: 'reused_chat_route',
+          delay: const Duration(milliseconds: 120),
+        );
+        return true;
+      }
+
       try {
         Navigator.of(context).popUntil((route) => route.isFirst);
       } catch (_) {}
@@ -333,6 +356,7 @@ class RouteHandler {
             pushCtx,
             conversation,
             entryUnreadCount: conversation.unreadCount ?? 0,
+            openSource: source,
           ),
         );
         ExternalChatEntryService.instance.logFlow(

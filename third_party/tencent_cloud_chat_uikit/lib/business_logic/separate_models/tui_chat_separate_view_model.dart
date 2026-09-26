@@ -261,6 +261,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
   ChatLifeCycle? lifeCycle;
   int _totalUnreadCount = 0;
   bool _isInit = false;
+  CurrentConversation? _conversationRegistration;
   String conversationID = "";
   ConvType? conversationType;
   final MobileAsyncCommitGuard _mediaCommitGuard = MobileAsyncCommitGuard();
@@ -993,10 +994,10 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     _lastPeekIsFinished = false;
     _sdkOlderPageTail = null;
 
-    globalModel.setCurrentConversation(
-      CurrentConversation(conversationID, conversationType ?? ConvType.c2c),
-      notify: false,
-    );
+    final registration =
+        CurrentConversation(conversationID, conversationType ?? ConvType.c2c);
+    _conversationRegistration = registration;
+    globalModel.setCurrentConversation(registration, notify: false);
     globalModel.lifeCycle = lifeCycle;
     if (globalModel.hasPendingScrollRestore(conversationID)) {
       globalModel.setMessageListPosition(
@@ -9175,6 +9176,29 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     }
   }
 
+  /// An unmounted or send-only model never owns another page's registration.
+  /// Releasing twice is harmless, including after an in-place chat switch.
+  void releaseCurrentConversation() {
+    final registration = _conversationRegistration;
+    _conversationRegistration = null;
+    if (registration == null) return;
+    final releasedLastOwner = globalModel.clearCurrentConversation(
+      expected: registration,
+      notify: false,
+    );
+    if (!releasedLastOwner) return;
+    globalModel.cancelHistoryReconciliation(registration.conversationID);
+    globalModel.unlockEntryUnreadForTongue(
+      conversationID: registration.conversationID,
+      notify: false,
+    );
+    if (!suppressReadReporting) {
+      unawaited(markMessageAsRead(notify: false, force: true));
+      globalModel.setUnreadCountForTongue(0,
+          conversationID: registration.conversationID, notify: false);
+    }
+  }
+
   @override
   void dispose() {
     _latestReturnOwner = null;
@@ -9197,16 +9221,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     _groupSenderDisplayNameCache.clear();
     _pagination.setArchiveHistoryNotice(null);
     _disposed = true;
-    globalModel.cancelHistoryReconciliation(conversationID);
-    globalModel.unlockEntryUnreadForTongue(
-      conversationID: conversationID,
-      notify: false,
-    );
-    if (!suppressReadReporting) {
-      unawaited(markMessageAsRead(notify: false, force: true));
-      globalModel.setUnreadCountForTongue(0, notify: false);
-    }
-    globalModel.clearCurrentConversation(notify: false);
+    releaseCurrentConversation();
     _isInit = false;
     super.dispose();
   }

@@ -1,11 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 // ignore: depend_on_referenced_packages
 import 'package:extended_text_field/extended_text_field.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tencent_cloud_chat_demo/src/chat_page/chat_draft_controller.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/outbox_draft_submission.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_separate_view_model.dart';
+import 'package:tencent_cloud_chat_uikit/business_logic/life_cycle/chat_life_cycle.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/screen_utils.dart';
@@ -13,12 +20,31 @@ import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/tim_uikit_chat_co
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_controller.dart';
 
+class _DraftEchoChatModel extends TUIChatSeparateViewModel {
+  Future<void> Function()? acceptSend;
+
+  @override
+  Future<V2TimValueCallback<V2TimMessage>?> sendTextMessage({
+    required String text,
+    required String convID,
+    required ConvType convType,
+  }) async {
+    await acceptSend?.call();
+    return V2TimValueCallback<V2TimMessage>(code: 0, desc: 'sent');
+  }
+
+  @override
+  Future<bool> requestLatestViewportReturn() async => true;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final longText = List.filled(30, '这是一段用于中间插入和选区替换的长文本。').join();
-  late TUIChatSeparateViewModel model;
+  late _DraftEchoChatModel model;
   late TIMUIKitInputTextFieldController input;
   late ValueNotifier<({String conversation, String? text})> draft;
+  late List<String> draftChanges;
+  ValueChanged<String>? observeDraft;
   TextEditingController editor() => input.textEditingController!;
 
   setUpAll(() {
@@ -26,7 +52,9 @@ void main() {
     setupServiceLocator();
   });
   setUp(() {
-    model = TUIChatSeparateViewModel()
+    draftChanges = [];
+    observeDraft = null;
+    model = _DraftEchoChatModel()
       ..conversationID = 'c2c_selection'
       ..conversationType = ConvType.c2c
       ..chatConfig = const TIMUIKitChatConfig(isUseDraft: false);
@@ -74,6 +102,10 @@ void main() {
             model: model,
             controller: input,
             initText: value.text,
+            onChanged: (text) {
+              draftChanges.add(text);
+              observeDraft?.call(text);
+            },
             showSendAudio: false,
             showSendEmoji: false,
             showMorePanel: false,
@@ -165,6 +197,124 @@ void main() {
     expect(editor().value, current);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  for (final send in [false, true]) {
+    testWidgets(
+        'late draft does not restore text after ${send ? 'send' : 'delete'}',
+        (tester) async {
+      draft.value = (conversation: model.conversationID, text: null);
+      await mount(tester);
+      tester.testTextInput.updateEditingValue(const TextEditingValue(
+          text: 'sent text', selection: TextSelection.collapsed(offset: 9)));
+      await pump(tester);
+      if (send) {
+        final dynamic state = tester.state(find.byType(TIMUIKitInputTextField));
+        await state.onSubmitted();
+      } else {
+        tester.testTextInput.updateEditingValue(const TextEditingValue(
+            selection: TextSelection.collapsed(offset: 0)));
+      }
+      await pump(tester);
+      expect(editor().text, isEmpty);
+      draft.value = (conversation: model.conversationID, text: 'sent text');
+      await pump(tester);
+      expect(editor().text, isEmpty);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
+  for (final device in DeviceType.values) {
+    testWidgets(
+        'edits invalidate draft state before the layout debounce ($device)',
+        (tester) async {
+      TUIKitScreenUtils.deviceType = device;
+      draft.value = (conversation: model.conversationID, text: null);
+      await mount(tester);
+      tester.testTextInput.updateEditingValue(const TextEditingValue(
+          text: 'A', selection: TextSelection.collapsed(offset: 1)));
+      await pump(tester);
+      expect(draftChanges, ['A']);
+      tester.testTextInput.updateEditingValue(const TextEditingValue(
+          text: 'ni',
+          selection: TextSelection.collapsed(offset: 2),
+          composing: TextRange(start: 0, end: 2)));
+      await pump(tester);
+      expect(draftChanges, ['A', 'ni']);
+      tester.testTextInput.updateEditingValue(const TextEditingValue(
+          selection: TextSelection.collapsed(offset: 0)));
+      await pump(tester);
+      expect(draftChanges, ['A', 'ni', '']);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(draftChanges, ['A', 'ni', '']);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
+  for (final newText in <String?>[null, 'new edit', 'sent text']) {
+    testWidgets('durable send clear belongs to its edit (new text=$newText)',
+        (tester) async {
+      final owner = ChatDraftController();
+      addTearDown(owner.dispose);
+      final acceptance = Completer<void>();
+      var clears = 0;
+      final clearResults = <bool>[];
+      observeDraft = (text) => owner.onChanged(text, persist: (_, __) {});
+      model.lifeCycle = ChatLifeCycle(
+        textWillSubmit: (text) {
+          final submission = owner.captureSubmission(text);
+          submission.durableContext = ImDraftSubmissionContext(
+            prepare: () async => ImDraftAcceptance(
+                ownerUserId: 'owner',
+                conversationId: model.conversationID,
+                draftId: 'draft',
+                protectedText: 'protected'),
+            isCurrent: () => owner.ownsSubmission(submission),
+          );
+          return submission;
+        },
+        textDidClearAfterSubmit: (value) {
+          clears++;
+          clearResults
+              .add(owner.clearForSubmission(value! as ChatDraftSubmission));
+        },
+        textDidSubmit: (value, _) =>
+            owner.markSendCompleted(value! as ChatDraftSubmission),
+      );
+      model.acceptSend = () async {
+        final boundary = ImDraftSubmissionContext.current!;
+        await acceptance.future;
+        boundary.accepted('operation');
+      };
+      draft.value = (conversation: model.conversationID, text: null);
+      await mount(tester);
+      tester.testTextInput.updateEditingValue(const TextEditingValue(
+          text: 'sent text', selection: TextSelection.collapsed(offset: 9)));
+      await pump(tester);
+      final dynamic state = tester.state(find.byType(TIMUIKitInputTextField));
+      await state.onSubmitted();
+      expect(editor().text, 'sent text');
+      expect(clears, 0);
+      if (newText != null) {
+        // Deleting and typing the same text is a new edit as well.
+        tester.testTextInput.updateEditingValue(const TextEditingValue(
+            selection: TextSelection.collapsed(offset: 0)));
+        await pump(tester);
+        tester.testTextInput.updateEditingValue(TextEditingValue(
+            text: newText,
+            selection: TextSelection.collapsed(offset: newText.length)));
+        await pump(tester);
+      }
+      // No debounce duration has elapsed before the old send completes.
+      acceptance.complete();
+      await pump(tester);
+      expect(editor().text, newText ?? '');
+      expect(owner.text, newText);
+      expect(clears, newText == null ? 1 : 0);
+      expect(clearResults, newText == null ? [true] : isEmpty);
+      owner.dispose();
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
 
   testWidgets('a loaded draft still populates an untouched editor',
       (tester) async {

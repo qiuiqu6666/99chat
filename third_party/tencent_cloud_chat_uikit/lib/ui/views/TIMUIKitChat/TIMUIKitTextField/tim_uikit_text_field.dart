@@ -155,6 +155,8 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
   final TUISelfInfoViewModel selfModel = serviceLocator<TUISelfInfoViewModel>();
   MuteStatus muteStatus = MuteStatus.none;
   bool _isComposingText = false;
+  bool _hasLocalDraftMutation = false;
+  String _lastObservedDraftText = '';
   int latestSendEditStatusTime = DateTime.now().millisecondsSinceEpoch;
   int _lastFaceMessageSendAtMs = 0;
   static const int _minFaceMessageSendIntervalMs = 350;
@@ -231,6 +233,27 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
     currentCursor = value;
   }
 
+  void _notifyTextChanged(String text) {
+    _hasLocalDraftMutation = true;
+    widget.onChanged?.call(text);
+  }
+
+  void _observeEditingValue() {
+    final value = textEditingController.value;
+    // Controller mutations (including send clears) are edits too. Selection
+    // and composition-only notifications must not invalidate loaded drafts.
+    if (value.text != _lastObservedDraftText) {
+      _hasLocalDraftMutation = true;
+      _lastObservedDraftText = value.text;
+    }
+    final nextComposing = value.composing.start != -1;
+    if (_isComposingText != nextComposing && mounted) {
+      setState(() => _isComposingText = nextComposing);
+    } else {
+      _isComposingText = nextComposing;
+    }
+  }
+
   /// 更新输入框内容时一次性提交 text/selection/composing，避免 iOS 中文输入法
   /// 在拼音组合期间收到“先改 text、再改 selection”的两次状态同步后切换输入模式。
   void _setProgrammaticText(
@@ -240,13 +263,14 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
   }) {
     final previousText = textEditingController.text;
     final offset = (selectionOffset ?? text.length).clamp(0, text.length);
+    if (!notifyChanged) _lastObservedDraftText = text;
     textEditingController.value = TextEditingValue(
       text: text,
       selection: TextSelection.collapsed(offset: offset),
       composing: TextRange.empty,
     );
     if (notifyChanged && previousText != text) {
-      widget.onChanged?.call(text);
+      _notifyTextChanged(text);
     }
   }
 
@@ -417,6 +441,7 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
       release();
       if (boundary != null && !boundary.isCurrent()) return;
       if (mounted) {
+        _hasLocalDraftMutation = true;
         textEditingController.clear();
         _clearMentionState();
         currentCursor = null;
@@ -1072,14 +1097,8 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
       widget.controller?.addListener(controllerHandler);
     }
     languageType = 'zh';
-    textEditingController.addListener(() {
-      final nextComposing = textEditingController.value.composing.start != -1;
-      if (_isComposingText != nextComposing && mounted) {
-        setState(() => _isComposingText = nextComposing);
-      } else {
-        _isComposingText = nextComposing;
-      }
-    });
+    _lastObservedDraftText = textEditingController.text;
+    textEditingController.addListener(_observeEditingValue);
     generateStickerList();
   }
 
@@ -1142,6 +1161,7 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
       _bottomReturnConversation = null;
     }
     if (widget.conversationID != oldWidget.conversationID) {
+      _hasLocalDraftMutation = false;
       _clearMentionState();
       handleSetDraftText(
           id: oldWidget.conversationID,
@@ -1160,7 +1180,10 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
         // initText also echoes the parent's saved draft on ordinary rebuilds.
         // Reassigning even identical text collapses the selection to the end
         // and clears composing. A delayed echo must not replace newer edits.
-        if (currentText == nextText ||
+        // Empty after send/delete is still an edited buffer. Text equality
+        // alone makes it look untouched and lets a late draft refill it.
+        if (_hasLocalDraftMutation ||
+            currentText == nextText ||
             currentText != (oldWidget.initText ?? "") ||
             _hasActiveTextComposition) {
           return;
@@ -1184,6 +1207,7 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
     if (widget.controller != null) {
       widget.controller?.removeListener(controllerHandler);
     }
+    textEditingController.removeListener(_observeEditingValue);
     focusNode.dispose();
     super.dispose();
   }
@@ -1313,7 +1337,7 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
                     backSpaceText: _deleteStickerFromText,
                     addStickerToText: _addStickerToText,
                     customStickerPanel: widget.customStickerPanel,
-                    onChanged: widget.onChanged,
+                    onChanged: _notifyTextChanged,
                     onDeleteText: _onDeleteText,
                     backgroundColor: widget.backgroundColor,
                     morePanelConfig: widget.morePanelConfig,
@@ -1353,7 +1377,7 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
                     backSpaceText: _deleteStickerFromText,
                     addStickerToText: _addStickerToText,
                     customStickerPanel: widget.customStickerPanel,
-                    onChanged: widget.onChanged,
+                    onChanged: _notifyTextChanged,
                     backgroundColor: widget.backgroundColor,
                     morePanelConfig: widget.morePanelConfig,
                     repliedMessage: selected.repliedMessage,

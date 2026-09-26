@@ -119,6 +119,9 @@ class ChatDraftController {
 class ChatDraftWriteQueue {
   Future<void> _tail = Future<void>.value();
 
+  /// Wait for already queued mutations before the list reads the draft again.
+  Future<void> drain() => _tail;
+
   Future<void> enqueue(
     Future<void> Function() operation, {
     void Function(Object error, StackTrace stackTrace)? onError,

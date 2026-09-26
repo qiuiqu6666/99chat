@@ -64,19 +64,8 @@ void main() {
     expect(source, contains('expectedEdit: edit'));
   });
 
-  test('programmatic send clear is forwarded to the draft owner', () {
-    final source = File(
-      'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/'
-      'TIMUIKitTextField/tim_uikit_text_field.dart',
-    ).readAsStringSync();
-    expect(
-        RegExp(r'textEditingController\.clear\(\);').allMatches(source).length,
-        2);
-    expect(
-        RegExp(r'_notifySubmissionClear\(submission\);').allMatches(source).length,
-        2);
-  });
-
+  // Send clear ownership is exercised through the actual input widget in
+  // chat_input_selection_preservation_test.dart, including late acceptance.
   test('programmatic input distinguishes user edits from draft restore', () {
     final inputSource = File(
       'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/'

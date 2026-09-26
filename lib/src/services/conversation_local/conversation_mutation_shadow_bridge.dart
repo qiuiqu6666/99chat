@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/message_conversation_id.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/revoked_message_preview.dart';
 import 'package:tencent_cloud_chat_demo/utils/conversation_last_message_prefer.dart';
@@ -56,6 +57,10 @@ class ConversationMutationShadowBridge {
       ConversationMutationCoordinator();
   String _activeOwner = '';
   int _ownerGeneration = 0;
+  // Store deduplication survives process restarts; the in-memory counter does
+  // not. Keep new events distinct from earlier boots, while a replay of the
+  // same generated plan retains its original idempotency key.
+  String _eventEpoch = const Uuid().v4();
   int _eventSequence = 0;
   final Map<String, int> _conversationGenerations = <String, int>{};
   final Set<String> _tombstoned = <String>{};
@@ -212,7 +217,7 @@ class ConversationMutationShadowBridge {
       final sequence = ++_eventSequence;
       final result = await _coordinator.submit(
         ConversationMutationEvent(
-          eventId: 'sdk:$sequence:delete',
+          eventId: '$_eventEpoch:sdk:$sequence:delete',
           ownerUserId: owner,
           conversationId: canonical,
           conversationType: type,
@@ -262,7 +267,7 @@ class ConversationMutationShadowBridge {
       final result =
           await _coordinator.submitForDatabaseCommit<V2TimConversation>(
         ConversationMutationEvent(
-          eventId: 'sdk:$sequence:delete',
+          eventId: '$_eventEpoch:sdk:$sequence:delete',
           ownerUserId: owner,
           conversationId: canonical,
           conversationType: type,
@@ -361,9 +366,9 @@ class ConversationMutationShadowBridge {
       final token = ConversationPerfGateLog.textHash(
         fieldPatch[ConversationMutationField.draft]?.toString() ?? '',
       );
-      return '${source.name}:$sequence:draft:${token.isEmpty ? 'empty' : token}';
+      return '$_eventEpoch:${source.name}:$sequence:draft:${token.isEmpty ? 'empty' : token}';
     }
-    return '${source.name}:$sequence:patch';
+    return '$_eventEpoch:${source.name}:$sequence:patch';
   }
 
   void observeSdkConversations({
@@ -424,7 +429,7 @@ class ConversationMutationShadowBridge {
       };
       _enqueue(
         ConversationMutationEvent(
-          eventId: 'sdk:$sequence:conversation',
+          eventId: '$_eventEpoch:sdk:$sequence:conversation',
           ownerUserId: owner,
           conversationId: canonical,
           conversationType: type,
@@ -451,7 +456,7 @@ class ConversationMutationShadowBridge {
       if (metadata.isNotEmpty) {
         _enqueue(
           ConversationMutationEvent(
-            eventId: 'sdk:$sequence:metadata',
+            eventId: '$_eventEpoch:sdk:$sequence:metadata',
             ownerUserId: owner,
             conversationId: canonical,
             conversationType: type,
@@ -495,7 +500,7 @@ class ConversationMutationShadowBridge {
       final sequence = ++_eventSequence;
       _enqueue(
         ConversationMutationEvent(
-          eventId: 'sdk:$sequence:delete',
+          eventId: '$_eventEpoch:sdk:$sequence:delete',
           ownerUserId: owner,
           conversationId: canonical,
           conversationType: type,
@@ -592,6 +597,7 @@ class ConversationMutationShadowBridge {
     _coordinator = ConversationMutationCoordinator();
     _activeOwner = '';
     _ownerGeneration = 0;
+    _eventEpoch = const Uuid().v4();
     _eventSequence = 0;
     _conversationGenerations.clear();
     _tombstoned.clear();
@@ -677,7 +683,7 @@ class ConversationMutationShadowBridge {
     final conversationResult =
         await _coordinator.submitForDatabaseCommit<V2TimConversation>(
       ConversationMutationEvent(
-        eventId: 'sdk:$sequence:conversation',
+        eventId: '$_eventEpoch:sdk:$sequence:conversation',
         ownerUserId: owner,
         conversationId: canonical,
         conversationType: type,
@@ -706,7 +712,7 @@ class ConversationMutationShadowBridge {
     if (metadata.isNotEmpty) {
       await _coordinator.submit(
         ConversationMutationEvent(
-          eventId: 'sdk:$sequence:metadata',
+          eventId: '$_eventEpoch:sdk:$sequence:metadata',
           ownerUserId: owner,
           conversationId: canonical,
           conversationType: type,

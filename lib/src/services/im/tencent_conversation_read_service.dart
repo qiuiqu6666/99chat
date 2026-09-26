@@ -1,5 +1,7 @@
 import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
+import 'package:flutter/foundation.dart';
 import 'conversation_read_policy.dart';
+import '../conversation_unread_trace.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_callback.dart'
@@ -12,6 +14,15 @@ import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.
 /// Account-fenced authority for Tencent conversation read mutations.
 class TencentConversationReadService {
   TencentConversationReadService._();
+
+  /// Replaces only the provider boundary; validation and account fencing still
+  /// execute, allowing tests to exercise the real durable read queue.
+  @visibleForTesting
+  static Future<V2TimCallback> Function({
+    required String conversationID,
+    required int cleanTimestamp,
+    required int cleanSequence,
+  })? cleanUnreadForTesting;
 
   static Future<V2TimCallback> markRead({
     required MessageService messageService,
@@ -31,6 +42,11 @@ class TencentConversationReadService {
     // They must not clear newer/unseen messages; the read outbox owns those
     // bounded acknowledgements. Full clears require an explicit user action.
     if (!explicitFullConversationClear) {
+      ConversationUnreadTrace.log(
+        'legacy_read_blocked',
+        conversationID: conversationID,
+        extras: {'isGroup': isGroup, 'reason': 'read_watermark_unavailable'},
+      );
       return V2TimCallback(code: -1, desc: 'read_watermark_unavailable');
     }
     final result = isGroup
@@ -45,6 +61,7 @@ class TencentConversationReadService {
     required int cleanTimestamp,
     required int cleanSequence,
     bool allowFullTypeClean = false,
+    bool allowFullConversationClean = false,
   }) async {
     final id = conversationID.trim();
     if (id.isEmpty) {
@@ -54,16 +71,42 @@ class TencentConversationReadService {
       return _staleIdentity();
     }
     if (!ConversationReadPolicy.validTarget(id, cleanTimestamp, cleanSequence,
-        explicitTypeClear: allowFullTypeClean)) {
+        explicitTypeClear: allowFullTypeClean,
+        explicitConversationClear: allowFullConversationClean)) {
+      ConversationUnreadTrace.log(
+        'sdk_read_target_invalid',
+        conversationID: id,
+        extras: {
+          'cleanTimestamp': cleanTimestamp,
+          'cleanSequence': cleanSequence
+        },
+      );
       return V2TimCallback(code: -1, desc: 'read_watermark_unavailable');
     }
-    final result = await TencentImSDKPlugin.v2TIMManager
-        .getConversationManager()
-        .cleanConversationUnreadMessageCount(
-          conversationID: id,
-          cleanTimestamp: cleanTimestamp > 0 ? cleanTimestamp : 0,
-          cleanSequence: cleanSequence > 0 ? cleanSequence : 0,
-        );
+    ConversationUnreadTrace.log('sdk_read_request',
+        conversationID: id,
+        extras: {
+          'cleanTimestamp': cleanTimestamp,
+          'cleanSequence': cleanSequence
+        });
+    final override = cleanUnreadForTesting;
+    final result = override != null
+        ? await override(
+            conversationID: id,
+            cleanTimestamp: cleanTimestamp > 0 ? cleanTimestamp : 0,
+            cleanSequence: cleanSequence > 0 ? cleanSequence : 0,
+          )
+        : await TencentImSDKPlugin.v2TIMManager
+            .getConversationManager()
+            .cleanConversationUnreadMessageCount(
+              conversationID: id,
+              cleanTimestamp: cleanTimestamp > 0 ? cleanTimestamp : 0,
+              cleanSequence: cleanSequence > 0 ? cleanSequence : 0,
+            );
+    ConversationUnreadTrace.log('sdk_read_result', conversationID: id, extras: {
+      'sdkCode': result.code,
+      'identityCurrent': _isCurrent(capturedIdentity)
+    });
     return _isCurrent(capturedIdentity) ? result : _staleIdentity();
   }
 

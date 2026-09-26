@@ -47,7 +47,9 @@ class _LotteryCardCountdownState extends State<_LotteryCardCountdown> {
         label = '距封盘 ${seconds >= 3600 ? '${two(seconds ~/ 3600)}:' : ''}$time';
       }
     }
-    return Text(label,
+    final issue = widget.round['issueLabel'] ?? widget.round['issue'];
+    final issueLabel = issue?.toString().trim() ?? '';
+    return Text(issueLabel.isEmpty ? label : '第 $issueLabel 期 · $label',
         key: const ValueKey('lottery-current-status'),
         style: TextStyle(fontSize: 11, color: status == 'open' ? _blue : _red));
   }

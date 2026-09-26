@@ -182,12 +182,12 @@ class ConversationDraftService {
             .isCurrent(identity, currentOwnerUserId: _owner);
     // The durable edit must not wait behind a hung SDK write for the same
     // conversation. SDK calls still retain their original serial order.
+    final draftEdit = expectedEdit ??
+        ConversationDraftEdit._(identity, id, Object(), 0, text);
     final durableSaved = _durableDrafts
         ? (() async {
             if (!current()) return;
-            final edit = expectedEdit ??
-                ConversationDraftEdit._(identity, id, Object(), 0, text);
-            final draft = await _protectEdit(edit, text ?? '');
+            final draft = await _protectEdit(draftEdit, text ?? '');
             if (!current()) return;
             await _draftStore.transaction((tx) async {
               if (current())
@@ -198,13 +198,26 @@ class ConversationDraftService {
     final next = (_tails[key] ?? Future<void>.value()).then((_) async {
       await durableSaved;
       if (!current()) return;
+      // A reopened page can inherit the same edit while the original send's
+      // cleanup is pending. Its old text must not revive either mirror after
+      // that edit has already been durably accepted by the outbox.
+      // Check at dispatch, not when durableSaved starts: acceptance can happen
+      // while this operation waits behind an older SDK write.
+      final head = _durableDrafts
+          ? await _draftStore.transaction((tx) =>
+              (tx as ImDraftTransaction).findDraftHead(identity.ownerUserId, id))
+          : null;
+      if (!current()) return;
+      final alreadyAccepted = head?['draft_id'] == draftEdit.draftId &&
+          head?['accepted_operation_id'] != null;
+      final mirrorText = alreadyAccepted ? null : text;
       final int code;
       if (writeForTest != null) {
-        code = await writeForTest!(id, text);
+        code = await writeForTest!(id, mirrorText);
       } else {
         code = (await TencentImSDKPlugin.v2TIMManager
                 .getConversationManager()
-                .setConversationDraft(conversationID: id, draftText: text))
+                .setConversationDraft(conversationID: id, draftText: mirrorText))
             .code;
       }
       if (!current()) return;
@@ -219,14 +232,15 @@ class ConversationDraftService {
       ConversationDraftLeaveTrace.stage(
         'sdk_draft_write_done',
         conversationId: id,
-        draftText: text ?? '',
+        draftText: mirrorText ?? '',
       );
       if (expectedEdit != null) _pendingEdits.remove(key);
       try {
         if (commitForTest != null) {
-          await commitForTest!(id, text ?? '');
+          await commitForTest!(id, mirrorText ?? '');
         } else {
-          final commit = await _commitDraft(id, text ?? '', canCommit: current);
+          final commit =
+              await _commitDraft(id, mirrorText ?? '', canCommit: current);
           if (current()) await _notifyList(commit);
         }
         if (current()) _mirrorRepairPending.remove(key);
@@ -283,12 +297,23 @@ class ConversationDraftService {
     final identity = expectedEdit?.identity ??
         SessionIdentityService.instance.capture(ownerUserId: _owner);
     if (expectedEdit != null && !isCurrentEdit(expectedEdit)) return null;
-    if (expectedEdit != null && _pendingEdits.contains(expectedEdit.key)) {
-      return expectedEdit.text;
-    }
+    final hasPendingEdit =
+        expectedEdit != null && _pendingEdits.contains(expectedEdit.key);
     if (_durableDrafts) {
       final head = await _draftStore.transaction((tx) =>
           (tx as ImDraftTransaction).findDraftHead(identity.ownerUserId, id));
+      if ((expectedEdit != null && !isCurrentEdit(expectedEdit)) ||
+          !SessionIdentityService.instance
+              .isCurrent(identity, currentOwnerUserId: _owner)) {
+        return null;
+      }
+      // Pending text is newer than storage only if it is a different edit.
+      // A handed-off copy of an accepted draft must not restore sent text.
+      if (hasPendingEdit &&
+          (head?['draft_id'] != expectedEdit.draftId ||
+              head?['accepted_operation_id'] == null)) {
+        return expectedEdit.text;
+      }
       if (head != null) {
         if ((expectedEdit != null && !isCurrentEdit(expectedEdit)) ||
             !SessionIdentityService.instance
@@ -318,6 +343,7 @@ class ConversationDraftService {
         return saved.isEmpty ? null : saved;
       }
     }
+    if (hasPendingEdit) return expectedEdit.text;
     final String? text;
     if (readForTest != null) {
       text = await readForTest!(id);

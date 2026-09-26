@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+import 'package:tencent_cloud_chat_demo/src/services/chat_entry_read_service.dart';
 
 import 'package:tencent_cloud_chat_uikit/ui/utils/background_media_gate.dart';
 
@@ -21,10 +22,18 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/message_anchor.dart';
 /// conversations; it only lets callers return to an existing conversation
 /// route instead of stacking a duplicate instance.
 class _PendingChatOpen {
-  _PendingChatOpen(BuildContext context) : callers = [context];
+  _PendingChatOpen(BuildContext context, {this.message, this.anchor})
+      : callers = [context];
   final List<BuildContext> callers;
   final Completer<Object?> result = Completer<Object?>();
+  V2TimMessage? message;
+  MessageAnchor? anchor;
+  Route<dynamic>? route;
+  int targetRevision = 0;
 }
+
+typedef AppChatTargetActivator = void Function(
+    MessageAnchor anchor, V2TimMessage? message);
 
 String _accountRouteKey(String key) {
   final session = SessionIdentityService.instance.capture();
@@ -40,15 +49,19 @@ class AppChatRouteRegistry {
       <NavigatorState, Map<String, List<Route<dynamic>>>>{};
 
   final Map<NavigatorState, Map<String, _PendingChatOpen>> _pending = {};
+  final Map<Route<dynamic>, AppChatTargetActivator> _targetActivators = {};
   @visibleForTesting
   Future<void> Function()? prepareForTest;
   @visibleForTesting
   Route<dynamic> Function()? routeForTest;
+  @visibleForTesting
+  Widget Function(MessageAnchor?, V2TimMessage?)? chatBuilderForTest;
 
   void register({
     required NavigatorState navigator,
     required String sessionKey,
     required Route<dynamic> route,
+    AppChatTargetActivator? activateTarget,
   }) {
     final key = _accountRouteKey(sessionKey.trim());
     if (key.isEmpty) {
@@ -61,12 +74,14 @@ class AppChatRouteRegistry {
     );
     routes.removeWhere((candidate) => identical(candidate, route));
     routes.add(route);
+    if (activateTarget != null) _targetActivators[route] = activateTarget;
   }
 
   void unregister(
       {required NavigatorState navigator,
       required String sessionKey,
       required Route<dynamic> route}) {
+    _targetActivators.remove(route);
     final routes = _routes[navigator];
     if (routes == null) return;
     for (final list in routes.values) {
@@ -74,6 +89,14 @@ class AppChatRouteRegistry {
     }
     routes.removeWhere((_, list) => list.isEmpty);
     if (routes.isEmpty) _routes.remove(navigator);
+  }
+
+  bool activateTarget(
+      Route<dynamic> route, MessageAnchor anchor, V2TimMessage? message) {
+    final activate = _targetActivators[route];
+    if (!route.isActive || activate == null) return false;
+    activate(anchor, message);
+    return true;
   }
 
   Route<dynamic>? activeRoute(
@@ -103,8 +126,10 @@ class AppChatRouteRegistry {
   void reset() {
     _routes.clear();
     _pending.clear();
+    _targetActivators.clear();
     prepareForTest = null;
     routeForTest = null;
+    chatBuilderForTest = null;
   }
 
   /// Defensive helper: returns true iff at least one active Chat route is
@@ -145,21 +170,47 @@ String appChatSessionKey(V2TimConversation conversation) {
 class _AppChatRoutePresence extends StatefulWidget {
   const _AppChatRoutePresence({
     required this.sessionKey,
-    required this.child,
+    required this.builder,
+    this.anchor,
+    this.message,
   });
 
   final String sessionKey;
-  final Widget child;
+  final Widget Function(MessageAnchor?, V2TimMessage?) builder;
+  final MessageAnchor? anchor;
+  final V2TimMessage? message;
 
   @override
   State<_AppChatRoutePresence> createState() => _AppChatRoutePresenceState();
 }
 
 class _AppChatRoutePresenceState extends State<_AppChatRoutePresence> {
+  late MessageAnchor? _anchor = widget.anchor;
+  late V2TimMessage? _message = widget.message;
   NavigatorState? _navigator;
   Route<dynamic>? _route;
   Animation<double>? _primaryAnimation;
   Animation<double>? _secondaryAnimation;
+
+  void _activateTarget(MessageAnchor anchor, V2TimMessage? message) {
+    if (!mounted) return;
+    setState(() {
+      // A new request may target the same row after scrolling away. Keep the
+      // Chat State/key, but give UIKit a new immutable target instance so it
+      // reloads and positions that row again instead of consuming old success.
+      _anchor = MessageAnchor(
+        conversationID: anchor.conversationID,
+        convType: anchor.convType,
+        msgID: anchor.msgID,
+        localID: anchor.localID,
+        seq: anchor.seq,
+        timestamp: anchor.timestamp,
+        sender: anchor.sender,
+        elemType: anchor.elemType,
+      );
+      _message = message;
+    });
+  }
 
   void _updateInteractionGate([AnimationStatus? _]) {
     bool moving(Animation<double>? animation) =>
@@ -192,6 +243,7 @@ class _AppChatRoutePresenceState extends State<_AppChatRoutePresence> {
       navigator: navigator,
       sessionKey: widget.sessionKey,
       route: route,
+      activateTarget: _activateTarget,
     );
   }
 
@@ -222,7 +274,7 @@ class _AppChatRoutePresenceState extends State<_AppChatRoutePresence> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) => widget.builder(_anchor, _message);
 }
 
 Route<T> appChatRoute<T>(
@@ -240,8 +292,7 @@ Route<T> appChatRoute<T>(
               conversation,
               initFindingMsg,
             ));
-  final sessionKey = appChatSessionKey(conversation) +
-      (resolvedAnchor == null ? '' : '|anchor:' + resolvedAnchor.stableKey);
+  final sessionKey = appChatSessionKey(conversation);
   return AppMaterialPageRoute<T>(
     settings: const RouteSettings(name: AppRoutes.chat),
     // 聊天页禁止转场 snapshot：转场结束切回 live 树时会卸掉消息列表 State，
@@ -252,17 +303,21 @@ Route<T> appChatRoute<T>(
     edgeStartWidthPx: 40,
     builder: (_) => _AppChatRoutePresence(
       sessionKey: sessionKey,
-      child: RepaintBoundary(
+      anchor: resolvedAnchor,
+      message: initFindingMsg,
+      builder: (anchor, message) => RepaintBoundary(
         // 侧滑只合成图层，避免 20 条气泡跟着手势每帧 relayout。
-        child: Chat(
-          key: ValueKey<String>('chat_session_$sessionKey'),
-          selectedConversation: conversation,
-          entryUnreadCount: entryUnreadCount,
-          initFindingMsg: initFindingMsg,
-          searchJumpAnchor: resolvedAnchor,
-          initialC2cCanMessage: initialC2cCanMessage,
-          c2cPermissionHintSource: c2cPermissionHintSource,
-        ),
+        child: AppChatRouteRegistry.instance.chatBuilderForTest
+                ?.call(anchor, message) ??
+            Chat(
+              key: ValueKey<String>('chat_session_$sessionKey'),
+              selectedConversation: conversation,
+              entryUnreadCount: entryUnreadCount,
+              initFindingMsg: message,
+              searchJumpAnchor: anchor,
+              initialC2cCanMessage: initialC2cCanMessage,
+              c2cPermissionHintSource: c2cPermissionHintSource,
+            ),
       ),
     ),
   );
@@ -286,6 +341,12 @@ Future<T?> openOrReuseAppChat<T>(
   }
   final navigator = Navigator.of(context);
   final sessionKey = appChatSessionKey(conversation);
+  final registry = AppChatRouteRegistry.instance;
+  final anchor = searchJumpAnchor ??
+      (initFindingMsg == null
+          ? null
+          : MessageAnchor.fromConversationMessage(
+              conversation, initFindingMsg));
   if (openTrace == null) {
     ChatOpenPerfLog.beginOpen(
         conversationID: conversation.conversationID,
@@ -303,21 +364,34 @@ Future<T?> openOrReuseAppChat<T>(
     userId: conversation.userID,
     groupId: conversation.groupID,
   );
-  ChatPipelineClock.instance.trace(pipelineKey, 'push_begin',
-      extras: <String, Object?>{
-        'canReuse': initFindingMsg == null && searchJumpAnchor == null
-      });
-  // Search/anchor opens carry a new navigation subject. Until the existing
-  // Chat State exposes an in-place target-message activation API, preserve the
-  // established dedicated route semantics instead of silently dropping it.
-  final canReuse = initFindingMsg == null && searchJumpAnchor == null;
-  final existing = canReuse
-      ? AppChatRouteRegistry.instance.activeRoute(navigator, sessionKey)
-      : null;
+  ChatPipelineClock.instance
+      .trace(pipelineKey, 'push_begin', extras: <String, Object?>{
+    'canReuse': true,
+    'hasSearchTarget': anchor != null,
+  });
+  // A search target is a command for this conversation's existing page, not
+  // another owner of its global message window and disposal lifecycle.
+  var existing = registry.activeRoute(navigator, sessionKey);
+  if (existing != null &&
+      anchor != null &&
+      !registry.activateTarget(existing, anchor, initFindingMsg)) {
+    existing = null;
+  }
   if (existing != null) {
+    // Cancel an older first-frame delivery if a newer click reached the now
+    // registered page before that callback ran.
+    final opening = registry._pending[navigator]?[_accountRouteKey(sessionKey)];
+    if (opening != null && anchor != null) opening.targetRevision++;
     ChatOpenPerfLog.mark('route_reused', trace: openTrace);
     if (!existing.isCurrent) {
       navigator.popUntil((route) => identical(route, existing));
+    }
+    if (anchor == null) {
+      final readRoute = existing;
+      unawaited(ChatEntryReadService.clearOnEntry(
+        conversation: conversation,
+        isCurrent: () => readRoute.isActive && readRoute.isCurrent,
+      ));
     }
     // Keep the same completion contract as Navigator.push: callers awaiting
     // this helper must resume only after the chat route is actually popped.
@@ -331,24 +405,35 @@ Future<T?> openOrReuseAppChat<T>(
       return value is T ? value : null;
     });
   }
-  final registry = AppChatRouteRegistry.instance;
   final identity = SessionIdentityService.instance.capture();
-  final anchor = searchJumpAnchor ??
-      (initFindingMsg == null
-          ? null
-          : MessageAnchor.fromConversationMessage(
-              conversation, initFindingMsg));
-  final reservationKey = _accountRouteKey(
-      sessionKey + (anchor == null ? '' : '|anchor:' + anchor.stableKey));
+  final reservationKey = _accountRouteKey(sessionKey);
   final reservations = registry._pending[navigator] ??= {};
   final pending = reservations[reservationKey];
   if (pending != null) {
     pending.callers.add(context);
+    if (anchor != null) {
+      pending.anchor = anchor;
+      pending.message = initFindingMsg;
+      final revision = ++pending.targetRevision;
+      // push() has a short interval before its host registers on the first
+      // frame. Deliver the last click after registration as well as during
+      // preparation; never create a second owner in this interval.
+      if (pending.route != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (pending.targetRevision == revision &&
+              SessionIdentityService.instance.capture() == identity) {
+            registry.activateTarget(
+                pending.route!, pending.anchor!, pending.message);
+          }
+        });
+      }
+    }
     ChatOpenPerfLog.mark('route_open_shared', trace: openTrace);
     final value = await pending.result.future;
     return value is T ? value : null;
   }
-  final reservation = _PendingChatOpen(context);
+  final reservation =
+      _PendingChatOpen(context, message: initFindingMsg, anchor: anchor);
   reservations[reservationKey] = reservation;
   Future<Object?> openReserved() async {
     // 只等本地 fast classify。H0 由 prepareOpenViewport 并行启动，不阻塞 push。
@@ -389,17 +474,17 @@ Future<T?> openOrReuseAppChat<T>(
       return null;
     }
     ChatOpenPerfLog.mark('route_push', trace: openTrace);
-    return navigator.push<dynamic>(
-      registry.routeForTest?.call() ??
-          appChatRoute<dynamic>(
-            conversation,
-            entryUnreadCount: entryUnreadCount,
-            initFindingMsg: initFindingMsg,
-            searchJumpAnchor: searchJumpAnchor,
-            initialC2cCanMessage: initialC2cCanMessage,
-            c2cPermissionHintSource: c2cPermissionHintSource,
-          ),
-    );
+    final route = registry.routeForTest?.call() ??
+        appChatRoute<dynamic>(
+          conversation,
+          entryUnreadCount: entryUnreadCount,
+          initFindingMsg: reservation.message,
+          searchJumpAnchor: reservation.anchor,
+          initialC2cCanMessage: initialC2cCanMessage,
+          c2cPermissionHintSource: c2cPermissionHintSource,
+        );
+    reservation.route = route;
+    return navigator.push<dynamic>(route);
   }
 
   // Reserve synchronously before the first await and retain until real pop.

@@ -1,17 +1,13 @@
 import 'package:tencent_cloud_chat_demo/src/services/foreground_chat_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/message_conversation_id.dart';
-import 'package:tencent_cloud_chat_demo/utils/group_tips_message_helper.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 
-/// Account-level unread guard.
-///
-/// A read performed on any device must be allowed to lower/clear unread on
-/// every other device. Only a demonstrably older conversation snapshot may
-/// be rejected.
+/// Legacy SQLite mirror reconciliation. SDK-primary counts bypass these
+/// local read barriers and accept the provider's absolute unread value.
 class ConversationUnreadGuard {
   ConversationUnreadGuard._();
 
@@ -255,21 +251,13 @@ class ConversationUnreadGuard {
     return existingTs > 0 && incomingTs > 0 && incomingTs < existingTs;
   }
 
-  /// 入站消息乐观预览时是否同步 +1 未读（与预览同帧刷新）。
+  /// Message delivery is not an unread-count authority. The same message can
+  /// be replayed or already read on another device; wait for the SDK count.
   static bool shouldOptimisticBumpUnread({
     required String conversationId,
     required V2TimMessage message,
   }) {
-    if (message.isSelf == true) {
-      return false;
-    }
-    if (ForegroundChatGuard.isActiveConversation(conversationId)) {
-      return false;
-    }
-    if (GroupTipsMessageHelper.shouldSuppressConversationUnread(message)) {
-      return false;
-    }
-    return true;
+    return false;
   }
 
   /// 合并前后 lastMessage 是否前进到新消息（同 msgID 状态升级不算前进）。

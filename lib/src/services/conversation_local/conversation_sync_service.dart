@@ -3,7 +3,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:tencent_cloud_chat_demo/src/services/coalesced_async_flush.dart';
 import 'dart:collection';
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_deleted_bus.dart';
@@ -1187,6 +1186,14 @@ class ConversationSyncService {
     if (!_isCurrentRealtimeIdentity(identity) ||
         model.messageDeltaClearEpochFor(conversationID) != event.clearEpoch)
       return;
+    // Ordinary messages bypass the durable metadata path. Update the loaded
+    // preview from the message itself before waiting for chat projection;
+    // onConversationChanged can arrive late or omit the latest lastMessage.
+    // Unread remains SDK-owned, and this path performs no per-message I/O.
+    ChatSessionController.instance.applyLastMessageLocally(
+      conversationID: conversationID,
+      message: message,
+    );
     // The adapter sequence is process-local mailbox order, not an Inbox fence.
     // SDK history supplies recovery; reading-away delivery keeps its existing
     // stable message identity and durable UI watermark without a formal sequence.
@@ -1200,7 +1207,7 @@ class ConversationSyncService {
         model.messageDeltaClearEpochFor(conversationID) != event.clearEpoch)
       return;
     // Notification work must not hold the next message behind an app database
-    // or platform call. SDK conversation callbacks own preview and unread state.
+    // or platform call. SDK conversation callbacks own unread and metadata.
     unawaited(_publishSdkRealtimeSideEffects(message, identity));
   }
 
@@ -2334,6 +2341,9 @@ class ConversationSyncService {
     ImSdkRelationshipSyncAnchor.serverSyncPending = false;
     ImSdkRelationshipSyncAnchor.hasHandledFinish = true;
     _lastSyncServerFinishAt = DateTime.now();
+    ConversationUnreadAggregate.instance.scheduleRefresh(
+      reason: 'sdk_server_sync_finished',
+    );
     NotificationSettingsService.instance.markOfflineMessageSyncFinished();
     _notifyChatRoamingSyncFinished();
     final result = await bootstrapTypedFirstScreen(
@@ -4898,6 +4908,9 @@ class ConversationSyncService {
       }
     }
     V2TimConversation? conversation;
+    final unreadAggregate = ConversationUnreadAggregate.instance;
+    final unreadRevision = unreadAggregate.sdkPageRevision;
+    final queryGeneration = SessionIdentityService.instance.generation;
     for (final candidate in idCandidates) {
       final lookupOverride = debugGetConversationOverride;
       conversation = lookupOverride != null
@@ -4905,12 +4918,19 @@ class ConversationSyncService {
           : await _conversationService.getConversation(
               conversationID: candidate,
             );
-      if (identity != null && !_isCurrentRealtimeIdentity(identity)) {
+      if (queryGeneration != SessionIdentityService.instance.generation ||
+          (identity != null && !_isCurrentRealtimeIdentity(identity))) {
         return null;
       }
       if (conversation != null) {
         break;
       }
+    }
+    if (conversation != null) {
+      // This is an SDK query, unlike the preview overlay below. A newer
+      // callback received during the await must win over its result.
+      unreadAggregate.applySdkPage([conversation],
+          startedAtRevision: unreadRevision);
     }
     final msgId = message.msgID?.trim() ?? '';
     if (conversation == null) {
@@ -4966,22 +4986,10 @@ class ConversationSyncService {
       if (shouldUpgrade) {
         conversation.lastMessage = message;
       }
-      final unreadBeforePatch = conversation.unreadCount;
       _applySdkUnreadForPatch(conversation);
-      // SDKs can replay the same changed-conversation callback while a chat
-      // page is open.  If the payload did not advance the last message and
-      // no unread transition was produced, do not send the patch through the
-      // persistence/projection pipeline again.
-      if (!shouldUpgrade &&
-          unreadBeforePatch == conversation.unreadCount &&
-          _sameLastMessageSnapshot(conversation.lastMessage, message)) {
-        OutgoingVisibleProbe.log(
-          'lastmsg_patch_duplicate_skip',
-          conversationID: id,
-          message: message,
-        );
-        return null;
-      }
+      // This snapshot came from the SDK, not from our visible/durable row.
+      // Matching the message here does not prove either projection received
+      // it. Always publish; the persist queue deduplicates actual app commits.
       OutgoingVisibleProbe.log(
         'lastmsg_patch_same_id',
         conversationID: id,
@@ -5039,23 +5047,6 @@ class ConversationSyncService {
     );
   }
 
-  bool _sameLastMessageSnapshot(
-    V2TimMessage? existing,
-    V2TimMessage incoming,
-  ) {
-    if (existing == null) {
-      return false;
-    }
-    final existingId = existing.msgID?.trim() ?? '';
-    final incomingId = incoming.msgID?.trim() ?? '';
-    if (existingId.isEmpty || incomingId.isEmpty || existingId != incomingId) {
-      return false;
-    }
-    return existing.timestamp == incoming.timestamp &&
-        existing.status == incoming.status &&
-        existing.isSelf == incoming.isSelf;
-  }
-
   /// 发送预览 patch：并入 persist dedup，与 SDK changed 同窗合并，避免双写 SQLite。
   Future<List<V2TimConversation>?> _persistPatchedConversation(
     V2TimConversation conversation, {
@@ -5074,17 +5065,11 @@ class ConversationSyncService {
         source: ConversationMutationSource.sdkRealtime,
       );
     }
-    final shouldBumpUnread = ConversationUnreadGuard.shouldOptimisticBumpUnread(
-      conversationId: conversation.conversationID,
-      message: message,
-    );
-    // 072 phase-6 allowlist: outgoing preview is a transient pending state.
-    // Apply the row immediately, but defer unread aggregation to the durable
-    // SDK commit below. The old ordering let both paths add +1.
+    // Message previews can update immediately. Unread is the revision-fenced
+    // SDK count captured by the query above, never a per-message increment.
     ChatSessionController.instance.applyLastMessageLocally(
       conversationID: conversation.conversationID,
       message: message,
-      bumpUnread: shouldBumpUnread,
       updateUnreadAggregate: false,
     );
     final convId = conversation.conversationID.trim();
@@ -5095,10 +5080,8 @@ class ConversationSyncService {
         break;
       }
     }
-    // SDK-primary mode can keep the visible row only in ConversationTabStore
-    // while the session window is empty. Reuse that same projected
-    // row so the durable commit carries the already-applied single unread
-    // increment instead of adding another one (or dropping the first one).
+    // SDK-primary mode may hold the visible row only in the typed window.
+    // Check that window before deciding whether the preview needs admission.
     if (projected == null) {
       for (final type in const [1, 2]) {
         for (final row in ConversationTabStore.instance.itemsForType(type)) {
@@ -5116,17 +5099,6 @@ class ConversationSyncService {
       }
     }
     final inList = projected != null;
-    if (projected != null && shouldBumpUnread) {
-      // The message callback can carry the new preview with the previous SDK
-      // unread count. Carry the single optimistic increment into the durable
-      // snapshot, but only when this preview actually advances the UI row;
-      // duplicate callbacks must not add another unread item.
-      final optimisticUnread = projected.unreadCount ?? 0;
-      conversation.unreadCount = math.max(
-        conversation.unreadCount ?? 0,
-        optimisticUnread,
-      );
-    }
     _enqueuePersistChanged(
       [conversation],
       reason: 'send_patch',
@@ -5141,14 +5113,10 @@ class ConversationSyncService {
         'conversationID': conversation.conversationID,
         'buffer': _pendingPersistEvents.length,
         'busy': _isUiBusyForPersist,
-        'optimisticUnread': shouldBumpUnread,
-        'aggregateDeferred': true,
+        'unreadSource': 'sdk',
       },
     );
     if (!inList && convId.isNotEmpty) {
-      if (shouldBumpUnread) {
-        conversation.unreadCount = (conversation.unreadCount ?? 0) + 1;
-      }
       await ChatSessionController.instance.applySdkProjectionPatch(
         reason: ConversationStoreProjectionReason.sdkProjectionRestore,
         upserted: <V2TimConversation>[conversation],
@@ -5158,11 +5126,12 @@ class ConversationSyncService {
     return [conversation];
   }
 
-  /// 未读以 SDK 和已确认的消息已读锚点为准，页面可见不代表新气泡已读。
+  /// Preview patches carry only the last synchronized SDK count. Local read
+  /// intentions are persisted separately and never mask an SDK snapshot.
   void _applySdkUnreadForPatch(V2TimConversation conversation) {
-    ConversationLocalStore.instance.resolveSdkUnreadAgainstReadBarrier(
-      conversation,
-    );
+    conversation.unreadCount = ConversationUnreadAggregate.instance
+            .sdkUnreadCountFor(conversation.conversationID) ??
+        conversation.unreadCount;
   }
 
   Future<void> markConversationReadLocally(
@@ -5238,7 +5207,15 @@ class ConversationSyncService {
       ConversationUnreadTrace.log(
         'mark_read_locally_done',
         conversationID: id,
-        extras: <String, Object?>{'via': 'noop'},
+        extras: <String, Object?>{
+          'via': 'noop',
+          'ownerPresent': owner.isNotEmpty,
+          'barrierVersion': readBarrier?.version,
+          'hasPlan': plan != null,
+          'planConversationId': plan?.canonicalConversationId,
+          'commitDisposition': commit?.disposition.name,
+          'upsertedCount': commit?.upsertedSnapshots.length,
+        },
       );
       return;
     }

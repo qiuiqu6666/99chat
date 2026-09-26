@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -296,6 +297,91 @@ void main() {
     expect(uiOlderLoads, 1,
         reason: 'a zero-growth automatic fill must stop after one UI request');
     expect(scroll.position.maxScrollExtent, lessThanOrEqualTo(1));
+  }
+
+  for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+    testWidgets('$platform silent fill stays silent during programmatic motion',
+        (tester) async {
+      final oldPlatform = debugDefaultTargetPlatformOverride;
+      debugDefaultTargetPlatformOverride = platform;
+      final request = Completer<bool>();
+      try {
+        heldUiLoad = request;
+        final conv = model.conversationID;
+        global.setMessageList(conv, [_row(conv, 100), _row(conv, 99)],
+            replace: true, applyMemoryWindow: false);
+        final handler = FlutterError.onError;
+        await tester.pumpWidget(build());
+        FlutterError.onError = handler;
+        await waitUntil(tester, () => uiOlderLoads == 1,
+            'automatic fill must start without a user gesture');
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        // New rows/layout make the viewport barely scrollable. The latest
+        // edge is now also inside the 160px "near oldest" band.
+        global.setMessageList(
+            conv, [for (var seq = 100; seq >= 91; seq--) _row(conv, seq)],
+            replace: true, applyMemoryWindow: false);
+        await frames(tester, 6);
+        expect(scroll.position.maxScrollExtent, inExclusiveRange(1, 160));
+        scroll.jumpTo(scroll.position.minScrollExtent + 1);
+        await frames(tester, 2);
+        scroll.jumpTo(scroll.position.minScrollExtent);
+        await frames(tester, 2);
+        expect(find.byType(CircularProgressIndicator), findsNothing,
+            reason: 'layout/automatic pinning is not user pagination intent');
+        expect(uiOlderLoads, 1);
+        // A real older-directed drag may promote that same in-flight fill.
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, 90),
+            touchSlopY: 0);
+        await frames(tester, 3);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(uiOlderLoads, 1);
+      } finally {
+        if (!request.isCompleted) request.complete(false);
+        heldUiLoad = null;
+        await close(tester);
+        debugDefaultTargetPlatformOverride = oldPlatform;
+      }
+    });
+
+    testWidgets('$platform older-page spinner hides on return to latest',
+        (tester) async {
+      final oldPlatform = debugDefaultTargetPlatformOverride;
+      debugDefaultTargetPlatformOverride = platform;
+      final request = Completer<bool>();
+      try {
+        heldUiLoad = request;
+        final handler = FlutterError.onError;
+        await tester.pumpWidget(build());
+        FlutterError.onError = handler;
+        await idleBeyondProtection(tester);
+        expect(uiOlderLoads, 0);
+        // Materialize lazy older rows before measuring the older edge.
+        scroll.jumpTo(scroll.position.maxScrollExtent);
+        await frames(tester, 2);
+        scroll.jumpTo(scroll.position.maxScrollExtent);
+        await frames(tester, 2);
+        scroll.jumpTo(scroll.position.maxScrollExtent - 40);
+        await frames(tester, 3);
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, 120),
+            touchSlopY: 0);
+        await waitUntil(tester, () => uiOlderLoads == 1,
+            'older-directed user gesture must start pagination');
+        await frames(tester, 2);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        scroll.jumpTo(scroll.position.minScrollExtent);
+        await frames(tester, 2);
+        expect(request.isCompleted, isFalse);
+        expect(find.byType(CircularProgressIndicator), findsNothing,
+            reason: 'an in-flight older request must not spin at latest');
+        expect(uiOlderLoads, 1);
+      } finally {
+        if (!request.isCompleted) request.complete(false);
+        heldUiLoad = null;
+        await close(tester);
+        debugDefaultTargetPlatformOverride = oldPlatform;
+      }
+    });
   }
 
   for (final alwaysScrollable in [false, true]) {

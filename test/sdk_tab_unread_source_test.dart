@@ -131,7 +131,7 @@ void main() {
     expect(aggregate.groupNotifiableUnreadSum, 0);
   });
 
-  test('SDK local mute, unmute, read and deletion keep the badge aligned', () {
+  test('mute filters SDK counts; local read waits for SDK confirmation', () {
     final controller = ChatSessionController.instance;
     controller.applyPendingRealtimeProjection([group('@TGS#local', 4)],
         reason: 'sdk_realtime');
@@ -142,6 +142,9 @@ void main() {
     ConversationTabStore.instance.applyPatches([group('@TGS#local', 4)]);
     expect(aggregate.groupNotifiableUnreadSum, 4);
     ConversationTabStore.instance.zeroUnreadLocallyMany(['group_@TGS#local']);
+    expect(aggregate.groupNotifiableUnreadSum, 4);
+    controller.applyPendingRealtimeProjection([group('@TGS#local', 0)],
+        reason: 'sdk_realtime');
     expect(aggregate.groupNotifiableUnreadSum, 0);
     controller.applyPendingRealtimeProjection([group('@TGS#local', 1)],
         reason: 'sdk_realtime');
@@ -218,6 +221,9 @@ void main() {
         {'group_@TGS#outside': 11});
     ConversationTabStore.instance.zeroUnreadLocallyMany(['group_@TGS#outside']);
     expect(await aggregate.readSdkUnreadCountsForIds(['group_@TGS#outside']),
+        {'group_@TGS#outside': 11});
+    aggregate.applySdkConversations([group('@TGS#outside', 0, recvOpt: 1)]);
+    expect(await aggregate.readSdkUnreadCountsForIds(['group_@TGS#outside']),
         {'group_@TGS#outside': 0});
   });
 
@@ -245,13 +251,15 @@ void main() {
     final tab = ConversationTabStore.instance;
     final request = tab.loadFirstPage(convType: 2);
     tab.applyDeleted(['group_@TGS#deleted']);
-    tab.applyPatches([group('@TGS#read', 0)],
-        explicitUnreadIds: {'group_@TGS#read'});
+    ChatSessionController.instance.applyPendingRealtimeProjection(
+        [group('@TGS#read', 0)],
+        reason: 'sdk_realtime');
     releasePage.complete();
     await request;
     expect(tab.itemsForType(2).map((row) => row.conversationID),
         ['group_@TGS#read']);
     expect(tab.itemsForType(2).single.unreadCount, 0);
+    expect(aggregate.groupNotifiableUnreadSum, 0);
   });
 
   test('a new callback after deletion legitimately recreates the row',
@@ -271,13 +279,16 @@ void main() {
     final tab = ConversationTabStore.instance;
     final request = tab.loadFirstPage(convType: 2);
     tab.applyDeleted(['group_@TGS#recreated']);
-    tab.applyPatches([group('@TGS#recreated', 2)]);
+    ChatSessionController.instance.applyPendingRealtimeProjection(
+        [group('@TGS#recreated', 2)],
+        reason: 'sdk_realtime');
     releasePage.complete();
     await request;
     expect(tab.itemsForType(2).single.unreadCount, 2);
   });
 
-  test('explicit read while a page loads overrides its stale unread', () async {
+  test('SDK read confirmation while a page loads overrides stale unread',
+      () async {
     final releasePage = Completer<void>();
     ConversationTabStore.debugFetchOverride =
         ({required convType, required nextSeq, required count}) async {
@@ -292,7 +303,9 @@ void main() {
     };
     final tab = ConversationTabStore.instance;
     final request = tab.loadFirstPage(convType: 2);
-    tab.zeroUnreadLocallyMany(['group_read_during_load']);
+    ChatSessionController.instance.applyPendingRealtimeProjection(
+        [group('read_during_load', 0)],
+        reason: 'sdk_realtime');
     releasePage.complete();
     await request;
     expect(tab.itemsForType(2).single.unreadCount, 0);

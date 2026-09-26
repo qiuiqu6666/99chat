@@ -5681,9 +5681,8 @@ class ConversationLocalStore {
     )) {
       conversation.lastMessage = null;
     }
-    // SDK-primary realtime and page loads can apply explicit unread values,
-    // bypassing mergePatchRow's fallback guard. Fence them at this shared entry.
-    instance.resolveSdkUnreadAgainstReadBarrier(conversation);
+    // Presentation must not reinterpret an SDK count using a local read
+    // intention: only the provider can confirm cross-device read progress.
     DisplayNameStore.instance.applyToConversation(conversation);
   }
 

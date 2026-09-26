@@ -1266,9 +1266,6 @@ class _TIMUIKitTextFieldLayoutWideState
       if (composing.isValid && composing.start < composing.end) {
         return;
       }
-      if (widget.onChanged != null) {
-        widget.onChanged!(value);
-      }
       widget.handleAtText(value);
       widget.handleSendEditStatus(value, true);
     }, const Duration(milliseconds: 80));
@@ -1345,7 +1342,12 @@ class _TIMUIKitTextFieldLayoutWideState
                         minLines:
                             widget.chatConfig.desktopMessageInputFieldLines,
                         focusNode: widget.focusNode,
-                        onChanged: debounceFunc,
+                        onChanged: (value) {
+                          // Draft revisions are synchronous; only mention and
+                          // typing-status work is debounced.
+                          widget.onChanged?.call(value);
+                          debounceFunc(value);
+                        },
                         keyboardType: TextInputType.multiline,
                         onEditingComplete: () {
                           //   // widget.onSubmitted();

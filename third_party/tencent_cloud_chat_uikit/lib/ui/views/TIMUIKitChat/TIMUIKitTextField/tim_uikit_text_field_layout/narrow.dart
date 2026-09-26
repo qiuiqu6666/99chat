@@ -830,9 +830,6 @@ class TIMUIKitTextFieldLayoutNarrowState
         return;
       }
       _syncSendButtonFromController();
-      if (widget.onChanged != null) {
-        widget.onChanged!(value);
-      }
       widget.handleAtText(value);
       widget.handleSendEditStatus(value, true);
       final isEmpty = value.isEmpty;
@@ -940,7 +937,12 @@ class TIMUIKitTextFieldLayoutNarrowState
                                   maxLines: 4,
                                   minLines: 1,
                                   focusNode: widget.focusNode,
-                                  onChanged: debounceFunc,
+                                  onChanged: (value) {
+                                    // Draft ownership must advance before an
+                                    // async send/load can restore older text.
+                                    widget.onChanged?.call(value);
+                                    debounceFunc(value);
+                                  },
                                   onTap: () {
                                     if (showEmojiPanel ||
                                         showMore ||

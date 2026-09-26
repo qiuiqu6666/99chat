@@ -56,6 +56,11 @@ class ConversationPinSyncService {
       _pendingSdkPins[
               ConversationIdCanonical.forStorage(conversation.conversationID)]
           ?.value ??
+      // A profile/settings route retains its opening snapshot. Prefer the
+      // current SDK projection before deciding that an explicit tap is a noop.
+      ChatSessionController.instance
+          .currentConversationById(conversation.conversationID)
+          ?.isPinned ??
       conversation.isPinned ??
       isPinnedConversationId(conversation.conversationID);
 

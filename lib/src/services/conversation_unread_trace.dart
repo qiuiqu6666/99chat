@@ -2,12 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation.dart';
 
-/// 未读角标诊断按需开启，普通收消息不格式化并输出整批会话。
+/// Profile 默认开启未读诊断；可用 IM_UNREAD_TRACE 显式覆盖。
 class ConversationUnreadTrace {
   ConversationUnreadTrace._();
 
   static const bool enabled =
-      bool.fromEnvironment('IM_UNREAD_TRACE', defaultValue: false);
+      bool.fromEnvironment('IM_UNREAD_TRACE', defaultValue: kProfileMode);
   static const _tag = 'UnreadTrace';
 
   static void log(
@@ -26,7 +26,7 @@ class ConversationUnreadTrace {
         conversationID: conversationID,
         unreadBefore: unreadBefore,
         unreadAfter: unreadAfter,
-        extras: extras,
+        extras: {'atMs': DateTime.now().millisecondsSinceEpoch, ...extras},
       ),
     );
   }
@@ -39,22 +39,18 @@ class ConversationUnreadTrace {
     if (!enabled) {
       return;
     }
-    final rows = conversations
-        .map(
-          (conversation) =>
-              '${conversation.conversationID.trim()}:${conversation.unreadCount ?? 0}',
-        )
-        .where((entry) => entry.split(':').first.isNotEmpty)
-        .join(',');
-    debugPrint(
-      formatLineForTest(
+    for (final conversation in conversations) {
+      log(
         event,
-        extras: <String, Object?>{
+        conversationID: conversation.conversationID,
+        unreadAfter: conversation.unreadCount,
+        extras: {
           ...extras,
-          'rows': rows.isEmpty ? '(none)' : rows,
+          'messageSeq': conversation.lastMessage?.seq,
+          'messageTimestamp': conversation.lastMessage?.timestamp,
         },
-      ),
-    );
+      );
+    }
   }
 
   @visibleForTesting

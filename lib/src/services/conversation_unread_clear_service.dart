@@ -2,9 +2,8 @@ import 'dart:async';
 import 'package:tencent_cloud_chat_demo/src/services/im/conversation_read_policy.dart';
 
 import 'package:flutter/foundation.dart';
-import 'package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
-import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_id_canonical.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_unread_aggregate.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_unread_trace.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/read_outbox_store.dart';
@@ -252,7 +251,32 @@ class ConversationUnreadClearService {
     required MarkReadListScope listScope,
     Set<String> selectedIds = const <String>{},
     Set<String> archivedIds = const <String>{},
-  }) {
+  }) async {
+    final aggregate = ConversationUnreadAggregate.instance;
+    if (aggregate.usesSdkUnread) {
+      final rows = await aggregate.sdkUnreadSnapshots(
+          ensureComplete: mode == MarkReadEditMode.scopeAll);
+      final selected =
+          (mode == MarkReadEditMode.archivedAll ? archivedIds : selectedIds)
+              .map(ConversationIdCanonical.forStorage)
+              .toSet();
+      final matching = rows.where((row) {
+        if (mode != MarkReadEditMode.scopeAll &&
+            !selected.contains(
+                ConversationIdCanonical.forStorage(row.conversationID))) {
+          return false;
+        }
+        return listScope == MarkReadListScope.all ||
+            (isGroupConversation(row) ==
+                (listScope == MarkReadListScope.group));
+      }).toList(growable: false);
+      return MarkReadBatchResult(
+        clearedIds: matching.map((row) => row.conversationID).toList(),
+        conversationCount: matching.length,
+        unreadSumBefore:
+            matching.fold(0, (sum, row) => sum + (row.unreadCount ?? 0)),
+      );
+    }
     switch (mode) {
       case MarkReadEditMode.selected:
         return ConversationLocalStore.instance.previewUnreadForMarkRead(
@@ -272,7 +296,8 @@ class ConversationUnreadClearService {
     }
   }
 
-  /// 编辑态统一入口：批量本地清未读 + 按策略清 SDK。
+  /// Persist read intentions, then submit to the SDK. UI counts wait for SDK
+  /// confirmation; an offline/failed request does not pretend to succeed.
   static Future<MarkReadEditResult> markReadForEditAction({
     required MarkReadEditMode mode,
     required MarkReadListScope listScope,
@@ -282,27 +307,11 @@ class ConversationUnreadClearService {
   }) async {
     final started = DateTime.now();
     final sessionGeneration = SessionIdentityService.instance.generation;
-    late final MarkReadBatchResult local;
-    switch (mode) {
-      case MarkReadEditMode.selected:
-        local = await ConversationLocalStore.instance.previewUnreadForMarkRead(
-          conversationIds: selectedIds,
-        );
-        break;
-      case MarkReadEditMode.archivedAll:
-        local = await ConversationLocalStore.instance.previewUnreadForMarkRead(
-          conversationIds: archivedIds,
-          scope: listScope == MarkReadListScope.all
-              ? null
-              : _toStoreScope(listScope),
-        );
-        break;
-      case MarkReadEditMode.scopeAll:
-        local = await ConversationLocalStore.instance.previewUnreadForMarkRead(
-          scope: _toStoreScope(listScope),
-        );
-        break;
-    }
+    final local = await previewMarkReadForEditAction(
+        mode: mode,
+        listScope: listScope,
+        selectedIds: selectedIds,
+        archivedIds: archivedIds);
 
     if (!_isCurrentSession(sessionGeneration)) {
       return const MarkReadEditResult(
@@ -324,15 +333,7 @@ class ConversationUnreadClearService {
       );
     }
     try {
-      if (mode == MarkReadEditMode.scopeAll) {
-        // Type-wide clean is intentionally a provider-side linearization at
-        // dispatch time, so per-conversation watermarks are not used here.
-        await ConversationReadOutboxStore.instance.enqueueMany(
-          ownerUserId: durableOwner,
-          conversationIds: local.clearedIds,
-          lastReadAtMs: durableReadAtMs,
-        );
-      } else {
+      {
         final snapshots =
             await ConversationLocalStore.instance.conversationsByIds(
           local.clearedIds.toList(growable: false),
@@ -343,7 +344,11 @@ class ConversationUnreadClearService {
           for (final item in snapshots) item.conversationID.trim(): item,
         };
         for (final id in local.clearedIds) {
-          final snapshot = snapshotById[id.trim()];
+          // SDK-primary conversations may have no SQLite row at all. Capture
+          // SDK watermarks also for bulk actions so an offline retry is bounded.
+          final snapshot =
+              ConversationUnreadAggregate.instance.sdkSnapshotFor(id) ??
+                  snapshotById[id.trim()];
           final watermark = _watermarkFor(snapshot);
           await ConversationReadOutboxStore.instance.enqueue(
             ownerUserId: durableOwner,
@@ -368,9 +373,6 @@ class ConversationUnreadClearService {
       );
     }
 
-    await ConversationSyncService.instance.markConversationsReadLocallyBatch(
-      local.clearedIds,
-    );
     if (!_isCurrentSession(sessionGeneration)) {
       return const MarkReadEditResult(
         conversationCount: 0,
@@ -378,33 +380,6 @@ class ConversationUnreadClearService {
         sdkPath: 'none',
         durationMs: 0,
       );
-    }
-
-    ChatSessionController.instance.zeroUnreadLocallyMany(
-      local.clearedIds,
-      forceAggregateRefresh: true,
-    );
-    if (mode == MarkReadEditMode.scopeAll) {
-      switch (listScope) {
-        case MarkReadListScope.c2c:
-          ConversationUnreadAggregate.instance.clearScopeOptimistically(
-            isGroup: false,
-          );
-          break;
-        case MarkReadListScope.group:
-          ConversationUnreadAggregate.instance.clearScopeOptimistically(
-            isGroup: true,
-          );
-          break;
-        case MarkReadListScope.all:
-          ConversationUnreadAggregate.instance
-            ..clearScopeOptimistically(isGroup: false)
-            ..clearScopeOptimistically(isGroup: true);
-          break;
-      }
-    }
-    for (final id in local.clearedIds) {
-      markViewModelReadLocally?.call(id);
     }
 
     var sdkPath = 'none';
@@ -623,18 +598,13 @@ class ConversationUnreadClearService {
         'generation': generation,
       },
     );
-    ChatSessionController.instance.zeroUnreadLocally(conversationID);
     ConversationLocalStore.instance.recordReadClearedAnchor(
       conversationID,
       lastMessageId: lastMessageId,
     );
-    await ConversationSyncService.instance.markConversationReadLocally(
-      conversationID,
-    );
     if (!_isCurrentSession(sessionGeneration)) {
       return;
     }
-    markViewModelReadLocally?.call(conversationID);
     if (scheduleSdkUnreadCleanOnLeave) {
       unawaited(
         scheduleSdkUnreadClean(
@@ -647,15 +617,18 @@ class ConversationUnreadClearService {
     ConversationUnreadTrace.log(
       'finalize_leave_done',
       conversationID: conversationID,
-      unreadAfter: 0,
+      unreadAfter: ConversationUnreadAggregate.instance
+          .sdkUnreadCountFor(conversationID),
       extras: <String, Object?>{'generation': generation},
     );
   }
 
-  /// 进聊天前快速清零未读：内存同帧清零，持久化完成后立即上报 SDK。
+  /// Persist a bounded read intention without delaying navigation. Counts
+  /// change only when the SDK reports the resulting conversation state.
   static Future<void> clearLocalForOpenFast({
     required V2TimConversation conversation,
     void Function(String conversationID)? markViewModelReadLocally,
+    bool dispatchSdk = true,
   }) async {
     final sessionGeneration = SessionIdentityService.instance.generation;
     final conversationID = conversation.conversationID.trim();
@@ -669,9 +642,6 @@ class ConversationUnreadClearService {
     final owner = ConversationLocalStore.instance.resolvedOwnerUserId();
     final watermark = _watermarkFor(conversation);
     beginConversationChatSession(conversationID);
-    aggregate.clearSdkTotalForLocalProjection();
-    ChatSessionController.instance.zeroUnreadLocally(conversationID);
-    conversation.unreadCount = 0;
     ConversationLocalStore.instance.recordReadClearedAnchor(
       conversationID,
       lastMessageId: conversation.lastMessage?.msgID,
@@ -679,25 +649,22 @@ class ConversationUnreadClearService {
       lastMessageSeq: int.tryParse(conversation.lastMessage?.seq ?? ''),
       orderKey: conversation.orderkey,
     );
-    markViewModelReadLocally?.call(conversationID);
     ConversationUnreadTrace.log(
       'clear_local_open_fast',
       conversationID: conversationID,
       unreadBefore: unreadBefore,
-      unreadAfter: 0,
+      unreadAfter: unreadBefore,
       extras: <String, Object?>{
         'path': 'fast',
+        'ownerPresent': owner.isNotEmpty,
+        'cleanSequence': watermark.sequence,
+        'cleanTimestamp': watermark.timestamp,
+        'hasMessageId': (conversation.lastMessage?.msgID ?? '').isNotEmpty,
         'scope': isGroupConversation(conversation) ? 'group' : 'c2c',
         'aggregateBefore': aggregateBefore,
         'aggregateAfter':
             '${aggregate.c2cNotifiableUnreadSum}/${aggregate.groupNotifiableUnreadSum}',
       },
-    );
-    unawaited(
-      ConversationSyncService.instance.markConversationReadLocally(
-        conversationID,
-        forceImmediateUi: true,
-      ),
     );
     if (owner.isEmpty || unreadBefore <= 0) {
       return;
@@ -709,6 +676,7 @@ class ConversationUnreadClearService {
         lastReadMessageId: conversation.lastMessage?.msgID ?? '',
         watermark: watermark,
         sessionGeneration: sessionGeneration,
+        dispatchSdk: dispatchSdk,
       ),
     );
   }
@@ -719,6 +687,7 @@ class ConversationUnreadClearService {
     required String lastReadMessageId,
     required _ConversationReadWatermark watermark,
     required int sessionGeneration,
+    required bool dispatchSdk,
   }) async {
     try {
       await ConversationReadOutboxStore.instance.enqueue(
@@ -727,9 +696,10 @@ class ConversationUnreadClearService {
         lastReadMessageId: lastReadMessageId,
         cleanTimestamp: watermark.timestamp,
         cleanSequence: watermark.sequence,
+        retryPausedOnUserAction: true,
       );
       _recordReadIntent(conversationID);
-      if (!_isCurrentSession(sessionGeneration)) return;
+      if (!_isCurrentSession(sessionGeneration) || !dispatchSdk) return;
       await scheduleSdkUnreadClean(
         conversationID: conversationID,
         trigger: SdkUnreadCleanTrigger.open,
@@ -741,7 +711,8 @@ class ConversationUnreadClearService {
     }
   }
 
-  /// 进聊天前清零未读：仅写本地已读锚点，不阻塞导航等待 SDK。
+  /// Persist the precise read target; retain the last SDK count while offline
+  /// or while the SDK read request is awaiting confirmation.
   static Future<void> clearLocalForOpen({
     required V2TimConversation conversation,
     void Function(String conversationID)? markViewModelReadLocally,
@@ -764,6 +735,7 @@ class ConversationUnreadClearService {
         lastReadMessageId: conversation.lastMessage?.msgID ?? '',
         cleanTimestamp: watermark.timestamp,
         cleanSequence: watermark.sequence,
+        retryPausedOnUserAction: true,
       );
       _recordReadIntent(conversationID);
     } catch (e) {
@@ -773,9 +745,6 @@ class ConversationUnreadClearService {
       );
       return;
     }
-    aggregate.clearSdkTotalForLocalProjection();
-    ChatSessionController.instance.zeroUnreadLocally(conversationID);
-    conversation.unreadCount = 0;
     ConversationLocalStore.instance.recordReadClearedAnchor(
       conversationID,
       lastMessageId: conversation.lastMessage?.msgID,
@@ -783,18 +752,13 @@ class ConversationUnreadClearService {
       lastMessageSeq: int.tryParse(conversation.lastMessage?.seq ?? ''),
       orderKey: conversation.orderkey,
     );
-    await ConversationSyncService.instance.markConversationReadLocally(
-      conversationID,
-      forceImmediateUi: true,
-    );
     if (!_isCurrentSession(sessionGeneration)) {
       return;
     }
-    markViewModelReadLocally?.call(conversationID);
     ConversationUnreadTrace.log(
       'clear_local_open_done',
       conversationID: conversationID,
-      unreadAfter: 0,
+      unreadAfter: conversation.unreadCount,
       extras: <String, Object?>{
         'path': 'awaited',
         'aggregateBefore': aggregateBefore,
@@ -816,7 +780,7 @@ class ConversationUnreadClearService {
     );
   }
 
-  /// 多选全选：一次清理全部单聊或全部群聊 SDK 未读；成功后本地同类型一并清零。
+  /// Explicit bulk read; SDK callbacks/calibration supply the resulting count.
   static Future<void> cleanSdkUnreadForType({
     required bool isGroup,
     void Function(String conversationID)? markViewModelReadLocally,
@@ -882,12 +846,26 @@ class ConversationUnreadClearService {
           'isGroup': isGroup,
         });
       }
-      // SDK 类型级全部已读完成后再次确认清零。点击时的乐观清零可能被
-      // SDK 在请求完成前回调的旧未读快照覆盖，导致底部 Tab 残留角标。
-      ConversationUnreadAggregate.instance.clearScopeOptimistically(
-        isGroup: isGroup,
+      ConversationUnreadAggregate.instance.scheduleRefresh(
+        reason: 'sdk_type_read_confirmed',
       );
     } else {
+      // Keep each captured target retryable after a failed type-wide request.
+      // A retry must not include messages received after the user's action.
+      if (durableOwnerUserId.isNotEmpty && durableReadAtMs > 0) {
+        for (final id in durableConversationIds) {
+          final pending = await ConversationReadOutboxStore.instance
+              .find(ownerUserId: durableOwnerUserId, conversationId: id);
+          if (!_isCurrentSession(sessionGeneration)) return;
+          if (pending == null || pending.lastReadAtMs != durableReadAtMs)
+            continue;
+          await ConversationReadOutboxStore.instance.markRetry(pending,
+              sdkCode: lastCode,
+              notBeforeAtMs:
+                  _frequencyBlockUntil[typeId]?.millisecondsSinceEpoch);
+        }
+        await _armReadOutboxRetryTimer();
+      }
       MarkSelectedReadLog.log('sdk_type_clean_failed', {
         'typeId': typeId,
         'sdkCode': lastCode,
@@ -906,7 +884,8 @@ class ConversationUnreadClearService {
     });
   }
 
-  /// Bulk 成功后：本地同类型会话全部写已读（含归档/不可见）。
+  /// Compatibility entry after a successful bulk read. Query the SDK instead
+  /// of predicting zero: messages may have arrived while the read was in flight.
   static Future<void> markAllLocalConversationsReadByType({
     required bool isGroup,
     void Function(String conversationID)? markViewModelReadLocally,
@@ -914,31 +893,12 @@ class ConversationUnreadClearService {
   }) async {
     final generation =
         sessionGeneration ?? SessionIdentityService.instance.generation;
-    final result =
-        await ConversationLocalStore.instance.previewUnreadForMarkRead(
-      scope: isGroup ? MarkReadLocalScope.group : MarkReadLocalScope.c2c,
-    );
     if (!_isCurrentSession(generation)) {
       return;
     }
-    await ConversationSyncService.instance.markConversationsReadLocallyBatch(
-      result.clearedIds,
-    );
-    if (!_isCurrentSession(generation)) {
-      return;
-    }
-    ChatSessionController.instance.zeroUnreadLocallyMany(
-      result.clearedIds,
-      forceAggregateRefresh: true,
-    );
-    ConversationUnreadAggregate.instance.clearSdkTotalForLocalProjection();
-    for (final id in result.clearedIds) {
-      markViewModelReadLocally?.call(id);
-    }
-    MarkSelectedReadLog.log('mark_all_local_by_type_batch', {
+    await ConversationUnreadAggregate.instance.refreshFromStore();
+    MarkSelectedReadLog.log('sdk_read_by_type_reconciled', {
       'isGroup': isGroup,
-      'cleared': result.conversationCount,
-      'unreadSum': result.unreadSumBefore,
     });
   }
 
@@ -1294,7 +1254,35 @@ class ConversationUnreadClearService {
         ownerUserId: owner,
         conversationId: conversationID,
       );
-      if (row != null && row.nextRetryAtMs < 0) return;
+      if (row != null && row.nextRetryAtMs < 0) {
+        ConversationUnreadTrace.log(
+          'sdk_clean_paused',
+          conversationID: conversationID,
+          extras: {
+            'reason': row.retryReason,
+            'attemptCount': row.attemptCount,
+            'cleanSequence': row.cleanSequence,
+            'cleanTimestamp': row.cleanTimestamp,
+            'nextRetryAtMs': row.nextRetryAtMs,
+          },
+        );
+        return;
+      }
+      // The process-local frequency guard disappears on restart; the durable
+      // retry deadline must still fence opens and visibility callbacks.
+      if (row != null &&
+          row.nextRetryAtMs > DateTime.now().millisecondsSinceEpoch) {
+        ConversationUnreadTrace.log(
+          'sdk_clean_deferred',
+          conversationID: conversationID,
+          extras: {
+            'reason': row.retryReason,
+            'nextRetryAtMs': row.nextRetryAtMs,
+          },
+        );
+        await _armReadOutboxRetryTimer();
+        return;
+      }
       if (row != null &&
           row.lastReadMessageId.isNotEmpty &&
           row.cleanTimestamp <= 0 &&
@@ -1341,7 +1329,13 @@ class ConversationUnreadClearService {
         ConversationUnreadTrace.log(
           'sdk_clean_deferred',
           conversationID: conversationID,
-          extras: <String, Object?>{'reason': 'read_watermark_unavailable'},
+          extras: <String, Object?>{
+            'reason': 'read_watermark_unavailable',
+            'hasOutboxRow': row != null,
+            'hasMessageId': row?.lastReadMessageId.isNotEmpty ?? false,
+            'cleanSequence': row?.cleanSequence,
+            'cleanTimestamp': row?.cleanTimestamp,
+          },
         );
         if (row != null) {
           await ConversationReadOutboxStore.instance
@@ -1374,6 +1368,14 @@ class ConversationUnreadClearService {
           conversationId: conversationID,
           lastReadAtMs: row.lastReadAtMs,
         );
+        // Normally onConversationChanged has already confirmed the new count.
+        // If it has not, coalesce a provider calibration instead of inventing
+        // zero or letting a missed callback leave a permanent stale badge.
+        final aggregate = ConversationUnreadAggregate.instance;
+        if (aggregate.usesSdkUnread &&
+            (aggregate.sdkUnreadCountFor(conversationID) ?? 0) > 0) {
+          aggregate.scheduleRefresh(reason: 'sdk_read_confirmed');
+        }
       } else {
         await ConversationReadOutboxStore.instance.markRetry(row,
             sdkCode: lastCode,

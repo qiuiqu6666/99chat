@@ -103,6 +103,9 @@ class ConversationReadOutboxStore {
     int cleanTimestamp = 0,
     int cleanSequence = 0,
     int? lastReadAtMs,
+    // Only a fresh user read action may restart a paused failure. Passive
+    // leave/recovery/snapshot updates must preserve its retry policy.
+    bool retryPausedOnUserAction = false,
   }) async {
     final owner = ownerUserId.trim();
     final conversation = conversationId.trim();
@@ -127,10 +130,19 @@ class ConversationReadOutboxStore {
       final repairedWatermark = targetAdvanced &&
           current.retryReason == 'blocked:watermark_unavailable' &&
           ConversationReadPolicy.validTarget(conversation, timestamp, sequence);
-      if (current != null &&
+      final restartPaused = retryPausedOnUserAction &&
+          current != null &&
+          current.nextRetryAtMs < 0 &&
+          requestedReadAt > current.readEventAtMs &&
+          ConversationReadPolicy.validTarget(
+              conversation, cleanTimestamp, cleanSequence);
+      if (!restartPaused &&
+          current != null &&
           current.cleanTimestamp == timestamp &&
           current.cleanSequence == sequence &&
-          current.lastReadMessageId == messageId) return null;
+          current.lastReadMessageId == messageId) {
+        return null;
+      }
       final revision =
           current != null && current.lastReadAtMs >= requestedReadAt
               ? current.lastReadAtMs + 1
@@ -143,10 +155,14 @@ class ConversationReadOutboxStore {
           cleanSequence: sequence,
           lastReadAtMs: revision,
           readEventAtMs: requestedReadAt,
-          attemptCount: current?.attemptCount ?? 0,
-          nextRetryAtMs: repairedWatermark ? now : current?.nextRetryAtMs ?? 0,
-          retryReason: repairedWatermark ? '' : current?.retryReason ?? '',
-          createdAtMs: current?.createdAtMs ?? now);
+          attemptCount: restartPaused ? 0 : current?.attemptCount ?? 0,
+          nextRetryAtMs: repairedWatermark || restartPaused
+              ? now
+              : current?.nextRetryAtMs ?? 0,
+          retryReason: repairedWatermark || restartPaused
+              ? ''
+              : current?.retryReason ?? '',
+          createdAtMs: restartPaused ? now : current?.createdAtMs ?? now);
     }
 
     if (kIsWeb) {

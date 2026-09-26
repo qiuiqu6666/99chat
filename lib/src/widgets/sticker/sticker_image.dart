@@ -282,36 +282,45 @@ class _StickerImageVisibilityGate extends StatefulWidget {
 class _StickerImageVisibilityGateState
     extends State<_StickerImageVisibilityGate> {
   static const _visibilityThreshold = 0.01;
+  // VisibilityDetector keys are global, whereas the same sticker can occur
+  // in several messages. Keep visibility independent from the media cache key.
+  final _visibilityKey = UniqueKey();
 
   /// 乐观默认为可见，保证首屏 GIF 立即播放；屏外项在首次 visibility 回调后暂停。
   bool _isVisible = true;
 
   @override
   Widget build(BuildContext context) {
-    final primaryUrl =
-        widget.item.displayUrl(preferAnimated: widget.preferAnimated);
+    final isCurrentRoute = ModalRoute.isCurrentOf(context) ?? true;
     return VisibilityDetector(
-      key: ValueKey(
-        stickerNetworkImageCacheKey(widget.item.stickerId, primaryUrl),
-      ),
-      onVisibilityChanged: (info) {
-        final visible = info.visibleFraction > _visibilityThreshold;
-        if (visible != _isVisible && mounted) {
-          setState(() => _isVisible = visible);
-        }
-      },
+      key: _visibilityKey,
+      // A covering preview is not a scroll out of the viewport. Disabling the
+      // detector also forgets pending hide callbacks from the covered route.
+      // Image retains its last frame while TickerMode pauses the GIF stream.
+      onVisibilityChanged: !isCurrentRoute
+          ? null
+          : (info) {
+              final visible = info.visibleFraction > _visibilityThreshold;
+              if (visible != _isVisible && mounted) {
+                setState(() => _isVisible = visible);
+              }
+            },
       // URL-only stickers, missing thumbnails and failed thumbnails may all
       // resolve back to the animated origin. Unmount the image while offscreen
       // so ImageState releases its stream listener instead of swapping URLs.
-      child: !_isVisible
-          ? _stickerImagePlaceholder(width: widget.width, height: widget.height)
-          : _StickerImageContent(
-              item: widget.item,
-              fit: widget.fit,
-              width: widget.width,
-              height: widget.height,
-              preferAnimated: widget.preferAnimated && _isVisible,
-            ),
+      child: TickerMode(
+        enabled: isCurrentRoute,
+        child: !_isVisible
+            ? _stickerImagePlaceholder(
+                width: widget.width, height: widget.height)
+            : _StickerImageContent(
+                item: widget.item,
+                fit: widget.fit,
+                width: widget.width,
+                height: widget.height,
+                preferAnimated: widget.preferAnimated && _isVisible,
+              ),
+      ),
     );
   }
 }

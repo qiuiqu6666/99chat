@@ -158,9 +158,37 @@ class _SdkRestoreRead {
 }
 
 class ConversationTabStore extends ChangeNotifier {
-  ConversationTabStore._();
+  ConversationTabStore._() {
+    ConversationUnreadAggregate.instance.sdkCalibrationRevision
+        .addListener(_reconcileSdkUnread);
+  }
 
   static final ConversationTabStore instance = ConversationTabStore._();
+
+  void _reconcileSdkUnread() {
+    final aggregate = ConversationUnreadAggregate.instance;
+    if (!aggregate.usesSdkUnread) return;
+    flushRealtimePatches();
+    final patches = <V2TimConversation>[];
+    for (final rows in _items.values) {
+      for (final row in rows) {
+        final count = aggregate.sdkUnreadCountFor(row.conversationID);
+        if (count == null || count == row.unreadCount) continue;
+        patches.add(mergePatchRow(
+          existing: row,
+          incoming: V2TimConversation(
+              conversationID: row.conversationID, unreadCount: count),
+          useIncomingUnread: true,
+        ));
+      }
+    }
+    applyPatches(patches,
+        reason: 'sdk_unread_calibration',
+        explicitUnreadIds: patches.map((row) => row.conversationID).toSet(),
+        preserveOrder: true,
+        preserveStructureFields: true,
+        allowNew: false);
+  }
 
   final ConversationChangeJournal _contentChanges = ConversationChangeJournal();
 
@@ -212,6 +240,13 @@ class ConversationTabStore extends ChangeNotifier {
               incoming: raw,
               useIncomingUnread: true,
             );
+      // Do not read conversationForId here: it flushes the pending batch and
+      // would turn a multi-conversation burst into one rebuild per message.
+      // Keep an absent count absent until the SDK cache/existing row resolves it.
+      row.unreadCount = raw.unreadCount ??
+          previous?.unreadCount ??
+          ConversationUnreadAggregate.instance
+              .sdkUnreadCountFor(raw.conversationID);
       _pendingRealtimeRows[key] = row;
       // ByIDs restores may finish before the publication timer fires.
       _recordRestorePatch(row, draft: false, last: false);
@@ -494,6 +529,11 @@ class ConversationTabStore extends ChangeNotifier {
   // Weak keys retain an immutable value for admitted rows, including SDK
   // objects subsequently mutated in place. Only touched rows are serialized.
   final Expando<String> _patchRowStates = Expando<String>();
+  // Null is a committed clear, not an absent field. Keep the accepted draft
+  // beside the row so stale SDK snapshots (including in-place mutations)
+  // cannot undo it. Weak keys follow the lifetime of the bounded row cache.
+  static final _explicitDraftStates =
+      Expando<({String? text, int? timestamp})>();
   final Expando<({bool pinned, int active, int order})> _patchRowOrders =
       Expando<({bool pinned, int active, int order})>();
 
@@ -1280,9 +1320,27 @@ class ConversationTabStore extends ChangeNotifier {
         .map(_projectionKey)
         .where((id) => id.isNotEmpty)
         .toSet();
-    for (final raw in incoming) {
+    for (final incomingRow in incoming) {
+      final aggregate = ConversationUnreadAggregate.instance;
+      final count = aggregate.sdkUnreadCountFor(incomingRow.conversationID);
+      final raw = aggregate.usesSdkUnread && count != null
+          ? mergePatchRow(
+              existing: incomingRow,
+              incoming: V2TimConversation(
+                  conversationID: incomingRow.conversationID,
+                  unreadCount: count),
+              useIncomingUnread: true,
+            )
+          : incomingRow;
       final id = raw.conversationID.trim();
       if (id.isEmpty) continue;
+      if (explicitDraftKeys.contains(_projectionKey(id))) {
+        _explicitDraftStates[raw] =
+            (text: raw.draftText, timestamp: raw.draftTimestamp);
+      }
+      if (aggregate.usesSdkUnread && count != null) {
+        explicitUnreadKeys.add(_projectionKey(id));
+      }
       _recordRestorePatch(raw,
           draft: explicitDraftKeys.contains(_projectionKey(id)),
           last: explicitLastMessageKeys.contains(_projectionKey(id)));
@@ -1369,6 +1427,12 @@ class ConversationTabStore extends ChangeNotifier {
         }
         if (index >= 0) {
           final existing = list[index];
+          if (explicitDraftKeys.contains(key)) {
+            // An explicit clear can equal the current empty row. Preserve
+            // its authority even when the value comparison skips rebuilding.
+            _explicitDraftStates[existing] =
+                (text: raw.draftText, timestamp: raw.draftTimestamp);
+          }
           final currentState = _patchRowState(existing);
           final beforeState = _patchRowStates[existing] ?? currentState;
           final beforeOrder =
@@ -1697,24 +1761,13 @@ class ConversationTabStore extends ChangeNotifier {
   }) {
     final id = existing.conversationID.trim();
     final existingUnread = existing.unreadCount ?? 0;
-    // Explicit local zero patches have no message. SDK snapshots do carry a
-    // message and must still respect read/ordering barriers, even when their
-    // unread field is authoritative for that snapshot.
-    var resolvedUnread = useIncomingUnread && incoming.lastMessage == null
-        ? (incoming.unreadCount ?? 0)
-        : ConversationUnreadGuard.resolveForListApply(
-            conversationId: id,
-            existingUnread: existingUnread,
-            incoming: incoming,
-            existingLastMessage: existing.lastMessage,
-          );
-    // 置顶等变更常触发 onConversationChanged，但 payload 不带 lastMessage、unread=0。
-    if (!useIncomingUnread &&
-        resolvedUnread == 0 &&
-        existingUnread > 0 &&
-        incoming.lastMessage == null) {
-      resolvedUnread = existingUnread;
-    }
+    // Only an SDK count source may change unread. Preview recency and local
+    // read watermarks cannot establish whether another device has read it.
+    final resolvedUnread = useIncomingUnread
+        ? ((incoming.unreadCount ?? existingUnread) < 0
+            ? 0
+            : (incoming.unreadCount ?? existingUnread))
+        : existingUnread;
 
     var incomingLast = incoming.lastMessage;
     if (!MessageConversationId.messageBelongsToConversation(
@@ -1786,7 +1839,10 @@ class ConversationTabStore extends ChangeNotifier {
       );
     }
 
-    return V2TimConversation(
+    final acceptedDraft = useIncomingDraft
+        ? (text: incoming.draftText, timestamp: incoming.draftTimestamp)
+        : _explicitDraftStates[existing];
+    final merged = V2TimConversation(
       conversationID: existing.conversationID,
       type: incoming.type ?? existing.type,
       userID: incoming.userID ?? existing.userID,
@@ -1798,11 +1854,11 @@ class ConversationTabStore extends ChangeNotifier {
       recvOpt: incoming.recvOpt ?? existing.recvOpt,
       unreadCount: resolvedUnread,
       lastMessage: preferredLast,
-      draftText: useIncomingDraft
-          ? incoming.draftText
+      draftText: acceptedDraft != null
+          ? acceptedDraft.text
           : (existing.draftText ?? incoming.draftText),
-      draftTimestamp: useIncomingDraft
-          ? incoming.draftTimestamp
+      draftTimestamp: acceptedDraft != null
+          ? acceptedDraft.timestamp
           : (existing.draftTimestamp ?? incoming.draftTimestamp),
       isPinned: preserveStructureFields
           ? existing.isPinned
@@ -1818,6 +1874,8 @@ class ConversationTabStore extends ChangeNotifier {
       groupReadSequence:
           incoming.groupReadSequence ?? existing.groupReadSequence,
     );
+    if (acceptedDraft != null) _explicitDraftStates[merged] = acceptedDraft;
+    return merged;
   }
 
   void applyDeleted(List<String> ids, {bool notify = true}) {
@@ -2160,7 +2218,10 @@ class ConversationTabStore extends ChangeNotifier {
       return incoming;
     }
     final preserved = previous.draftText?.trim() ?? '';
-    if (preserved.isEmpty || (incoming.draftText?.trim().isNotEmpty ?? false)) {
+    final hasExplicitDraft =
+        _deferredDraftAppliesToRow(previous, _deferredCommittedDraftIds);
+    if (!hasExplicitDraft &&
+        (preserved.isEmpty || (incoming.draftText?.trim().isNotEmpty ?? false))) {
       return incoming;
     }
     ConversationLocalStore.applyLocalDraftToConversation(
@@ -2285,8 +2346,24 @@ class ConversationTabStore extends ChangeNotifier {
       }
     }
     if (batch.upsertedSnapshots.isNotEmpty) {
+      final aggregate = ConversationUnreadAggregate.instance;
+      final snapshots = aggregate.usesSdkUnread
+          ? batch.upsertedSnapshots.map((row) {
+              // SQLite is a business/cache mirror, not an unread authority.
+              // A delayed local read/pin/preview commit must not overwrite
+              // a more recent SDK count, including a cross-device read.
+              final count = aggregate.sdkUnreadCountFor(row.conversationID) ??
+                  conversationForId(row.conversationID)?.unreadCount ?? 0;
+              return mergePatchRow(
+                existing: row,
+                incoming: V2TimConversation(
+                    conversationID: row.conversationID, unreadCount: count),
+                useIncomingUnread: true,
+              );
+            }).toList(growable: false)
+          : batch.upsertedSnapshots;
       applyPatches(
-        batch.upsertedSnapshots,
+        snapshots,
         reason: 'committed_view_batch',
         forceAdmitIds: forceAdmitIds,
         explicitDraftIds: explicitDraftIds,
@@ -2390,6 +2467,10 @@ class ConversationTabStore extends ChangeNotifier {
   /// 不能只更新 UI 兼容镜像。
   void zeroUnreadLocallyMany(Iterable<String> conversationIds) {
     flushRealtimePatches();
+    if (ConversationUnreadAggregate.instance.usesSdkUnread) {
+      ConversationUnreadAggregate.instance.zeroSdkUnreadCounts(conversationIds);
+      return;
+    }
     final ids = conversationIds
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty)
@@ -2849,6 +2930,7 @@ class ConversationTabStore extends ChangeNotifier {
                 : mergePatchRow(
                     existing: existing,
                     incoming: item,
+                    useIncomingUnread: true,
                     useIncomingDraft: changes[key]?.draft == true,
                     useIncomingLastMessage: changes[key]?.last == true,
                   );
@@ -2948,6 +3030,7 @@ class ConversationTabStore extends ChangeNotifier {
       fetched.conversationList,
       startedAtRevision: unreadPageRevision,
     );
+    _reconcileSdkUnread();
     _finished[type] = finished;
     final next = fetched.nextSeq.trim().isEmpty ? '0' : fetched.nextSeq.trim();
     if (finished || next == '0' || next == seq) {

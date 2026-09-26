@@ -3302,6 +3302,7 @@ class _ConversationState extends State<Conversation> {
         ConversationUnreadClearService.clearLocalForOpenFast(
       conversation: selectedConv,
       markViewModelReadLocally: _controller.model.markConversationReadLocally,
+      dispatchSdk: false,
     ), trace: openTrace, source: 'list');
 
     ConversationHistoryWarmScheduler.instance.touchMemoryWarm(openCacheKey);

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tencent_cloud_chat_sdk/enum/history_msg_get_type_enum.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_member_full_info.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_separate_view_model.dart';
@@ -44,6 +45,25 @@ class _DeferredSearchModel extends TUIChatSeparateViewModel {
       return Future.value(false);
     }
     return response.future;
+  }
+}
+
+class _DeferredInitialModel extends _DeferredSearchModel {
+  final initialResponse = Completer<bool>();
+  bool initialStarted = false;
+
+  @override
+  Future<bool> loadChatRecord({
+    HistoryMsgGetTypeEnum? getType,
+    int lastMsgSeq = -1,
+    required int count,
+    String? lastMsgID,
+    V2TimMessage? lastMsg,
+    LoadDirection direction = LoadDirection.previous,
+    bool forceReloadNewest = false,
+  }) {
+    initialStarted = true;
+    return initialResponse.future;
   }
 }
 
@@ -232,6 +252,37 @@ void main() {
     expect(global.getSearchJumpStatus(conv), SearchJumpStatus.positioning);
     first.dispose();
     second.dispose();
+  });
+
+  testWidgets('late plain initial load cannot reset an in-place search',
+      (tester) async {
+    const conv = '@TGS#initial-then-search';
+    final global = serviceLocator<TUIChatGlobalModel>();
+    final model = _DeferredInitialModel();
+    TIMUIKitChatProviderScope(
+      model: model,
+      conversationID: conv,
+      conversationType: ConvType.group,
+      localOnlyInitialOpen: true,
+      builder: (_, __, ___) => const SizedBox.shrink(),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(model.initialStarted, isTrue);
+    open(conv, 'a', model);
+    await tester.pump(const Duration(milliseconds: 1));
+    global.setMessageList(conv, [_message('a')], replace: true);
+    model.response.complete(true);
+    await tester.pump(const Duration(milliseconds: 1));
+    global.setMessageListPosition(conv, HistoryMessagePosition.notShowLatest);
+    model.haveMoreLatestData = true;
+    model.initialResponse.complete(true);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(global.getMessageListPosition(conv),
+        HistoryMessagePosition.notShowLatest);
+    expect(model.haveMoreLatestData, isTrue);
+    expect(global.getSearchJumpStatus(conv), SearchJumpStatus.positioning);
+    expect(global.rawMessageList(conv)!.single.msgID, 'a');
+    model.dispose();
   });
 
   test('late failure from an earlier click cannot replace the new window',

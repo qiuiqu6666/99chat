@@ -629,9 +629,13 @@ class _TUIChatState extends TIMUIKitState<TIMUIKitChat>
   @override
   void didUpdateWidget(TIMUIKitChat oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_searchTargetKey(widget) != _searchTargetKey(oldWidget)) {
-      // A desktop pane may reuse this State for another result in the same chat.
+    if (_searchTargetKey(widget) != _searchTargetKey(oldWidget) ||
+        (widget.searchJumpAnchor != null &&
+            !identical(widget.searchJumpAnchor, oldWidget.searchJumpAnchor))) {
+      // Both mobile route reuse and desktop panes can activate another search
+      // request, including the same result after scrolling away from it.
       isInit = false;
+      _searchTargetGeneration++;
     }
     if (widget.conversationID != oldWidget.conversationID) {
       model.stopVoiceAutoPlay();
@@ -645,7 +649,7 @@ class _TUIChatState extends TIMUIKitState<TIMUIKitChat>
           setState(() {});
         }
       });
-      chatGlobalModel.clearCurrentConversation();
+      model.releaseCurrentConversation();
       _updateJoinInGroupCallWidget();
       final existing = widget.controller?.model;
       if (existing != null &&
@@ -787,9 +791,11 @@ class _TUIChatState extends TIMUIKitState<TIMUIKitChat>
                   chat.conversation, chat.initFindingMsg!)))
       ?.stableKey;
 
+  int _searchTargetGeneration = 0;
+
   GlobalKey _listContainerKeyForConversation() {
     return _listStableKeys.containerFor(
-        '${_getConvID()}|${_searchTargetKey(widget) ?? "latest"}');
+        '${_getConvID()}|${_searchTargetKey(widget) ?? "latest"}|$_searchTargetGeneration');
   }
 
   ConvType _getConvType() {
@@ -1843,9 +1849,12 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
     final isSearchJump = searchJumpAnchor != null;
     final searchRequest =
         isSearchJump ? globalModel.beginSearchJump(conversationID) : null;
+    // In-place navigation can supersede a still-running plain initial load.
+    // Its late completion must not pin/mark-read the new search window.
+    final requestAtStart =
+        searchRequest ?? globalModel.searchJumpRequestFor(conversationID);
     bool isCurrentSearch() =>
-        searchRequest == null ||
-        globalModel.isCurrentSearchJumpRequest(conversationID, searchRequest);
+        globalModel.isCurrentSearchJumpRequest(conversationID, requestAtStart);
     final localOnlyPlainOpen =
         model!.localOnlyInitialOpen && !isSearchJump && initFindingMsg == null;
     if (!isSearchJump) {
@@ -1888,6 +1897,7 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
         if (!isSearchJump && target == null) {
           if (needUnreadSync && initialUnreadCount > 0) {
             await _ensureInitialUnreadWindowLoaded(initialUnreadCount);
+            if (!isCurrentSearch()) return;
             final loadedMessages = globalModel.getMessageList(conversationID);
             if (loadedMessages != null && loadedMessages.isNotEmpty) {
               // 大量未读入口先展示提示条，等用户主动查看后再上报已读。
@@ -1944,6 +1954,7 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
               conversationID,
               timeout: const Duration(milliseconds: 80),
             );
+            if (!isCurrentSearch()) return;
             ChatOpenPerfLog.mark(
               'uikit_hydrate_wait_result',
               conversationID: conversationID,
@@ -1991,6 +2002,7 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
                 count: HistoryMessageDartConstant.initialOpenFetchCount,
                 getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
               );
+              if (!isCurrentSearch()) return;
               localMessages = globalModel.getMessageList(conversationID);
               ChatOpenPerfLog.mark(
                 'uikit_loadChatRecord_local_done',
@@ -2040,6 +2052,7 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
             conversationID,
             timeout: const Duration(milliseconds: 900),
           );
+          if (!isCurrentSearch()) return;
           if (globalModel.hasOpenHydrateInFlight(conversationID)) {
             // A Dart timeout does not cancel the native SDK request. Do not
             // create a second logical first-window owner after the bounded
@@ -2049,6 +2062,7 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
               conversationID,
               timeout: const Duration(milliseconds: 3000),
             );
+            if (!isCurrentSearch()) return;
             if (globalModel.hasOpenHydrateInFlight(conversationID)) {
               ChatHistoryTrace.log(
                 'chat_page_defer_open_hydrate_inflight',
@@ -2100,6 +2114,7 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
             count: fetchCount,
             plainOpen: true,
           );
+          if (!isCurrentSearch()) return;
           final afterPeekCount = globalModel.rawMessageCount(conversationID);
           ChatHistoryTrace.log(
             'chat_page_hydrate_end',
@@ -2219,6 +2234,7 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
           count: fetchCount,
           getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
         );
+        if (!isCurrentSearch()) return;
         final localMessages = globalModel.getMessageList(conversationID);
         final afterLocalSignature = messageListSignature(localMessages);
         final localChanged = afterLocalSignature != beforeLocalSignature;
@@ -2241,6 +2257,7 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
             count: fetchCount,
             getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
           );
+          if (!isCurrentSearch()) return;
           final cloudMessages = globalModel.getMessageList(conversationID);
           if (cloudLoaded &&
               (!globalModel.memoryWindowNeedsReconciliation(conversationID) ||
@@ -2258,6 +2275,7 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
           count: fetchCount,
           getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
         );
+        if (!isCurrentSearch()) return;
         final cloudMessages = globalModel.getMessageList(conversationID);
         if (cloudLoaded &&
             (!globalModel.memoryWindowNeedsReconciliation(conversationID) ||
@@ -2370,7 +2388,8 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
           conversationID,
           generation: initialLoadGeneration,
         );
-        if (shouldMarkRead &&
+        if (isCurrentSearch() &&
+            shouldMarkRead &&
             !needUnreadSync &&
             !globalModel.hasLockedEntryUnread) {
           await model!.markMessageAsRead(force: true);

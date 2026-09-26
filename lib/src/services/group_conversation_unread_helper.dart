@@ -2,16 +2,12 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
-import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
-import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_unread_aggregate.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_unread_clear_service.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation.dart';
-import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_conversation_view_model.dart';
-import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 
-/// 建群等场景下，SDK 系统提示会误增未读；主动清零会话未读。
+/// 群系统提示触发 SDK 未读校准；本地隐藏提示不改变云端计数。
 class GroupConversationUnreadHelper {
   GroupConversationUnreadHelper._();
 
@@ -20,7 +16,8 @@ class GroupConversationUnreadHelper {
       LinkedHashSet<String>();
   static final Set<String> _absorbingEffectIds = <String>{};
 
-  /// 隐藏/静默 tip 被 SDK 计入未读时，本地扣回 1（不整会话清零，避免误伤真实未读）。
+  /// Silent-tip delivery may race an SDK count callback. Reconcile with the
+  /// provider; subtracting locally would disagree with other logged-in devices.
   static Future<void> absorbOneUnreadBump(
     String conversationID, {
     String? effectId,
@@ -37,20 +34,6 @@ class GroupConversationUnreadHelper {
       return;
     }
     try {
-      final existing =
-          await ConversationLocalStore.instance.conversationById(id);
-      if (existing == null) {
-        return;
-      }
-      final unread = existing.unreadCount ?? 0;
-      if (unread <= 0) {
-        return;
-      }
-      await ConversationSyncService.instance.applyConversationUnreadLocally(
-        conversationID: id,
-        unreadCount: unread - 1,
-        snapshot: existing,
-      );
       ConversationUnreadAggregate.instance.scheduleRefresh(
         reason: 'absorb_tip_unread',
       );
@@ -82,21 +65,15 @@ class GroupConversationUnreadHelper {
     if (id.isEmpty) {
       return;
     }
-    if (conversation != null) {
-      conversation.unreadCount = 0;
-    }
+    final canonicalId = id.startsWith('group_') ? id : 'group_$id';
+    final snapshot = conversation ??
+        ConversationUnreadAggregate.instance.sdkSnapshotFor(canonicalId);
+    if (snapshot == null) return;
     try {
-      await ConversationSyncService.instance.markConversationReadLocally(id);
-    } catch (e) {
-      debugPrint('mark group conversation read locally failed: $e');
-    }
-    try {
-      serviceLocator<TUIConversationViewModel>()
-          .markConversationReadLocally(id);
-    } catch (_) {}
-    try {
+      await ConversationUnreadClearService.clearLocalForOpen(
+          conversation: snapshot);
       await ConversationUnreadClearService.scheduleSdkUnreadClean(
-        conversationID: id.startsWith('group_') ? id : 'group_$id',
+        conversationID: canonicalId,
         trigger: SdkUnreadCleanTrigger.open,
         hadUnread: true,
       );
@@ -105,7 +82,7 @@ class GroupConversationUnreadHelper {
     }
   }
 
-  /// 系统群提示可能晚于首屏到达，补几次清零即可。
+  /// 系统群提示可能晚于首屏到达，延迟校准 SDK 未读。
   static void scheduleClearAfterGroupCreate(
     String conversationID, {
     V2TimConversation? conversation,
@@ -114,7 +91,7 @@ class GroupConversationUnreadHelper {
     scheduleAbsorbOnce(conversationID, effectId: effectId);
   }
 
-  /// 本人操作的群系统提示（邀请/踢人等）到达后，SDK 可能误增未读，延迟补清。
+  /// 本人操作的群系统提示（邀请/踢人等）到达后，延迟校准。
   static void scheduleClearForSelfOperatedGroupTips(
     String conversationID, {
     V2TimConversation? conversation,
@@ -123,9 +100,7 @@ class GroupConversationUnreadHelper {
     scheduleAbsorbOnce(conversationID, effectId: effectId);
   }
 
-  /// Wait once for the SDK unread snapshot, then absorb exactly one known
-  /// silent-tip effect. Repeated whole-conversation clears can consume real
-  /// messages that arrive during the delay window.
+  /// Wait once for the SDK unread snapshot and deduplicate the refresh effect.
   static void scheduleAbsorbOnce(
     String conversationID, {
     String? effectId,

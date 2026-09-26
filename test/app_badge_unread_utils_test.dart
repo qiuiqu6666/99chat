@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_unread_aggregate.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_request_notice_service.dart';
@@ -8,6 +9,8 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitConversation/archived_conversation_store.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() => SharedPreferences.setMockInitialValues({}));
   tearDown(() {
     ChatSessionController.instance.clearSessionProjection();
     ConversationUnreadAggregate.instance.resetForTest();
@@ -56,7 +59,8 @@ void main() {
     );
     expect(
       ConversationUnreadUtils.notifiableUnreadCount(
-        ChatSessionController.instance.conversations.firstWhere((row) => row.conversationID == 'c2c_user2'),
+        ChatSessionController.instance.conversations
+            .firstWhere((row) => row.conversationID == 'c2c_user2'),
       ),
       0,
     );

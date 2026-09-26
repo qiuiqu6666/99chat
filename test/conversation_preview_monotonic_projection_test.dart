@@ -152,7 +152,7 @@ void main() {
     );
   });
 
-  test('two inbound preview patches increment unread exactly once each',
+  test('inbound preview patches preserve the last SDK unread count',
       () async {
     final old = _conversation(messageId: 'old', timestamp: 100, unread: 0);
     await ConversationLocalStore.instance.upsertBatch(
@@ -183,11 +183,11 @@ void main() {
 
     expect(
       ChatSessionController.instance.conversations.single.unreadCount,
-      1,
+      0,
     );
     expect(
       ConversationUnreadAggregate.instance.c2cNotifiableUnreadSum,
-      1,
+      0,
     );
 
     sdkSnapshot = _conversation(messageId: 'in-1', timestamp: 200, unread: 1);
@@ -202,17 +202,17 @@ void main() {
 
     expect(
       ChatSessionController.instance.conversations.single.unreadCount,
-      2,
+      1,
     );
     expect(
       ConversationUnreadAggregate.instance.c2cNotifiableUnreadSum,
-      2,
+      1,
     );
     final stored = await ConversationLocalStore.instance.conversationById(
       _conversationId,
       ownerUserId: _owner,
     );
-    expect(stored?.unreadCount, 2);
+    expect(stored?.unreadCount, 1);
     expect(stored?.lastMessage?.msgID, 'in-2');
   });
 

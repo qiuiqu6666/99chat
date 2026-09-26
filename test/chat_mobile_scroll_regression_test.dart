@@ -288,7 +288,7 @@ void main() {
   }
 
   for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
-    for (final arrivals in [0, 120]) {
+    for (final arrivals in [0, 40, 120]) {
       testWidgets(
           '${platform.name}: one bottom tap reaches newest after $arrivals live arrivals',
           (tester) async {
@@ -312,6 +312,26 @@ void main() {
               .textContaining(arrivals == 0 ? 'toLatest:' : 'showUnread:')
               .hitTestable();
           expect(capsule, findsOneWidget);
+          var firstBottomPainted = false;
+          var largestRebound = 0.0;
+          var missingLatestFrames = 0;
+          final returnFrames = <String>[];
+          // Check the transition itself, not only the final settled position.
+          // Releasing a negative-extent center used to expose the old origin
+          // for a frame after the newest row had already reached the bottom.
+          afterFrame = () {
+            final position = scroll.position;
+            final distance = position.pixels - position.minScrollExtent;
+            final visible = newest.hitTestable().evaluate().isNotEmpty;
+            returnFrames.add('pixels=${position.pixels.toStringAsFixed(1)} '
+                'min=${position.minScrollExtent.toStringAsFixed(1)} '
+                'latestVisible=$visible');
+            if (distance.abs() <= 4 && visible) firstBottomPainted = true;
+            if (firstBottomPainted) {
+              if (distance > largestRebound) largestRebound = distance;
+              if (!visible) missingLatestFrames++;
+            }
+          };
           await tester.tap(capsule);
           await waitFor(
               tester,
@@ -325,6 +345,10 @@ void main() {
           // and the platform's ballistic activity time to settle before using
           // hit testing as a visibility proof.
           await frames(tester, 40);
+          expect(firstBottomPainted, isTrue);
+          expect(largestRebound, lessThanOrEqualTo(4),
+              reason: returnFrames.join('\n'));
+          expect(missingLatestFrames, 0, reason: returnFrames.join('\n'));
           final top = tester.getTopLeft(newest).dy;
           afterFrame = () {
             expect(newest.hitTestable(), findsOneWidget);

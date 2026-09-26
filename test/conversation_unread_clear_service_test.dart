@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -188,69 +186,27 @@ void main() {
       expect(calls, 0);
     });
 
-    test('concurrent leave finalizers await the same local commit', () async {
-      final localCommit = Completer<void>();
+    test('concurrent leave finalizers do not synthesize a local clear',
+        () async {
       var localCommitCalls = 0;
-      ConversationSyncService.instance.markReadStoreOverride =
-          (conversationID) {
+      var syntheticClears = 0;
+      ConversationSyncService.instance.markReadStoreOverride = (_) async {
         localCommitCalls++;
-        return localCommit.future;
+        throw StateError('legacy local clear must not be called');
       };
       ConversationUnreadClearService.beginConversationChatSession(
         'c2c_single_flight',
       );
-
-      var firstDone = false;
-      var secondDone = false;
-      final first =
+      Future<void> leave() =>
           ConversationUnreadClearService.finalizeConversationLeaveOnce(
-        conversationID: 'c2c_single_flight',
-        scheduleSdkUnreadCleanOnLeave: false,
-      ).whenComplete(() => firstDone = true);
-      final second =
-          ConversationUnreadClearService.finalizeConversationLeaveOnce(
-        conversationID: 'c2c_single_flight',
-        scheduleSdkUnreadCleanOnLeave: false,
-      ).whenComplete(() => secondDone = true);
-
-      await Future<void>.delayed(Duration.zero);
-      expect(localCommitCalls, 1);
-      expect(firstDone, isFalse);
-      expect(secondDone, isFalse);
-
-      localCommit.complete();
-      await Future.wait(<Future<void>>[first, second]);
-      expect(localCommitCalls, 1);
-      expect(firstDone, isTrue);
-      expect(secondDone, isTrue);
-    });
-
-    test('failed leave finalizer can retry the same generation', () async {
-      var localCommitCalls = 0;
-      ConversationSyncService.instance.markReadStoreOverride =
-          (conversationID) async {
-        localCommitCalls++;
-        if (localCommitCalls == 1) {
-          throw StateError('first write failed');
-        }
-      };
-      ConversationUnreadClearService.beginConversationChatSession(
-        'c2c_retry_finalize',
-      );
-
-      await expectLater(
-        ConversationUnreadClearService.finalizeConversationLeaveOnce(
-          conversationID: 'c2c_retry_finalize',
-          scheduleSdkUnreadCleanOnLeave: false,
-        ),
-        throwsStateError,
-      );
-      await ConversationUnreadClearService.finalizeConversationLeaveOnce(
-        conversationID: 'c2c_retry_finalize',
-        scheduleSdkUnreadCleanOnLeave: false,
-      );
-
-      expect(localCommitCalls, 2);
+            conversationID: 'c2c_single_flight',
+            scheduleSdkUnreadCleanOnLeave: false,
+            markViewModelReadLocally: (_) => syntheticClears++,
+          );
+      await Future.wait([leave(), leave()]);
+      await leave();
+      expect(localCommitCalls, 0);
+      expect(syntheticClears, 0);
     });
   });
 

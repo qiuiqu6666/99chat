@@ -15,7 +15,6 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_id_canonical.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
-import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_unread_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/conversation_unread_utils.dart';
@@ -65,6 +64,7 @@ class ConversationUnreadAggregate extends ChangeNotifier {
   int _c2cNotifiableUnreadSum = 0;
   int _groupNotifiableUnreadSum = 0;
   int? _sdkTotalUnreadCount;
+  int _sdkTotalRevision = 0;
   Timer? _debounce;
   String? _debounceReason;
   Timer? _idleDebounce;
@@ -78,9 +78,12 @@ class ConversationUnreadAggregate extends ChangeNotifier {
   bool _sdkSourceActive = false;
   bool _sdkUnreadSeeded = false;
 
-  /// Folder badges consume read-reconciled SDK counts, including muted/archived rows.
+  /// Folder badges consume SDK counts, including muted/archived rows.
   /// Their changes are independent of the notifiable tab sums.
   final ValueNotifier<int> sdkUnreadRevision = ValueNotifier<int>(0);
+
+  /// A full SDK calibration also updates already-loaded conversation rows.
+  final ValueNotifier<int> sdkCalibrationRevision = ValueNotifier<int>(0);
   final ConversationChangeJournal _rawUnreadChanges =
       ConversationChangeJournal();
   final Map<String, int> _publishedRawCounts = {};
@@ -89,6 +92,7 @@ class ConversationUnreadAggregate extends ChangeNotifier {
   Set<String>? rawUnreadChangesSince(int revision) =>
       _rawUnreadChanges.changesSince(revision);
   int _sdkRevision = 0;
+  int _sdkCalibrationFence = 0;
   final Map<String, V2TimConversation> _sdkRows = {};
   final Map<String, int> _sdkRowRevisions = {};
   final Map<String, ({bool group, int count})> _sdkContributions = {};
@@ -98,6 +102,8 @@ class ConversationUnreadAggregate extends ChangeNotifier {
 
   @visibleForTesting
   Future<V2TimConversationResult> Function(String nextSeq)? sdkPageForTest;
+  @visibleForTesting
+  Future<int?> Function()? sdkTotalForTest;
 
   V2TimConversation _unreadSnapshot(V2TimConversation row) => V2TimConversation(
         conversationID: row.conversationID,
@@ -135,32 +141,23 @@ class ConversationUnreadAggregate extends ChangeNotifier {
   V2TimConversation _resolveSdkUnread(V2TimConversation snapshot) {
     final previous =
         _sdkRows[ConversationIdCanonical.forStorage(snapshot.conversationID)];
-    // A count-only SDK ACK is still authoritative (also for unloaded rows).
-    // Reuse comparison metadata without inferring that the ACK is an old page.
-    if (snapshot.lastMessage == null) {
-      snapshot.lastMessage = previous?.lastMessage;
-      return snapshot;
-    }
-    final keepAnchor = ConversationUnreadGuard.shouldPreserveUnreadAnchor(
-      conversationId: snapshot.conversationID,
-      existingUnread: previous?.unreadCount ?? 0,
-      existingLastMessage: previous?.lastMessage,
-      incoming: snapshot,
-    );
-    ConversationUnreadGuard.resolveForListApply(
-      conversationId: snapshot.conversationID,
-      existingUnread: previous?.unreadCount ?? 0,
-      existingLastMessage: previous?.lastMessage,
-      incoming: snapshot,
-    );
-    if (keepAnchor) snapshot.lastMessage = previous?.lastMessage;
+    // The SDK count is independent of preview age and local read intentions.
+    // A remote read can legitimately decrease it while carrying an older
+    // preview. In-flight queries are fenced by revision, never message time.
+    snapshot.unreadCount =
+        math.max(0, snapshot.unreadCount ?? previous?.unreadCount ?? 0);
+    snapshot.lastMessage ??= previous?.lastMessage;
+    snapshot.recvOpt ??= previous?.recvOpt;
+    snapshot.groupType ??= previous?.groupType;
+    snapshot.type ??= previous?.type;
+    snapshot.userID ??= previous?.userID;
+    snapshot.groupID ??= previous?.groupID;
     return snapshot;
   }
 
   /// SDK-primary lists bypass SQLite. Keep absolute per-conversation values
   /// from that same SDK stream, including rows outside the visible window.
-  void applySdkConversations(Iterable<V2TimConversation> rows,
-      {bool fromResolvedProjection = false}) {
+  void applySdkConversations(Iterable<V2TimConversation> rows) {
     final first = !_sdkSourceActive;
     _sdkSourceActive = true;
     final changedKeys = <String>{};
@@ -168,8 +165,7 @@ class ConversationUnreadAggregate extends ChangeNotifier {
       final key = ConversationIdCanonical.forStorage(row.conversationID);
       if (key.isEmpty) continue;
       final snapshot = _unreadSnapshot(row);
-      _sdkRows[key] =
-          fromResolvedProjection ? snapshot : _resolveSdkUnread(snapshot);
+      _sdkRows[key] = _resolveSdkUnread(snapshot);
       _sdkRowRevisions[key] = ++_sdkRevision;
       changedKeys.add(key);
     }
@@ -180,7 +176,8 @@ class ConversationUnreadAggregate extends ChangeNotifier {
   }
 
   void removeSdkConversations(Iterable<String> ids) {
-    if (!_sdkSourceActive) return;
+    final first = !_sdkSourceActive;
+    _sdkSourceActive = true;
     final changedKeys = <String>{};
     for (final id in ids) {
       final key = ConversationIdCanonical.forStorage(id);
@@ -189,51 +186,76 @@ class ConversationUnreadAggregate extends ChangeNotifier {
       changedKeys.add(key);
     }
     _publishSdkSums(changedKeys: changedKeys);
+    if (first) scheduleRefresh(reason: 'realtime_commit');
   }
 
-  /// An explicit read action clears raw counts, including rows outside the
-  /// visible window. Notification eligibility deltas must not do this.
+  /// Compatibility with old local-clear callers. Request synchronization;
+  /// only SDK snapshots may replace the raw count.
   void zeroSdkUnreadCounts(Iterable<String> ids) {
     if (!_sdkSourceActive) return;
+    if (ids.isNotEmpty) scheduleRefresh(reason: 'sdk_read_reconcile');
+  }
+
+  void updateSdkProjectionIfActive(Iterable<V2TimConversation> rows) {
+    if (!_sdkSourceActive) return;
     final changed = <String>{};
-    for (final id in ids) {
-      final key = ConversationIdCanonical.forStorage(id);
-      final row = _sdkRows[key];
-      if (row != null) row.unreadCount = 0;
-      _sdkRowRevisions[key] = ++_sdkRevision;
+    for (final row in rows) {
+      final key = ConversationIdCanonical.forStorage(row.conversationID);
+      final previous = _sdkRows[key];
+      if (previous == null) continue;
+      if (previous.recvOpt == row.recvOpt &&
+          previous.groupType == row.groupType &&
+          previous.type == row.type &&
+          previous.userID == row.userID &&
+          previous.groupID == row.groupID) {
+        continue;
+      }
+      // Mute/visibility edits may affect badge eligibility, but cannot write
+      // raw SDK counts or advance the SDK query/callback revision fence.
+      _sdkRows[key] = _unreadSnapshot(row)
+        ..unreadCount = previous.unreadCount
+        ..lastMessage = previous.lastMessage;
       changed.add(key);
     }
     if (changed.isNotEmpty) _publishSdkSums(changedKeys: changed);
   }
 
-  void updateSdkProjectionIfActive(Iterable<V2TimConversation> rows) {
-    if (!_sdkSourceActive) return;
-    final changed = rows.where((row) {
-      final previous =
-          _sdkRows[ConversationIdCanonical.forStorage(row.conversationID)];
-      return previous == null ||
-          previous.unreadCount != row.unreadCount ||
-          previous.recvOpt != row.recvOpt ||
-          previous.groupType != row.groupType ||
-          previous.lastMessage?.msgID != row.lastMessage?.msgID ||
-          previous.lastMessage?.timestamp != row.lastMessage?.timestamp ||
-          previous.lastMessage?.seq != row.lastMessage?.seq ||
-          previous.type != row.type ||
-          previous.userID != row.userID ||
-          previous.groupID != row.groupID;
-    }).toList(growable: false);
-    // The list already resolved these rows, including intentional preview
-    // rollback after deletion. Do not reinterpret a local edit as an old SDK
-    // callback and retain the deleted message as an unread comparison anchor.
-    if (changed.isNotEmpty) {
-      applySdkConversations(changed, fromResolvedProjection: true);
+  bool get usesSdkUnread => _sdkSourceActive;
+
+  /// Null means not synchronized yet; zero means a confirmed SDK zero.
+  int? sdkUnreadCountFor(String conversationId) {
+    final key = ConversationIdCanonical.forStorage(conversationId);
+    return _sdkRows[key]?.unreadCount ??
+        (_sdkUnreadSeeded || _sdkRowRevisions.containsKey(key) ? 0 : null);
+  }
+
+  V2TimConversation? sdkSnapshotFor(String conversationId) {
+    final row = _sdkRows[ConversationIdCanonical.forStorage(conversationId)];
+    return row == null ? null : _unreadSnapshot(row);
+  }
+
+  Future<List<V2TimConversation>> sdkUnreadSnapshots(
+      {bool ensureComplete = false}) async {
+    final generation = _sessionClearGeneration;
+    if (ensureComplete && !_sdkUnreadSeeded) {
+      _sdkSourceActive = true;
+      await refreshFromStore(reason: 'read_action_sdk_seed');
+      if (generation != _sessionClearGeneration || !_sdkUnreadSeeded) {
+        throw StateError('SDK unread snapshot is not ready for this account');
+      }
     }
+    if (generation != _sessionClearGeneration) return const [];
+    return _sdkRows.values
+        .where((row) => (row.unreadCount ?? 0) > 0)
+        .map(_unreadSnapshot)
+        .toList(growable: false);
   }
 
   int get sdkPageRevision => _sdkRevision;
 
   void applySdkPage(Iterable<V2TimConversation> rows,
       {required int startedAtRevision}) {
+    if (startedAtRevision < _sdkCalibrationFence) return;
     applySdkConversations(rows.where((row) =>
         (_sdkRowRevisions[
                 ConversationIdCanonical.forStorage(row.conversationID)] ??
@@ -355,20 +377,52 @@ class ConversationUnreadAggregate extends ChangeNotifier {
           snapshot[entry.key] = row;
         }
       }
-      // Recheck at publication: a local read can occur after a page was
-      // fetched, and reconnect snapshots may still include acknowledged rows.
       for (final row in snapshot.values) {
         _resolveSdkUnread(row);
+      }
+      // The completed query fences other queries started earlier, including
+      // rows now absent from the SDK's hasUnreadCount result (confirmed zero).
+      final calibratedRevision = ++_sdkRevision;
+      _sdkCalibrationFence = calibratedRevision;
+      for (final key in {..._sdkRows.keys, ...snapshot.keys}) {
+        _sdkRowRevisions[key] = calibratedRevision;
       }
       _sdkRows
         ..clear()
         ..addAll(snapshot);
       _sdkUnreadSeeded = true;
       _publishSdkSums();
+      sdkCalibrationRevision.value++;
+      await _refreshSdkTotal(generation);
     } catch (error) {
       if (kDebugMode) {
         debugPrint('ConversationUnreadAggregate: SDK refresh failed: $error');
       }
+    }
+  }
+
+  Future<void> _refreshSdkTotal(int generation) async {
+    // A test page provider replaces native SDK queries unless it also supplies
+    // a total provider. Production always refreshes the SDK total explicitly.
+    if (sdkPageForTest != null && sdkTotalForTest == null) return;
+    final revision = _sdkTotalRevision;
+    try {
+      int? total;
+      if (sdkTotalForTest != null) {
+        total = await sdkTotalForTest!();
+      } else {
+        final result = await TencentImSDKPlugin.v2TIMManager
+            .getConversationManager()
+            .getTotalUnreadMessageCount();
+        if (result.code == 0) total = result.data;
+      }
+      if (generation == _sessionClearGeneration &&
+          revision == _sdkTotalRevision &&
+          total != null) {
+        applySdkTotalUnreadCount(total);
+      }
+    } catch (_) {
+      // A failed total query must retain the last synchronized desktop badge.
     }
   }
 
@@ -422,6 +476,7 @@ class ConversationUnreadAggregate extends ChangeNotifier {
   int? get sdkTotalUnreadCount => _sdkTotalUnreadCount;
 
   void applySdkTotalUnreadCount(int unreadCount) {
+    _sdkTotalRevision++;
     final next = math.max(0, unreadCount);
     final changed = _sdkTotalUnreadCount != next;
     _sdkTotalUnreadCount = next;
@@ -430,9 +485,9 @@ class ConversationUnreadAggregate extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
-  /// Lets an explicit local read projection win for the current frame. The
-  /// next Tencent total callback restores the provider value.
+  /// Legacy store-mode invalidation; SDK-primary totals stay provider-owned.
   void clearSdkTotalForLocalProjection() {
+    if (_sdkSourceActive) return;
     if (_sdkTotalUnreadCount == null) return;
     _sdkTotalUnreadCount = null;
     // The badge service listens to this aggregate. Notify immediately so an
@@ -587,21 +642,13 @@ class ConversationUnreadAggregate extends ChangeNotifier {
     }
   }
 
-  /// 编辑态按 scope 全部已读时立即隐藏 Tab 角标；随后仍由本地库刷新校准。
+  /// Legacy local clear. SDK-primary callers only request a fresh SDK snapshot.
   void clearScopeOptimistically({required bool isGroup}) {
-    clearSdkTotalForLocalProjection();
     if (_sdkSourceActive) {
-      for (final entry in _sdkRows.entries) {
-        if (ConversationUnreadUtils.isGroupConversation(entry.value) !=
-            isGroup) {
-          continue;
-        }
-        entry.value.unreadCount = 0;
-        _sdkRowRevisions[entry.key] = ++_sdkRevision;
-      }
-      _publishSdkSums();
+      scheduleRefresh(reason: 'sdk_read_reconcile');
       return;
     }
+    clearSdkTotalForLocalProjection();
     var changed = false;
     if (isGroup) {
       _lastNotifiableByConversation
@@ -785,7 +832,9 @@ class ConversationUnreadAggregate extends ChangeNotifier {
     _sdkRows.clear();
     _sdkRowRevisions.clear();
     _sdkRevision = 0;
+    _sdkCalibrationFence = 0;
     sdkPageForTest = null;
+    sdkTotalForTest = null;
     _debounce?.cancel();
     _debounce = null;
     _debounceReason = null;
@@ -833,6 +882,7 @@ class ConversationUnreadAggregate extends ChangeNotifier {
     _sdkRows.clear();
     _sdkRowRevisions.clear();
     _sdkRevision = 0;
+    _sdkCalibrationFence = 0;
     _publishedRawCounts.clear();
     _publishedRawIds.clear();
     final rawRevision = sdkUnreadRevision.value + 1;

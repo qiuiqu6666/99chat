@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart'
     as picker;
+import 'package:tencent_cloud_chat_uikit/ui/utils/gallery_send_perf_trace.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
 const int _chatGalleryPageSize = 40;
@@ -16,14 +18,36 @@ class ChatGalleryPickUtils {
 
   /// The pinned image_picker wrapper does not expose a selection limit yet;
   /// its installed platform implementation already supports native limits.
-  static Future<List<picker.XFile>> pickSystemGalleryMedia() {
-    return picker.ImagePickerPlatform.instance.getMedia(
-      options: picker.MediaOptions(
-        allowMultiple: true,
-        limit: maxSelectedAssets,
-        imageOptions: const picker.ImageOptions(requestFullMetadata: false),
-      ),
-    );
+  /// Null means the native implementation is absent, not that selection failed.
+  /// Once the native picker has accepted a selection, export/decoding errors
+  /// must terminate that attempt instead of opening a second picker.
+  static Future<List<picker.XFile>?> pickSystemGalleryMedia({
+    GallerySendPerfTrace? perf,
+  }) async {
+    try {
+      return await picker.ImagePickerPlatform.instance.getMedia(
+        options: picker.MediaOptions(
+          allowMultiple: true,
+          limit: maxSelectedAssets,
+          imageOptions: const picker.ImageOptions(requestFullMetadata: false),
+        ),
+      );
+    } on MissingPluginException {
+      perf?.log('system_picker_unavailable', detail: 'reason=missing_plugin');
+      return null;
+    } on UnimplementedError {
+      perf?.log('system_picker_unavailable', detail: 'reason=unimplemented');
+      return null;
+    } catch (error) {
+      perf?.log(
+        'system_picker_failed',
+        detail: 'platform=${kIsWeb ? "web" : Platform.operatingSystem} '
+            'os=${kIsWeb ? "web" : Platform.operatingSystemVersion} '
+            'type=${error.runtimeType} '
+            '${error is PlatformException ? "code=${error.code} message=${error.message} details=${error.details}" : "error=$error"}',
+      );
+      rethrow;
+    }
   }
 
   static PermissionRequestOption permissionRequestOption({

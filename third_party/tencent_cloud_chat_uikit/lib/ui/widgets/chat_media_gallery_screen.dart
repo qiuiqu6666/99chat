@@ -465,7 +465,9 @@ class _ChatMediaGalleryScreenState extends TIMUIKitState<ChatMediaGalleryScreen>
   }
 
   void _hideHero(Object tag) {
-    if (tag.toString().isEmpty) {
+    // Chat galleries use no Hero flight. Keep their source images painted so
+    // slide-dismiss and the first returned frame never expose hidden bubbles.
+    if (!widget.enableHero || tag.toString().isEmpty) {
       return;
     }
     if (_hiddenHeroTags.add(tag)) {

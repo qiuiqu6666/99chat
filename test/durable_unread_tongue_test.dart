@@ -11,12 +11,15 @@ import 'package:provider/provider.dart';
 // ignore: depend_on_referenced_packages
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tencent_cloud_chat_demo/src/services/history_window_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/group_mention_read_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/sqflite_lifecycle_guard.dart';
 import 'package:tencent_cloud_chat_sdk/enum/history_msg_get_type_enum.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_info.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_at_info.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message_list_result.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_text_elem.dart';
@@ -28,6 +31,21 @@ import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/tim_uikit_chat_config.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart';
+
+class _DelayedMentionPreferences extends InMemorySharedPreferencesStore {
+  _DelayedMentionPreferences() : super.empty();
+  final barrier = Completer<void>();
+  bool entered = false;
+
+  @override
+  Future<bool> setValue(String type, String key, Object value) async {
+    if (key.contains('group_mentions_read_v1:')) {
+      entered = true;
+      await barrier.future;
+    }
+    return super.setValue(type, key, value);
+  }
+}
 
 class _HistorySdk extends MessageService {
   int calls = 0;
@@ -219,7 +237,9 @@ void main() {
       bool input = false,
       bool Function()? beginTransition,
       Future<void> Function()? finishTransition,
-      Future<bool> Function(int)? onFirstUnread}) async {
+      Future<bool> Function(int)? onFirstUnread,
+      List<V2TimGroupAtInfo?>? mentions,
+      Future<bool> Function(String)? onMention}) async {
     model.initialUnreadCount = entry;
     final errorHandler = FlutterError.onError;
     await tester.pumpWidget(MultiProvider(
@@ -246,7 +266,8 @@ void main() {
                 groupID: getConv(),
                 type: 2,
                 unreadCount: entry),
-            scrollToIndexBySeq: (_) async => false,
+            groupAtInfoList: mentions,
+            scrollToIndexBySeq: onMention ?? (_) async => false,
             scrollToFirstUnread: onFirstUnread ?? (_) async => true,
             beginWindowTransition: beginTransition,
             finishWindowTransition: finishTransition,
@@ -370,6 +391,142 @@ void main() {
         SqfliteLifecycleGuard.instance.debugReset();
       }
     });
+  }
+
+  uiTest(
+    'reopening during mention persistence never restores the old reminder',
+    (tester) async {
+      final previous = SharedPreferencesStorePlatform.instance;
+      final prefs = _DelayedMentionPreferences();
+      SharedPreferencesStorePlatform.instance = prefs;
+      try {
+        final mentions = [V2TimGroupAtInfo(seq: '42', atType: 1)];
+        await mount(tester, mentions: mentions, onMention: (_) async => true);
+        await frame(tester);
+        await tester.tap(find.text('atMe:0'));
+        await frame(tester);
+        expect(prefs.entered, isTrue);
+        await unmount(tester);
+        await mount(tester, mentions: mentions);
+        await frame(tester);
+        expect(find.text('atMe:0'), findsNothing);
+        prefs.barrier.complete();
+        for (var i = 0; i < 5; i++) {
+          await frame(tester);
+        }
+        expect(find.text('atMe:0'), findsNothing);
+      } finally {
+        if (!prefs.barrier.isCompleted) prefs.barrier.complete();
+        await frame(tester);
+        SharedPreferencesStorePlatform.instance = previous;
+      }
+    },
+  );
+
+  uiTest('failed mention jump keeps reminder after reopening', (tester) async {
+    final mentions = [V2TimGroupAtInfo(seq: '42', atType: 1)];
+    await mount(tester, mentions: mentions, onMention: (_) async => false);
+    await frame(tester);
+    await tester.tap(find.text('atMe:0'));
+    await frame(tester);
+    expect(find.text('atMe:0'), findsOneWidget);
+    await unmount(tester);
+    await mount(tester, mentions: mentions);
+    await frame(tester);
+    expect(find.text('atMe:0'), findsOneWidget);
+  });
+
+  uiTest('new mention arriving during jump is not consumed by the old tap', (
+    tester,
+  ) async {
+    final jump = Completer<bool>();
+    final old = V2TimGroupAtInfo(seq: '42', atType: 1);
+    await mount(tester, mentions: [old], onMention: (_) => jump.future);
+    await frame(tester);
+    await tester.tap(find.text('atMe:0'));
+    await mount(
+      tester,
+      mentions: [
+        old,
+        V2TimGroupAtInfo(seq: '43', atType: 2),
+      ],
+      onMention: (_) => jump.future,
+    );
+    jump.complete(true);
+    for (var i = 0; i < 5; i++) {
+      await frame(tester);
+    }
+    final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+      find.byType(TIMUIKitHistoryMessageListTongueContainer),
+    );
+    expect(state.groupAtInfoList!.map((at) => at!.seq), ['43']);
+    expect(find.text('atAll:0'), findsOneWidget);
+  });
+
+  uiTest('leaving before mention jump completes does not acknowledge it', (
+    tester,
+  ) async {
+    final jump = Completer<bool>();
+    final mentions = [V2TimGroupAtInfo(seq: '42', atType: 1)];
+    await mount(tester, mentions: mentions, onMention: (_) => jump.future);
+    await frame(tester);
+    await tester.tap(find.text('atMe:0'));
+    await unmount(tester);
+    jump.complete(true);
+    await frame(tester);
+    await mount(tester, mentions: mentions);
+    await frame(tester);
+    expect(find.text('atMe:0'), findsOneWidget);
+    expect(
+      GroupMentionReadStore.instance.cached('tongue-owner', getConv()),
+      isEmpty,
+    );
+  });
+
+  for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+    for (final atType in [1, 2]) {
+      uiTest(
+        '${platform.name}: consumed mention $atType stays gone after reopening',
+        (tester) async {
+          debugDefaultTargetPlatformOverride = platform;
+          try {
+            final mentions = [V2TimGroupAtInfo(seq: '42', atType: atType)];
+            final label = atType == 1 ? 'atMe:0' : 'atAll:0';
+            await mount(
+              tester,
+              mentions: mentions,
+              onMention: (_) async => true,
+            );
+            await frame(tester);
+            expect(find.text(label), findsOneWidget);
+            await tester.tap(find.text(label));
+            await frame(tester);
+            expect(find.text(label), findsNothing);
+            await unmount(tester);
+            await mount(
+              tester,
+              mentions: mentions,
+              onMention: (_) async => true,
+            );
+            await frame(tester);
+            expect(find.text(label), findsNothing);
+            // A new sequence remains actionable even when the stale old row returns.
+            await mount(
+              tester,
+              mentions: [
+                ...mentions,
+                V2TimGroupAtInfo(seq: '43', atType: atType),
+              ],
+              onMention: (_) async => true,
+            );
+            await frame(tester);
+            expect(find.text(label), findsOneWidget);
+          } finally {
+            debugDefaultTargetPlatformOverride = null;
+          }
+        },
+      );
+    }
   }
 
   for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {

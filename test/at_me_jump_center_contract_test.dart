@@ -30,9 +30,9 @@ void main() {
       'Future<bool> _onScrollToIndexBySeq(String targetSeq) async {',
       '  Future<bool> _centerOnAtMeSeq(',
     );
-    expect(jump, contains('begin(showSpinner: false, showProgress: false)'));
+    expect(jump, contains('begin(showSpinner: true)'));
     expect(
-      jump.indexOf('begin(showSpinner: false, showProgress: false)'),
+      jump.indexOf('begin(showSpinner: true)'),
       lessThan(jump.indexOf('loadListForSpecificMessage(')),
     );
     expect(jump, contains('await transition?.finish()'));

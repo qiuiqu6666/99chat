@@ -5369,9 +5369,23 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     }
   }
 
-  clearCurrentConversation({bool notify = false}) {
-    if (_currentConversationList.isNotEmpty) {
-      final leaving = _currentConversationList.last.conversationID;
+  // Returns whether the final owner left and conversation-scoped work can end.
+  bool clearCurrentConversation({bool notify = false, CurrentConversation? expected}) {
+    final index = expected == null
+        ? _currentConversationList.length - 1
+        : _currentConversationList.indexOf(expected);
+    if (index < 0) return false;
+    final registration = _currentConversationList[index];
+    // Route transitions can dispose pages out of stack order. Only release
+    // the caller's registration; another page for the same conversation must
+    // retain its shared history writer, viewport and unread state.
+    final hasOtherOwner = _currentConversationList.any((candidate) =>
+        !identical(candidate, registration) &&
+        candidate.conversationType == registration.conversationType &&
+        _isSameConversationID(
+            candidate.conversationID, registration.conversationID));
+    if (!hasOtherOwner) {
+      final leaving = registration.conversationID;
       _inboundBatchCoalescer.flushConversation(leaving);
       _inboundChunkReveal.flushConversation(leaving);
       _revealAllInboundProjection(leaving);
@@ -5411,12 +5425,15 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       _freezeHistoryReadingWindowByConversation.remove(stateKey);
       _resetGeometryViewportTransition(leaving);
     }
-    if (_currentConversationList.isNotEmpty) {
+    if (expected == null) {
       _currentConversationList.removeLast();
+    } else {
+      _currentConversationList.remove(expected);
     }
     if (notify) {
       notifyListeners();
     }
+    return !hasOtherOwner;
   }
 
   /// History warm / open-gate keys: bare id + matching `group_` / `c2c_` shape.
@@ -15713,6 +15730,13 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   }) {
     final wasOpen = _isMediaPreviewOverlayOpen;
     _isMediaPreviewOverlayOpen = true;
+    // Stop a drag/fling before saving its position. The maintained list keeps
+    // its physics/ScrollPosition while the preview absorbs subsequent input.
+    final controller =
+        _activeChatScrollControllerMap[_safeConversationId(conversationID)];
+    final position =
+        controller == null ? null : _singleScrollPositionOrNull(controller);
+    position?.hold(() {});
     saveScrollBeforeRouteOverlay(
       conversationID,
       anchorMessageID: anchorMessageID,

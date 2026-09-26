@@ -8,13 +8,16 @@ class ConversationReadPolicy {
   }
 
   static bool validTarget(String id, int timestamp, int sequence,
-      {bool explicitTypeClear = false}) {
+      {bool explicitTypeClear = false,
+      bool explicitConversationClear = false}) {
     if (id == 'c2c' || id == 'group') return explicitTypeClear;
+    final clearCurrent =
+        explicitConversationClear && timestamp == 0 && sequence == 0;
     if (id.startsWith('c2c_') && id.substring(4).trim().isNotEmpty) {
-      return timestamp > 0 && sequence == 0;
+      return clearCurrent || (timestamp > 0 && sequence == 0);
     }
     if (id.startsWith('group_') && id.substring(6).trim().isNotEmpty) {
-      return sequence > 0 && timestamp == 0;
+      return clearCurrent || (sequence > 0 && timestamp == 0);
     }
     return false;
   }

@@ -4,6 +4,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:provider/provider.dart';
+import 'package:tencent_cloud_chat_demo/src/services/group_mention_read_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_unread_trace.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation.dart';
@@ -109,6 +112,11 @@ class _TongueUnreadSelectorData {
 class TIMUIKitHistoryMessageListTongueContainerState
     extends TIMUIKitState<TIMUIKitHistoryMessageListTongueContainer> {
   bool isFinishJumpToAt = false;
+  String _mentionOwner = '';
+  String _mentionConversation = '';
+  String _mentionInputSignature = '';
+  int _mentionLoadToken = 0;
+  bool _jumpingToMention = false;
   List<V2TimGroupAtInfo?>? groupAtInfoList = [];
   final TUIChatGlobalModel globalModel = serviceLocator<TUIChatGlobalModel>();
   bool isClickShowPrevious = false;
@@ -861,6 +869,103 @@ class TIMUIKitHistoryMessageListTongueContainerState
     }
   }
 
+  void _syncPendingMentions() {
+    final sessionOwner = SessionIdentityService.instance.capture().ownerUserId;
+    final owner = sessionOwner.isNotEmpty
+        ? sessionOwner
+        : globalModel.im06WriterOwnerUserID ?? '';
+    final conversation = widget.conversation.conversationID;
+    final source = widget.groupAtInfoList ?? const <V2TimGroupAtInfo?>[];
+    final signature = source.map((at) => '${at?.seq}:${at?.atType}').join(',');
+    if (owner == _mentionOwner &&
+        conversation == _mentionConversation &&
+        signature == _mentionInputSignature) {
+      return;
+    }
+    final scopeChanged =
+        owner != _mentionOwner || conversation != _mentionConversation;
+    _mentionOwner = owner;
+    _mentionConversation = conversation;
+    _mentionInputSignature = signature;
+    if (scopeChanged) _jumpingToMention = false;
+    final token = ++_mentionLoadToken;
+    final store = GroupMentionReadStore.instance;
+    final cached = store.cached(owner, conversation);
+    if (cached != null || source.isEmpty || owner.isEmpty) {
+      _applyPendingMentions(cached ?? const <String>{});
+      return;
+    }
+    // Do not briefly repaint consumed mentions while the durable record loads.
+    groupAtInfoList = [];
+    isFinishJumpToAt = false;
+    unawaited(() async {
+      Set<String> read;
+      try {
+        read = await store.load(owner, conversation);
+      } catch (error) {
+        ConversationUnreadTrace.log(
+          'mention_restore_failed',
+          conversationID: conversation,
+          extras: {'errorType': error.runtimeType},
+        );
+        read = const <String>{};
+      }
+      if (!mounted || token != _mentionLoadToken) return;
+      setState(() => _applyPendingMentions(read));
+    }());
+  }
+
+  void _applyPendingMentions(Set<String> read) {
+    groupAtInfoList = (widget.groupAtInfoList ?? const <V2TimGroupAtInfo?>[])
+        .where((at) {
+          final seq = GroupMentionReadStore.sequenceKey(at?.seq);
+          return seq != null && !read.contains(seq);
+        })
+        .toList()
+        .reversed
+        .toList();
+    isFinishJumpToAt = groupAtInfoList!.isEmpty;
+  }
+
+  Future<void> _jumpToMention() async {
+    if (_jumpingToMention || groupAtInfoList?.isNotEmpty != true) return;
+    final seq = groupAtInfoList!.first?.seq;
+    if (seq == null || GroupMentionReadStore.sequenceKey(seq) == null) return;
+    final owner = _mentionOwner;
+    final conversation = _mentionConversation;
+    final generation = _conversationWidgetGeneration;
+    final session = SessionIdentityService.instance.generation;
+    bool isCurrent() =>
+        mounted &&
+        generation == _conversationWidgetGeneration &&
+        owner == _mentionOwner &&
+        conversation == _mentionConversation &&
+        SessionIdentityService.instance.isGenerationCurrent(session);
+    _jumpingToMention = true;
+    try {
+      final ok = await widget.scrollToIndexBySeq(seq);
+      if (!ok || !isCurrent()) return;
+      final store = GroupMentionReadStore.instance;
+      if (!await store.acknowledge(owner, conversation, seq)) return;
+      ConversationUnreadTrace.log(
+        'mention_acknowledged',
+        conversationID: conversation,
+        extras: {'messageSeq': seq},
+      );
+      final read = await store.load(owner, conversation);
+      if (!isCurrent()) return;
+      setState(() => _applyPendingMentions(read));
+    } catch (error) {
+      ConversationUnreadTrace.log(
+        'mention_ack_failed',
+        conversationID: conversation,
+        extras: {'errorType': error.runtimeType},
+      );
+    } finally {
+      if (isCurrent()) _jumpingToMention = false;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -868,7 +973,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
         this, scrollToLatestAndDismissUnreadCapsule);
     _entryUnreadCount = _resolveEntryUnreadCount();
     _attachScrollListeners();
-    groupAtInfoList = widget.groupAtInfoList?.reversed.toList();
+    _syncPendingMentions();
   }
 
   @override
@@ -908,10 +1013,12 @@ class TIMUIKitHistoryMessageListTongueContainerState
       _lastTongueDiagnosticState = '';
       _showScrollToBottomCapsule = false;
       _userLeftBottomIntentionally = false;
-      groupAtInfoList = widget.groupAtInfoList?.reversed.toList();
+      _jumpingToMention = false;
+      _syncPendingMentions();
       _attachScrollListeners();
       return;
     }
+    _syncPendingMentions();
     if (oldWidget.scrollController != widget.scrollController) {
       oldWidget.scrollController.removeListener(_onScrollControllerChanged);
       _detachScrollEndListener();
@@ -1631,28 +1738,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
                   child: _buildTongue(
                     previousCount: displayUnreadCount,
                     unreadCount: displayUnreadCount,
-                    onClick: () async {
-                      if (groupAtInfoList == null || groupAtInfoList!.isEmpty) {
-                        return;
-                      }
-                      final atInfo = groupAtInfoList![0];
-                      final seq = atInfo?.seq;
-                      if (seq == null || seq.trim().isEmpty) {
-                        return;
-                      }
-                      final ok = await widget.scrollToIndexBySeq(seq);
-                      if (!mounted || !ok) {
-                        return;
-                      }
-                      setState(() {
-                        if (groupAtInfoList!.length <= 1) {
-                          groupAtInfoList = [];
-                          isFinishJumpToAt = true;
-                        } else {
-                          groupAtInfoList!.removeAt(0);
-                        }
-                      });
-                    },
+                    onClick: _jumpToMention,
                     atNum: atNum,
                     valueType: valueType,
                   ),

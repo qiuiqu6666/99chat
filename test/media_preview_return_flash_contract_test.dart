@@ -46,11 +46,14 @@ void main() {
       recoverBody.contains('isRestoringScrollAfterMediaPreview'),
       isTrue,
     );
-    // Profile/settings path still pins to bottom.
+    // A maintained conversation owns its viewport on every ordinary return.
+    // Forcing bottom here would also undo a preview's restored history offset.
     expect(
       recoverBody.contains('jumpTo(scroll.position.minScrollExtent)'),
-      isTrue,
+      isFalse,
     );
+    expect(recoverBody.contains('if (_hasVisibleHistoryMessages()) return;'),
+        isTrue);
   });
 
   test('explicit profile recover reasons remain in chat.dart', () {

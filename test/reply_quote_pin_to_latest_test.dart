@@ -118,7 +118,7 @@ void main() {
     expect(beforeDispatch.contains('_hasActiveTextComposition'), isTrue);
     expect(beforeDispatch.contains('!allowKeyboardReturn &&'), isTrue);
     expect(
-      beforeDispatch.contains(
+      beforeDispatch.replaceAll(RegExp(r'\s+'), ' ').contains(
         'KeyboardViewportTransitionCoordinator.active?.isAnimating == true',
       ),
       isTrue,
