@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_demo/src/pages/group_game/sangong_agent_transfers_page.dart';
 import 'package:tencent_cloud_chat_demo/src/api/agent_rebate_api.dart';
 import 'package:tencent_cloud_chat_demo/src/api/agent_session_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/models/agent_rebate_models.dart';
@@ -31,6 +32,14 @@ class _SangongAgentTeamPageState extends State<SangongAgentTeamPage> {
   bool _loading = true;
   String? _error;
   SangongTeamMembersDto? _data;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -144,9 +153,28 @@ class _SangongAgentTeamPageState extends State<SangongAgentTeamPage> {
   @override
   Widget build(BuildContext context) {
     final data = _data;
+    final query = _searchQuery.trim().toLowerCase();
+    final members = (data?.members ?? const <SangongTeamMemberDto>[])
+        .where(
+          (member) =>
+              query.isEmpty ||
+              member.nickname.toLowerCase().contains(query) ||
+              member.imUserId.toLowerCase().contains(query),
+        )
+        .toList();
     return Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(),title: const Text('查询下级')),
+        leading: const AppBackButton(),
+        title: const Text('查询下级'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              if (_isCurrentSession) SangongAgentTransfersPage.open(context);
+            },
+            child: const Text('划转记录'),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
@@ -165,6 +193,32 @@ class _SangongAgentTeamPageState extends State<SangongAgentTeamPage> {
               },
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: TextField(
+              controller: _searchController,
+              textInputAction: TextInputAction.search,
+              onChanged: (value) => setState(() => _searchQuery = value),
+              decoration: InputDecoration(
+                hintText: '搜索昵称或用户 ID',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: '清空搜索',
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      ),
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
           if (data != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
@@ -175,22 +229,26 @@ class _SangongAgentTeamPageState extends State<SangongAgentTeamPage> {
                       data.batchNo.isNotEmpty
                           ? '${data.businessDate} · 批次 ${data.batchNo}'
                           : data.businessDate.isEmpty
-                              ? '批次 ID ${data.sessionId}'
-                              : '${data.businessDate} · 批次 ID ${data.sessionId}',
+                          ? '批次 ID ${data.sessionId}'
+                          : '${data.businessDate} · 批次 ID ${data.sessionId}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
-                  Text('共 ${data.members.length} 人'),
+                  Text(
+                    query.isEmpty
+                        ? '共 ${data.members.length} 人'
+                        : '找到 ${members.length} 人 / 共 ${data.members.length} 人',
+                  ),
                 ],
               ),
             ),
-          Expanded(child: _buildBody()),
+          Expanded(child: _buildBody(members)),
         ],
       ),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(List<SangongTeamMemberDto> members) {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
       return Center(
@@ -204,8 +262,11 @@ class _SangongAgentTeamPageState extends State<SangongAgentTeamPage> {
         ),
       );
     }
-    final members = _data?.members ?? const <SangongTeamMemberDto>[];
-    if (members.isEmpty) return const Center(child: Text('暂无下级'));
+    if (members.isEmpty) {
+      return Center(
+        child: Text(_searchQuery.trim().isEmpty ? '暂无下级' : '未找到匹配的下级'),
+      );
+    }
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.separated(

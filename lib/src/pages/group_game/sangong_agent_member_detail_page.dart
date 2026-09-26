@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_demo/src/pages/group_game/sangong_agent_transfers_page.dart';
 import 'package:tencent_cloud_chat_demo/src/api/agent_rebate_api.dart';
 import 'package:tencent_cloud_chat_demo/src/api/agent_session_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/models/agent_rebate_models.dart';
@@ -171,7 +172,18 @@ class _State extends State<SangongAgentMemberDetailPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FC),
       appBar: AppBar(
-        leading: const AppBackButton(),title: Text(name)),
+        leading: const AppBackButton(),
+        title: Text(name),
+        actions: [
+          if (_isCurrentLoginMember)
+            TextButton(
+              onPressed: () {
+                if (_isCurrentSession) SangongAgentTransfersPage.open(context);
+              },
+              child: const Text('划转记录'),
+            ),
+        ],
+      ),
       body: Column(children: [
         Material(
           color: Colors.white,

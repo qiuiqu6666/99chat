@@ -405,16 +405,6 @@ class _UserProfileGameAdminPanelState extends State<UserProfileGameAdminPanel> {
       ToastUtils.toast(_i18n(zhHans: '请输入有效金额', zhHant: '請輸入有效金額', en: 'Enter a valid amount'));
       return;
     }
-    if (amount > _currentPoints) {
-      ToastUtils.toast(
-        _i18n(
-          zhHans: '余额不足，无法下分（当前可下分 $_currentPoints）',
-          zhHant: '餘額不足，無法下分（當前可下分 $_currentPoints）',
-          en: 'Insufficient balance for debit (available: $_currentPoints)',
-        ),
-      );
-      return;
-    }
     final bankerBlock = _validateDebitByBankerRole();
     if (bankerBlock != null) {
       ToastUtils.toast(bankerBlock);
