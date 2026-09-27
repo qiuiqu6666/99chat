@@ -57,36 +57,46 @@ class HistoryPaginationLoadRunner {
         limit: count.clamp(1, 50));
     if (!isCurrent()) return false;
     if (result.status == HistoryWindowReadStatus.stale) return false;
-    if (result.scanLimitReached && result.continuationBoundary != null) {
-      pagination.cacheReadContinuations[direction] = (
-        sessionID: scope.sessionID,
-        anchorID: msgID,
-        boundary: result.continuationBoundary!
-      );
-    } else {
-      pagination.cacheReadContinuations.remove(direction);
-    }
     if (result.status == HistoryWindowReadStatus.hit &&
         result.messages.isNotEmpty) {
-      return _commitHistoryWindowPage(result.messages,
+      final commit = await _commitHistoryWindowPage(result.messages,
           scope: scope,
           snapshot: result.snapshotMaxSeq,
           direction: direction,
           isCurrent: isCurrent);
+      // The lifecycle may hide an entire raw page. Retain the accepted scan
+      // boundary even when the visible edge did not move, without reporting
+      // phantom growth to the scroll-restoration code.
+      if (commit.committed && result.continuationBoundary != null) {
+        pagination.cacheReadContinuations[direction] = (
+          sessionID: scope.sessionID,
+          anchorID: msgID,
+          boundary: result.continuationBoundary!
+        );
+      }
+      return commit.grew;
     }
     if (result.scanLimitReached) {
+      if (result.continuationBoundary != null) {
+        pagination.cacheReadContinuations[direction] = (
+          sessionID: scope.sessionID,
+          anchorID: msgID,
+          boundary: result.continuationBoundary!
+        );
+      }
       if (direction == LoadDirection.latest)
         pagination.haveMoreLatestData = true;
       else
         pagination.haveMoreData = true;
       return false;
     }
-    // A missing cached edge is not an exhausted remote timeline. The SDK
-    // cursor remains the only message-history continuation source.
+    // Keep an accepted continuation on a miss so subsequent SDK retries do
+    // not rewind into the same hidden cache page. A cache miss cannot prove
+    // that the remote timeline is exhausted.
     return null;
   }
 
-  Future<bool> _commitHistoryWindowPage(
+  Future<({bool committed, bool grew})> _commitHistoryWindowPage(
     List<V2TimMessage> page, {
     required HistoryWindowScope scope,
     required int? snapshot,
@@ -94,11 +104,11 @@ class HistoryPaginationLoadRunner {
     required bool Function() isCurrent,
   }) async {
     final global = model.globalModel;
-    if (!isCurrent()) return false;
+    if (!isCurrent()) return (committed: false, grew: false);
     global.noteHistoryWindowSnapshot(model.conversationID, snapshot);
     final filtered =
         await global.applyHistoryWindowMutations(model.conversationID, page);
-    if (!isCurrent()) return false;
+    if (!isCurrent()) return (committed: false, grew: false);
     final combined = _combineMessageList(
         List<V2TimMessage>.of(_aliasAwareInMemoryList(model)), filtered);
     final processed =
@@ -108,7 +118,11 @@ class HistoryPaginationLoadRunner {
         model.conversationID, processed);
     if (!isCurrent() ||
         global.historyWindowPaginationBlocked(model.conversationID))
-      return false;
+      return (committed: false, grew: false);
+    final previousIDs = {
+      for (final message in _aliasAwareInMemoryList(model))
+        if (message.msgID?.trim().isNotEmpty ?? false) message.msgID!.trim()
+    };
     final request = global.beginHistoryReconciliation(
         conversationID: model.conversationID,
         requestedSource: MessageReconciliationSource.local,
@@ -137,7 +151,11 @@ class HistoryPaginationLoadRunner {
         pagination.lastEmptyBatchAt = null;
         model._notify();
       }
-      return committed;
+      final grew = committed &&
+          _aliasAwareInMemoryList(model).any((message) =>
+              (message.msgID?.trim().isNotEmpty ?? false) &&
+              !previousIDs.contains(message.msgID!.trim()));
+      return (committed: committed, grew: grew);
     } finally {
       if (!committed)
         global.failHistoryReconciliation(
@@ -1029,10 +1047,10 @@ class HistoryPaginationLoadRunner {
             lastMsg: paginationAnchor,
           );
           if (localLatestResponse != null &&
-              localLatestResponse.messageList.isNotEmpty) {
+              (response == null || localLatestResponse.messageList.isNotEmpty)) {
             response = localLatestResponse;
-          } else {
-            response ??= localLatestResponse;
+            selectedHistorySource = MessageReconciliationSource.local;
+            cloudResponseProvenByIm06 = false;
           }
         }
       }
@@ -1219,8 +1237,11 @@ class HistoryPaginationLoadRunner {
       // A nonempty older page (including a LOCAL fallback) can therefore be
       // short without reaching the end. Advance its accepted cursor and probe
       // again; only an empty finished response closes the older chain.
+      // A local newer page, even empty/finished, cannot close cloud catch-up.
       final effectiveIsFinished = response.isFinished &&
-          (direction == LoadDirection.latest || response.messageList.isEmpty);
+          (direction == LoadDirection.latest
+              ? selectedHistorySource == MessageReconciliationSource.cloud
+              : response.messageList.isEmpty);
       final pageMessagesAfterFacts = await model.globalModel
           .applyHistoryWindowMutations(
               model.conversationID, response.messageList);
@@ -1930,7 +1951,7 @@ class HistoryPaginationLoadRunner {
         // Exhausting the SDK page proves continuity, not viewport position.
         model._acceptHistoryNewerPage(response.messageList);
         model.haveMoreLatestData =
-            !response.isFinished || model._historyKnownTipMissing;
+            !effectiveIsFinished || model._historyKnownTipMissing;
       }
 
       if (direction == LoadDirection.previous) {
