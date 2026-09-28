@@ -1,4 +1,5 @@
 import 'package:tencent_cloud_chat_demo/src/services/history_window_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/chat_recovery_diagnostics.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/history_window_repository.dart';
 // ignore_for_file: unused_import, deprecated_member_use
 
@@ -143,6 +144,7 @@ Future<void> _warmWebBundledFonts() async {
 /// 必须在 runApp 之前调用，且必须在 ApiClient.bootstrap 之后（register 内的
 /// 清空同步依赖 ApiClient.dio；历史 reader 不在产品启动时注册。
 void installBackendServices() {
+  ChatRecoveryDiagnostics.install();
   HistoryWindowRepositoryProvider.repository =
       kIsWeb ? null : HistoryWindowStore.instance;
   // All clients use cloud archive state: no SP restore or optimistic mutation.

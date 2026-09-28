@@ -1,4 +1,6 @@
 import 'feedback_form_view.dart';
+import 'dart:convert';
+import 'package:tencent_cloud_chat_demo/src/services/chat_recovery_diagnostics.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -31,6 +33,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
   final List<_FeedbackAttachment> _attachments = <_FeedbackAttachment>[];
   bool _submitting = false;
   bool _submitted = false;
+  bool _includeDiagnostics = false;
 
   String _feedbackTypeLabel(FeedbackType type, AppI18n i18n) {
     switch (type) {
@@ -131,6 +134,10 @@ class _FeedbackPageState extends State<FeedbackPage> {
         Future<void>.delayed(const Duration(milliseconds: 650));
     try {
       await FeedbackApi.instance.submit(
+        diagnostics: _includeDiagnostics
+            ? Uint8List.fromList(
+                utf8.encode(await ChatRecoveryDiagnostics.export()))
+            : null,
         type: _selectedType,
         content: _contentController.text.trim(),
         screenshots: _attachments
@@ -146,6 +153,14 @@ class _FeedbackPageState extends State<FeedbackPage> {
       if (!mounted) return;
       FocusManager.instance.primaryFocus?.unfocus();
       setState(() => _submitted = true);
+    } on FeedbackDiagnosticsNotAccepted {
+      if (!mounted) return;
+      _showMessage(AppI18n.current.t(
+          zhHans: '反馈已提交，但服务器尚不支持保存排查记录，请联系客服，无需重复提交。',
+          zhHant: '回饋已提交，但伺服器尚不支援儲存排查記錄，請聯絡客服，無需重複提交。',
+          en: 'Feedback submitted, but this server cannot save diagnostic reports yet. Contact support; no need to resubmit.',
+          ja: 'フィードバックは送信済みですが、診断記録の保存は未対応です。再送信せずサポートにお問い合わせください。',
+          ko: '의견은 제출되었지만 서버에서 진단 기록 저장을 지원하지 않습니다. 다시 제출하지 말고 고객 지원에 문의해 주세요.'));
     } on DioError catch (e) {
       if (!mounted) return;
       _showMessage(_feedbackError(e));
@@ -269,6 +284,28 @@ class _FeedbackPageState extends State<FeedbackPage> {
       submitting: _submitting,
       canSubmit: _canSubmit,
       embedded: widget.embedded,
+      diagnosticsSection: Column(children: [
+        CheckboxListTile(
+          key: const ValueKey('feedback-diagnostics'),
+          contentPadding: EdgeInsets.zero,
+          value: _includeDiagnostics,
+          onChanged: _submitting
+              ? null
+              : (value) => setState(() => _includeDiagnostics = value ?? false),
+          title: Text(AppI18n.of(context).t(
+              zhHans: '附带问题排查记录',
+              zhHant: '附帶問題排查記錄',
+              en: 'Attach diagnostic report',
+              ja: '診断記録を添付',
+              ko: '진단 기록 첨부')),
+          subtitle: Text(AppI18n.of(context).t(
+              zhHans: '勾选后随反馈上传。包含精简的接口失败记录、聊天排查记录及应用版本；不包含聊天正文、密码或请求内容。',
+              zhHant: '勾選後隨回饋上傳。包含精簡的介面失敗記錄、聊天排查記錄及應用版本；不包含聊天內文、密碼或請求內容。',
+              en: 'Attach brief API failure records, chat diagnostics and app version. No message bodies, passwords or request contents.',
+              ja: 'APIの失敗記録、チャット診断、アプリバージョンを添付します。本文、パスワード、リクエスト内容は含まれません。',
+              ko: '간단한 API 오류, 채팅 진단 기록 및 앱 버전을 첨부합니다. 메시지 본문, 비밀번호, 요청 내용은 포함되지 않습니다.')),
+        ),
+      ]),
       selectedType: _selectedType,
       typeLabel: (type) => _feedbackTypeLabel(type, AppI18n.of(context)),
       onTypeChanged: (type) => setState(() => _selectedType = type),
@@ -312,4 +349,3 @@ class _FeedbackAttachment {
   final String filename;
   final Uint8List bytes;
 }
-

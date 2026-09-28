@@ -4,6 +4,11 @@ import 'package:dio/dio.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/app_version.dart';
 
 import 'api_client.dart';
+import 'package:tencent_cloud_chat_demo/utils/api_response_util.dart';
+
+class FeedbackDiagnosticsNotAccepted implements Exception {
+  const FeedbackDiagnosticsNotAccepted();
+}
 
 enum FeedbackType {
   suggestion('suggestion', '建议'),
@@ -76,6 +81,7 @@ class FeedbackApi {
     required String content,
     String? clientVersion,
     List<FeedbackScreenshot> screenshots = const [],
+    Uint8List? diagnostics,
   }) async {
     final resolvedClientVersion = clientVersion?.trim().isNotEmpty == true
         ? clientVersion!.trim()
@@ -98,18 +104,34 @@ class FeedbackApi {
       );
     }
 
+    if (diagnostics != null) {
+      if (diagnostics.length > 2 * 1024 * 1024) {
+        throw ArgumentError('Diagnostic report exceeds 2 MB');
+      }
+      form.files.add(MapEntry(
+          'diagnostics',
+          MultipartFile.fromBytes(
+            diagnostics,
+            filename: 'chat-recovery.txt',
+          )));
+      form.fields.add(const MapEntry('diagnosticsConsent', 'true'));
+    }
+
     final res = await _dio.post(
       '/feedback',
       data: form,
       options: Options(contentType: 'multipart/form-data'),
     );
 
-    final raw = res.data;
+    final raw = unwrapApiPayload(res.data);
     final map = raw is Map<String, dynamic>
         ? raw
         : raw is Map
             ? Map<String, dynamic>.from(raw)
             : <String, dynamic>{};
+    if (diagnostics != null && map['diagnosticsAttached'] != true) {
+      throw const FeedbackDiagnosticsNotAccepted();
+    }
     return FeedbackSubmitResult.fromJson(map);
   }
 }

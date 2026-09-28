@@ -16,6 +16,7 @@ import 'package:tencent_cloud_chat_demo/src/api/agent_rebate_http.dart';
 import 'package:tencent_cloud_chat_demo/src/api/agent_session_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/client_device_info.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/dio_factory.dart';
+import 'package:tencent_cloud_chat_demo/src/services/api_failure_diagnostics.dart';
 
 class ApiClient {
   ApiClient._();
@@ -145,6 +146,7 @@ class ApiClient {
       receiveTimeout: 30000,
       contentType: 'application/json',
     ));
+    d.interceptors.add(ApiFailureInterceptor());
     d.interceptors.add(AgentSessionInterceptor());
     d.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {

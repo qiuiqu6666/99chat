@@ -25,7 +25,9 @@ class FeedbackFormView extends StatelessWidget {
       this.onTypeChanged,
       this.typeLabel,
       this.target,
+      this.diagnosticsSection,
       this.reason});
+  final Widget? diagnosticsSection;
   final TextEditingController controller;
   final List<Uint8List> attachments;
   final int maxScreenshots;
@@ -577,6 +579,7 @@ class FeedbackFormView extends StatelessWidget {
                             }),
                           ]),
                     ),
+                    if (diagnosticsSection != null) diagnosticsSection!,
                     const SizedBox(height: 18),
                     DecoratedBox(
                       decoration: BoxDecoration(

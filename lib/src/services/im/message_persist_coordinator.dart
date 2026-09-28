@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 
 /// Persist queue priority. One coordinator, one SQLite writer.
 enum MessagePersistPriority {
@@ -83,6 +84,21 @@ class MessagePersistJob<T> {
   final int enqueuedAtUs = DateTime.now().microsecondsSinceEpoch;
 }
 
+class _PersistOperation {
+  _PersistOperation(this.job) : id = ChatRecoveryTrace.nextOperation('persist');
+  final MessagePersistJob<dynamic> job;
+  final String id;
+  final Stopwatch elapsed = Stopwatch()..start();
+  final Stopwatch stageElapsed = Stopwatch()..start();
+  String stage = 'prepare';
+  bool stalled = false;
+
+  void enter(String value) {
+    stage = value;
+    stageElapsed.reset();
+  }
+}
+
 /// Single serialized persist coordinator.
 ///
 /// Preemption happens between small transactions, never inside one.
@@ -96,6 +112,7 @@ class MessagePersistCoordinator {
     this.backgroundQueueHardLimit = 128,
     this.foregroundQueueLimit = 128,
     this.authorityCacheLimit = 4096,
+    this.stallWarningAfter = const Duration(seconds: 5),
   }) : assert(foregroundQueueLimit > 0 &&
             authorityCacheLimit > 0 &&
             realtimeCoalesceLimit > 0);
@@ -108,6 +125,12 @@ class MessagePersistCoordinator {
   final int backgroundQueueHardLimit;
   final int foregroundQueueLimit;
   final int authorityCacheLimit;
+  final Duration stallWarningAfter;
+  _PersistOperation? _activeOperation;
+  Timer? _stallWarning;
+  Map<String, Object?>? _lastFailure;
+  int _completedJobs = 0;
+  int _failedJobs = 0;
   final _admissionWaiters = <MessagePersistPriority, Queue<Completer<void>>>{};
   final _reservedAdmissions = <MessagePersistPriority, int>{};
   int _waitingAdmissions = 0;
@@ -147,8 +170,52 @@ class MessagePersistCoordinator {
   List<MessagePersistMetrics> get metricsSnapshot =>
       List<MessagePersistMetrics>.unmodifiable(_metrics);
 
+  /// Available even when the current native call never completes. Contains no
+  /// message bodies or credentials; it does not claim that a timed-out SQLite
+  /// writer has stopped or permit a second writer to enter.
+  Map<String, Object?> get diagnosticSnapshot {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    var oldest = now;
+    for (final queue in [_p0, _p1, _p2]) {
+      if (queue.isNotEmpty && queue.first.enqueuedAtUs < oldest) {
+        oldest = queue.first.enqueuedAtUs;
+      }
+    }
+    final active = _activeOperation;
+    return {
+      'queueDepth': queueDepth,
+      'realtime': realtimeQueueDepth,
+      'history': userHistoryQueueDepth,
+      'background': backgroundQueueDepth,
+      'waitingAdmissions': waitingAdmissions,
+      'oldestQueuedMs': (now - oldest) ~/ 1000,
+      'writerHeld': _txnInFlight,
+      'writerDepth': _executeDepth,
+      'completedJobs': _completedJobs,
+      'failedJobs': _failedJobs,
+      'active': active == null
+          ? null
+          : {
+              'operation': active.id,
+              'source': active.job.source.name,
+              'batchSize': active.job.itemCount,
+              'stage': active.stage,
+              'elapsedMs': active.elapsed.elapsedMilliseconds,
+              'stageMs': active.stageElapsed.elapsedMilliseconds,
+              'stalled': active.stalled,
+            },
+      'lastFailure': _lastFailure,
+    };
+  }
+
   @visibleForTesting
   void resetForTest() {
+    _stallWarning?.cancel();
+    _stallWarning = null;
+    _activeOperation = null;
+    _lastFailure = null;
+    _completedJobs = 0;
+    _failedJobs = 0;
     _p0.clear();
     _p1.clear();
     _p2.clear();
@@ -307,8 +374,8 @@ class MessagePersistCoordinator {
     int itemsPerChunk = 0,
   }) async {
     if (chunks.isEmpty) return;
-    final generation = accountGeneration == 0
-        ? _accountGeneration : accountGeneration;
+    final generation =
+        accountGeneration == 0 ? _accountGeneration : accountGeneration;
     for (final chunk in chunks) {
       await enqueue<void>(
         priority: priority,
@@ -406,12 +473,30 @@ class MessagePersistCoordinator {
     var txnWaitUs = 0;
     var txnUs = 0;
     var publishUs = 0;
+    final operation = _PersistOperation(job);
+    _activeOperation = operation;
+    _stallWarning = Timer(stallWarningAfter, () {
+      if (!identical(_activeOperation, operation)) return;
+      operation.stalled = true;
+      ChatRecoveryTrace.log('persist_stalled',
+          conversationID: job.conversationId,
+          operation: operation.id,
+          fields: {
+            'source': job.source.name,
+            'stage': operation.stage,
+            'elapsedMs': operation.elapsed.elapsedMilliseconds,
+            'queueDepth': queueDepth,
+            'waitingAdmissions': waitingAdmissions,
+            'writerHeld': _txnInFlight,
+          });
+    });
     try {
       if (job.prepare != null) {
         final prepareWatch = Stopwatch()..start();
         await job.prepare!();
         prepareUs = prepareWatch.elapsedMicroseconds;
       }
+      operation.enter('writer_wait');
       final txnWaitWatch = Stopwatch()..start();
       while (_txnInFlight) {
         await Future<void>.delayed(Duration.zero);
@@ -420,6 +505,7 @@ class MessagePersistCoordinator {
       _txnInFlight = true;
       _executeDepth++;
       _executingPriority = job.priority;
+      operation.enter('transaction');
       final txnWatch = Stopwatch()..start();
       late final dynamic value;
       try {
@@ -443,6 +529,7 @@ class MessagePersistCoordinator {
         }
       }
       if (job.publish != null && job.allowProjection) {
+        operation.enter('publish');
         final publishWatch = Stopwatch()..start();
         await job.publish!(value);
         publishUs = publishWatch.elapsedMicroseconds;
@@ -465,9 +552,37 @@ class MessagePersistCoordinator {
       if (!job.completer.isCompleted) {
         job.completer.complete(value);
       }
+      _completedJobs++;
+      if (operation.stalled) {
+        ChatRecoveryTrace.log('persist_recovered',
+            conversationID: job.conversationId,
+            operation: operation.id,
+            fields: {
+              'elapsedMs': operation.elapsed.elapsedMilliseconds,
+              'queueDepth': queueDepth,
+            });
+      }
     } catch (error, stack) {
+      _failedJobs++;
+      _lastFailure = {
+        'operation': operation.id,
+        'source': job.source.name,
+        'stage': operation.stage,
+        'errorType': error.runtimeType.toString(),
+        'elapsedMs': operation.elapsed.elapsedMilliseconds,
+      };
+      ChatRecoveryTrace.log('persist_failed',
+          conversationID: job.conversationId,
+          operation: operation.id,
+          fields: _lastFailure!);
       if (!job.completer.isCompleted) {
         job.completer.completeError(error, stack);
+      }
+    } finally {
+      if (identical(_activeOperation, operation)) {
+        _stallWarning?.cancel();
+        _stallWarning = null;
+        _activeOperation = null;
       }
     }
   }
