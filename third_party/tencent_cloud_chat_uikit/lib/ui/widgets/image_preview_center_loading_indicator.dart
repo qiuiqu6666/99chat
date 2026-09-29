@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -10,19 +11,19 @@ double? imagePreviewDownloadProgress(ImageChunkEvent? event) {
   return (event.cumulativeBytesLoaded / total).clamp(0.0, 1.0);
 }
 
-/// 全屏图片预览居中加载：白环 + 扇形填充，对齐 iOS 相册式加载反馈。
+/// 全屏预览：轻量白环和真实下载扇形，短暂加载不闪现指示器。
 class ImagePreviewCenterLoadingIndicator extends StatefulWidget {
   const ImagePreviewCenterLoadingIndicator({
     super.key,
-    this.size = 52,
-    this.strokeWidth = 2.4,
+    this.size = 40,
+    this.strokeWidth = 1.5,
     this.progress,
   });
 
   final double size;
   final double strokeWidth;
 
-  /// `null` 为不确定进度动画；`0..1` 为确定进度。
+  /// `0..1` 为实际已下载字节 / 总字节；`null` 保持上次进度或静止空环。
   final double? progress;
 
   @override
@@ -32,19 +33,44 @@ class ImagePreviewCenterLoadingIndicator extends StatefulWidget {
 
 class _ImagePreviewCenterLoadingIndicatorState
     extends State<ImagePreviewCenterLoadingIndicator>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+    with TickerProviderStateMixin {
+  static const _progressDuration = Duration(milliseconds: 100);
+  late final AnimationController _progress;
+  late final AnimationController _appearance;
+  Timer? _showDelay;
+  bool _reduceMotion = false;
   double? _lastKnownProgress;
 
   @override
   void initState() {
     super.initState();
-    _lastKnownProgress = widget.progress;
-    _controller = AnimationController(
+    _lastKnownProgress = _measured(widget.progress);
+    _progress = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1100),
+      value: _lastKnownProgress ?? 0,
+      duration: _progressDuration,
     );
-    if (_lastKnownProgress == null) _controller.repeat();
+    _appearance = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+    );
+    _showDelay = Timer(const Duration(milliseconds: 150), () {
+      if (mounted) _appearance.forward();
+    });
+  }
+
+  double? _measured(double? value) =>
+      value != null && value.isFinite ? value.clamp(0.0, 1.0) : null;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    if (_reduceMotion) {
+      _showDelay?.cancel();
+      _appearance.value = 1;
+      _progress.value = _lastKnownProgress ?? 0;
+    }
   }
 
   @override
@@ -53,31 +79,43 @@ class _ImagePreviewCenterLoadingIndicatorState
     // Chunk events may omit total size while decoding or switching providers.
     // Keep the last measured value until a new measured value arrives. A new
     // image/loading widget gets its own state; no invented progress is added.
-    if (widget.progress != null) {
-      _lastKnownProgress = widget.progress;
-      _controller.stop();
+    final measured = _measured(widget.progress);
+    if (measured != null && measured != _lastKnownProgress) {
+      _lastKnownProgress = measured;
+      if (_reduceMotion || measured < _progress.value) {
+        _progress.value = measured;
+      } else {
+        // Ease only towards an already measured byte count, never past it.
+        // New chunks continue from the visible angle; no restart from zero.
+        _progress.animateTo(measured,
+            duration: _progressDuration, curve: Curves.easeOutCubic);
+      }
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _showDelay?.cancel();
+    _appearance.dispose();
+    _progress.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
-      child: SizedBox.square(
-        dimension: widget.size,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) => CustomPaint(
-            painter: _ImagePreviewLoadingPainter(
-              progress: (_lastKnownProgress ?? 0).clamp(0.0, 1.0),
-              rotation: _lastKnownProgress == null ? _controller.value : 0,
-              strokeWidth: widget.strokeWidth,
-              determinate: _lastKnownProgress != null,
+      child: FadeTransition(
+        opacity: _appearance,
+        child: SizedBox.square(
+          dimension: widget.size,
+          child: AnimatedBuilder(
+            animation: _progress,
+            builder: (context, _) => CustomPaint(
+              painter: _ImagePreviewLoadingPainter(
+                progress: _progress.value,
+                strokeWidth: widget.strokeWidth,
+                determinate: _lastKnownProgress != null,
+              ),
             ),
           ),
         ),
@@ -89,13 +127,11 @@ class _ImagePreviewCenterLoadingIndicatorState
 class _ImagePreviewLoadingPainter extends CustomPainter {
   const _ImagePreviewLoadingPainter({
     required this.progress,
-    required this.rotation,
     required this.strokeWidth,
     this.determinate = true,
   });
 
   final double progress;
-  final double rotation;
   final double strokeWidth;
   final bool determinate;
 
@@ -104,42 +140,38 @@ class _ImagePreviewLoadingPainter extends CustomPainter {
     final center = Offset(size.width * 0.5, size.height * 0.5);
     final radius = (size.width * 0.5) - strokeWidth;
     canvas.drawCircle(
-      center, radius + strokeWidth,
-      Paint()..color = Colors.black.withValues(alpha: 0.55),
+      center,
+      radius + strokeWidth,
+      Paint()..color = Colors.black.withValues(alpha: 0.38),
     );
 
     final trackPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.95)
+      ..color = Colors.white.withValues(alpha: 0.88)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
     canvas.drawCircle(center, radius, trackPaint);
 
-    if (!determinate) {
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        -math.pi / 2 + rotation * math.pi * 2,
-        math.pi * 0.45,
-        false,
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = strokeWidth
-          ..strokeCap = StrokeCap.round,
-      );
-      return;
-    }
+    // Unknown byte counts never produce a rotating or fabricated sector.
+    if (!determinate) return;
 
     final clamped = progress.clamp(0.0, 1.0);
     const startAngle = -math.pi / 2;
     final sweepAngle = math.pi * 2 * clamped;
 
     final fillPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.95)
+      ..color = Colors.white.withValues(alpha: 0.9)
       ..style = PaintingStyle.fill;
+    final fillRadius = radius - strokeWidth - 1.5;
+    // A closed Path.arcTo at exactly 2π can collapse to its start point.
+    // Keep the completed download visibly full while the image is decoding.
+    if (clamped == 1) {
+      canvas.drawCircle(center, fillRadius, fillPaint);
+      return;
+    }
     final fillPath = Path()
       ..moveTo(center.dx, center.dy)
       ..arcTo(
-        Rect.fromCircle(center: center, radius: radius - strokeWidth - 2),
+        Rect.fromCircle(center: center, radius: fillRadius),
         startAngle,
         sweepAngle,
         false,
@@ -152,7 +184,6 @@ class _ImagePreviewLoadingPainter extends CustomPainter {
   bool shouldRepaint(covariant _ImagePreviewLoadingPainter oldDelegate) {
     return oldDelegate.determinate != determinate ||
         oldDelegate.progress != progress ||
-        oldDelegate.rotation != rotation ||
         oldDelegate.strokeWidth != strokeWidth;
   }
 }

@@ -236,10 +236,17 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
     );
   }
 
-  final Map<int, double?> _originalDownloadProgress = {};
+  final Map<int, ValueNotifier<double?>> _originalDownloadProgress = {};
+
+  ValueNotifier<double?> _originalProgressFor(int index) =>
+      _originalDownloadProgress.putIfAbsent(
+        index,
+        () => ValueNotifier<double?>(null),
+      );
 
   Future<void> _precachePreviewImage(ImageProvider provider, {required int index}) async {
-    _originalDownloadProgress[index] = null;
+    final downloadProgress = _originalProgressFor(index);
+    downloadProgress.value = null;
     final config = createLocalImageConfiguration(context);
     final stream = provider.resolve(config);
     final completer = Completer<void>();
@@ -255,11 +262,8 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
       onChunk: (event) {
         if (!mounted) return;
         final progress = imagePreviewDownloadProgress(event);
-        if (_originalDownloadProgress[index] == progress) return;
-        setState(() {
-          _originalDownloadProgress[index] = progress;
-          _invalidateSlideBodyCache();
-        });
+        // Do not invalidate the slide body or rebuild the image for each chunk.
+        if (progress != null) downloadProgress.value = progress;
       },
       onError: (error, stackTrace) {
         stream.removeListener(listener);
@@ -1395,6 +1399,9 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
 
   @override
   void dispose() {
+    for (final progress in _originalDownloadProgress.values) {
+      progress.dispose();
+    }
     if (imagePreviewTapToCloseCallback == _toggleChromeVisibility) {
       imagePreviewTapToCloseCallback = null;
     }
@@ -1480,15 +1487,28 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
             preferFullResolution: preferFullResolution);
       }
     }
-    if (!_previewImageReady) {
-      final thumbnail = _placeholderForItem(item);
-      if (thumbnail != null) return thumbnail;
+    final message = item.sourceMessage ?? widget.sourceMessage;
+    final thumbnail = _placeholderForItem(item);
+    final bundledOriginal = item.originalImageProvider;
+    final needsOriginal = (bundledOriginal != null &&
+            !ChatMessagePreviewImageResolver.isSameImageProvider(
+              bundledOriginal, item.imageProvider)) ||
+        (message != null &&
+            message.elemType == MessageElemType.V2TIM_ELEM_TYPE_IMAGE &&
+            ChatMessagePreviewImageResolver.shouldUpgradeToOriginal(
+              message, item.imageProvider));
+    final waitingForOriginal = !_originalUpgradeCompleted.contains(index) &&
+        (!_lowResolutionRefreshAttempted.contains(index) ||
+            _lowResolutionRefreshInFlight.contains(index)) &&
+        needsOriginal;
+    if (thumbnail != null && (!_previewImageReady || waitingForOriginal)) {
+      // ORIGIN owns the one visible download cycle; do not load BIG first.
+      return thumbnail;
     }
     final primary = _refreshedProviders[index] ?? item.imageProvider;
     if (primary == null) {
       return null;
     }
-    final message = item.sourceMessage ?? widget.sourceMessage;
     final preferFull = preferFullResolution ||
         _originalUpgradeCompleted.contains(index) ||
         (message != null &&
@@ -1550,7 +1570,11 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
             !_originalUpgradeCompleted.contains(index))
           IgnorePointer(
             child: Center(
-              child: ImagePreviewCenterLoadingIndicator(progress: _originalDownloadProgress[index]),
+              child: ValueListenableBuilder<double?>(
+                valueListenable: _originalProgressFor(index),
+                builder: (context, progress, _) =>
+                    ImagePreviewCenterLoadingIndicator(progress: progress),
+              ),
             ),
           ),
       ],
@@ -1857,9 +1881,9 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
       height: screenSize.height,
       fit: imageFit,
       alignment: display.alignment,
-      // The loading layer retains the thumbnail while the new provider loads.
-      // gaplessPlayback would retain the old "completed" state and hide loading.
-      gaplessPlayback: false,
+      // Before download completion the loading layer owns progress. After an
+      // original upgrade, retain the last frame through the decode-size handoff.
+      gaplessPlayback: _originalUpgradeCompleted.contains(index),
       filterQuality: PlatformUtils().isWinMacDesktop
           ? FilterQuality.medium
           : FilterQuality.low,

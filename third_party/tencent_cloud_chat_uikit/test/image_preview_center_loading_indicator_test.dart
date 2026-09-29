@@ -21,8 +21,9 @@ void main() {
     final indicatorBox = tester.renderObject<RenderBox>(
       find.byType(ImagePreviewCenterLoadingIndicator),
     );
-    expect(indicatorBox.size.width, 52);
-    expect(indicatorBox.size.height, 52);
+    expect(indicatorBox.size.width, 40);
+    expect(indicatorBox.size.height, 40);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('ImagePreviewLoadingLayer keeps indicator compact in expand stack',
@@ -39,7 +40,8 @@ void main() {
     final indicatorBox = tester.renderObject<RenderBox>(
       find.byType(ImagePreviewCenterLoadingIndicator),
     );
-    expect(indicatorBox.size.width, 52);
-    expect(indicatorBox.size.height, 52);
+    expect(indicatorBox.size.width, 40);
+    expect(indicatorBox.size.height, 40);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 }

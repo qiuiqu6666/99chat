@@ -90,6 +90,11 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
       duration: const Duration(milliseconds: 150),
       vsync: this,
     );
+    // Start the original transfer even if the thumbnail has not decoded yet.
+    // Waiting for BIG's completed frame would create two loading cycles.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _scheduleOriginalRefreshIfNeeded();
+    });
   }
 
   @override
@@ -114,6 +119,7 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
 
   @override
   void dispose() {
+    _originalDownloadProgress.dispose();
     _doubleClickAnimationController.dispose();
     super.dispose();
   }
@@ -168,10 +174,11 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
     );
   }
 
-  double? _originalDownloadProgress;
+  final ValueNotifier<double?> _originalDownloadProgress =
+      ValueNotifier<double?>(null);
 
   Future<void> _precachePreviewImage(ImageProvider provider) async {
-    _originalDownloadProgress = null;
+    _originalDownloadProgress.value = null;
     final config = createLocalImageConfiguration(context);
     final stream = provider.resolve(config);
     final completer = Completer<void>();
@@ -187,10 +194,9 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
       onChunk: (event) {
         if (!mounted) return;
         final progress = imagePreviewDownloadProgress(event);
-        if (_originalDownloadProgress == progress) return;
-        setState(() {
-          _originalDownloadProgress = progress;
-        });
+        // Download chunks repaint only the indicator; keep the decoded image
+        // and its gesture/placeholder subtree mounted throughout the transfer.
+        if (progress != null) _originalDownloadProgress.value = progress;
       },
       onError: (error, stackTrace) {
         stream.removeListener(listener);
@@ -244,9 +250,18 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
         return FileImage(edited);
       }
     }
-    if (!_previewImageReady) {
-      final thumbnail = _placeholderForItem();
-      if (thumbnail != null) return thumbnail;
+    final thumbnail = _placeholderForItem();
+    final waitingForOriginal = !_originalUpgradeCompleted &&
+        (!_lowResolutionRefreshAttempted || _lowResolutionRefreshInFlight) &&
+        widget.item.message.elemType == MessageElemType.V2TIM_ELEM_TYPE_IMAGE &&
+        ChatMessagePreviewImageResolver.shouldUpgradeToOriginal(
+          widget.item.message,
+          widget.item.imageProvider,
+        );
+    if (thumbnail != null && (!_previewImageReady || waitingForOriginal)) {
+      // Keep the landed thumbnail until ORIGIN is decoded. Downloading BIG in
+      // between shows 100%, then resets the indicator for the second transfer.
+      return thumbnail;
     }
     final primary = _refreshedProvider ?? widget.item.imageProvider;
     if (primary == null) {
@@ -540,9 +555,9 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
       height: screenSize.height,
       fit: imageFit,
       alignment: display.alignment,
-      // Keep the thumbnail in the loading layer, without retaining its
-      // "completed" state while the fullscreen provider is still pending.
-      gaplessPlayback: false,
+      // An upgraded original has already downloaded/decoded. Retain the current
+      // frame during any final decode-size handoff instead of opening a new ring.
+      gaplessPlayback: _originalUpgradeCompleted,
       filterQuality: PlatformUtils().isWinMacDesktop
           ? FilterQuality.medium
           : FilterQuality.low,
@@ -703,7 +718,13 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
         child,
         if (_lowResolutionRefreshInFlight && !_originalUpgradeCompleted)
           IgnorePointer(
-            child: Center(child: ImagePreviewCenterLoadingIndicator(progress: _originalDownloadProgress)),
+            child: Center(
+              child: ValueListenableBuilder<double?>(
+                valueListenable: _originalDownloadProgress,
+                builder: (context, progress, _) =>
+                    ImagePreviewCenterLoadingIndicator(progress: progress),
+              ),
+            ),
           ),
       ],
     );
