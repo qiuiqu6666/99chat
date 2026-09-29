@@ -1702,7 +1702,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    if (_scrollingToBottomInFlight || _bottomReturnNeedsRetry)
+                    if (_bottomReturnNeedsRetry && !_scrollingToBottomInFlight)
                       _buildBottomReturnStatus(onTap),
                     IgnorePointer(
                       ignoring: _scrollingToBottomInFlight,
@@ -1725,15 +1725,13 @@ class TIMUIKitHistoryMessageListTongueContainerState
   }
 
   Widget _buildBottomReturnStatus(Future<void> Function() onTap) {
-    final loading = _scrollingToBottomInFlight;
-    final label = loading ? '正在返回最新消息…' : '暂未到达最新消息，点击重试';
     return Semantics(
       liveRegion: true,
-      button: !loading,
+      button: true,
       child: GestureDetector(
-        onTap: loading ? null : () => onTap(),
+        onTap: () => onTap(),
         child: Container(
-          key: ValueKey(loading ? 'return-latest-loading' : 'return-latest-retry'),
+          key: const ValueKey('return-latest-retry'),
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.8,
           ),
@@ -1747,12 +1745,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (loading) ...[
-                const CupertinoActivityIndicator(radius: 7),
-                const SizedBox(width: 6),
-              ],
               Flexible(
-                child: Text(label,
+                child: Text('暂未到达最新消息，点击重试',
                     style: TextStyle(
                       fontSize: 12,
                       color: CupertinoDynamicColor.resolve(

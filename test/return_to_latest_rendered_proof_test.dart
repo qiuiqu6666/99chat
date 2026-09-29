@@ -470,7 +470,7 @@ void main() {
       }
       expect(done, isFalse,
           reason: 'an already running page request is still pending, not failed');
-      expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
       expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
       release.complete();
       await settleReturn(tester);
@@ -549,7 +549,7 @@ void main() {
     final before = scroll.offset;
     await tester.tap(find.text('showUnread:1'));
     await frame(tester);
-    expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
     await settleReturn(tester, frameMs: 1);
     expect(scroll.offset, before);
     expect(global.remainingLiveIncomingCountFor(getConv()), 1);
@@ -566,7 +566,7 @@ void main() {
     expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
   });
 
-  uiTest('return loading remains visible and duplicate actions share one request',
+  uiTest('return stays silent and duplicate actions share one request',
       (tester) async {
     await mount(tester);
     await awayInHistoryGap(tester);
@@ -578,7 +578,8 @@ void main() {
       await tester.tap(find.text('showUnread:1'));
       for (var n = 0; n < 500 && sdk.calls == 0; n++) await frame(tester);
       expect(sdk.calls, 1);
-      expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+      expect(find.text('正在返回最新消息…'), findsNothing);
       final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
           find.byType(TIMUIKitHistoryMessageListTongueContainer));
       await state.scrollToLatestAndDismissUnreadCapsule();
@@ -836,7 +837,7 @@ void main() {
     expect(done, isFalse,
         reason: 'the ordinary return must still be resampling its old projection');
     expect(sdk.calls, 0);
-    expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
 
     final gesture = await tester.startGesture(
         tester.getCenter(find.byKey(const Key('history'))));
@@ -943,7 +944,7 @@ void main() {
       expect(scroll.offset, closeTo(newOffset, 1));
       expect(global.isUserScrollToBottomInProgress(conversationA), isTrue,
           reason: 'the old proof cannot release the new return transaction');
-      expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
       expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
 
       newSdkRelease.complete();
