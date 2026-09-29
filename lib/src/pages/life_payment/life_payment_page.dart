@@ -175,6 +175,13 @@ class _LifePaymentPageState extends State<LifePaymentPage> {
   };
 
   Future<void> _openDetail(LifePaymentType type) async {
+    // 水电燃气入口统一暂停开放，不依赖首页服务开关是否加载成功。
+    if (type == LifePaymentType.electricity ||
+        type == LifePaymentType.water ||
+        type == LifePaymentType.gas) {
+      ToastUtils.toast('正在维护中', context: context);
+      return;
+    }
     // 维护开关：后端未下发该服务或 enabled=false 时拦截入口，
     // 避免用户下单后在执行端必然失败（如水/燃气流程未验证期）。
     final services = _homeData?.services;
