@@ -42,14 +42,7 @@ class PaySuccessOverlay extends StatelessWidget {
           ja: '支払いが完了しました',
           ko: '결제가 완료되었습니다',
         );
-    final resolvedMessage = message ??
-        i18n.t(
-          zhHans: '支付已完成',
-          zhHant: '支付已完成',
-          en: 'Payment completed',
-          ja: '決済が完了しました',
-          ko: '결제가 완료되었습니다',
-        );
+    final resolvedMessage = message ?? '';
 
     dismiss();
     final overlay = Overlay.of(context, rootOverlay: true);
@@ -115,15 +108,6 @@ class PaySuccessOverlay extends StatelessWidget {
             ko: '결제가 완료되었습니다',
           )
         : title;
-    final resolvedMessage = message.isEmpty
-        ? i18n.t(
-            zhHans: '支付已完成',
-            zhHant: '支付已完成',
-            en: 'Payment completed',
-            ja: '決済が完了しました',
-            ko: '결제가 완료되었습니다',
-          )
-        : message;
 
     return Material(
       type: MaterialType.transparency,
@@ -154,7 +138,7 @@ class PaySuccessOverlay extends StatelessWidget {
                 child: _SuccessBody(
                   logoAsset: logoAsset,
                   title: resolvedTitle,
-                  message: resolvedMessage,
+                  message: message,
                 ),
               ),
             ),

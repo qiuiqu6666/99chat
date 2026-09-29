@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
 import 'package:tencent_cloud_chat_demo/src/api/lottery_live_api.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/settings/lottery_drawer.dart';
@@ -33,6 +34,20 @@ void main() {
     }
   });
   setUp(() {
+    // The full-screen declaration fetches contact info independently of the
+    // lottery API. Stub it too, so no HTTP error/log-flush timer escapes here.
+    final contact = InterceptorsWrapper(onRequest: (options, handler) {
+      if (options.path == '/api/v1/platform/contact') {
+        handler.resolve(Response(
+          requestOptions: options,
+          data: {'downloadUrl': 'https://example.test/download'},
+        ));
+        return;
+      }
+      handler.next(options);
+    });
+    ApiClient.instance.dio.interceptors.add(contact);
+    addTearDown(() => ApiClient.instance.dio.interceptors.remove(contact));
     lotteryLiveApi = FakeLotteryApi();
     requests = 0;
     lotteryLiveApi.dio.interceptors.insert(0,

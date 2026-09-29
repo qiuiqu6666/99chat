@@ -62,16 +62,29 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-
-        ndk {
-            abiFilters.add("arm64-v8a")
-        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Flutter 3.35+ puts all supported ABIs on the build type. A filter
+            // in defaultConfig does not override those build-type filters.
+            ndk {
+                abiFilters.clear()
+                val isAppBundle = gradle.startParameter.taskNames.any {
+                    it.substringAfterLast(':').startsWith("bundle", ignoreCase = true)
+                }
+                if (project.findProperty("split-per-abi") != "true" && !isAppBundle) {
+                    // A normal release is ARM64. Honor an explicit single-ABI
+                    // target; multi-ABI distribution uses --split-per-abi.
+                    abiFilters.add(when (project.findProperty("target-platform")) {
+                        "android-arm" -> "armeabi-v7a"
+                        "android-x64" -> "x86_64"
+                        else -> "arm64-v8a"
+                    })
+                }
+            }
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -87,6 +100,18 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// Flutter assigns ABI-specific offsets (1021/2021/3021) to split APKs.
+// Direct APK distribution must keep the same build number on every ABI so
+// switching between split and single-ABI releases never blocks an update.
+android.applicationVariants.all {
+    if (buildType.name == "release") {
+        outputs.all {
+            (this as com.android.build.gradle.api.ApkVariantOutput).versionCodeOverride =
+                flutter.versionCode
+        }
+    }
 }
 
 dependencies {

@@ -371,6 +371,79 @@ void main() {
     });
   }
 
+  uiTest('input return waits for keyboard geometry instead of showing retry',
+      (tester) async {
+    await mount(tester);
+    global.beginKeyboardViewportTransition(getConv());
+    newestTranslation.value = 120;
+    await frame(tester);
+    final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+        find.byType(TIMUIKitHistoryMessageListTongueContainer));
+    var done = false;
+    final returning = state.scrollToLatestAndDismissUnreadCapsule()
+        .whenComplete(() => done = true);
+    try {
+      for (var n = 0; n < 100; n++) {
+        await frame(tester, 20);
+      }
+      expect(scroll.offset, closeTo(0, 1));
+      expect(done, isFalse,
+          reason: 'keyboard layout is still moving, not a failed return');
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+      expect(model.readReports, 0);
+      newestTranslation.value = 0;
+      await settleReturn(tester);
+      await returning;
+      expect(global.isGeometryViewportTransitionActive(getConv()), isTrue,
+          reason: 'return must complete while the keyboard remains open');
+    } finally {
+      newestTranslation.value = 0;
+      global.endKeyboardViewportTransition(getConv());
+      await settleReturn(tester);
+      await returning;
+    }
+    expect(verifyLatestVisible(), isTrue);
+    expect(global.isFollowingLatest(getConv()), isTrue);
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+    expect(sdk.calls, 0);
+  });
+
+  for (final explicit in [false, true]) {
+    uiTest('settled return retires retry before another layout (tap=$explicit)',
+        (tester) async {
+      await mount(tester);
+      await away(tester);
+      projectionLimit.value = 99;
+      await frame(tester);
+      final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+          find.byType(TIMUIKitHistoryMessageListTongueContainer));
+      final returning = state.scrollToLatestAndDismissUnreadCapsule();
+      await settleReturn(tester);
+      await returning;
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsOneWidget);
+      // The missing row is painted afterwards, without a second network load.
+      projectionLimit.value = null;
+      await frame(tester);
+      if (explicit) await state.scrollToLatestAndDismissUnreadCapsule();
+      await frame(tester, 200);
+      await frame(tester, 200); // Complete the outgoing capsule fade.
+      expect(verifyLatestVisible(), isTrue);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+      // A later keyboard/row layout must not revive the old failure.
+      global.beginKeyboardViewportTransition(getConv());
+      newestTranslation.value = 120;
+      await frame(tester);
+      await frame(tester, 200);
+      try {
+        expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+      } finally {
+        newestTranslation.value = 0;
+        global.endKeyboardViewportTransition(getConv());
+        await frame(tester, 200);
+      }
+    });
+  }
+
   uiTest('ordinary return waits for an existing older-page request to finish',
       (tester) async {
     await mount(tester);

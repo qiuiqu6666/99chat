@@ -359,10 +359,17 @@ class TIMUIKitHistoryMessageListTongueContainerState
     return true;
   }
 
-  bool _commitOverallFollowIfReady() =>
-      _canConfirmVisibleReading() &&
-      _atTrueLatestEndNow() &&
-      widget.model.commitFollowAfterVisibleLatestConfirm();
+  bool _commitOverallFollowIfReady() {
+    if (!_canConfirmVisibleReading() ||
+        !_atTrueLatestEndNow() ||
+        !widget.model.commitFollowAfterVisibleLatestConfirm()) {
+      return false;
+    }
+    // A completed return retires its failure, including automatic recovery
+    // and a manual scroll. Later layout changes cannot revive that old retry.
+    _bottomReturnNeedsRetry = false;
+    return true;
+  }
 
   Future<void> scrollToLatestAndDismissUnreadCapsule() async {
     final operation = ChatRecoveryTrace.nextOperation('return_latest');
@@ -379,8 +386,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
     // return must load them before choosing the bottom of the visible window.
     final needsLatestWindow = _hasMissingNewer ||
         globalModel.hasDurableHistoryDeferred(widget.model.conversationID);
-    if (!needsLatestWindow && _atTrueLatestEndNow()) {
-      _settleAtTrueLatestEnd();
+    if (!needsLatestWindow && _settleAtTrueLatestEnd()) {
       return;
     }
     if (_scrollingToBottomInFlight) {
@@ -718,9 +724,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
       // frames without reloading the SDK or weakening the visibility fence.
       returnStage = 'confirming_visible';
       const maxVisibleProofAttempts = 8;
-      for (var proofAttempt = 0;
-          proofAttempt < maxVisibleProofAttempts;
-          proofAttempt++) {
+      var proofAttempt = 0;
+      while (proofAttempt < maxVisibleProofAttempts) {
         // An existing page request is not a failed visibility attempt. Let it
         // publish before capturing a proof, bounded by the return's deadline
         // and cancellation fence rather than this short layout retry budget.
@@ -743,6 +748,20 @@ class TIMUIKitHistoryMessageListTongueContainerState
           return;
         }
         if (_hasMissingNewer) break;
+        // A row still being installed or moved by keyboard/media layout has
+        // not produced a proof to reject. Do not spend the proof retry budget
+        // on it. The return deadline and user/route cancellation still apply.
+        // The keyboard occupancy flag stays set while typing, so it cannot be
+        // used as a layout-completion signal: remeasure the rendered row.
+        if (!_latestRowMaterialized || !_latestRenderedEdgeVisible) {
+          await Future.any<void>([
+            Future<void>.delayed(const Duration(milliseconds: 40)),
+            cancellation.future,
+          ]);
+          if (!isCurrent()) return;
+          continue;
+        }
+        proofAttempt++;
         if (!latestRenderedEdgeVisible()) continue;
         final displayedRevision =
             globalModel.messageListRevisionFor(conversationID);
@@ -1283,6 +1302,12 @@ class TIMUIKitHistoryMessageListTongueContainerState
     if (globalModel.isChatListUserScrolling) {
       _userDraggedSinceLastSettle = true;
     }
+    // A newly installed row can replace an older row at the same position,
+    // leaving both the scroll offset and the visibility notifier unchanged.
+    // Revalidate an old failure after this layout, not only on scroll events.
+    if (_bottomReturnNeedsRetry && _atTrueLatestEndNow()) {
+      _settleLiveUnreadAtTrueLatestEnd();
+    }
     _setScrollToBottomCapsuleVisible(
       _computeScrollToBottomCapsuleVisible(position),
     );
@@ -1806,7 +1831,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
           _userLeftBottomIntentionally = false;
           if (liveUnreadCount > 0 ||
               selectorData.bufferedCount > 0 ||
-              !selectorData.followingLatest) {
+              !selectorData.followingLatest ||
+              _bottomReturnNeedsRetry) {
             final conv = widget.model.conversationID;
             final canAutoSettle =
                 !globalModel.isMessageContextMenuOverlayOpen &&

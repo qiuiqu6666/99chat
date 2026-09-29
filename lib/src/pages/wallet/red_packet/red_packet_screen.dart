@@ -342,7 +342,7 @@ class _RedPacketScreenState extends State<RedPacketScreen> {
           await PaySuccessOverlay.showFor(
             context,
             title: presentation.title(AppI18n.of(context)),
-            message: presentation.message(AppI18n.of(context), redPacket: true),
+            message: presentation.message(AppI18n.of(context)),
             duration:
                 presentation.deliveryPending || !presentation.paymentCommitted
                     ? const Duration(seconds: 4)

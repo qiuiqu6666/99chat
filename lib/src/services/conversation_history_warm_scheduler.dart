@@ -154,7 +154,7 @@ class ConversationHistoryWarmScheduler {
   int _cachedGroupCountForWarm = 0;
   DateTime? _cachedGroupCountAt;
 
-  /// LRU：最近 touch 的在末尾；超 [memoryWarmCap] 淘汰最旧非活跃。
+  /// LRU：最近 touch 的在末尾；超 [memoryWarmCap] 淘汰最旧且已关闭的会话。
   final LinkedHashMap<String, bool> _memoryLru = LinkedHashMap<String, bool>();
   final Map<String, DateTime> _viewportLocalMissUntil = <String, DateTime>{};
   final Map<String, Timer> _leaveReleaseTimers = <String, Timer>{};
@@ -1343,18 +1343,20 @@ class ConversationHistoryWarmScheduler {
       if (oldest == null) {
         break;
       }
-      if (ActiveChatRegistry.instance.isActiveChat(oldest)) {
-        // 活跃会话挪到末尾，避免死循环卡死。
+      // Route visibility controls reads/notifications, not cache ownership.
+      // A lottery dialog or another covering route still needs this window.
+      if (ActiveChatRegistry.instance.matchesOpenConversation(oldest)) {
+        // 打开中的会话挪到末尾，避免死循环卡死。
         _memoryLru.remove(oldest);
         _memoryLru[oldest] = true;
         if (_memoryLru.length <= memoryWarmCap) {
           break;
         }
-        // 若几乎全是活跃（极端），停止淘汰。
-        final allActive = _memoryLru.keys.every(
-          ActiveChatRegistry.instance.isActiveChat,
+        // 同一打开会话的别名不能互相淘汰。
+        final allOpen = _memoryLru.keys.every(
+          ActiveChatRegistry.instance.matchesOpenConversation,
         );
-        if (allActive) {
+        if (allOpen) {
           break;
         }
         continue;
@@ -1373,7 +1375,7 @@ class ConversationHistoryWarmScheduler {
     reconcileStaleMessageMemory(globalModel);
   }
 
-  /// 保留 active + LRU 内最近 [memoryWarmCap]；淘汰 map 中其余孤儿窗。
+  /// 保留仍打开的会话 + LRU 内最近 [memoryWarmCap]；淘汰其余孤儿窗。
   void reconcileStaleMessageMemory(TUIChatGlobalModel globalModel) {
     if (!staleReconcileEnabled) {
       return;
@@ -1390,7 +1392,7 @@ class ConversationHistoryWarmScheduler {
     }
     final mapKeys = globalModel.messageListMap.keys.toList(growable: false);
     for (final key in mapKeys) {
-      if (ActiveChatRegistry.instance.isActiveChat(key)) {
+      if (ActiveChatRegistry.instance.matchesOpenConversation(key)) {
         keep.add(key);
       }
     }
@@ -1455,7 +1457,7 @@ class ConversationHistoryWarmScheduler {
     _rememberViewportLocalMiss(cacheKey);
   }
 
-  /// dispose 离聊：立刻裁成最新暖窗；grace 到期后若仍非活跃则整窗删除。
+  /// dispose 离聊：立刻裁成最新暖窗；grace 到期后若仍已关闭则整窗删除。
   /// LRU 淘汰其它会话仍走整窗删除。
   void scheduleReleaseAfterChatLeave(String conversationID) {
     final id = conversationID.trim();
@@ -1463,7 +1465,7 @@ class ConversationHistoryWarmScheduler {
       return;
     }
     _leaveReleaseTimers.remove(id)?.cancel();
-    if (ActiveChatRegistry.instance.isActiveChat(id)) {
+    if (ActiveChatRegistry.instance.matchesOpenConversation(id)) {
       ChatHistoryTrace.log(
         'history_warm_leave_trim',
         conversationID: id,
@@ -1498,7 +1500,9 @@ class ConversationHistoryWarmScheduler {
 
     _leaveReleaseTimers[id] = Timer(leaveChatMemoryGrace, () {
       _leaveReleaseTimers.remove(id);
-      if (ActiveChatRegistry.instance.isActiveChat(id)) {
+      // Re-check ownership at execution time: the user may have reopened the
+      // chat and then covered it with a popup since this timer was scheduled.
+      if (ActiveChatRegistry.instance.matchesOpenConversation(id)) {
         ChatHistoryTrace.log(
           'history_warm_leave_release',
           conversationID: id,

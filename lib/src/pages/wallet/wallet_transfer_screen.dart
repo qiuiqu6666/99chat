@@ -258,8 +258,7 @@ class _WalletTransferScreenState extends State<WalletTransferScreen> {
           await PaySuccessOverlay.showFor(
             context,
             title: presentation.title(AppI18n.of(context)),
-            message:
-                presentation.message(AppI18n.of(context), redPacket: false),
+            message: presentation.message(AppI18n.of(context)),
             duration:
                 presentation.deliveryPending || !presentation.paymentCommitted
                     ? const Duration(seconds: 4)
