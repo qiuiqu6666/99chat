@@ -17,6 +17,7 @@ enum ArchiveLoadingState { idle, fetching, completed, exhausted, error }
 /// `HistoryPaginationLoadRunner` (same library as the view model); the runner is
 /// bound here so the public API is `controller.loadChatRecord(...)`.
 class HistoryPaginationController {
+  int generation = 0;
   HistoryAvailability olderAvailability = HistoryAvailability.unknown;
   bool haveMoreLatestData = false;
   bool previousPaginationInFlight = false;
@@ -103,6 +104,10 @@ class HistoryPaginationController {
       DateTime.now().difference(lastEmptyBatchAt!) >= emptyBatchRetryWindow;
 
   void resetForConversationInit() {
+    generation++;
+    historyLoadingKeys.clear();
+    previousPaginationInFlight = false;
+    haveMoreLatestData = false;
     archiveOlderExhausted = false;
     archiveOlderActive = false;
     archiveNextToSeq = null;

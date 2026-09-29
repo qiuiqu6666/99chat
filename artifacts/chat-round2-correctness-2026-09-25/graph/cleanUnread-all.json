@@ -1,0 +1,95 @@
+[
+  {
+    "target": {
+      "id": "Method:lib/src/services/im/tencent_conversation_read_service.dart:TencentConversationReadService.cleanUnread#5",
+      "name": "cleanUnread",
+      "type": "Method",
+      "filePath": "lib/src/services/im/tencent_conversation_read_service.dart"
+    },
+    "direction": "upstream",
+    "impactedCount": 5,
+    "risk": "LOW",
+    "riskSharedAxes": "LOW",
+    "riskScale": {
+      "comparableAcrossKinds": true,
+      "unusedAxes": []
+    },
+    "epistemic": "exact",
+    "summary": {
+      "direct": 2,
+      "processes_affected": 0,
+      "modules_affected": 2
+    },
+    "byDepthCounts": {
+      "1": 2,
+      "2": 1,
+      "3": 2
+    },
+    "affected_processes": [],
+    "affected_modules": [
+      {
+        "name": "Services",
+        "hits": 3,
+        "impact": "indirect"
+      },
+      {
+        "name": "Im",
+        "hits": 2,
+        "impact": "direct"
+      }
+    ],
+    "byDepth": {
+      "1": [
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._invokeSdkClean#5",
+          "name": "_invokeSdkClean",
+          "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/web_read_service.dart:WebReadService.markConversationRead#1",
+          "name": "markConversationRead",
+          "filePath": "lib/src/services/web_read_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ],
+      "2": [
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._cleanSdkWithRetry#7",
+          "name": "_cleanSdkWithRetry",
+          "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ],
+      "3": [
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._runSdkClean#5",
+          "name": "_runSdkClean",
+          "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService.cleanSdkUnreadForType#6",
+          "name": "cleanSdkUnreadForType",
+          "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ]
+    }
+  }
+]

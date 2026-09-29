@@ -1,0 +1,112 @@
+{
+  "capturedAt": "2026-09-25T01:49:56.125Z",
+  "packagedAt": "2026-09-25T02:33:42.724Z",
+  "repositories": {
+    "client": {
+      "root": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999",
+      "head": "26bcc02c68680725c1a91bf7548535c0645687a0",
+      "patch": "client-round3.patch",
+      "patchSha256": "0217947998aff12cba630e3c8efc771a0c8b8fac07ba849965666262acaf7283",
+      "files": [
+        {
+          "path": "lib/src/services/im/im05_contracts.dart",
+          "beforeSha256": "ccd38d8ce5377b8d77a7adbef970001604fd1b2111d922acb0eb6270ee00b0dc",
+          "afterSha256": "781e29746b1fcac04a9f55e81165a5ddc29f9ba68da60302406a57981ba6dbb7"
+        },
+        {
+          "path": "lib/src/services/im/im05_persistence.dart",
+          "beforeSha256": "0fa52f8fa91f5d12522bef83a0eee5934e292177ebaff7b04245479a9845dbad",
+          "afterSha256": "3738722ca9f223bbc86ea8e1b61a6944d4a7d686fe5b947a708fe8d7420b150b"
+        },
+        {
+          "path": "lib/src/services/im/im_ingress_store.dart",
+          "beforeSha256": "440b3400cfa57e015ad5d12f2b5557c55c89e06409b493dba26e96040afda00b",
+          "afterSha256": "222505e900fae3b728f0af513ec15d190096d6ed394ec946b99b1c23d0978191"
+        },
+        {
+          "path": "lib/src/services/im/im_ingress_store_platform_web.dart",
+          "beforeSha256": "52fdcd1352d42f5c900645993ae031198d533cdc9fecb20eba9578412c46386d",
+          "afterSha256": "9ef144a1f1d7b38dadd08be6f296d88efafb9384355fecc6c22b93f28d948e11"
+        },
+        {
+          "path": "lib/src/services/im/outgoing_send_coordinator.dart",
+          "beforeSha256": "74f72be50860fb2ac82df48eb4614986f6fd4158109a360826048c8b5f9168ed",
+          "afterSha256": "865169b9c90009497f0bdb5d2c58da3fdd3215279c895607ac394fbfa9f53de8"
+        },
+        {
+          "path": "lib/src/services/im/outbox_retry_identity.dart",
+          "beforeSha256": null,
+          "afterSha256": "b071e5330a21acc0d4fc6205f23681ab1cf429dd94b7c69584d36cceeb332e69"
+        },
+        {
+          "path": "lib/src/services/conversation_local/conversation_draft_service.dart",
+          "beforeSha256": "721a2951dbf7a374516f4099e575ae58d86be8d255581d4d15e9f8918bcc3261",
+          "afterSha256": "708d9ff3e7185141ce45dc72d0f7d87d0552db22b9035d7fb01e44fba766acab"
+        },
+        {
+          "path": "lib/src/services/im/read_outbox_store.dart",
+          "beforeSha256": "71b18e297bb7cad3c1ca3e45dfd1d794a313cc05d8b6df886e3d3f29a704a2cd",
+          "afterSha256": "d4fee5a2e82a9dbd1e7631f83e585c85eb38b64bc05b9d9a53685f73e454fb0c"
+        },
+        {
+          "path": "test/round2_dispatch_and_draft_test.dart",
+          "beforeSha256": "fd4fc2c3b542df62148d3882167c08d50e2ff9ad041f8d16279daff93dbfc5ea",
+          "afterSha256": "e3c6366bf5adda7ccda78decacec517ae8ff88d7d966870e3db2dbeb3a5f753d"
+        },
+        {
+          "path": "test/round2_crash_worker_test.dart",
+          "beforeSha256": "64e16cb48013b2648e4a2f0df5e8f4bbf6a7fb3c65e96e0f09f79973265fc9f4",
+          "afterSha256": "043ff78ab9f79e5d33604a3bda59ec4b1092160aeaa9d21440ae2aeba3dcb799"
+        },
+        {
+          "path": "test/round2_outbox_boundaries_test.dart",
+          "beforeSha256": "6e00e7befec635a8f37bdd54c0ff68fff07e48cbdd4442d3fe17b81842e4853d",
+          "afterSha256": "f7b2ac59016d9501257091ca0e0cbca9730275f4b128342286f2a4a72a8437fe"
+        },
+        {
+          "path": "test/round2_route_read_boundaries_test.dart",
+          "beforeSha256": "3f406c497549af8cc28894b35ed71bdc792e25e8fc78a46f7bc8f49ebd07f42f",
+          "afterSha256": "1e4164a262da824d7ee47318031f21c00283058d13981596fb3fc1508cb3edff"
+        },
+        {
+          "path": "test/round3_upgrade_test.dart",
+          "beforeSha256": null,
+          "afterSha256": "5ac362cc7c587e225d7424f6c3d21221dda48c94b98bbccbba30b34316b41d33"
+        },
+        {
+          "path": "artifacts/chat-round3-cross-mechanism-2026-09-25/run-prepared-resume.cjs",
+          "beforeSha256": null,
+          "afterSha256": "d5f8584db18c0f77013a27824d4c8a4e92d26bc716205690ca6e4b84de2e95c2"
+        }
+      ]
+    },
+    "server": {
+      "root": "C:/Users/ASUS/Downloads/Telegram Desktop/99chat-server",
+      "head": "ad7b5c0526c1cb497fa19efc25507975b1a57990",
+      "patch": "server-round3.patch",
+      "patchSha256": "015652afadbd06b26b2436bfa2939e0915d6e3ddd0bf79d302a39513ccea2e24",
+      "files": [
+        {
+          "path": "src/main/java/com/chat99/server/chatattachment/ChatNativeVideoService.java",
+          "beforeSha256": "83f63a97ce1a899b5f6f430ea3338ce2e3e9928e4c578ecc8c7b424710e504d4",
+          "afterSha256": "e72b93f93e9fa030f07cdac46d6968c4a61b58862a8155f2ddcd5e1de155b891"
+        },
+        {
+          "path": "src/main/java/com/chat99/server/chatattachment/ChatNativeVideoPersistence.java",
+          "beforeSha256": "ed7d0fd159086cba928bf9d92b31f63a2262b4af6e8dd1a49db04db19badeb5c",
+          "afterSha256": "1350c453b5e364490451ae864ebc115056ea6005ba3c6833ca5a377fdab49327"
+        },
+        {
+          "path": "src/test/java/com/chat99/server/chatattachment/ChatNativeVideoServiceTest.java",
+          "beforeSha256": "e1507d9998d88ffd3648cee5d5c4b46b759abe03e15ca0becf5762bea5d57112",
+          "afterSha256": "8e744cff2698947ad1701e326756872f04dffb8a483bc47eafc3ec8f17341c79"
+        },
+        {
+          "path": "src/test/java/com/chat99/server/chatattachment/ChatNativeVideoPersistenceTest.java",
+          "beforeSha256": null,
+          "afterSha256": "cecc7c4d28c8a1d4be74675230e93252593710af7704552267f5cea4f7a8be67"
+        }
+      ]
+    }
+  }
+}

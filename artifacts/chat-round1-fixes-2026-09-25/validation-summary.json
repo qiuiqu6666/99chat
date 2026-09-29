@@ -1,0 +1,115 @@
+{
+  "round1-focused-final": {
+    "done": {
+      "success": true,
+      "type": "done",
+      "time": 10101
+    },
+    "passed": 118,
+    "passedByFile": {
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_draft_submission_test.dart": 10,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart": 15,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_open_profile_trace_test.dart": 8,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_open_perf_log_test.dart": 7,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/im08_outgoing_send_coordinator_test.dart": 20,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/im05_persistence_test.dart": 15,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/open_hydrate_single_owner_test.dart": 6,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/app_chat_route_session_reuse_test.dart": 4,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_send_status_truth_test.dart": 8,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/im08_send_production_wiring_test.dart": 3,
+      "package:flutter_test/src/widget_tester.dart": 1,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/conversation_local_store_draft_test.dart": 11,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/third_party/tencent_cloud_chat_uikit/test/message_history_peek_loader_test.dart": 10
+    },
+    "errors": []
+  },
+  "profile-reader-tests": {
+    "done": {
+      "success": true,
+      "type": "done",
+      "time": 6512
+    },
+    "passed": 18,
+    "passedByFile": {
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_open_profile_trace_test.dart": 8,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/third_party/tencent_cloud_chat_uikit/test/message_history_peek_loader_test.dart": 10
+    },
+    "errors": []
+  },
+  "legacy-suite-final": {
+    "done": {
+      "success": false,
+      "type": "done",
+      "time": 4479
+    },
+    "passed": 33,
+    "passedByFile": {
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_input_composition_guard_test.dart": 8,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_reliability_regression_test.dart": 7,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_page_controllers_test.dart": 18
+    },
+    "errors": [
+      {
+        "name": "durable read queues use bounded retry and dead-letter retention",
+        "error": "Expected: contains 'maxRetryAttempts = 10'\n  Actual: 'import \\'package:flutter/foundation.dart\\';\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/services/im/message_core_store.dart\\';\\n'\n            '\\n'\n  ",
+        "stack": "package:matcher                                     expect\npackage:flutter_test/src/widget_tester.dart 473:18  expect\ntest\\chat_reliability_regression_test.dart 99:7     main.<fn>\n"
+      },
+      {
+        "name": "extracted enums record and media states expose expected values",
+        "error": "Expected: <6>\n  Actual: <11>\n",
+        "stack": "package:matcher                                     expect\npackage:flutter_test/src/widget_tester.dart 473:18  expect\ntest\\chat_page_controllers_test.dart 332:7          main.<fn>.<fn>\n"
+      }
+    ]
+  },
+  "profile-flag-tests": {
+    "done": {
+      "success": true,
+      "type": "done",
+      "time": 11535
+    },
+    "passed": 15,
+    "passedByFile": {
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_open_profile_trace_test.dart": 8,
+      "file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_open_perf_log_test.dart": 7
+    },
+    "errors": []
+  },
+  "baseline-regressions": {
+    "done": {
+      "success": false,
+      "type": "done",
+      "time": 3543
+    },
+    "passed": 0,
+    "passedByFile": {},
+    "errors": [
+      {
+        "name": "AUDIT provider-confirmed success survives a late explicit failure",
+        "error": "Expected: <2>\n  Actual: <3>\n",
+        "stack": "package:matcher                                                         expect\npackage:flutter_test/src/widget_tester.dart 473:18                      expect\nartifacts\\chat-full-chain-audit-2026-09-25\\audit_probes_test.dart 86:5  main.<fn>\n"
+      },
+      {
+        "name": "AUDIT late send completion preserves text entered after submission",
+        "error": "Expected: 'next unsent draft'\n  Actual: <null>\n   Which: not an <Instance of 'String'>\n",
+        "stack": "package:matcher                                                          expect\npackage:flutter_test/src/widget_tester.dart 473:18                       expect\nartifacts\\chat-full-chain-audit-2026-09-25\\audit_probes_test.dart 127:5  main.<fn>\n"
+      }
+    ]
+  },
+  "legacyBaselineEvidence": {
+    "keyboardAssertionPresentBefore": true,
+    "boundedReadRetryAssertion": [
+      {
+        "file": "lib/src/services/im/read_outbox_store.dart",
+        "presentAtHEAD": false,
+        "unchangedFromHEAD": true
+      },
+      {
+        "file": "lib/src/services/im/read_receipt_outbox_store.dart",
+        "presentAtHEAD": true,
+        "unchangedFromHEAD": true
+      }
+    ],
+    "enumSourceUnchangedFromHEAD": true
+  },
+  "unexpectedChangesToCapturedBaseline": []
+}

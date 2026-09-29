@@ -8,6 +8,8 @@ class HistoryPaginationLoadRunner {
   final TUIChatSeparateViewModel model;
   final HistoryPaginationController pagination;
 
+  static const _stepTimeout = Duration(seconds: 20);
+
   // C2C timestamps have second precision and seq is not a global ordering key.
   // Retain scanned IDs at the accepted filtered tail's timestamp so SDK older
   // responses can traverse a same-second run without cycling through it.
@@ -114,6 +116,7 @@ class HistoryPaginationLoadRunner {
     final processed =
         await model.lifeCycle?.didGetHistoricalMessageList(combined) ??
             combined;
+    if (!isCurrent()) return (committed: false, grew: false);
     final finalList = await global.applyHistoryWindowMutations(
         model.conversationID, processed);
     if (!isCurrent() ||
@@ -395,48 +398,82 @@ class HistoryPaginationLoadRunner {
       // successful load would release the UI edge latch without adding rows.
       return false;
     }
-    pagination.historyLoadingKeys.add(requestKey);
-    if (pagination.historyLoadingKeys.length == 1) {
-      model._notify();
+    final requestConversation = model.conversationID;
+    final paginationGeneration = pagination.generation;
+    var publicationIsCurrent = model._historyPublicationFence();
+    final chatGeneration = model._chatOpenGeneration;
+    final initialWindowGeneration = model._historyWindowGeneration;
+    final owner = model.globalModel.im06WriterOwnerUserID;
+    final account = model.globalModel.im06WriterAccountGeneration;
+    final domain = model.globalModel.im06WriterDomainGeneration;
+    var requestActive = true;
+    final operation = ChatRecoveryTrace.nextOperation('history');
+    var stage = 'admission';
+    Future<T> waitForStep<T>(Future<T> future, String name) {
+      stage = name;
+      return future.timeout(_stepTimeout);
     }
-    if (isPreviousPagination) {
-      pagination.previousPaginationInFlight = true;
-    }
-    if (isPreviousPagination) {
-      // Tell the background verifier that a user is actively reading older
-      // history. The verifier will yield, and the IM-06 coordinator will put
-      // this older-page request ahead of queued warm/latest reads.
-      ConversationHistorySyncCoordinator.instance
-          .beginUserOlderPagination(model.conversationID);
-    }
-    // 在捕获任何 fence / scope 之前采纳窗口库的清空 epoch，
-    // 否则 stale 的窗口读会在调用 SDK 之前就把这次分页判死。
-    await model.globalModel
-        .syncHistoryClearEpochFromWindowStore(model.conversationID);
-    final publicationIsCurrent = model._historyPublicationFence();
-    final windowGenAtStart = model._historyWindowGeneration;
-    final searchRequestAtStart =
-        model.globalModel.searchJumpRequestFor(model.conversationID);
-    final windowScopeAtStart =
-        model.globalModel.historyWindowScopeFor(model.conversationID);
-    bool windowRequestIsCurrent() =>
-        publicationIsCurrent() &&
-        windowGenAtStart == model._historyWindowGeneration &&
-        (windowScopeAtStart == null ||
-            model.globalModel
-                .isHistoryWindowScopeCurrent(windowScopeAtStart)) &&
-        model.globalModel.isCurrentSearchJumpRequest(
-            model.conversationID, searchRequestAtStart);
+
     MessageReconciliationRequest? reconciliationRequest;
     var reconciliationCommitted = false;
+    Object? olderPriorityOwner;
+    pagination.historyLoadingKeys.add(requestKey);
     try {
+      if (pagination.historyLoadingKeys.length == 1) {
+        model._notify();
+      }
+      if (isPreviousPagination) {
+        pagination.previousPaginationInFlight = true;
+      }
+      if (isPreviousPagination) {
+        // Tell the background verifier that a user is actively reading older
+        // history. The verifier will yield, and the IM-06 coordinator will put
+        // this older-page request ahead of queued warm/latest reads.
+        olderPriorityOwner = ConversationHistorySyncCoordinator.instance
+            .beginUserOlderPagination(requestConversation);
+      }
+      // 在捕获任何 fence / scope 之前采纳窗口库的清空 epoch，
+      // 否则 stale 的窗口读会在调用 SDK 之前就把这次分页判死。
+      await waitForStep(
+          model.globalModel
+              .syncHistoryClearEpochFromWindowStore(requestConversation),
+          'clear_epoch');
+      if (model._disposed ||
+          model.conversationID != requestConversation ||
+          model._chatOpenGeneration != chatGeneration ||
+          model._historyWindowGeneration != initialWindowGeneration ||
+          paginationGeneration != pagination.generation ||
+          model.globalModel.im06WriterOwnerUserID != owner ||
+          model.globalModel.im06WriterAccountGeneration != account ||
+          model.globalModel.im06WriterDomainGeneration != domain) return false;
+      // Clear-epoch synchronization may legitimately advance the epoch. Only
+      // adopt its new publication fence after verifying the original visit.
+      publicationIsCurrent = model._historyPublicationFence();
+      final windowGenAtStart = model._historyWindowGeneration;
+      final searchRequestAtStart =
+          model.globalModel.searchJumpRequestFor(model.conversationID);
+      final windowScopeAtStart =
+          model.globalModel.historyWindowScopeFor(model.conversationID);
+      bool windowRequestIsCurrent() =>
+          requestActive &&
+          paginationGeneration == pagination.generation &&
+          publicationIsCurrent() &&
+          windowGenAtStart == model._historyWindowGeneration &&
+          (windowScopeAtStart == null ||
+              model.globalModel
+                  .isHistoryWindowScopeCurrent(windowScopeAtStart)) &&
+          model.globalModel.isCurrentSearchJumpRequest(
+              model.conversationID, searchRequestAtStart);
+      stage = 'load_and_reconcile';
       var previousListGrew = false;
       final isPaginatedLoad = sdkPagination;
       if (!forceReloadNewest && isPaginatedLoad) {
-        final cached = await _tryLoadHistoryWindowPage(
-            direction: direction,
-            count: count,
-            requestIsCurrent: windowRequestIsCurrent);
+        final cached = await waitForStep(
+            _tryLoadHistoryWindowPage(
+                direction: direction,
+                count: count,
+                requestIsCurrent: windowRequestIsCurrent),
+            'cache_page');
         if (cached != null) return cached;
         if (!windowRequestIsCurrent()) return false;
       }
@@ -712,15 +749,17 @@ class HistoryPaginationLoadRunner {
           },
         );
         var peekResult = useOfficialCloudOnly
-            ? await model.globalModel.getHistoryMessageListThroughIm06(
-                count: count,
-                getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
-                userID: historyUserID,
-                groupID: historyGroupID,
-                lastMsgID: effectiveLastMsgID,
-                lastMsgSeq: effectiveLastMsgSeq,
-                lastMsg: effectiveAnchor,
-              )
+            ? await model.globalModel
+                .getHistoryMessageListThroughIm06(
+                  count: count,
+                  getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
+                  userID: historyUserID,
+                  groupID: historyGroupID,
+                  lastMsgID: effectiveLastMsgID,
+                  lastMsgSeq: effectiveLastMsgSeq,
+                  lastMsg: effectiveAnchor,
+                )
+                .timeout(_stepTimeout)
             : await MessageHistoryPeekLoader.loadOlderLocalThenCloudResult(
                 messageService: model._messageService,
                 count: count,
@@ -729,7 +768,7 @@ class HistoryPaginationLoadRunner {
                 lastMsgID: effectiveLastMsgID,
                 lastMsgSeq: effectiveLastMsgSeq,
                 lastMsg: effectiveAnchor,
-              );
+              ).timeout(_stepTimeout);
         // A recreated C2C view model can retain a caller cursor that no longer
         // matches the oldest SDK row in memory. Retry once with that row when
         // the first response is empty or contains no new server IDs. This is
@@ -776,16 +815,17 @@ class HistoryPaginationLoadRunner {
             actualRequestLastMsgID = effectiveLastMsgID;
             actualRequestLastMsgSeq = effectiveLastMsgSeq;
             actualRequestAnchor = effectiveAnchor;
-            peekResult =
-                await model.globalModel.getHistoryMessageListThroughIm06(
-              count: count,
-              getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
-              userID: historyUserID,
-              groupID: historyGroupID,
-              lastMsgID: effectiveLastMsgID,
-              lastMsgSeq: effectiveLastMsgSeq,
-              lastMsg: effectiveAnchor,
-            );
+            peekResult = await model.globalModel
+                .getHistoryMessageListThroughIm06(
+                  count: count,
+                  getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
+                  userID: historyUserID,
+                  groupID: historyGroupID,
+                  lastMsgID: effectiveLastMsgID,
+                  lastMsgSeq: effectiveLastMsgSeq,
+                  lastMsg: effectiveAnchor,
+                )
+                .timeout(_stepTimeout);
           }
         }
         ChatHistoryTrace.log(
@@ -909,16 +949,17 @@ class HistoryPaginationLoadRunner {
               'reason': 'cloud_empty_batch',
             },
           );
-          final localResult =
-              await model.globalModel.getHistoryMessageListThroughIm06(
-            getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
-            lastMsgID: effectiveLastMsgID,
-            lastMsgSeq: effectiveLastMsgSeq,
-            lastMsg: effectiveAnchor,
-            count: count,
-            userID: historyUserID,
-            groupID: historyGroupID,
-          );
+          final localResult = await model.globalModel
+              .getHistoryMessageListThroughIm06(
+                getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
+                lastMsgID: effectiveLastMsgID,
+                lastMsgSeq: effectiveLastMsgSeq,
+                lastMsg: effectiveAnchor,
+                count: count,
+                userID: historyUserID,
+                groupID: historyGroupID,
+              )
+              .timeout(_stepTimeout);
           if (!windowRequestIsCurrent()) return false;
           if (localResult == null) {
             // A failed local read is not a checked empty fallback, even when
@@ -1024,28 +1065,31 @@ class HistoryPaginationLoadRunner {
         }
         response = peekResult;
       } else {
-        response = await model.globalModel.getHistoryMessageListThroughIm06(
-          count: count,
-          getType: resolvedGetType,
-          userID: historyUserID,
-          groupID: historyGroupID,
-          lastMsgID: lastMsgID,
-          lastMsgSeq: lastMsgSeq,
-          lastMsg: paginationAnchor,
-        );
+        response = await model.globalModel
+            .getHistoryMessageListThroughIm06(
+              count: count,
+              getType: resolvedGetType,
+              userID: historyUserID,
+              groupID: historyGroupID,
+              lastMsgID: lastMsgID,
+              lastMsgSeq: lastMsgSeq,
+              lastMsg: paginationAnchor,
+            )
+            .timeout(_stepTimeout);
         if (direction == LoadDirection.latest &&
             getType == null &&
             (response == null || response.messageList.isEmpty)) {
-          final localLatestResponse =
-              await model.globalModel.getHistoryMessageListThroughIm06(
-            count: count,
-            getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_NEWER_MSG,
-            userID: historyUserID,
-            groupID: historyGroupID,
-            lastMsgID: lastMsgID,
-            lastMsgSeq: lastMsgSeq,
-            lastMsg: paginationAnchor,
-          );
+          final localLatestResponse = await model.globalModel
+              .getHistoryMessageListThroughIm06(
+                count: count,
+                getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_NEWER_MSG,
+                userID: historyUserID,
+                groupID: historyGroupID,
+                lastMsgID: lastMsgID,
+                lastMsgSeq: lastMsgSeq,
+                lastMsg: paginationAnchor,
+              )
+              .timeout(_stepTimeout);
           if (localLatestResponse != null &&
               (response == null || localLatestResponse.messageList.isNotEmpty)) {
             response = localLatestResponse;
@@ -1156,6 +1200,7 @@ class HistoryPaginationLoadRunner {
           coverageResponseMessages.isNotEmpty) {
         unawaited(
             Future<void>.delayed(const Duration(milliseconds: 80), () async {
+          if (!publicationIsCurrent()) return;
           ChatHistoryTrace.log(
             'local_coverage_diag_started',
             conversationID: model.conversationID,
@@ -1164,13 +1209,14 @@ class HistoryPaginationLoadRunner {
             },
           );
           try {
-            final after =
-                await model.globalModel.getHistoryMessageListThroughIm06(
-              count: count,
-              getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
-              userID: historyUserID,
-              groupID: historyGroupID,
-            );
+            final after = await model.globalModel
+                .getHistoryMessageListThroughIm06(
+                  count: count,
+                  getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
+                  userID: historyUserID,
+                  groupID: historyGroupID,
+                )
+                .timeout(_stepTimeout);
             ChatHistoryTrace.log(
               'local_coverage_diag_after_cloud',
               conversationID: model.conversationID,
@@ -1220,14 +1266,15 @@ class HistoryPaginationLoadRunner {
           response.messageList.isEmpty &&
           resolvedGetType == HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG &&
           lastMsgID == null) {
-        final localResponse =
-            await model.globalModel.getHistoryMessageListThroughIm06(
-          count: count,
-          getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
-          userID: model.conversationID,
-          lastMsgID: lastMsgID,
-          lastMsgSeq: lastMsgSeq,
-        );
+        final localResponse = await model.globalModel
+            .getHistoryMessageListThroughIm06(
+              count: count,
+              getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
+              userID: model.conversationID,
+              lastMsgID: lastMsgID,
+              lastMsgSeq: lastMsgSeq,
+            )
+            .timeout(_stepTimeout);
         if (localResponse != null && localResponse.messageList.isNotEmpty) {
           response = localResponse;
         }
@@ -1244,7 +1291,8 @@ class HistoryPaginationLoadRunner {
               : response.messageList.isEmpty);
       final pageMessagesAfterFacts = await model.globalModel
           .applyHistoryWindowMutations(
-              model.conversationID, response.messageList);
+              model.conversationID, response.messageList)
+          .timeout(_stepTimeout);
       final rawTail =
           HistoryPaginationAnchor.tailOfCloudOlderPage(response.messageList);
       final followsFilteredTail =
@@ -1479,9 +1527,10 @@ class HistoryPaginationLoadRunner {
         }
 
         // 处理新获取的消息列表后回调
-        final List<V2TimMessage> msgList =
-            await model.lifeCycle?.didGetHistoricalMessageList(newList) ??
-                newList;
+        final List<V2TimMessage> msgList = await model.lifeCycle
+                ?.didGetHistoricalMessageList(newList)
+                .timeout(_stepTimeout) ??
+            newList;
         if (direction == LoadDirection.previous &&
             msgList.length != newList.length) {
           _logPreviousPaginationStage(
@@ -1668,7 +1717,8 @@ class HistoryPaginationLoadRunner {
           return false;
         }
         finalList = await model.globalModel
-            .applyHistoryWindowMutations(model.conversationID, finalList);
+            .applyHistoryWindowMutations(model.conversationID, finalList)
+            .timeout(_stepTimeout);
         if (!windowRequestIsCurrent()) return false;
         if (isPaginatedLoad &&
             model.globalModel
@@ -1785,13 +1835,15 @@ class HistoryPaginationLoadRunner {
         }
       } else {
         // 处理新获取的消息列表后回调
-        List<V2TimMessage> receivedList =
-            await model.lifeCycle?.didGetHistoricalMessageList(
+        List<V2TimMessage> receivedList = await model.lifeCycle
+                ?.didGetHistoricalMessageList(
                   pageMessagesAfterFacts,
-                ) ??
-                pageMessagesAfterFacts;
+                )
+                .timeout(_stepTimeout) ??
+            pageMessagesAfterFacts;
         receivedList = await model.globalModel
-            .applyHistoryWindowMutations(model.conversationID, receivedList);
+            .applyHistoryWindowMutations(model.conversationID, receivedList)
+            .timeout(_stepTimeout);
         if (!windowRequestIsCurrent()) return false;
         model.globalModel.loadingMessage.remove(model.conversationID);
 
@@ -1840,7 +1892,8 @@ class HistoryPaginationLoadRunner {
           conversationType: model.conversationType?.name ?? 'none',
         );
         mergedList = await model.globalModel
-            .applyHistoryWindowMutations(model.conversationID, mergedList);
+            .applyHistoryWindowMutations(model.conversationID, mergedList)
+            .timeout(_stepTimeout);
         if (!windowRequestIsCurrent()) return false;
 
         final reconciliationCommit =
@@ -1981,6 +2034,16 @@ class HistoryPaginationLoadRunner {
       }
       return pagination.haveMoreLatestData;
     } catch (e) {
+      ChatRecoveryTrace.log('history_failed',
+          conversationID: requestConversation,
+          operation: operation,
+          fields: {
+            'stage': stage,
+            'errorType': e.runtimeType,
+            'direction': direction.name
+          });
+      if (!publicationIsCurrent() ||
+          paginationGeneration != pagination.generation) return false;
       ChatHistoryTrace.log(
         'load_chat_record_error',
         conversationID: model.conversationID,
@@ -2019,6 +2082,7 @@ class HistoryPaginationLoadRunner {
       }
       return false;
     } finally {
+      requestActive = false;
       final pendingReconciliation = reconciliationRequest;
       if (pendingReconciliation != null && !reconciliationCommitted) {
         model.globalModel.failHistoryReconciliation(
@@ -2026,15 +2090,24 @@ class HistoryPaginationLoadRunner {
           reason: 'history_request_not_committed',
         );
       }
-      pagination.historyLoadingKeys.remove(requestKey);
-      if (pagination.historyLoadingKeys.isEmpty) {
-        model._notify();
+      // A completion from a previous visit cannot unlock the next visit's load.
+      if (paginationGeneration == pagination.generation) {
+        pagination.historyLoadingKeys.remove(requestKey);
+        if (isPreviousPagination) pagination.previousPaginationInFlight = false;
       }
-      if (isPreviousPagination) {
-        pagination.previousPaginationInFlight = false;
+      if (olderPriorityOwner != null) {
         ConversationHistorySyncCoordinator.instance
-            .endUserOlderPagination(model.conversationID);
+            .endUserOlderPagination(requestConversation, olderPriorityOwner);
       }
+      ChatRecoveryTrace.log('history_released',
+          conversationID: requestConversation,
+          operation: operation,
+          fields: {
+            'stage': stage,
+            'loading': pagination.isLoadingChatHistory,
+            'current': publicationIsCurrent()
+          });
+      if (paginationGeneration == pagination.generation) model._notify();
     }
   }
 

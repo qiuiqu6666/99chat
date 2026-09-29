@@ -1,0 +1,16 @@
+/// Marks an optimistic outgoing message as SEND_FAIL when the commit guard
+  /// rejected the send (e.g. conversation switched during async media prep).
+  /// Finds the message by temporary client [id], updates its status, and
+  /// stamps [localCustomData] with guard_dropped so the UI can show a retry.
+  void markOutgoingGuardDropped({
+    required String conversationID,
+    required String clientId,
+    String? localCustomData,
+  }) {
+    markOutgoingSendFailedByIdentity(
+      conversationID: conversationID,
+      clientId: clientId,
+      localCustomData: localCustomData,
+      reason: 'guard_dropped',
+    );
+  }

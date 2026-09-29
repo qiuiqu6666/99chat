@@ -1,0 +1,32 @@
+[
+  {
+    "file": "lib/src/chat.dart",
+    "beforeSha256": "0e58e7644c5888efefa22af161921b9b930074c55ca9528a7b8c86ead7ea6df6",
+    "afterSha256": "6f530a60e720bcd6604315acd5bb33b29fce8357565070c2c0757c2dc93923ce",
+    "normalizedBytesIdentical": true
+  },
+  {
+    "file": "lib/src/services/conversation_local/conversation_draft_service.dart",
+    "beforeSha256": "9bb77b8a239554f7fcfe34051eaff4f1c118f8aadce138541b2a73eb70ae0b7c",
+    "afterSha256": "721a2951dbf7a374516f4099e575ae58d86be8d255581d4d15e9f8918bcc3261",
+    "normalizedBytesIdentical": true
+  },
+  {
+    "file": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+    "beforeSha256": "577f61fd0a65c99c58078e6f43fe639aaf611eac164f9414c1f9e1d8174b8f2a",
+    "afterSha256": "35bbc879a6bbbaa036ac3d53b739fbe89edf67e026867e83a78770a90dde2e67",
+    "normalizedBytesIdentical": true
+  },
+  {
+    "file": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+    "beforeSha256": "050e33372ab846714c418c7ab0f3b061e6e089e5152752df3e66df7b8bc636ef",
+    "afterSha256": "f53c193cad6a21e5d1140bf9c4143c6d211adf0aba1d25f44b3b5f3db28d716a",
+    "normalizedBytesIdentical": true
+  },
+  {
+    "file": ".gitnexusignore",
+    "beforeSha256": "142087df9ce4d6a1140104faf24b6cd38a91a122c2e780442001a6ef6c6f5126",
+    "afterSha256": "accf8a100bf16b93a95c3080f048aaacd83391605adbd294630d04ab2853ed0d",
+    "normalizedBytesIdentical": true
+  }
+]

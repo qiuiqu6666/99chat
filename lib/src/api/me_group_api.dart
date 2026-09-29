@@ -1468,11 +1468,13 @@ class MeGroupApi {
   Future<MeGroupRecord> updateMyNameCard({
     required String groupId,
     required String nameCard,
+    CancelToken? cancelToken,
   }) async {
     final id = groupId.trim();
     final res = await _dio.put(
       '${_groupPath(id)}/members/me',
       data: <String, dynamic>{'nameCard': nameCard.trim()},
+      cancelToken: cancelToken,
     );
     final envelope = readApiWriteEnvelope(res.data);
     if (envelope.isBusinessError) {

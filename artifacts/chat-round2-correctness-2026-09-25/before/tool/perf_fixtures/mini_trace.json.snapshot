@@ -1,0 +1,29 @@
+{
+  "traceEvents": [
+    {"name": "process_name", "ph": "M", "pid": 10, "tid": 0, "args": {"name": "flutter"}},
+    {"name": "thread_name", "ph": "M", "pid": 10, "tid": 1, "args": {"name": "1.ui"}},
+    {"name": "thread_name", "ph": "M", "pid": 10, "tid": 2, "args": {"name": "1.raster"}},
+
+    {"name": "Frame", "cat": "Dart Developer Extension", "ph": "X", "pid": 10, "tid": 1,
+     "ts": 17680000, "dur": 60980,
+     "args": {"number": 5053, "buildTime": 49730, "rasterTime": 8140, "vsyncOverhead": 2910}},
+    {"name": "Frame", "cat": "Dart Developer Extension", "ph": "X", "pid": 10, "tid": 1,
+     "ts": 17745000, "dur": 9000,
+     "args": {"number": 5054, "buildTime": 8100, "rasterTime": 4200, "vsyncOverhead": 900}},
+
+    {"name": "FooCallback", "cat": "Dart", "ph": "X", "pid": 10, "tid": 1, "ts": 17680000, "dur": 15100, "args": {}},
+    {"name": "map", "cat": "Dart", "ph": "X", "pid": 10, "tid": 1, "ts": 17680100, "dur": 5000},
+    {"name": "build", "cat": "Dart", "ph": "X", "pid": 10, "tid": 1, "ts": 17685100, "dur": 7000},
+    {"name": "notify", "cat": "Dart", "ph": "X", "pid": 10, "tid": 1, "ts": 17692100, "dur": 3000},
+
+    {"name": "BarCallback", "cat": "Dart", "ph": "X", "pid": 10, "tid": 1, "ts": 17696000, "dur": 29800, "args": {}},
+    {"name": "childA", "cat": "Dart", "ph": "X", "pid": 10, "tid": 1, "ts": 17696000, "dur": 12000},
+    {"name": "grandchildX", "cat": "Dart", "ph": "X", "pid": 10, "tid": 1, "ts": 17696100, "dur": 1000},
+    {"name": "childB", "cat": "Dart", "ph": "X", "pid": 10, "tid": 1, "ts": 17708000, "dur": 17800},
+
+    {"name": "SoloWork", "cat": "Dart", "ph": "X", "pid": 10, "tid": 1, "ts": 17726500, "dur": 6500},
+    {"name": "Tiny", "cat": "Dart", "ph": "X", "pid": 10, "tid": 1, "ts": 17800000, "dur": 400},
+
+    {"name": "RasterWork", "cat": "Dart", "ph": "X", "pid": 10, "tid": 2, "ts": 17681000, "dur": 8140}
+  ]
+}

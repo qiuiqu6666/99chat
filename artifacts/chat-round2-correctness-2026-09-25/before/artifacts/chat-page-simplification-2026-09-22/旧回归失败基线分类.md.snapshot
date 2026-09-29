@@ -1,0 +1,102 @@
+# 旧未读回归失败基线分类
+
+## 修复调度差异后的最终结果
+
+`legacy-unread-final.log` 对原五文件61项使用 `--no-pub --concurrency=1` 重跑，结果 **23 通过、38 失败**。相对本轮修改前22通过/39失败：没有新增失败名，`production return keeps drag interactive and cancels late publication` 恢复通过。
+
+剩余38项中，**35项的首个断言位置和 expected/actual 与本轮 before 相同**。另3项均从异步准备阶段推进到了较后的断言，且这些较后断言已在上轮 `chat-fix-legacy-final.log` 出现、位置和 expected/actual 完全相同：
+
+| 测试 | 最终首个断言；上轮四缺陷修复日志相同 |
+| --- | --- |
+| chat_visible_latest_ack_recovery / delayed=true | 425行 injected：期望true实际false |
+| durable_unread_tongue / delivery after visible snapshot | 429行最新seq：期望104实际103 |
+| return_to_latest_rendered_proof / physical extent | 423行旧received标量：期望0实际2 |
+
+中间版本的窗口284超限、较早durable=false、旧边界fullyVisible=false等首败变化已恢复。本结论依据失败名和首个断言的联合比较，不仅依据“仍失败38项”。旧38项仍未修复，不能报告全项目测试通过。
+
+最终机器结果见 `legacy-unread-comparison.json` 的 `final_validation`，完整最终条目为 `legacy-unread-final-failures.json`。以下保留中间版本比较、独立overlay二分与修复验证，说明发现并排除了什么变化。
+
+## 中间版本 after 比较
+
+`legacy-unread-after.log` 为 **23 通过、38 失败**。与本轮修改前 39 项比较：**没有新增失败名称，减少 1 项**，即 `history_durable_scroll_to_latest_test.dart::production return keeps drag interactive and cancels late publication`。剩余 38 个失败名称与上一轮四缺陷修复后的名称集合完全一致。
+
+但同名失败的首个断言并非全部相同：**28 项保持首个断言位置及 expected/actual，10 项发生变化**。不能只凭失败数量/名称宣称全部旧行为不变。变化如下：
+
+| 测试（简写） | before 首败 → after 首败 |
+| --- | --- |
+| chat_visible_latest_ack_recovery / delayed=true | 等待首条持久化完成 → injected 仍为 false（425行） |
+| durable_unread_tongue / delivery after visible snapshot | 晚到入站尚未完成 → 已完成，但最新 seq 期望104实际103（429行） |
+| history_durable_scroll / 300 arrivals | 旧标量期望299实际300 → 窗口上限期望≤280实际284（1100行） |
+| history_durable_scroll / 1200px arrival | 按钮数量期望71实际70 → fullyVisible(100) 为 false（1456行） |
+| history_durable_scroll / manual95 三种参数 | 末尾旧标量期望0实际95 → 较早的 hasDurableHistoryDeferred 期望true实际false（1572行） |
+| history_durable_scroll / media restoration geometry | 等待旧标量归零 → 较早的 hasDurableHistoryDeferred 期望true实际false（1010行） |
+| history_durable_scroll / row-by-row | 找不到可点按钮 → fullyVisible(100) 为 false（553行） |
+| return_to_latest_rendered_proof / physical extent | 持久化尚未完成 → 已到后续旧标量断言，期望0实际2（423行） |
+
+`delayed=false` 的首个实际断言仍为 injected=false（425行），但 after 另有清理临时目录的 `PathAccessException` / Windows errno32。日志的最后 `Multiple exceptions` 汇总不是首个业务断言，已在 JSON 中单独记为 additional_exception。
+
+以上只记录实际输出差异，没有重跑测试或追查根因。尤其窗口上限、较早 durable 状态和旧边界可见性变化，应由整体验证决定其意义，不能都标成旧 scalar 残留。
+
+完整集合与首断言差异见 `legacy-unread-comparison.json`；after 原始条目见 `legacy-unread-after-failures.json`。
+
+### 两项敏感差异的独立串行核验
+
+随后按根代理要求，对“300 arrivals”和“media restoration geometry”两项进行最小可比验证。将当前 UIKit `lib` 复制到 TEMP，覆盖 `before` 中全部六份 Dart 快照，复制主工程 package_config 并将333个 rootUri 都解析为绝对 file URI，仅 UIKit 指向 TEMP。Flutter 启动还需要相邻 `package_graph.json`，复制原图后成功执行。工作树业务和测试文件未作替换。
+
+两次使用相同测试文件/名称正则、`--no-pub --concurrency=1`：
+
+- baseline overlay：media 首败仍为末尾等待旧 received 标量归零（255/1049）；300 首败仍为 received 期望299实际300（1227）。
+- current：media 提前失败于 hasDurableHistoryDeferred=false（1010）；300 提前失败于发布窗口284超过softMax280（1100）。
+
+因此差异在同一串行选集下仍出现。虽然两边均0通过2失败，这两项不能视作“相同旧失败没有变化”；当前版本的较早状态/窗口边界失败需要审查。本核验未修改生产或扩大修复。
+
+日志为 `legacy-sensitive-before-overlay.log` 与 `legacy-sensitive-after-current.log`；TEMP路径、六份快照及当前文件SHA见 `baseline-overlay-manifest.json`，结果也加入 `legacy-unread-comparison.json` 的 `isolated_sensitive_validation`。
+
+### 定位与修复后的敏感项复核
+
+再将 TEMP baseline 仅换成当前 message_list 和 pagination_ui_gate，两项即复现提前失败（`legacy-sensitive-bisect-scroll.log`），将差异定位到滚动调度组。
+
+旧调度允许 haveMoreData=false 时的一次明确边缘探测。新队列先拒绝该探测；放行后又在120ms执行时重复要求仍贴旧边缘，初始懒布局将 maxExtent 从936扩展为5864时，已接受的意图被丢弃。未启动旧页事务意味着 memorySuppressed 未设置，随后入站从 durable 路径变成内存缓冲，解释了两个提前失败。
+
+滚动修复恢复一次边缘探测，并保留已接受的 edge 意图跨布局扩张；owner/window、手势版本、越界与反向取消仍保留。`legacy-sensitive-after-geometry-fix.log` 同样串行执行两项，现均重新出现 load_previous_start、memorySuppressed=true、position=notShowLatest。media 首败恢复到旧标量归零等待（255/1049）；300 首败恢复到旧标量299/300（1227）。两项提前 durable=false/窗口284的差异消失。
+
+## 修改前基线
+
+只读取本轮 `legacy-unread-before.log` 与上轮 `../chat-page-audit-2026-09-22/logs/chat-fix-legacy-final.log`，未运行或修改测试。按每项首先失败的实际断言分类，不按测试标题推断根因；后面的断言尚未执行，不能据此认定它们也失败或已经通过。
+
+本轮为 **22 通过、39 失败**；上轮为 **23 通过、38 失败**。本轮失败名完整包含上轮 38 项，仅增加一项：
+
+`history_durable_scroll_to_latest_test.dart::production return keeps drag interactive and cancels late publication`
+
+其首个失败为等待 `sdk.requests.any((r) => r.seq <= 0)`，提示 `latest SDK request must start`（测试调用行 370，wait helper 255；日志行 580）。尚未到拖动交互/取消/晚到发布断言。它在此次任何简化修改前已失败，不能归入本轮修改造成的新增回归；仅凭日志也不能断言是偶发时序问题。
+
+## 文件计数
+
+| 文件 | 失败 |
+| --- | ---: |
+| durable_unread_tongue_test.dart | 17 |
+| history_durable_scroll_to_latest_test.dart | 14 |
+| return_to_latest_rendered_proof_test.dart | 4 |
+| chat_visible_latest_ack_recovery_test.dart | 2 |
+| unread_visit_baseline_test.dart | 2 |
+
+## 首个断言分类
+
+| JSON category | 数量 | 含义与证据 |
+| --- | ---: | --- |
+| legacy_scalar_assertion | 21 | 首个断言或等待条件读取 receivedNewMessageCountFor。20 项直接断言；媒体恢复手势一项等待该标量归零。包括返回后仍为 121/95、baseline 期望 1 实际 4/2、逐行阅读标量不减等。不能把这些直接算成身份账本或 SQL ACK 的失败。 |
+| read_report_visible_proof | 5 | 首先失败的是 readReports：期望 0、实际 1。分别为 rendered projection、一对 context-menu protection，以及 late burst/storage-only reveal 撤销。属于可见证明/已读上报行为断言，不能归并为旧计数残留。 |
+| scroll_geometry | 3 | 点击输入框返回底部：期望 offset≈0，实际1200；组合为 gap=false/keyboardOpen=true 与 gap=true 的两种键盘状态。属于真实滚动结果断言。 |
+| capsule_visibility_or_row_coverage | 4 | 短上滑到达后没有 showUnread；逐行滚动找不到可点按钮；1800px/1200px 大行的按钮数量期望71实际70。属于按钮显示/实际覆盖结果。 |
+| frame_scheduling | 1 | idle hot reveal 的 hasScheduledFrame 期望false实际true，属于调度未结束。 |
+| async_progress_precondition | 5 | 两个 late-arrival 可见恢复测试首先未完成注入/首条持久化；delivery-after-snapshot 未完成晚到入站；physical-extent 测试未完成持久化；上述新增 production-return 未开始最新页请求。后续标题中的可见证明/滚动断言尚未执行。 |
+
+没有首先失败于“入口未读开关或入口数量”的项目。标题里包含 entry 的三类测试，其首个失败仍是旧 receivedCount；不能从名称归成入口 UI 回归。
+
+## 精确比较文件
+
+- `legacy-unread-before-failure-names.json`：排序后的 `文件::测试名` 字符串数组，用于最终 after 的集合差分。
+- `legacy-unread-before-failures.json`：每项包含 category、首个断言的 expected/actual、源码行、日志行与本次新增标记，可比较同名测试是否提前失败或改变失败原因。
+- `legacy-unread-before-failure-summary.json`：总数、文件与分类计数、相对上轮新增/移除项。
+
+同名失败并不自动代表无回归；最终应先比失败名，再比首个断言位置与条件。反之，这 39 项也不是 39 个已确认的独立业务缺陷。

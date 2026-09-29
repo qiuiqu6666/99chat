@@ -1,6 +1,10 @@
 // ignore_for_file: unnecessary_getters_setters, avoid_print
 
 import 'dart:async';
+import 'dart:convert';
+import 'package:tencent_cloud_chat_demo/utils/group_name_card_policy.dart';
+import 'package:tencent_cloud_chat_demo/utils/group_name_card_save_failure.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -101,6 +105,11 @@ class TUIGroupProfileModel extends ChangeNotifier {
   bool _localProjectionInFlight = false;
   bool _localProjectionDirty = false;
   bool _disposed = false;
+  int _nameCardSaveRevision = 0;
+  ({String group, String value, int generation, SessionIdentity identity})?
+      _savedNameCard;
+  @visibleForTesting
+  Duration nameCardSaveTimeout = const Duration(seconds: 18);
   static const memberPreviewSize = 10;
 
   /// 资料页预览只拉后端成员快照第一页。默认 50，且不带 role。
@@ -1859,6 +1868,13 @@ class TUIGroupProfileModel extends ChangeNotifier {
   }
 
   String getSelfNameCard() {
+    final saved = _savedNameCard;
+    if (saved != null &&
+        saved.group == _groupID &&
+        saved.generation == _localProjectionGeneration &&
+        SessionIdentityService.instance.isCurrent(saved.identity)) {
+      return saved.value;
+    }
     final detail = _confirmedSelfDetail;
     if (detail != null && detail.hasSuppliedField('myNameCard')) {
       return GroupLocalStore.instance
@@ -1866,7 +1882,13 @@ class TUIGroupProfileModel extends ChangeNotifier {
               ?.myNameCard ??
           detail.myNameCard;
     }
-    final self = _coreServices.loginUserInfo?.userID ?? '';
+    final self = SessionIdentityService.instance.capture().ownerUserId;
+    if (self.isEmpty) return '';
+    final cached = GroupLocalStore.instance.readCached(
+      groupId: _groupID,
+      ownerUserId: self,
+    );
+    if (cached?.myNameCard.isNotEmpty == true) return cached!.myNameCard;
     return GroupMemberStore.instance.memberOf(_groupID, self)?.nameCard ?? '';
   }
 
@@ -1887,61 +1909,99 @@ class TUIGroupProfileModel extends ChangeNotifier {
   }
 
   Future<V2TimCallback?> setNameCard(String nameCard) async {
-    final loginUserID = _coreServices.loginUserInfo?.userID;
-    if (loginUserID == null || loginUserID.isEmpty) {
-      return null;
+    final group = _groupID;
+    final generation = _localProjectionGeneration;
+    final identity = SessionIdentityService.instance.capture();
+    // REST /members/me is scoped by the business login. It must not depend on
+    // the SDK's optional full user profile having finished loading.
+    final loginUserID = SelfHostedGroupBridge.enabled
+        ? identity.ownerUserId
+        : (_coreServices.loginUserInfo?.userID ??
+              _coreServices.loginInfo.userID);
+    final value = nameCard.trim();
+    final operation = ChatRecoveryTrace.nextOperation('name_card_save');
+    void trace(String stage, [Map<String, Object?> fields = const {}]) {
+      ChatRecoveryTrace.log(
+        'name_card_$stage',
+        conversationID: 'group_$group',
+        operation: operation,
+        fields: {
+          'route': SelfHostedGroupBridge.enabled ? 'rest' : 'sdk',
+          ...fields,
+        },
+      );
     }
 
-    final res = await _groupServices.setGroupMemberInfo(
-        groupID: _groupID, userID: loginUserID, nameCard: nameCard);
-    if (res.code != 0) {
-      return res;
+    trace('clicked', {
+      'utf8Bytes': utf8.encode(value).length,
+      'hasIdentity': loginUserID.isNotEmpty,
+      'disposed': _disposed,
+    });
+    if (_disposed || group.isEmpty) {
+      return V2TimCallback(code: -1, desc: 'SESSION_CHANGED');
     }
-
-    V2TimGroupMemberFullInfo? latest;
-    final infoRes = await _groupServices.getGroupMembersInfo(
-      groupID: _groupID,
-      memberList: [loginUserID],
+    if (loginUserID.isEmpty ||
+        ChatIdFormat.rawUserUid(loginUserID) != identity.ownerUserId) {
+      return V2TimCallback(code: -1, desc: 'AUTH_NOT_READY');
+    }
+    final invalid = GroupNameCardPolicy.validationMessage(value);
+    if (invalid != null) return V2TimCallback(code: -1, desc: invalid);
+    final revision = ++_nameCardSaveRevision;
+    bool isCurrent() =>
+        !_disposed &&
+        group == _groupID &&
+        generation == _localProjectionGeneration &&
+        revision == _nameCardSaveRevision &&
+        SessionIdentityService.instance.isCurrent(identity);
+    V2TimCallback res;
+    try {
+      trace('dispatch');
+      res = await _groupServices
+          .setGroupMemberInfo(
+            groupID: group,
+            userID: loginUserID,
+            nameCard: value,
+          )
+          .timeout(nameCardSaveTimeout);
+      trace('response', {
+        'code': res.code,
+        'description': (res.desc ?? '').replaceAll(value, '<name_card>'),
+      });
+    } catch (error) {
+      final failure = GroupNameCardSaveFailure.fromError(error);
+      trace('failed', {'code': failure.code, 'type': error.runtimeType});
+      return V2TimCallback(code: -1, desc: failure.message);
+    }
+    if (res.code != 0) return res;
+    if (!isCurrent()) {
+      trace('stale_result');
+      return V2TimCallback(code: -1, desc: 'SESSION_CHANGED');
+    }
+    // Only this field changed. Do not block a confirmed save on another
+    // network read, which may fail or return an older member snapshot.
+    _savedNameCard = (
+      group: group,
+      value: value,
+      generation: generation,
+      identity: identity,
     );
-    if (infoRes.code == 0 && infoRes.data != null && infoRes.data!.isNotEmpty) {
-      latest = infoRes.data!.first;
-    }
-
+    final index = _groupMemberList?.indexWhere((m) => m?.userID == loginUserID);
+    final existing = index != null && index >= 0
+        ? _groupMemberList![index]
+        : GroupMemberStore.instance.memberOf(group, loginUserID);
+    final member = existing == null
+        ? V2TimGroupMemberFullInfo(userID: loginUserID, nameCard: value)
+        : V2TimGroupMemberFullInfo.fromJson(existing.toJson());
     GroupMemberStore.instance.putNameCard(
-      groupID: _groupID,
+      groupID: group,
       userID: loginUserID,
-      nameCard: nameCard,
-      member: latest,
-      notify: false,
+      nameCard: value,
+      member: member,
     );
-
-    final targetIndex = _groupMemberList
-        ?.indexWhere((element) => element?.userID == loginUserID);
-    if (latest != null) {
-      if (targetIndex != null && targetIndex >= 0) {
-        _groupMemberList![targetIndex] = latest;
-      } else {
-        _groupMemberList = [...?_groupMemberList, latest];
-      }
-      GroupMemberStore.instance.putMember(_groupID, latest);
-    } else {
-      if (targetIndex != null && targetIndex >= 0) {
-        _groupMemberList![targetIndex]?.nameCard = nameCard;
-        GroupMemberStore.instance.putNameCard(
-          groupID: _groupID,
-          userID: loginUserID,
-          nameCard: nameCard,
-          member: _groupMemberList![targetIndex],
-        );
-      } else {
-        GroupMemberStore.instance.putNameCard(
-          groupID: _groupID,
-          userID: loginUserID,
-          nameCard: nameCard,
-        );
-      }
-    }
+    if (index != null && index >= 0) _groupMemberList![index] = member;
+    trace('memory_updated');
     notifyListeners();
+    trace('ui_notified');
     return res;
   }
 

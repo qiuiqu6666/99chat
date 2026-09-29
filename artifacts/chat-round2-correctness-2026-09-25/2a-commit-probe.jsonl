@@ -1,0 +1,15 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":72328,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":1,"time":3,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":3300}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":3301}
+{"test":{"id":3,"name":"SQLite commit failure emits nothing; two adapters share committed truth and GC version","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":96,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":3301}
+{"testID":3,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=30 created=true","type":"print","time":3375}
+{"testID":3,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=7.7 deltaMs=7.7 prev=message_core_db_open durationMs=38","type":"print","time":3380}
+{"testID":3,"messageType":"print","message":"commit_probe: handle","type":"print","time":3401}
+{"testID":3,"messageType":"print","message":"commit_probe: armed","type":"print","time":3406}
+{"testID":3,"messageType":"print","message":"commit_probe: rejected","type":"print","time":3414}
+{"testID":3,"error":"TimeoutException after 0:00:30.000000: Test timed out after 30 seconds. See https://pub.dev/packages/test#timeouts","stackTrace":"dart:isolate  _RawReceivePort._handleMessage\n","isFailure":false,"type":"error","time":33425}
+{"testID":3,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":33426}
+{"success":false,"type":"done","time":33467}

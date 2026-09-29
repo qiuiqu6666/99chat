@@ -1,0 +1,67 @@
+/// Resolves only the newest image rows that can be visible at the bottom of
+  /// the initial window, then warms their bubble thumbnail cache. The caller
+  /// returns immediately by default; callers that opt into [awaitNetwork] get a
+  /// bounded wait. URL/image work continues in the background and the same
+  /// message objects are updated in place.
+  static Future<void> prepareFirstWindowMedia(
+    Iterable<V2TimMessage?> messages, {
+    Duration budget = initialMediaBudget,
+    bool awaitNetwork = false,
+    void Function(V2TimMessage message)? onMessageResolved,
+  }) async {
+    if (budget <= Duration.zero) {
+      return;
+    }
+    final selected = _selectInitialMediaMessages(messages);
+    if (ChatCoverDiag.enabled && ChatCoverDiag.canLog) {
+      ChatCoverDiag.log('prepare', '-', 'selected=${selected.length} budgetMs=${budget.inMilliseconds} awaitNetwork=$awaitNetwork');
+      for (final message in selected) {
+        ChatCoverDiag.log('selected', message.msgID ?? message.id ?? '-',
+            'type=${message.elemType} ts=${message.timestamp} image=${message.imageElem != null} video=${message.videoElem != null}');
+      }
+    }
+    if (selected.isEmpty) {
+      return;
+    }
+    final stopwatch = Stopwatch()..start();
+    // Only a very small local-cache warm is allowed to delay the first frame.
+    // Remote covers must never hold chat navigation, even when awaitNetwork is
+    // false: network warming continues after the route can render.
+    final localSelected = selected
+        .where((message) => _resolveLocalBubblePath(message) != null)
+        .toList(growable: false);
+    if (localSelected.isNotEmpty) {
+      await warmWithBudget(
+        localSelected,
+        _shorterDuration(budget, initialLocalMediaBudget),
+      );
+    }
+    if (ChatCoverDiag.enabled && ChatCoverDiag.canLog) {
+      ChatCoverDiag.log('prepare_warm_return', '-', 'elapsedMs=${stopwatch.elapsedMilliseconds}');
+    }
+    final resolveBudget = _shorterDuration(budget, initialMediaUrlBudget);
+    final resolveTask = resolveOnlineUrlsForMessages(
+      selected,
+      budget: resolveBudget,
+      includeSelf: true,
+      onMessageResolved: onMessageResolved,
+    );
+    if (!awaitNetwork) {
+      // Metadata hydration remains in the task, but URL lookup and image
+      // decode must never hold the history commit or route transition.
+      unawaited(
+        resolveTask.then((_) async {
+          final remaining = budget - stopwatch.elapsed;
+          if (remaining > Duration.zero) {
+            await warmWithBudget(selected, remaining);
+          }
+        }).catchError((_) {}),
+      );
+      return;
+    }
+    await resolveTask;
+    final remaining = budget - stopwatch.elapsed;
+    if (remaining > Duration.zero) {
+      await warmWithBudget(selected, remaining);
+    }
+  }

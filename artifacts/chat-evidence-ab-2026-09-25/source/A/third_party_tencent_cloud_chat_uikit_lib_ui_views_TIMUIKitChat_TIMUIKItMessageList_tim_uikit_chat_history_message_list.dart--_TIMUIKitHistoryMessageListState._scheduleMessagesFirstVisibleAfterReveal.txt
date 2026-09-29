@@ -1,0 +1,44 @@
+void _scheduleMessagesFirstVisibleAfterReveal({required String source}) {
+    if (_messagesFirstVisibleReported ||
+        _messagesFirstVisibleScheduled ||
+        !_historyOpenRevealPainted ||
+        _openingPlaceholder.shouldPaint) {
+      return;
+    }
+    _messagesFirstVisibleScheduled = true;
+    final conversationID = _conversationId();
+    final visibleTrace =
+        ChatOpenPerfLog.captureCurrent(conversationKey: conversationID);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _messagesFirstVisibleScheduled = false;
+      if (!mounted ||
+          conversationID != _conversationId() ||
+          !_historyOpenRevealPainted ||
+          _openingPlaceholder.shouldPaint) {
+        return;
+      }
+      final painted = widget.messageList.length;
+      if (painted <= 0) {
+        return;
+      }
+      _messagesFirstVisibleReported = true;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      ChatMainThreadPerf.recordDurationMicros(
+        ChatMainThreadPerf.messagesFirstVisibleMs,
+        (nowMs - _createdAtMs) * Duration.microsecondsPerMillisecond,
+        count: painted,
+        source: source,
+      );
+      ChatOpenPerfLog.markMessagesFirstVisible(
+        conversationID: conversationID,
+        messageCount: painted,
+        source: source,
+        trace: visibleTrace,
+      );
+      ChatGeomSettleTrace.markMessagesVisible(
+        conversationID: conversationID,
+        messageCount: painted,
+        source: source,
+      );
+    });
+  }

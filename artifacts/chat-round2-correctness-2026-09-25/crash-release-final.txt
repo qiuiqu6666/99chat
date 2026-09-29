@@ -1,0 +1,5 @@
+verified before_commit
+verified prepared
+verified dispatch_intent
+verified sdk_success_commit_failure
+C:\Users\ASUS\Downloads\Telegram Desktop\99999999\artifacts\chat-round2-correctness-2026-09-25\crash-1790286017673

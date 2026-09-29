@@ -1,0 +1,43 @@
+{
+  "scope": [
+    "artifacts/**",
+    "test_outputs/**"
+  ],
+  "excluded": "artifacts/chat-evidence-ab-2026-09-25",
+  "filesInspected": 628,
+  "qualifiedDeviceRuns": 0,
+  "candidates": [
+    {
+      "path": "artifacts/chat-full-chain-audit-2026-09-25/tests-2.jsonl",
+      "bytes": 2083964,
+      "hasFlutterTestHarness": true,
+      "hasSourceSnapshot": true,
+      "markerMatches": 1,
+      "qualification": "Not a verified device profile sample; device/mode/scenario/build attribution missing."
+    },
+    {
+      "path": "artifacts/chat-page-simplification-2026-09-22/before/tim_uikit_chat_history_message_list.dart.txt",
+      "bytes": 591718,
+      "hasFlutterTestHarness": false,
+      "hasSourceSnapshot": true,
+      "markerMatches": 1,
+      "qualification": "Not a verified device profile sample; device/mode/scenario/build attribution missing."
+    },
+    {
+      "path": "test_outputs/continuous_drag_history_before.txt",
+      "bytes": 577451,
+      "hasFlutterTestHarness": false,
+      "hasSourceSnapshot": true,
+      "markerMatches": 1,
+      "qualification": "Not a verified device profile sample; device/mode/scenario/build attribution missing."
+    },
+    {
+      "path": "test_outputs/latest_intent_fix_tests.log",
+      "bytes": 863669,
+      "hasFlutterTestHarness": true,
+      "hasSourceSnapshot": true,
+      "markerMatches": 1,
+      "qualification": "Not a verified device profile sample; device/mode/scenario/build attribution missing."
+    }
+  ]
+}

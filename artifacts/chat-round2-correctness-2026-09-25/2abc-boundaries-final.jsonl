@@ -1,0 +1,74 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":43700,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"suite":{"id":2,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_live_result_widget_test.dart"},"type":"suite","time":2}
+{"test":{"id":3,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_live_result_widget_test.dart","suiteID":2,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"suite":{"id":4,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_route_read_boundaries_test.dart"},"type":"suite","time":2}
+{"test":{"id":5,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_route_read_boundaries_test.dart","suiteID":4,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"suite":{"id":6,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im09_read_authority_test.dart"},"type":"suite","time":2}
+{"test":{"id":7,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im09_read_authority_test.dart","suiteID":6,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":4,"time":3,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":6299}
+{"group":{"id":8,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":8,"line":null,"column":null,"url":null},"type":"group","time":6301}
+{"test":{"id":9,"name":"every committed canonical send state has a newer version","suiteID":0,"groupIDs":[8],"metadata":{"skip":false,"skipReason":null},"line":19,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6301}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6320}
+{"test":{"id":10,"name":"terminal truth survives recovery payload garbage collection","suiteID":0,"groupIDs":[8],"metadata":{"skip":false,"skipReason":null},"line":31,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6320}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6324}
+{"test":{"id":11,"name":"committed success actively notifies an already displayed failure","suiteID":0,"groupIDs":[8],"metadata":{"skip":false,"skipReason":null},"line":46,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6325}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6328}
+{"test":{"id":12,"name":"a caller timeout cannot release the SDK draft write queue","suiteID":0,"groupIDs":[8],"metadata":{"skip":false,"skipReason":null},"line":64,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6328}
+{"testID":12,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790284025166 conv=8cd90432dbeb draftLen=1 draftHash=df7e70e50215 empty=false","type":"print","time":6341}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6341}
+{"test":{"id":13,"name":"storage error is unavailable, never legacy missing or retry permission","suiteID":0,"groupIDs":[8],"metadata":{"skip":false,"skipReason":null},"line":89,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6342}
+{"testID":13,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6343}
+{"test":{"id":14,"name":"SQLite commit failure emits nothing; two adapters share committed truth and GC version","suiteID":0,"groupIDs":[8],"metadata":{"skip":false,"skipReason":null},"line":96,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6344}
+{"testID":14,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=62 created=true","type":"print","time":6439}
+{"testID":14,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=7.8 deltaMs=7.8 prev=message_core_db_open durationMs=70","type":"print","time":6445}
+{"testID":14,"messageType":"print","message":"commit_probe: handle","type":"print","time":6464}
+{"testID":14,"messageType":"print","message":"commit_probe: armed","type":"print","time":6467}
+{"testID":14,"messageType":"print","message":"commit_probe: rejected","type":"print","time":6475}
+{"testID":14,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=41.6 deltaMs=33.8 prev=message_core_db_ready durationMs=2 created=false","type":"print","time":6479}
+{"testID":14,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=42.6 deltaMs=1.0 prev=message_core_db_open durationMs=3","type":"print","time":6479}
+{"testID":14,"messageType":"print","message":"commit_probe: readable","type":"print","time":6481}
+{"testID":14,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=55.9 deltaMs=13.3 prev=message_core_db_ready durationMs=2 created=false","type":"print","time":6493}
+{"testID":14,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=57.1 deltaMs=1.2 prev=message_core_db_open durationMs=3","type":"print","time":6494}
+{"testID":14,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6499}
+{"test":{"id":15,"name":"concurrent same-operation attempts get exactly one SDK dispatch permit","suiteID":0,"groupIDs":[8],"metadata":{"skip":false,"skipReason":null},"line":150,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6499}
+{"testID":15,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6502}
+{"test":{"id":16,"name":"a zero-row recovery update rolls back the main outcome transition","suiteID":0,"groupIDs":[8],"metadata":{"skip":false,"skipReason":null},"line":164,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6502}
+{"testID":16,"messageType":"print","message":"*** sqflite warning ***\n\nYou are changing sqflite default factory.\nBe aware of the potential side effects. Any library using sqflite\nwill have this factory as the default for all operations.\n\n*** sqflite warning ***\n","type":"print","time":6504}
+{"testID":16,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=77.0 deltaMs=19.9 prev=message_core_db_ready durationMs=9 created=true","type":"print","time":6514}
+{"testID":16,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=78.9 deltaMs=1.9 prev=message_core_db_open durationMs=11","type":"print","time":6516}
+{"testID":16,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6534}
+{"testID":3,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":6784}
+{"group":{"id":17,"suiteID":2,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":6784}
+{"test":{"id":18,"name":"already rendered failed UIKit row removes its real retry icon after committed success","suiteID":2,"groupIDs":[17],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":26,"root_column":3,"root_url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_live_result_widget_test.dart"},"type":"testStart","time":6785}
+{"testID":5,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":7174}
+{"group":{"id":19,"suiteID":4,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":6,"line":null,"column":null,"url":null},"type":"group","time":7175}
+{"test":{"id":20,"name":"concurrent initial opens share one route through success and wait for pop","suiteID":4,"groupIDs":[19],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":20,"root_column":5,"root_url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_route_read_boundaries_test.dart"},"type":"testStart","time":7175}
+{"testID":18,"messageType":"print","message":"live-probe: stored=ImOutboxState.acknowledged row=2 effective=0","type":"print","time":7233}
+{"testID":18,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7234}
+{"testID":20,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7480}
+{"test":{"id":21,"name":"concurrent initial opens share one route through failure and wait for pop","suiteID":4,"groupIDs":[19],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":20,"root_column":5,"root_url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_route_read_boundaries_test.dart"},"type":"testStart","time":7480}
+{"testID":21,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7513}
+{"test":{"id":22,"name":"concurrent initial opens share one route through timeout and wait for pop","suiteID":4,"groupIDs":[19],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":20,"root_column":5,"root_url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_route_read_boundaries_test.dart"},"type":"testStart","time":7513}
+{"testID":22,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7539}
+{"test":{"id":23,"name":"account generation change cancels pending push and releases reservation","suiteID":4,"groupIDs":[19],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":48,"root_column":3,"root_url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_route_read_boundaries_test.dart"},"type":"testStart","time":7539}
+{"testID":23,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7552}
+{"test":{"id":24,"name":"inclusive seconds cannot clear the unseen message sharing timestamp T","suiteID":4,"groupIDs":[19],"metadata":{"skip":false,"skipReason":null},"line":63,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_route_read_boundaries_test.dart"},"type":"testStart","time":7552}
+{"testID":24,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7554}
+{"test":{"id":25,"name":"read W1 acknowledgement preserves same-millisecond W2; retries classify and resume","suiteID":4,"groupIDs":[19],"metadata":{"skip":false,"skipReason":null},"line":74,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_route_read_boundaries_test.dart"},"type":"testStart","time":7554}
+{"testID":7,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":7562}
+{"group":{"id":26,"suiteID":6,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":4,"line":null,"column":null,"url":null},"type":"group","time":7562}
+{"test":{"id":27,"name":"page lifecycle without a watermark never invokes a full SDK clear","suiteID":6,"groupIDs":[26],"metadata":{"skip":false,"skipReason":null},"line":35,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/im09_read_authority_test.dart"},"type":"testStart","time":7562}
+{"testID":27,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7572}
+{"test":{"id":28,"name":"normalizes explicit C2C and group clears before the SDK authority call","suiteID":6,"groupIDs":[26],"metadata":{"skip":false,"skipReason":null},"line":44,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/im09_read_authority_test.dart"},"type":"testStart","time":7572}
+{"testID":28,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7574}
+{"test":{"id":29,"name":"rejects a successful SDK result that returns after account switch","suiteID":6,"groupIDs":[26],"metadata":{"skip":false,"skipReason":null},"line":69,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/im09_read_authority_test.dart"},"type":"testStart","time":7574}
+{"testID":29,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7576}
+{"test":{"id":30,"name":"read SDK mutations stay inside the authority and SDK implementation","suiteID":6,"groupIDs":[26],"metadata":{"skip":false,"skipReason":null},"line":94,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/im09_read_authority_test.dart"},"type":"testStart","time":7576}
+{"testID":25,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=37 created=true","type":"print","time":7624}
+{"testID":25,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=8.0 deltaMs=8.0 prev=message_core_db_open durationMs=46","type":"print","time":7630}
+{"testID":25,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7657}
+{"testID":30,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":7721}
+{"success":true,"type":"done","time":7753}

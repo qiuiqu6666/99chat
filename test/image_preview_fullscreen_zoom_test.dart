@@ -41,9 +41,15 @@ class _TestImageProvider extends ImageProvider<_TestImageProvider> {
       );
 }
 
+class _ProgressCompleter extends OneFrameImageStreamCompleter {
+  _ProgressCompleter(super.image);
+  void emitChunk(ImageChunkEvent event) => reportImageChunkEvent(event);
+}
+
 class _DelayedPreviewProvider extends ImageProvider<_DelayedPreviewProvider> {
   final ready = Completer<ImageInfo>();
   int loads = 0;
+  late _ProgressCompleter stream;
   @override
   Future<_DelayedPreviewProvider> obtainKey(ImageConfiguration configuration) =>
       SynchronousFuture(this);
@@ -51,7 +57,7 @@ class _DelayedPreviewProvider extends ImageProvider<_DelayedPreviewProvider> {
   ImageStreamCompleter loadImage(
       _DelayedPreviewProvider key, ImageDecoderCallback decode) {
     loads++;
-    return OneFrameImageStreamCompleter(ready.future);
+    return stream = _ProgressCompleter(ready.future);
   }
 }
 
@@ -217,6 +223,17 @@ void main() {
             // Away from the loading indicator, the landed thumbnail remains.
             expect(await _pixelAt(tester, boundary, 80, 300),
                 const Color(0xFFFF0000));
+            if (scenario == 'slow') {
+              for (final bytes in [25, 75, 100]) {
+                original.stream.emitChunk(ImageChunkEvent(
+                  cumulativeBytesLoaded: bytes, expectedTotalBytes: 100));
+                await tester.pump();
+                FlutterError.onError = errorHandler;
+                expect(tester.widget<ImagePreviewCenterLoadingIndicator>(
+                  find.byType(ImagePreviewCenterLoadingIndicator)).progress,
+                  bytes / 100);
+              }
+            }
             if (scenario == 'failed') {
               original.ready.completeError(StateError('original unavailable'));
             } else {

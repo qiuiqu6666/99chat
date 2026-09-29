@@ -1,4 +1,5 @@
 import 'package:tencent_cloud_chat_uikit/ui/utils/media_send_perf.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/sticker_preview_voice_scope.dart';
 import 'package:tencent_cloud_chat_demo/src/services/device_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/models/chat_attachment.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_attachment_service.dart';
@@ -6,6 +7,7 @@ import 'dart:io' show File;
 import 'package:flutter_plugin_record_plus/const/response.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/message_history_around_loader.dart';
 import 'dart:async';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 import 'package:tencent_cloud_chat_demo/src/services/sqflite_lifecycle_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/services/sqflite_lifecycle_host.dart';
 import 'dart:convert';
@@ -659,7 +661,15 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     if (_voiceAutoPlayOwner == this) _voiceAutoPlayOwner = null;
   }
 
-  /// Route exit/cover and conversation switches stop sound and pending work.
+  /// An in-chat media preview keeps the current voice and auto-play chain.
+  void onChatRouteCovered() {
+    if (globalModel.isMediaPreviewOverlayOpen || StickerPreviewVoiceScope.isOpen) {
+      return;
+    }
+    stopVoiceAutoPlay();
+  }
+
+  /// Route exit, ordinary cover and conversation switches stop pending work.
   void stopVoiceAutoPlay() {
     final ownsPlayback =
         _voiceAutoPlayOwner == this ||
@@ -858,7 +868,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     }
   }
 
-  void initForEachConversation(
+  Future<void> initForEachConversation(
     ConvType convType,
     String convID,
     ValueChanged<String>? onChangeInputField, {
@@ -866,7 +876,10 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     String? groupType,
     List<V2TimGroupMemberFullInfo?>? preGroupMemberList,
   }) async {
-    if (_isInit) {
+    if (_isInit &&
+        !_disposed &&
+        conversationID == _storageConversationId(convID) &&
+        conversationType == convType) {
       syncHaveMoreDataFromCachedHistory(
         mayHaveOlder: globalModel.mayHaveOlderHistory(conversationID),
       );
@@ -874,6 +887,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     }
     setInputField = onChangeInputField;
     conversationType = convType;
+    _groupID = null;
     _groupType = null;
     if (convType == ConvType.group) {
       final normalizedGroupType = groupType?.trim().toLowerCase();
@@ -887,6 +901,10 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     }
     // 消息列表 / hydrate / 归档一律用裸会话 ID（@TGS#…），勿带 group_。
     final previousConversationID = conversationID;
+    if (_isInit && previousConversationID != _storageConversationId(convID)) {
+      releaseCurrentConversation();
+      _historyWindowGeneration++;
+    }
     conversationID = _storageConversationId(convID);
     if (previousConversationID != conversationID) {
       _mediaCommitGuard.advanceConversation();
@@ -921,43 +939,6 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         'idMismatchRisk': idMismatchRisk,
       },
     );
-
-    // 暖窗写在 raw/group_ 桶、页面已收成裸 storageId：迁到 storage，避免假空。
-    if (idMismatchRisk) {
-      final aliasWindow = globalModel.rawMessageList(convID);
-      if (aliasWindow != null && aliasWindow.isNotEmpty) {
-        final historyIsCurrent = _historyPublicationFence();
-        final authoritative = await globalModel.applyHistoryWindowMutations(
-            conversationID, List<V2TimMessage>.from(aliasWindow));
-        if (!historyIsCurrent()) return;
-        final commit = globalModel.setMessageList(
-          conversationID,
-          authoritative,
-          needResetNewMessageCount: false,
-          replace: true,
-        );
-        globalModel.markInitialHistoryLoaded(conversationID);
-        final mayOlder = globalModel.mayHaveOlderHistory(convID) ||
-            aliasWindow.length >=
-                HistoryMessageDartConstant.initialOpenFetchCount;
-        globalModel.markInitialHistoryMayHaveOlder(
-          conversationID,
-          mayHaveOlder: mayOlder,
-        );
-        warmOnStorage = commit.rawCount;
-        ChatHistoryTrace.log(
-          'init_conv_migrate_alias_window',
-          conversationID: conversationID,
-          extras: <String, Object?>{
-            'fromKey': convID,
-            'toKey': conversationID,
-            'count': aliasWindow.length,
-            'mayHaveOlder': mayOlder,
-            'warmOnStorageAfter': warmOnStorage,
-          },
-        );
-      }
-    }
 
     if (globalModel.hasInitialHistoryLoaded(conversationID) &&
         globalModel.rawMessageCount(conversationID) > 0) {
@@ -1048,6 +1029,57 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     globalModel.removeRoamingSyncListener(_onRoamingSyncFinished);
     globalModel.addRoamingSyncListener(_onRoamingSyncFinished);
     _isInit = true;
+    ChatRecoveryTrace.log('visit_initialized',
+        conversationID: initConversationID,
+        fields: {'generation': initGeneration});
+    try {
+      // 暖窗写在 raw/group_ 桶、页面已收成裸 storageId：迁到 storage，避免假空。
+      if (idMismatchRisk) {
+        final aliasWindow = globalModel.rawMessageList(convID);
+        if (aliasWindow != null && aliasWindow.isNotEmpty) {
+          final historyIsCurrent = _historyPublicationFence();
+          final authoritative = await globalModel
+              .applyHistoryWindowMutations(
+                  conversationID, List<V2TimMessage>.from(aliasWindow))
+              .timeout(const Duration(seconds: 20));
+          if (!historyIsCurrent() ||
+              !_isChatGenerationCurrent(initGeneration, initConversationID))
+            return;
+          final commit = globalModel.setMessageList(
+            conversationID,
+            authoritative,
+            needResetNewMessageCount: false,
+            replace: true,
+          );
+          globalModel.markInitialHistoryLoaded(conversationID);
+          final mayOlder = globalModel.mayHaveOlderHistory(convID) ||
+              aliasWindow.length >=
+                  HistoryMessageDartConstant.initialOpenFetchCount;
+          globalModel.markInitialHistoryMayHaveOlder(
+            conversationID,
+            mayHaveOlder: mayOlder,
+          );
+          warmOnStorage = commit.rawCount;
+          ChatHistoryTrace.log(
+            'init_conv_migrate_alias_window',
+            conversationID: conversationID,
+            extras: <String, Object?>{
+              'fromKey': convID,
+              'toKey': conversationID,
+              'count': aliasWindow.length,
+              'mayHaveOlder': mayOlder,
+              'warmOnStorageAfter': warmOnStorage,
+            },
+          );
+        }
+      }
+    } catch (error) {
+      // Alias hydration is optional; a disk failure must not leave the page
+      // half initialized or escape an async constructor call.
+      ChatRecoveryTrace.log('visit_alias_failed',
+          conversationID: initConversationID,
+          fields: {'errorType': error.runtimeType});
+    }
   }
 
   /// Runs profile/member work only after the host chat reaches Interactive.
@@ -1916,7 +1948,8 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
             globalModel.isHistoryWindowScopeCurrent(returnScope));
     Future<bool> reload() async {
       final deferredWatermark =
-          await globalModel.beginHistoryWindowReturnToLatest(conversationID);
+          await globalModel.beginHistoryWindowReturnToLatest(conversationID,
+              isCurrent: returnIsCurrent);
       if (!returnIsCurrent()) return false;
       final fetchCount = count ?? HistoryMessageDartConstant.getCount;
       ChatHistoryTrace.log(
@@ -1971,10 +2004,11 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           // Authoritative deletions need no viewport and must not be replayed.
           await globalModel.acknowledgeHistoryWindowReturnToLatest(
               conversationID, deferredWatermark,
-              onlyIfAuthoritativelyDeleted: true);
+              onlyIfAuthoritativelyDeleted: true, isCurrent: returnIsCurrent);
           if (!returnIsCurrent()) return false;
-          await globalModel.resetHistoryWindowAfterLatest(conversationID);
-          if (!returnOwnerIsCurrent() ||
+          await globalModel.resetHistoryWindowAfterLatest(conversationID,
+              isCurrent: returnIsCurrent);
+          if (finished || !returnOwnerIsCurrent() ||
               conversationID != returnConversation ||
               _historyWindowGeneration != returnGeneration) return false;
           _pagination.resetCommunityCursor();
@@ -2021,8 +2055,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       return ok;
     }
 
-    Future<bool> cancel() async {
-      await cancelWhen;
+    bool invalidateReturn() {
       // Invalidate the publication fence before releasing the caller. Native
       // IO may finish later; it must not install an obsolete window or ACK it.
       if (!finished && !_disposed && returnOwnerIsCurrent() &&
@@ -2036,11 +2069,24 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       return false;
     }
 
+    Future<bool> cancel() async {
+      try {
+        await cancelWhen;
+      } catch (_) {
+        // A failed cancellation signal still ends this UI-owned request.
+      }
+      return invalidateReturn();
+    }
+
     try {
       return await Future.any<bool>([
         reload(),
         if (cancelWhen != null) cancel(),
-      ]);
+      ]).timeout(const Duration(seconds: 20), onTimeout: () {
+        ChatRecoveryTrace.log('latest_reload_timeout',
+            conversationID: returnConversation);
+        return invalidateReturn();
+      });
     } finally {
       finished = true;
     }
@@ -2060,8 +2106,11 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     String? lastMsgID,
     int lastMsgSeq = -1,
     bool scheduleWindowReconcile = true,
+    bool Function()? requestIsCurrent,
   }) async {
-    final historyIsCurrent = _historyPublicationFence();
+    final publicationFence = _historyPublicationFence();
+    bool historyIsCurrent() =>
+        publicationFence() && (requestIsCurrent?.call() ?? true);
     // K.1：首屏动态 count
     // 当宿主注入了 entryUnreadCount 时，按 unreadHint + 缓冲扩拉，避免首屏只见 20 条最新。
     final baseCount = count ?? HistoryMessageDartConstant.initialOpenFetchCount;
@@ -2794,306 +2843,318 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     List<Duration>? retryDelays,
     bool plainOpen = false,
   }) async {
-    final historyIsCurrent = _historyPublicationFence();
-    final fetchCount =
-        count ?? HistoryMessageDartConstant.initialOpenFetchCount;
-    final storageId = _storageConversationId(conversationID);
-    final groupPrefixed = storageId.isEmpty ? '' : 'group_$storageId';
+    final publicationFence = _historyPublicationFence();
+    var active = true;
+    bool historyIsCurrent() => active && publicationFence();
+    final requestConversation = conversationID;
+    final requestKey = ChatRecoveryTrace.nextOperation('hydrate');
+    try {
+      final fetchCount =
+          count ?? HistoryMessageDartConstant.initialOpenFetchCount;
+      final storageId = _storageConversationId(conversationID);
+      final groupPrefixed = storageId.isEmpty ? '' : 'group_$storageId';
 
-    if (plainOpen) {
-      await globalModel.awaitOpenHydrateInFlight(
-        conversationID,
-        timeout: const Duration(milliseconds: 900),
-      );
-      if (globalModel.hasOpenHydrateInFlight(conversationID)) {
-        // The app-owned open bootstrap remains the sole first-window owner.
-        // Waiting timed out only for this caller; it did not cancel the
-        // native SDK request, so starting LOCAL/CLOUD here would create a
-        // second logical owner and can poison the C2C history lane.
-        ChatHistoryTrace.log(
-          'hydrate_defer_open_hydrate_inflight',
-          conversationID: conversationID,
+      if (plainOpen) {
+        await globalModel.awaitOpenHydrateInFlight(
+          conversationID,
+          timeout: const Duration(milliseconds: 900),
         );
-        return false;
-      }
-    }
-
-    if (!await _refreshCurrentHistoryFacts(historyIsCurrent)) return false;
-    final warmCount = globalModel.rawMessageCount(conversationID);
-    final warmLoaded = globalModel.hasInitialHistoryLoaded(conversationID);
-    if (usesOfficialSdkHistory) {
-      final aliasCount =
-          globalModel.mergedAliasMessageList(conversationID).length;
-      if (aliasCount > fetchCount) {
-        globalModel.markInitialHistoryLoaded(conversationID);
-        syncHaveMoreDataFromCachedHistory(
-          mayHaveOlder: globalModel.mayHaveOlderHistory(conversationID) ||
-              aliasCount > fetchCount,
-        );
-        haveMoreData = true;
-        ChatHistoryTrace.log(
-          'hydrate_keep_c2c_sdk_window',
-          conversationID: conversationID,
-          extras: <String, Object?>{
-            'aliasCount': aliasCount,
-            'fetchCount': fetchCount,
-          },
-        );
-        return true;
-      }
-    }
-
-    if (plainOpen &&
-        WebChatOpenPolicy.canSkipHydrateRefetch(
-          globalModel: globalModel,
-          conversationKey: conversationID,
-          preview: _conversationLastMessageHint(),
-        )) {
-      syncHaveMoreDataFromCachedHistory(
-        mayHaveOlder: globalModel.mayHaveOlderHistory(conversationID) ||
-            warmCount >= fetchCount,
-      );
-      ChatHistoryTrace.log(
-        'hydrate_web_skip_refetch',
-        conversationID: conversationID,
-        extras: <String, Object?>{
-          'warmCount': warmCount,
-          'warmLoaded': warmLoaded,
-        },
-      );
-      return true;
-    }
-
-    final warmCountBare = storageId == conversationID
-        ? warmCount
-        : globalModel.rawMessageCount(storageId);
-    final warmCountGroup =
-        groupPrefixed.isEmpty ? 0 : globalModel.rawMessageCount(groupPrefixed);
-    final warmLoadedBare = storageId == conversationID
-        ? warmLoaded
-        : globalModel.hasInitialHistoryLoaded(storageId);
-    final warmLoadedGroup = groupPrefixed.isEmpty
-        ? false
-        : globalModel.hasInitialHistoryLoaded(groupPrefixed);
-
-    ChatHistoryTrace.log(
-      'hydrate_enter',
-      conversationID: conversationID,
-      extras: <String, Object?>{
-        'plainOpen': plainOpen,
-        'storageId': storageId,
-        'fetchCount': fetchCount,
-        'warmCount': warmCount,
-        'warmLoaded': warmLoaded,
-        'warmCountBare': warmCountBare,
-        'warmLoadedBare': warmLoadedBare,
-        'warmCountGroup': warmCountGroup,
-        'warmLoadedGroup': warmLoadedGroup,
-        'mayHaveOlder': globalModel.mayHaveOlderHistory(conversationID),
-        ...ChatHistoryTrace.windowSummary(
-          globalModel.messageListMap[conversationID] ??
-              globalModel.messageListMap[storageId],
-          prefix: 'warm',
-        ),
-      },
-    );
-
-    // 仅跳过「已确认空会话」，避免空列表转圈。
-    // 冷开并行 peek 仍在飞时绝不能 keep-empty，否则会把稍后注入的暖窗挡掉。
-    // 别名桶仍有消息 / 列表预览有非 tip 证据 / 清空宽限期 → 禁止假确认空。
-    if (plainOpen &&
-        warmLoaded &&
-        warmCount == 0 &&
-        !globalModel.mayHaveOlderHistory(conversationID) &&
-        !globalModel.hasOpenHydrateInFlight(conversationID)) {
-      final previewHint = _conversationLastMessageHint();
-      final hasNonTipPreview = previewHint != null &&
-          !HistoryPaginationAnchor.isLocalInjectedMessage(previewHint) &&
-          !ConversationPreviewHistorySync.isSyntheticLocalMessage(previewHint);
-      final inClearGrace =
-          ArchiveHistoryProvider.isInHistoryClearGrace(conversationID) ||
-              ArchiveHistoryProvider.isInHistoryClearGrace(storageId) ||
-              (groupPrefixed.isNotEmpty &&
-                  ArchiveHistoryProvider.isInHistoryClearGrace(groupPrefixed));
-      final rejectReason = hydrateKeepEmptyRejectReason(
-        warmCountBare: warmCountBare,
-        warmCountGroup: warmCountGroup,
-        hasNonTipPreviewEvidence: hasNonTipPreview,
-        inClearGrace: inClearGrace,
-      );
-      if (rejectReason != null) {
-        ChatHistoryTrace.log(
-          'hydrate_reject_keep_empty',
-          conversationID: conversationID,
-          extras: <String, Object?>{
-            'reason': rejectReason,
-            'warmCountBare': warmCountBare,
-            'warmCountGroup': warmCountGroup,
-            'hasNonTipPreview': hasNonTipPreview,
-            'inClearGrace': inClearGrace,
-          },
-        );
-      } else {
-        syncHaveMoreDataFromCachedHistory(mayHaveOlder: false);
-        ChatHistoryTrace.log(
-          'hydrate_keep_empty_confirmed',
-          conversationID: conversationID,
-        );
-        return true;
-      }
-    }
-
-    // 进页 bootstrap 已灌入 peek 暖窗：禁止再被「空 SDK + 旧归档」整窗替换。
-    // 例外：暖窗几乎全是过期归档（SDK 空时被错灌）——必须剥掉并继续 refetch。
-    // 必须用 alias-aware rawMessageList：messageListMap[字面 key] 为空时
-    // 会把「别名上的真实暖窗」误判成 tip-only 并写成空 list → 灰屏。
-    final warmList = globalModel.rawMessageList(conversationID);
-    final staleArchiveWarm = plainOpen &&
-        warmCount > 0 &&
-        HistoryPaginationAnchor.isStaleArchiveDominatedWindow(warmList);
-    final alignedWarmWindow = plainOpen &&
-        ConversationPreviewHistorySync.canSkipOpenRebootstrap(
-          globalModel: globalModel,
-          conversationKey: conversationID,
-          preview: _conversationLastMessageHint(),
-        );
-    // 进页已有完整暖窗：keep 即返回，禁止二次 peek replace 扩 len。
-    // 未灌满的短窗（列表预热几条）必须继续 refetch，避免先贴底再补页。
-    if (plainOpen && alignedWarmWindow && warmCount > 0 && !staleArchiveWarm) {
-      final warmHasSdk =
-          HistoryPaginationAnchor.oldestSdkPaginationAnchor(warmList) != null;
-      final warmOnlyTipsOrEmpty = !warmHasSdk &&
-          !(warmList?.any(HistoryPaginationAnchor.isArchiveHistoryMessage) ??
-              false);
-      final keptShortWindow = warmCount < fetchCount;
-      if (warmOnlyTipsOrEmpty) {
-        // tip 空会话：清掉历史 tip 铺满，禁止上拉归档。
-        if (warmCount > 0) {
-          globalModel.clearLocalHistoryAsEmptyLoaded(conversationID);
+        if (globalModel.hasOpenHydrateInFlight(conversationID)) {
+          // The app-owned open bootstrap remains the sole first-window owner.
+          // Waiting timed out only for this caller; it did not cancel the
+          // native SDK request, so starting LOCAL/CLOUD here would create a
+          // second logical owner and can poison the C2C history lane.
           ChatHistoryTrace.log(
-            'hydrate_strip_tip_only_empty',
+            'hydrate_defer_open_hydrate_inflight',
+            conversationID: conversationID,
+          );
+          return false;
+        }
+      }
+
+      if (!await _refreshCurrentHistoryFacts(historyIsCurrent)
+          .timeout(const Duration(seconds: 20))) return false;
+      final warmCount = globalModel.rawMessageCount(conversationID);
+      final warmLoaded = globalModel.hasInitialHistoryLoaded(conversationID);
+      if (usesOfficialSdkHistory) {
+        final aliasCount =
+            globalModel.mergedAliasMessageList(conversationID).length;
+        if (aliasCount > fetchCount) {
+          globalModel.markInitialHistoryLoaded(conversationID);
+          syncHaveMoreDataFromCachedHistory(
+            mayHaveOlder: globalModel.mayHaveOlderHistory(conversationID) ||
+                aliasCount > fetchCount,
+          );
+          haveMoreData = true;
+          ChatHistoryTrace.log(
+            'hydrate_keep_c2c_sdk_window',
             conversationID: conversationID,
             extras: <String, Object?>{
-              'beforeCount': warmCount,
-              ...ChatHistoryTrace.windowSummary(warmList, prefix: 'stripped'),
+              'aliasCount': aliasCount,
+              'fetchCount': fetchCount,
             },
           );
+          return true;
         }
-        _suppressArchiveUntilSdkHistory = true;
-        haveMoreData = false;
-        globalModel.markInitialHistoryMayHaveOlder(
-          conversationID,
-          mayHaveOlder: false,
-        );
-      } else {
-        globalModel.markInitialHistoryLoaded(conversationID);
-        final mayHaveOlder = globalModel.mayHaveOlderHistory(conversationID) ||
-            keptShortWindow ||
-            warmCount >= fetchCount;
-        syncHaveMoreDataFromCachedHistory(mayHaveOlder: mayHaveOlder);
-        haveMoreData = haveMoreData || mayHaveOlder;
       }
+
+      if (plainOpen &&
+          WebChatOpenPolicy.canSkipHydrateRefetch(
+            globalModel: globalModel,
+            conversationKey: conversationID,
+            preview: _conversationLastMessageHint(),
+          )) {
+        syncHaveMoreDataFromCachedHistory(
+          mayHaveOlder: globalModel.mayHaveOlderHistory(conversationID) ||
+              warmCount >= fetchCount,
+        );
+        ChatHistoryTrace.log(
+          'hydrate_web_skip_refetch',
+          conversationID: conversationID,
+          extras: <String, Object?>{
+            'warmCount': warmCount,
+            'warmLoaded': warmLoaded,
+          },
+        );
+        return true;
+      }
+
+      final warmCountBare = storageId == conversationID
+          ? warmCount
+          : globalModel.rawMessageCount(storageId);
+      final warmCountGroup = groupPrefixed.isEmpty
+          ? 0
+          : globalModel.rawMessageCount(groupPrefixed);
+      final warmLoadedBare = storageId == conversationID
+          ? warmLoaded
+          : globalModel.hasInitialHistoryLoaded(storageId);
+      final warmLoadedGroup = groupPrefixed.isEmpty
+          ? false
+          : globalModel.hasInitialHistoryLoaded(groupPrefixed);
+
       ChatHistoryTrace.log(
-        'hydrate_keep_warm_peek',
+        'hydrate_enter',
         conversationID: conversationID,
         extras: <String, Object?>{
-          'warmCount': warmCount,
+          'plainOpen': plainOpen,
+          'storageId': storageId,
           'fetchCount': fetchCount,
-          'keptShortWindow': keptShortWindow,
-          'haveMoreData': haveMoreData,
-          'warmHasSdk': warmHasSdk,
-          'suppressArchive': _suppressArchiveUntilSdkHistory,
-          ...ChatHistoryTrace.windowSummary(warmList, prefix: 'kept'),
+          'warmCount': warmCount,
+          'warmLoaded': warmLoaded,
+          'warmCountBare': warmCountBare,
+          'warmLoadedBare': warmLoadedBare,
+          'warmCountGroup': warmCountGroup,
+          'warmLoadedGroup': warmLoadedGroup,
+          'mayHaveOlder': globalModel.mayHaveOlderHistory(conversationID),
+          ...ChatHistoryTrace.windowSummary(
+            globalModel.messageListMap[conversationID] ??
+                globalModel.messageListMap[storageId],
+            prefix: 'warm',
+          ),
         },
       );
-      return true;
-    }
-    if (staleArchiveWarm) {
-      // 不在此处立即剥离：列表已在屏上时先塌成几条再被 refetch 弹回
-      //（如 60→3→62），就是进页肉眼可见的抖动。改为延迟处理：
-      // refetch 拉到新窗后用 peek-window replace 一次性换掉过期归档；
-      // 全部拉空才在收尾兜底剥离。
+
+      // 仅跳过「已确认空会话」，避免空列表转圈。
+      // 冷开并行 peek 仍在飞时绝不能 keep-empty，否则会把稍后注入的暖窗挡掉。
+      // 别名桶仍有消息 / 列表预览有非 tip 证据 / 清空宽限期 → 禁止假确认空。
+      if (plainOpen &&
+          warmLoaded &&
+          warmCount == 0 &&
+          !globalModel.mayHaveOlderHistory(conversationID) &&
+          !globalModel.hasOpenHydrateInFlight(conversationID)) {
+        final previewHint = _conversationLastMessageHint();
+        final hasNonTipPreview = previewHint != null &&
+            !HistoryPaginationAnchor.isLocalInjectedMessage(previewHint) &&
+            !ConversationPreviewHistorySync.isSyntheticLocalMessage(
+                previewHint);
+        final inClearGrace = ArchiveHistoryProvider.isInHistoryClearGrace(
+                conversationID) ||
+            ArchiveHistoryProvider.isInHistoryClearGrace(storageId) ||
+            (groupPrefixed.isNotEmpty &&
+                ArchiveHistoryProvider.isInHistoryClearGrace(groupPrefixed));
+        final rejectReason = hydrateKeepEmptyRejectReason(
+          warmCountBare: warmCountBare,
+          warmCountGroup: warmCountGroup,
+          hasNonTipPreviewEvidence: hasNonTipPreview,
+          inClearGrace: inClearGrace,
+        );
+        if (rejectReason != null) {
+          ChatHistoryTrace.log(
+            'hydrate_reject_keep_empty',
+            conversationID: conversationID,
+            extras: <String, Object?>{
+              'reason': rejectReason,
+              'warmCountBare': warmCountBare,
+              'warmCountGroup': warmCountGroup,
+              'hasNonTipPreview': hasNonTipPreview,
+              'inClearGrace': inClearGrace,
+            },
+          );
+        } else {
+          syncHaveMoreDataFromCachedHistory(mayHaveOlder: false);
+          ChatHistoryTrace.log(
+            'hydrate_keep_empty_confirmed',
+            conversationID: conversationID,
+          );
+          return true;
+        }
+      }
+
+      // 进页 bootstrap 已灌入 peek 暖窗：禁止再被「空 SDK + 旧归档」整窗替换。
+      // 例外：暖窗几乎全是过期归档（SDK 空时被错灌）——必须剥掉并继续 refetch。
+      // 必须用 alias-aware rawMessageList：messageListMap[字面 key] 为空时
+      // 会把「别名上的真实暖窗」误判成 tip-only 并写成空 list → 灰屏。
+      final warmList = globalModel.rawMessageList(conversationID);
+      final staleArchiveWarm = plainOpen &&
+          warmCount > 0 &&
+          HistoryPaginationAnchor.isStaleArchiveDominatedWindow(warmList);
+      final alignedWarmWindow = plainOpen &&
+          ConversationPreviewHistorySync.canSkipOpenRebootstrap(
+            globalModel: globalModel,
+            conversationKey: conversationID,
+            preview: _conversationLastMessageHint(),
+          );
+      // 进页已有完整暖窗：keep 即返回，禁止二次 peek replace 扩 len。
+      // 未灌满的短窗（列表预热几条）必须继续 refetch，避免先贴底再补页。
+      if (plainOpen &&
+          alignedWarmWindow &&
+          warmCount > 0 &&
+          !staleArchiveWarm) {
+        final warmHasSdk =
+            HistoryPaginationAnchor.oldestSdkPaginationAnchor(warmList) != null;
+        final warmOnlyTipsOrEmpty = !warmHasSdk &&
+            !(warmList?.any(HistoryPaginationAnchor.isArchiveHistoryMessage) ??
+                false);
+        final keptShortWindow = warmCount < fetchCount;
+        if (warmOnlyTipsOrEmpty) {
+          // tip 空会话：清掉历史 tip 铺满，禁止上拉归档。
+          if (warmCount > 0) {
+            globalModel.clearLocalHistoryAsEmptyLoaded(conversationID);
+            ChatHistoryTrace.log(
+              'hydrate_strip_tip_only_empty',
+              conversationID: conversationID,
+              extras: <String, Object?>{
+                'beforeCount': warmCount,
+                ...ChatHistoryTrace.windowSummary(warmList, prefix: 'stripped'),
+              },
+            );
+          }
+          _suppressArchiveUntilSdkHistory = true;
+          haveMoreData = false;
+          globalModel.markInitialHistoryMayHaveOlder(
+            conversationID,
+            mayHaveOlder: false,
+          );
+        } else {
+          globalModel.markInitialHistoryLoaded(conversationID);
+          final mayHaveOlder =
+              globalModel.mayHaveOlderHistory(conversationID) ||
+                  keptShortWindow ||
+                  warmCount >= fetchCount;
+          syncHaveMoreDataFromCachedHistory(mayHaveOlder: mayHaveOlder);
+          haveMoreData = haveMoreData || mayHaveOlder;
+        }
+        ChatHistoryTrace.log(
+          'hydrate_keep_warm_peek',
+          conversationID: conversationID,
+          extras: <String, Object?>{
+            'warmCount': warmCount,
+            'fetchCount': fetchCount,
+            'keptShortWindow': keptShortWindow,
+            'haveMoreData': haveMoreData,
+            'warmHasSdk': warmHasSdk,
+            'suppressArchive': _suppressArchiveUntilSdkHistory,
+            ...ChatHistoryTrace.windowSummary(warmList, prefix: 'kept'),
+          },
+        );
+        return true;
+      }
+      if (staleArchiveWarm) {
+        // 不在此处立即剥离：列表已在屏上时先塌成几条再被 refetch 弹回
+        //（如 60→3→62），就是进页肉眼可见的抖动。改为延迟处理：
+        // refetch 拉到新窗后用 peek-window replace 一次性换掉过期归档；
+        // 全部拉空才在收尾兜底剥离。
+        ChatHistoryTrace.log(
+          'hydrate_defer_stale_archive_strip',
+          conversationID: conversationID,
+          extras: <String, Object?>{
+            'warmCount': warmCount,
+            ...ChatHistoryTrace.windowSummary(warmList, prefix: 'warm'),
+          },
+        );
+      }
+
       ChatHistoryTrace.log(
-        'hydrate_defer_stale_archive_strip',
+        'hydrate_will_refetch',
         conversationID: conversationID,
         extras: <String, Object?>{
-          'warmCount': warmCount,
-          ...ChatHistoryTrace.windowSummary(warmList, prefix: 'warm'),
+          'reason': !plainOpen
+              ? 'not_plain_open'
+              : staleArchiveWarm
+                  ? 'stale_archive_warm'
+                  : !warmLoaded
+                      ? 'warm_not_loaded'
+                      : warmCount <= 0
+                          ? 'warm_empty'
+                          : 'unknown',
+          'hintAliasMismatch':
+              warmCount <= 0 && (warmCountBare > 0 || warmCountGroup > 0),
         },
       );
-    }
 
-    ChatHistoryTrace.log(
-      'hydrate_will_refetch',
-      conversationID: conversationID,
-      extras: <String, Object?>{
-        'reason': !plainOpen
-            ? 'not_plain_open'
-            : staleArchiveWarm
-                ? 'stale_archive_warm'
-                : !warmLoaded
-                    ? 'warm_not_loaded'
-                    : warmCount <= 0
-                        ? 'warm_empty'
-                        : 'unknown',
-        'hintAliasMismatch':
-            warmCount <= 0 && (warmCountBare > 0 || warmCountGroup > 0),
-      },
-    );
+      // 刚清空宽限期内：避免多轮空拉转圈；若内存已有清空后新消息则直接用，
+      // 内存仍为空则继续走下面单次 peek，避免漏掉宽限期内到达的新消息。
+      if (plainOpen &&
+          ArchiveHistoryProvider.isInHistoryClearGrace(conversationID) &&
+          globalModel.hasInitialHistoryLoaded(conversationID) &&
+          globalModel.rawMessageCount(conversationID) > 0) {
+        final existing = globalModel.messageListMap[conversationID] ??
+            const <V2TimMessage>[];
+        final kept =
+            await ArchiveHistoryProvider.filterMessagesAfterHistoryClear(
+          conversationID: conversationID,
+          messages: existing,
+        ).timeout(const Duration(seconds: 20));
+        final authoritative = await globalModel
+            .applyHistoryWindowMutations(conversationID, kept)
+            .timeout(const Duration(seconds: 20));
+        if (!historyIsCurrent()) return false;
+        globalModel.setMessageList(
+          conversationID,
+          authoritative,
+          needResetNewMessageCount: false,
+          replace: true,
+        );
+        syncHaveMoreDataFromCachedHistory(
+          mayHaveOlder: globalModel.mayHaveOlderHistory(conversationID),
+        );
+        return true;
+      }
 
-    // 刚清空宽限期内：避免多轮空拉转圈；若内存已有清空后新消息则直接用，
-    // 内存仍为空则继续走下面单次 peek，避免漏掉宽限期内到达的新消息。
-    if (plainOpen &&
-        ArchiveHistoryProvider.isInHistoryClearGrace(conversationID) &&
-        globalModel.hasInitialHistoryLoaded(conversationID) &&
-        globalModel.rawMessageCount(conversationID) > 0) {
-      final existing =
-          globalModel.messageListMap[conversationID] ?? const <V2TimMessage>[];
-      final kept = await ArchiveHistoryProvider.filterMessagesAfterHistoryClear(
-        conversationID: conversationID,
-        messages: existing,
-      );
-      final authoritative =
-          await globalModel.applyHistoryWindowMutations(conversationID, kept);
-      if (!historyIsCurrent()) return false;
-      globalModel.setMessageList(
+      final clearedAt = await ArchiveHistoryProvider.historyClearedAtMs(
         conversationID,
-        authoritative,
-        needResetNewMessageCount: false,
-        replace: true,
-      );
-      syncHaveMoreDataFromCachedHistory(
-        mayHaveOlder: globalModel.mayHaveOlderHistory(conversationID),
-      );
-      return true;
-    }
-
-    final clearedAt = await ArchiveHistoryProvider.historyClearedAtMs(
-      conversationID,
-    );
-    final delays = retryDelays ??
-        (clearedAt > 0
-            ? const <Duration>[Duration.zero]
-            : (plainOpen
-                ? const <Duration>[
-                    Duration.zero,
-                    Duration(milliseconds: 150),
-                    Duration(milliseconds: 400),
-                  ]
-                : const <Duration>[
-                    Duration.zero,
-                    Duration(milliseconds: 350),
-                    Duration(milliseconds: 900),
-                    Duration(milliseconds: 1800),
-                  ]));
-    final requestKey = 'peek_hydrate_$conversationID';
-    _historyLoadingKeys.add(requestKey);
-    if (_historyLoadingKeys.length == 1) {
-      _notify();
-    }
-    var committedDuringRefetch = false;
-    String? committedBatchSignature;
-    try {
+      ).timeout(const Duration(seconds: 20));
+      final delays = retryDelays ??
+          (clearedAt > 0
+              ? const <Duration>[Duration.zero]
+              : (plainOpen
+                  ? const <Duration>[
+                      Duration.zero,
+                      Duration(milliseconds: 150),
+                      Duration(milliseconds: 400),
+                    ]
+                  : const <Duration>[
+                      Duration.zero,
+                      Duration(milliseconds: 350),
+                      Duration(milliseconds: 900),
+                      Duration(milliseconds: 1800),
+                    ]));
+      _historyLoadingKeys.add(requestKey);
+      if (_historyLoadingKeys.length == 1) {
+        _notify();
+      }
+      var committedDuringRefetch = false;
+      String? committedBatchSignature;
       for (final delay in delays) {
         if (delay > Duration.zero) {
           await Future<void>.delayed(delay);
@@ -3116,7 +3177,9 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           );
           return committedDuringRefetch;
         }
-        final messages = await loadHistoryPeekStyle(count: fetchCount);
+        final messages = await loadHistoryPeekStyle(
+                count: fetchCount, requestIsCurrent: historyIsCurrent)
+            .timeout(const Duration(seconds: 20));
         if (!historyIsCurrent()) return false;
         if (_disposed) {
           ChatHistoryTrace.log(
@@ -3192,7 +3255,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           mayHaveOlder: mayOlder,
           replaceWithPeekWindow: true,
           requestIsCurrent: historyIsCurrent,
-        )) return false;
+        ).timeout(const Duration(seconds: 20))) return false;
         if (usesOfficialSdkHistory || conversationType == ConvType.group) {
           _rememberSdkOlderPage(messages);
         }
@@ -3236,8 +3299,9 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         final stripped = HistoryPaginationAnchor.withoutArchiveHistory(
           remainingWarm,
         );
-        final authoritative = await globalModel.applyHistoryWindowMutations(
-            conversationID, stripped);
+        final authoritative = await globalModel
+            .applyHistoryWindowMutations(conversationID, stripped)
+            .timeout(const Duration(seconds: 20));
         if (!historyIsCurrent()) return false;
         globalModel.setMessageList(
           conversationID,
@@ -3284,7 +3348,14 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         // clearedAt 标记已由上方 suppress 处理。
       }
       return false;
+    } catch (error) {
+      ChatRecoveryTrace.log('hydrate_failed',
+          conversationID: requestConversation,
+          operation: requestKey,
+          fields: {'errorType': error.runtimeType});
+      return false;
     } finally {
+      active = false;
       _historyLoadingKeys.remove(requestKey);
       if (_historyLoadingKeys.isEmpty) {
         _notify();
@@ -6717,6 +6788,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     int? durationMs,
     int? width,
     int? height,
+    VoidCallback? onDurablyAccepted,
   }) async {
     if (inputElement != null || path == null || path.isEmpty) return false;
     final attachments = ChatAttachmentService.instance;
@@ -6732,6 +6804,9 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     var handedOff = false;
     void onQueued() {
       handedOff = true;
+      try {
+        onDurablyAccepted?.call();
+      } catch (_) {}
       if (!canSendCapturedMedia) return;
       if (existingOptimisticId != null) {
         if (nativeKind == 'video') {
@@ -6771,6 +6846,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     String? existingOptimisticId,
     String? batchId,
     int? batchIndex,
+    VoidCallback? onDurablyAccepted,
   }) async {
     if (!_isDetachedMediaSender) {
       return captureMediaSender(convID: convID, convType: convType)
@@ -6785,6 +6861,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         existingOptimisticId: existingOptimisticId,
         batchId: batchId,
         batchIndex: batchIndex,
+        onDurablyAccepted: onDurablyAccepted,
       );
     }
     // Publish the local row before any file probe, copy or backend routing.
@@ -6810,6 +6887,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           convID: convID, convType: convType, inputElement: inputElement,
           batchId: batchId, batchIndex: batchIndex,
           name: imageName, width: imageWidth, height: imageHeight,
+          onDurablyAccepted: onDurablyAccepted,
           existingOptimisticId: existingOptimisticId)) {
         perfOutcome = 'backend_attachment';
         return null;
@@ -7023,6 +7101,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           effectiveConvType,
         ),
         preserveTargetGroupID: true,
+        onDispatchGranted: onDurablyAccepted,
       );
       // Auxiliary photo staging must not delay SDK submission or compete with
       // the first bubble frame. The service guards account changes and failures.
@@ -7072,6 +7151,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     required ConvType convType,
     dynamic inputElement,
     String? existingOptimisticId,
+    VoidCallback? onDurablyAccepted,
   }) async {
     if (!_isDetachedMediaSender) {
       return captureMediaSender(convID: convID, convType: convType)
@@ -7083,6 +7163,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         convType: convType,
         inputElement: inputElement,
         existingOptimisticId: existingOptimisticId,
+        onDurablyAccepted: onDurablyAccepted,
       );
     }
     final perf = MediaSendPerf.begin(existingOptimisticId);
@@ -7093,6 +7174,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       if (await _trySendBackendAttachment(path: videoPath, nativeKind: 'video',
           convID: convID, convType: convType, inputElement: inputElement,
           snapshotPath: snapshotPath, durationMs: duration == null ? null : duration * 1000,
+          onDurablyAccepted: onDurablyAccepted,
           existingOptimisticId: existingOptimisticId)) {
         outcome = 'backend_attachment';
         return null;
@@ -7229,6 +7311,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           effectiveConvType,
         ),
         preserveTargetGroupID: true,
+        onDispatchGranted: onDurablyAccepted,
       );
       outcome = result.code == 0 ? 'success' : 'failed_or_unknown';
       return result;
@@ -7602,6 +7685,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     required bool Function() canResend,
   }) async {
 
+
     if (isWalletCardMessage(message)) {
       serviceLocator<CoreServicesImpl>().callOnCallback(
         TIMCallback(
@@ -7793,7 +7877,9 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     required List<V2TimMessage> messages,
     required bool Function() ownsProjection,
   }) async {
-    while (ownsProjection()) {
+    // The enclosing command worker owns the UI deadline. Never time out a
+    // physical read here and overlap it with a second read on foreground.
+    for (var attempt = 0; attempt < 2 && ownsProjection(); attempt++) {
       await SqfliteLifecycleHost.waitUntilWritesAllowed();
       if (!ownsProjection()) return null;
       try {
@@ -7808,10 +7894,33 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         // while this owner's optimistic warm row still needs correction.
         // Reacquire a read scope; owner/clear and row identity remain fenced.
         if (!ownsProjection()) return null;
+        await Future<void>.delayed(const Duration(milliseconds: 80));
         continue;
+      } catch (error) {
+        if (!ownsProjection()) return null;
+        ChatRecoveryTrace.log('mutation_projection_retry',
+            conversationID: targetConv,
+            fields: {'errorType': error.runtimeType});
+        if (attempt == 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
       }
     }
     return null;
+  }
+
+  Future<void> _runBoundedHistoryProjection(
+      String targetConv, Future<void> Function() work) async {
+    // Timeout ends the command's UI wait, never the retained actual task.
+    // Its late errors remain observed and its body rechecks projection proof.
+    final actual = Future<void>.sync(work).catchError((Object error) {
+      ChatRecoveryTrace.log('mutation_projection_exhausted',
+          conversationID: targetConv, fields: {'errorType': error.runtimeType});
+    });
+    await actual.timeout(const Duration(seconds: 2), onTimeout: () {
+      ChatRecoveryTrace.log('mutation_projection_deferred',
+          conversationID: targetConv);
+    });
   }
 
   deleteMsg(String msgID, {String? id, Object? webMessageInstance}) async {
@@ -7839,25 +7948,38 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       }
     }
     final mutationScope = globalModel.historyWindowScopeFor(conversationID);
-    final mutationToken = await globalModel.recordHistoryWindowMutation(
-        conversationID: conversationID,
-        msgID: msgID,
-        kind: HistoryWindowMutationKind.delete,
-        message: removed.isEmpty ? null : removed.first,
-        pending: true);
+    String? mutationToken;
+    try {
+      mutationToken = await globalModel.recordHistoryWindowMutation(
+          conversationID: conversationID,
+          msgID: msgID,
+          kind: HistoryWindowMutationKind.delete,
+          message: removed.isEmpty ? null : removed.first,
+          pending: true);
+    } catch (error) {
+      ChatRecoveryTrace.log('delete_preparation_failed',
+          conversationID: conversationID,
+          messageID: msgID,
+          fields: {'errorType': error.runtimeType});
+      return;
+    }
     if (!_isHistoryMutationScopeCurrent(mutationScope)) {
-      try {
-        if (mutationToken != null)
-          await globalModel.recordHistoryWindowMutation(
-              conversationID: mutationScope!.conversationID,
-              msgID: msgID,
-              kind: HistoryWindowMutationKind.restore,
-              restoreMutationToken: mutationToken,
-              capturedScope: mutationScope);
-      } finally {
-        _finishHistoryMutationProjection(
-            mutationScope, [if (mutationToken != null) mutationToken]);
-      }
+      await _runBoundedHistoryProjection(mutationScope!.conversationID,
+          () async {
+        try {
+          if (mutationToken != null)
+            await globalModel.recordHistoryWindowMutation(
+                conversationID: mutationScope!.conversationID,
+                msgID: msgID,
+                kind: HistoryWindowMutationKind.restore,
+                restoreMutationToken: mutationToken,
+                capturedScope: mutationScope,
+                awaitActualCompletion: true);
+        } finally {
+          _finishHistoryMutationProjection(
+              mutationScope, [if (mutationToken != null) mutationToken]);
+        }
+      });
       return;
     }
     if (removed.isNotEmpty) {
@@ -7903,69 +8025,79 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     required HistoryWindowScope? mutationScope,
   }) async {
     final targetConv = mutationScope?.conversationID ?? conversationID;
-    final unreadVisitCurrent = globalModel.captureHistoryUnreadVisitFence(targetConv);
-    bool ownsProjection() =>
-        _isHistoryMutationOwnerCurrent(mutationScope) &&
-        deleteCommit != null &&
-        globalModel.isMessageCommitCurrent(deleteCommit);
-    var projectionComplete = false;
-    try {
-      var sdkAccepted = false;
+    final unreadVisitCurrent =
+        globalModel.captureHistoryUnreadVisitFence(targetConv);
+    await _runBoundedHistoryProjection(targetConv, () async {
+      bool ownsProjection() =>
+          _isHistoryMutationOwnerCurrent(mutationScope) &&
+          deleteCommit != null &&
+          globalModel.isMessageCommitCurrent(deleteCommit);
+      // A route/read lease can expire while its raw window is still cached.
+      // Correct only our exact publication, even after that page is disposed;
+      // account/clear and commit fences protect any replacement window.
+      var projectionComplete = false;
       try {
-        final res = await _messageService.deleteMessages(
-          msgIDs: msgIDs,
-          webMessageInstanceList: webMessageInstanceList,
-        );
-        sdkAccepted = res.code == 0;
-      } catch (_) {}
-      if (sdkAccepted) {
-        // Retire local unread identities only after the SDK accepted deletion.
-        // An optimistic removal which fails must retain its unread reminder.
-        if (unreadVisitCurrent()) {
-          globalModel.retireDeletedLocalIncoming(targetConv, msgIDs);
+        var sdkAccepted = false;
+        try {
+          final res = await _messageService.deleteMessages(
+            msgIDs: msgIDs,
+            webMessageInstanceList: webMessageInstanceList,
+          );
+          sdkAccepted = res.code == 0;
+        } catch (_) {}
+        if (sdkAccepted) {
+          // Retire local unread identities only after the SDK accepted deletion.
+          // An optimistic removal which fails must retain its unread reminder.
+          if (unreadVisitCurrent()) {
+            globalModel.retireDeletedLocalIncoming(targetConv, msgIDs);
+          }
+          for (final entry in mutationTokens.entries) {
+            await globalModel.recordHistoryWindowMutation(
+              conversationID: mutationScope?.conversationID ?? conversationID,
+              msgID: entry.key,
+              kind: HistoryWindowMutationKind.settle,
+              restoreMutationToken: entry.value,
+              capturedScope: mutationScope,
+              awaitActualCompletion: true,
+            );
+          }
+          return;
         }
         for (final entry in mutationTokens.entries) {
           await globalModel.recordHistoryWindowMutation(
             conversationID: mutationScope?.conversationID ?? conversationID,
             msgID: entry.key,
-            kind: HistoryWindowMutationKind.settle,
+            kind: HistoryWindowMutationKind.restore,
             restoreMutationToken: entry.value,
             capturedScope: mutationScope,
+            awaitActualCompletion: true,
           );
         }
-        return;
+        if (!ownsProjection()) return;
+        // Missing rows are safe to restore only while our deletion is still the
+        // latest raw publication. A replacement history window must not grow.
+        if (deleteCommit == null ||
+            !globalModel.isMessageCommitCurrent(deleteCommit)) return;
+        final restored = await _readHistoryRollbackFacts(
+            targetConv: targetConv,
+            messages: removed,
+            ownsProjection: ownsProjection);
+        if (restored == null) return;
+        if (!ownsProjection()) return;
+        if (!globalModel.isMessageCommitCurrent(deleteCommit)) {
+          return;
+        }
+        if (restored.isNotEmpty)
+          globalModel.restoreMessageDeltaAfterDeleteFailure(
+              targetConv, restored);
+        projectionComplete = true;
+      } finally {
+        if (projectionComplete || !ownsProjection()) {
+          _finishHistoryMutationProjection(
+              mutationScope, mutationTokens.values);
+        }
       }
-      for (final entry in mutationTokens.entries) {
-        await globalModel.recordHistoryWindowMutation(
-          conversationID: mutationScope?.conversationID ?? conversationID,
-          msgID: entry.key,
-          kind: HistoryWindowMutationKind.restore,
-          restoreMutationToken: entry.value,
-          capturedScope: mutationScope,
-        );
-      }
-      if (!_isHistoryMutationOwnerCurrent(mutationScope)) return;
-      // Missing rows are safe to restore only while our deletion is still the
-      // latest raw publication. A replacement history window must not grow.
-      if (deleteCommit == null ||
-          !globalModel.isMessageCommitCurrent(deleteCommit)) return;
-      final restored = await _readHistoryRollbackFacts(
-          targetConv: targetConv,
-          messages: removed,
-          ownsProjection: ownsProjection);
-      if (restored == null) return;
-      if (!_isHistoryMutationOwnerCurrent(mutationScope)) return;
-      if (!globalModel.isMessageCommitCurrent(deleteCommit)) {
-        return;
-      }
-      if (restored.isNotEmpty)
-        globalModel.restoreMessageDeltaAfterDeleteFailure(targetConv, restored);
-      projectionComplete = true;
-    } finally {
-      if (projectionComplete || !ownsProjection()) {
-        _finishHistoryMutationProjection(mutationScope, mutationTokens.values);
-      }
-    }
+    });
   }
 
   /// SDK 删除最后一条消息不会更新会话 lastMessage；本地补偿会话列表预览。
@@ -8098,7 +8230,34 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     Object? webMessageInstance,
     V2TimMessage? sourceMessage,
   ]) async {
+    final requestConversation = conversationID;
+    final generation = _chatOpenGeneration;
+    final ownsAccount =
+        globalModel.captureMessageOwnerFence(requestConversation);
+    bool isCurrent() =>
+        !_disposed &&
+        ownsAccount() &&
+        generation == _chatOpenGeneration &&
+        conversationID == requestConversation;
+    final operation = ChatRecoveryTrace.nextOperation('revoke');
     final target = _findRevokeTarget(msgID, sourceMessage);
+    // A menu can hold a local alias while the canonical row has its SDK ID.
+    final sdkID = target?.msgID?.trim() ?? '';
+    if (sdkID.isNotEmpty) msgID = sdkID;
+    ChatRecoveryTrace.log('revoke_clicked',
+        conversationID: requestConversation,
+        operation: operation,
+        messageID: msgID,
+        fields: {
+          'localID': target?.id,
+          'status': target?.status,
+          'admin': isAdmin,
+          'hasTarget': target != null,
+          'staleObject': !identical(target, sourceMessage),
+          'generation': generation,
+          'disposed': _disposed
+        });
+    if (!isCurrent() || msgID.trim().isEmpty) return null;
     if (target != null && isWalletCardMessage(target)) {
       return null;
     }
@@ -8109,25 +8268,46 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     final mutationScope = globalModel.historyWindowScopeFor(conversationID);
     final revokedCopy =
         target == null ? null : _revokedMessageCopy(target, isAdmin: isAdmin);
-    final mutationToken = await globalModel.recordHistoryWindowMutation(
-        conversationID: conversationID,
-        msgID: msgID,
-        kind: HistoryWindowMutationKind.revoke,
-        message: revokedCopy,
-        pending: true);
-    if (!_isHistoryMutationScopeCurrent(mutationScope)) {
-      try {
-        if (mutationToken != null)
-          await globalModel.recordHistoryWindowMutation(
-              conversationID: mutationScope!.conversationID,
-              msgID: msgID,
-              kind: HistoryWindowMutationKind.restore,
-              restoreMutationToken: mutationToken,
-              capturedScope: mutationScope);
-      } finally {
-        _finishHistoryMutationProjection(
-            mutationScope, [if (mutationToken != null) mutationToken]);
-      }
+    String? mutationToken;
+    try {
+      mutationToken = await globalModel.recordHistoryWindowMutation(
+          conversationID: conversationID,
+          msgID: msgID,
+          kind: HistoryWindowMutationKind.revoke,
+          message: revokedCopy,
+          pending: true,
+          preparationTimeout: const Duration(seconds: 20),
+          commandIsCurrent: isCurrent);
+    } catch (error) {
+      ChatRecoveryTrace.log('revoke_prepare_failed',
+          conversationID: requestConversation,
+          operation: operation,
+          messageID: msgID,
+          fields: {'errorType': error.runtimeType});
+      if (isCurrent()) _notifyRevokeFailed();
+      return null;
+    }
+    if (!isCurrent() || !_isHistoryMutationScopeCurrent(mutationScope)) {
+      await _runBoundedHistoryProjection(requestConversation, () async {
+        try {
+          if (mutationToken != null)
+            await globalModel.recordHistoryWindowMutation(
+                conversationID: mutationScope!.conversationID,
+                msgID: msgID,
+                kind: HistoryWindowMutationKind.restore,
+                restoreMutationToken: mutationToken,
+                capturedScope: mutationScope,
+                awaitActualCompletion: true);
+        } finally {
+          _finishHistoryMutationProjection(
+              mutationScope, [if (mutationToken != null) mutationToken]);
+        }
+      });
+      ChatRecoveryTrace.log('revoke_stale_cancelled',
+          conversationID: requestConversation,
+          operation: operation,
+          messageID: msgID);
+      return null;
     }
 
     // 自己撤回必须走 IM revokeMessage。管理员撤回才 modifyMessage。
@@ -8170,6 +8350,12 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       conversationID: conversationID,
     );
     _notify();
+    ChatRecoveryTrace.expectRevokeFrame(requestConversation, msgID, operation);
+    ChatRecoveryTrace.log('revoke_local_published',
+        conversationID: requestConversation,
+        operation: operation,
+        messageID: msgID,
+        fields: {'writerCommitted': refreshed != null});
 
     // 先同步会话预览，再提交网络撤回。否则会话列表要等 SDK 撤回回调
     // 才能看到状态，而该回调可能晚于当前页面的刷新或根本不触发。
@@ -8178,7 +8364,13 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         msgID: msgID,
         conversationID: conversationID,
         isAdmin: isAdmin,
-      ),
+      ).catchError((Object error) {
+        ChatRecoveryTrace.log('revoke_preview_failed',
+            conversationID: requestConversation,
+            operation: operation,
+            messageID: msgID,
+            fields: {'errorType': error.runtimeType});
+      }),
     );
 
     unawaited(
@@ -8193,7 +8385,16 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         previousWeb: previousWeb,
         mutationToken: mutationToken,
         mutationScope: mutationScope,
-      ),
+        operation: operation,
+        requestConversation: requestConversation,
+        ownsAccount: ownsAccount,
+      ).catchError((Object error) {
+        ChatRecoveryTrace.log('revoke_recovery_failed',
+            conversationID: requestConversation,
+            operation: operation,
+            messageID: msgID,
+            fields: {'errorType': error.runtimeType});
+      }),
     );
     return null;
   }
@@ -8232,58 +8433,121 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     required HistoryWindowScope? mutationScope,
   }) async {
     final targetConv = mutationScope?.conversationID ?? conversationID;
-    bool ownsOptimisticRow() =>
-        _isHistoryMutationOwnerCurrent(mutationScope) &&
-        globalModel.canonicalMessageWindow(targetConv).any(
-              (message) =>
-                  message.msgID == msgID &&
-                  identical(message, optimisticMessage),
-            );
-    var projectionComplete = false;
-    try {
-      if (mutationToken != null) {
-        await globalModel.recordHistoryWindowMutation(
-          conversationID: mutationScope?.conversationID ?? conversationID,
-          msgID: msgID,
-          kind: HistoryWindowMutationKind.restore,
-          restoreMutationToken: mutationToken,
-          capturedScope: mutationScope,
+    await _runBoundedHistoryProjection(targetConv, () async {
+      bool ownsOptimisticRow() =>
+          _isHistoryMutationOwnerCurrent(mutationScope) &&
+          globalModel.canonicalMessageWindow(targetConv).any(
+                (message) =>
+                    message.msgID == msgID &&
+                    identical(message, optimisticMessage),
+              );
+      // The optimistic object's identity, not the route's four-session LRU
+      // lease, proves ownership of this cached row after a conversation switch.
+      var projectionComplete = false;
+      try {
+        if (mutationToken != null) {
+          await globalModel.recordHistoryWindowMutation(
+            conversationID: mutationScope?.conversationID ?? conversationID,
+            msgID: msgID,
+            kind: HistoryWindowMutationKind.restore,
+            restoreMutationToken: mutationToken,
+            capturedScope: mutationScope,
+            awaitActualCompletion: true,
+          );
+        }
+        if (!ownsOptimisticRow()) return;
+        final original = V2TimMessage.fromJson(
+          Map<String, dynamic>.from(target.toJson()),
         );
-      }
-      if (!ownsOptimisticRow()) return;
-      final original = V2TimMessage.fromJson(
-        Map<String, dynamic>.from(target.toJson()),
-      );
-      if (previousStatus != null) {
-        original.status = previousStatus;
-      }
-      original.cloudCustomData = previousCloud;
-      original.messageFromWeb = previousWeb;
-      final restored = await _readHistoryRollbackFacts(
-          targetConv: targetConv,
-          messages: [original],
-          ownsProjection: ownsOptimisticRow);
-      if (restored == null) return;
-      if (!ownsOptimisticRow()) return;
-      // A later delete/revoke remains authoritative after undoing only our token.
-      if (restored.isEmpty || isRevokedMessage(restored.first)) {
+        if (previousStatus != null) {
+          original.status = previousStatus;
+        }
+        original.cloudCustomData = previousCloud;
+        original.messageFromWeb = previousWeb;
+        final restored = await _readHistoryRollbackFacts(
+            targetConv: targetConv,
+            messages: [original],
+            ownsProjection: ownsOptimisticRow);
+        if (restored == null) return;
+        if (!ownsOptimisticRow()) return;
+        // A later delete/revoke remains authoritative after undoing only our token.
+        if (restored.isEmpty || isRevokedMessage(restored.first)) {
+          projectionComplete = true;
+          return;
+        }
+        // Revoke is optimistic. Release its tombstone and re-adopt the original
+        // row through the same writer so an in-flight history request cannot
+        // replay the failed revoke after the rollback.
+        globalModel.releaseMessageDeltaTombstones(targetConv, <String>[msgID]);
+        globalModel.restoreMessageDeltaAfterDeleteFailure(targetConv, restored);
         projectionComplete = true;
-        return;
+        if (!_disposed && conversationID == targetConv) _notify();
+      } finally {
+        if (projectionComplete || !ownsOptimisticRow()) {
+          _finishHistoryMutationProjection(
+              mutationScope, [if (mutationToken != null) mutationToken]);
+        }
       }
-      // Revoke is optimistic. Release its tombstone and re-adopt the original
-      // row through the same writer so an in-flight history request cannot
-      // replay the failed revoke after the rollback.
-      globalModel.releaseMessageDeltaTombstones(targetConv, <String>[msgID]);
-      globalModel.restoreMessageDeltaAfterDeleteFailure(targetConv, restored);
-      projectionComplete = true;
-      if (!_disposed && conversationID == targetConv) _notify();
-    } finally {
-      if (projectionComplete || !ownsOptimisticRow()) {
-        _finishHistoryMutationProjection(
-            mutationScope, [if (mutationToken != null) mutationToken]);
-      }
-    }
+    });
   }
+
+  Future<T> _awaitRevokeResponse<T>(
+    Future<T> response, {
+    required int? Function(T) codeOf,
+    required String conversation,
+    required String msgID,
+    required String operation,
+    required bool Function() ownsAccount,
+  }) async {
+    var timedOut = false;
+    unawaited(response.then((result) async {
+      if (!timedOut) return;
+      ChatRecoveryTrace.log('revoke_sdk_late_result',
+          conversationID: conversation,
+          operation: operation,
+          messageID: msgID,
+          fields: {'code': codeOf(result)});
+      if (codeOf(result) == 0 && ownsAccount()) {
+        await globalModel.onMessageRevoked(msgID, conversation);
+      }
+    }).catchError((Object error) {
+      if (!timedOut) return;
+      ChatRecoveryTrace.log('revoke_sdk_late_error',
+          conversationID: conversation,
+          operation: operation,
+          messageID: msgID,
+          fields: {'errorType': error.runtimeType});
+    }));
+    return response.timeout(const Duration(seconds: 20), onTimeout: () {
+      timedOut = true;
+      throw TimeoutException('revoke SDK outcome unknown');
+    });
+  }
+
+  Future<void> _restoreAbsentHistoryCommand(
+          String targetConv,
+          String msgID,
+          String? token,
+          HistoryWindowScope? scope,
+          bool Function() ownsAccount) =>
+      _runBoundedHistoryProjection(targetConv, () async {
+        try {
+          if (token != null) {
+            await globalModel.recordHistoryWindowMutation(
+                conversationID: scope?.conversationID ?? targetConv,
+                msgID: msgID,
+                kind: HistoryWindowMutationKind.restore,
+                restoreMutationToken: token,
+                capturedScope: scope,
+                awaitActualCompletion: true);
+          }
+          if (!ownsAccount() || !_isHistoryMutationScopeCurrent(scope)) return;
+          globalModel
+              .releaseMessageDeltaTombstones(targetConv, <String>[msgID]);
+        } finally {
+          _finishHistoryMutationProjection(scope, [if (token != null) token]);
+        }
+      });
 
   Future<void> _commitRevokeToSdk({
     required String msgID,
@@ -8296,8 +8560,17 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
     required String? mutationToken,
     required V2TimMessage? optimisticMessage,
     required HistoryWindowScope? mutationScope,
+    required String operation,
+    required String requestConversation,
+    required bool Function() ownsAccount,
   }) async {
     var sdkAccepted = false;
+    var stage = 'sdk';
+    ChatRecoveryTrace.log('revoke_sdk_call',
+        conversationID: requestConversation,
+        operation: operation,
+        messageID: msgID,
+        fields: {'admin': isAdmin});
     try {
       if (isAdmin && chatConfig.isGroupAdminRecallEnabled && target != null) {
         // The optimistic Writer publishes a revoked copy, leaving target
@@ -8319,7 +8592,18 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           decodedMessage['cloudCustomData'] = sdkMessage.cloudCustomData;
           sdkMessage.messageFromWeb = jsonEncode(decodedMessage);
         }
-        final result = await modifyMessage(message: sdkMessage);
+        final result = await _awaitRevokeResponse(
+            modifyMessage(message: sdkMessage),
+            codeOf: (result) => result?.code,
+            conversation: requestConversation,
+            msgID: msgID,
+            operation: operation,
+            ownsAccount: ownsAccount);
+        ChatRecoveryTrace.log('revoke_sdk_result',
+            conversationID: requestConversation,
+            operation: operation,
+            messageID: msgID,
+            fields: {'code': result?.code, 'message': result?.desc});
         if (result?.code != 0) {
           _notifyRevokeFailed();
           await _rollbackRevoke(
@@ -8335,11 +8619,22 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           return;
         }
       } else {
-        final res = await _messageService.revokeMessage(
-          msgID: msgID,
-          webMessageInstance: webMessageInstance,
-          message: target,
-        );
+        final res = await _awaitRevokeResponse(
+            _messageService.revokeMessage(
+              msgID: msgID,
+              webMessageInstance: webMessageInstance,
+              message: target,
+            ),
+            codeOf: (result) => result.code,
+            conversation: requestConversation,
+            msgID: msgID,
+            operation: operation,
+            ownsAccount: ownsAccount);
+        ChatRecoveryTrace.log('revoke_sdk_result',
+            conversationID: requestConversation,
+            operation: operation,
+            messageID: msgID,
+            fields: {'code': res.code, 'message': res.desc});
         if (res.code != 0) {
           _notifyRevokeFailed();
           if (target != null) {
@@ -8354,42 +8649,49 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
               mutationScope: mutationScope,
             );
           } else {
-            if (mutationToken != null)
-              await globalModel.recordHistoryWindowMutation(
-                conversationID: mutationScope?.conversationID ?? conversationID,
-                msgID: msgID,
-                kind: HistoryWindowMutationKind.restore,
-                restoreMutationToken: mutationToken,
-                capturedScope: mutationScope,
-              );
-            if (!_isHistoryMutationScopeCurrent(mutationScope)) return;
-            globalModel.releaseMessageDeltaTombstones(conversationID, <String>[
-              msgID,
-            ]);
+            await _restoreAbsentHistoryCommand(requestConversation, msgID,
+                mutationToken, mutationScope, ownsAccount);
           }
           return;
         }
       }
       sdkAccepted = true;
-      if (mutationToken != null)
-        await globalModel.recordHistoryWindowMutation(
-          conversationID: mutationScope?.conversationID ?? conversationID,
+      stage = 'settle';
+      await _runBoundedHistoryProjection(requestConversation, () async {
+        if (mutationToken != null)
+          await globalModel.recordHistoryWindowMutation(
+            conversationID:
+                mutationScope?.conversationID ?? requestConversation,
+            msgID: msgID,
+            kind: HistoryWindowMutationKind.settle,
+            restoreMutationToken: mutationToken,
+            capturedScope: mutationScope,
+            awaitActualCompletion: true,
+          );
+        // 首次撤回成功时，SDK 不一定马上回调消息变更事件。主动补一次
+        // 当前消息窗口更新，避免第一次点击网络成功但气泡仍保持原内容，
+        // 第二次点击才看起来生效。
+        if (!ownsAccount() || !_isHistoryMutationScopeCurrent(mutationScope))
+          return;
+        if (!ownsAccount()) return;
+        await globalModel.onMessageRevoked(msgID, requestConversation);
+        await ConversationSyncService.instance
+            .markConversationLastMessageRevoked(
           msgID: msgID,
-          kind: HistoryWindowMutationKind.settle,
-          restoreMutationToken: mutationToken,
-          capturedScope: mutationScope,
+          conversationID: requestConversation,
+          isAdmin: isAdmin,
         );
-      // 首次撤回成功时，SDK 不一定马上回调消息变更事件。主动补一次
-      // 当前消息窗口更新，避免第一次点击网络成功但气泡仍保持原内容，
-      // 第二次点击才看起来生效。
-      if (!_isHistoryMutationScopeCurrent(mutationScope)) return;
-      globalModel.onMessageRevoked(msgID, conversationID);
-      await ConversationSyncService.instance.markConversationLastMessageRevoked(
-        msgID: msgID,
-        conversationID: conversationID,
-        isAdmin: isAdmin,
-      );
-    } catch (_) {
+      });
+    } catch (error) {
+      ChatRecoveryTrace.log('revoke_failed',
+          conversationID: requestConversation,
+          operation: operation,
+          messageID: msgID,
+          fields: {
+            'stage': stage,
+            'errorType': error.runtimeType,
+            'sdkAccepted': sdkAccepted
+          });
       // A durable settle failure must not undo a revoke accepted by the SDK.
       if (sdkAccepted) return;
       _notifyRevokeFailed();
@@ -8405,20 +8707,15 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
           mutationScope: mutationScope,
         );
       } else {
-        if (mutationToken != null)
-          await globalModel.recordHistoryWindowMutation(
-            conversationID: mutationScope?.conversationID ?? conversationID,
-            msgID: msgID,
-            kind: HistoryWindowMutationKind.restore,
-            restoreMutationToken: mutationToken,
-            capturedScope: mutationScope,
-          );
-        if (!_isHistoryMutationScopeCurrent(mutationScope)) return;
-        globalModel.releaseMessageDeltaTombstones(conversationID, <String>[
-          msgID,
-        ]);
+        await _restoreAbsentHistoryCommand(requestConversation, msgID,
+            mutationToken, mutationScope, ownsAccount);
       }
     } finally {
+      ChatRecoveryTrace.log('revoke_finished',
+          conversationID: requestConversation,
+          operation: operation,
+          messageID: msgID,
+          fields: {'sdkAccepted': sdkAccepted});
       // A target rollback retains its guard until the raw correction succeeds.
       // Success is released by durable settle; absent targets never published
       // an optimistic message into the page base.
@@ -8479,19 +8776,23 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       }
     } catch (_) {
       // A partially persisted selection must not become an invisible deletion.
-      try {
-        for (final entry in mutationTokens.entries) {
-          await globalModel.recordHistoryWindowMutation(
-              conversationID: mutationScope?.conversationID ?? conversationID,
-              msgID: entry.key,
-              kind: HistoryWindowMutationKind.restore,
-              restoreMutationToken: entry.value,
-              capturedScope: mutationScope);
+      await _runBoundedHistoryProjection(conversationID, () async {
+        try {
+          for (final entry in mutationTokens.entries) {
+            await globalModel.recordHistoryWindowMutation(
+                conversationID: mutationScope?.conversationID ?? conversationID,
+                msgID: entry.key,
+                kind: HistoryWindowMutationKind.restore,
+                restoreMutationToken: entry.value,
+                capturedScope: mutationScope,
+                awaitActualCompletion: true);
+          }
+        } finally {
+          _finishHistoryMutationProjection(
+              mutationScope, mutationTokens.values);
         }
-      } finally {
-        _finishHistoryMutationProjection(mutationScope, mutationTokens.values);
-      }
-      rethrow;
+      });
+      return;
     }
 
     final removed = <V2TimMessage>[];
@@ -9201,6 +9502,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _pagination.resetForConversationInit();
     _latestReturnOwner = null;
     _latestReturnConversation = null;
     _latestReturnHandler = null;

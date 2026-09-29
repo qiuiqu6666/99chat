@@ -1,0 +1,148 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController",
+    "name": "ChatDraftController",
+    "kind": "Class",
+    "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+    "startLine": 4,
+    "endLine": 76
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "calls": [
+      {
+        "uid": "Class:lib/src/chat.dart:_ChatState",
+        "name": "_ChatState",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "Function:test/chat_input_composition_guard_test.dart:main",
+        "name": "main",
+        "filePath": "test/chat_input_composition_guard_test.dart"
+      },
+      {
+        "uid": "Function:test/chat_page_controllers_test.dart:main",
+        "name": "main",
+        "filePath": "test/chat_page_controllers_test.dart"
+      }
+    ],
+    "imports": [
+      {
+        "uid": "File:lib/src/chat.dart",
+        "name": "chat.dart",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "File:test/chat_input_composition_guard_test.dart",
+        "name": "chat_input_composition_guard_test.dart",
+        "filePath": "test/chat_input_composition_guard_test.dart"
+      },
+      {
+        "uid": "File:test/chat_page_controllers_test.dart",
+        "name": "chat_page_controllers_test.dart",
+        "filePath": "test/chat_page_controllers_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.beginConversation#0",
+        "name": "beginConversation",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.canApplyLoadedDraft#1",
+        "name": "canApplyLoadedDraft",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.cancelDebounce#0",
+        "name": "cancelDebounce",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.clear#0",
+        "name": "clear",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.dispose#0",
+        "name": "dispose",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.markSendCompleted#0",
+        "name": "markSendCompleted",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.onChanged#2",
+        "name": "onChanged",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.setTextImmediate#1",
+        "name": "setTextImmediate",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController._debounce",
+        "name": "_debounce",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController._sendClearBarrier",
+        "name": "_sendClearBarrier",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController._stateRevision",
+        "name": "_stateRevision",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController._writeGeneration",
+        "name": "_writeGeneration",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.debounceDuration",
+        "name": "debounceDuration",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.shouldSuppressLifecyclePersist",
+        "name": "shouldSuppressLifecyclePersist",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.stateRevision",
+        "name": "stateRevision",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.text",
+        "name": "text",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.writeGeneration",
+        "name": "writeGeneration",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      }
+    ]
+  },
+  "typed_properties": [
+    {
+      "uid": "Property:lib/src/chat.dart:_ChatState._draft",
+      "name": "_draft",
+      "filePath": "lib/src/chat.dart",
+      "declaredType": "ChatDraftController"
+    }
+  ],
+  "processes": []
+}

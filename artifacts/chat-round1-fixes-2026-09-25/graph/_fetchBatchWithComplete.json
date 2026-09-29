@@ -1,0 +1,152 @@
+{
+  "target": {
+    "id": "Method:third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart:MessageHistoryPeekLoader._fetchBatchWithComplete#9",
+    "name": "_fetchBatchWithComplete",
+    "type": "Method",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 11,
+  "risk": "HIGH",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 1,
+    "processes_affected": 0,
+    "modules_affected": 3
+  },
+  "byDepthCounts": {
+    "1": 1,
+    "2": 2,
+    "3": 8
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Message",
+      "hits": 3,
+      "impact": "direct"
+    },
+    {
+      "name": "Separate_models",
+      "hits": 3,
+      "impact": "indirect"
+    },
+    {
+      "name": "Services",
+      "hits": 3,
+      "impact": "indirect"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart:MessageHistoryPeekLoader._loadOlderPagedImpl#9",
+        "name": "_loadOlderPagedImpl",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart:MessageHistoryPeekLoader.loadOlderLocalOnlyResult#8",
+        "name": "loadOlderLocalOnlyResult",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart:MessageHistoryPeekLoader.loadOlderLocalThenCloudResult#8",
+        "name": "loadOlderLocalThenCloudResult",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_history_warm_scheduler.dart:ConversationHistoryWarmScheduler._warmOne#5",
+        "name": "_warmOne",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService._loadOlder#3",
+        "name": "_loadOlder",
+        "filePath": "lib/src/services/conversation_peek_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService.loadLocalForChatEntry#1",
+        "name": "loadLocalForChatEntry",
+        "filePath": "lib/src/services/conversation_peek_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart:HistoryPaginationLoadRunner.loadChatRecord#7",
+        "name": "loadChatRecord",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._fillTowardOlderHistory#3",
+        "name": "_fillTowardOlderHistory",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.loadHistoryPeekStyle#4",
+        "name": "loadHistoryPeekStyle",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart:MessageHistoryPeekLoader.loadOlderLocalOnly#7",
+        "name": "loadOlderLocalOnly",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart:MessageHistoryPeekLoader.loadOlderLocalThenCloud#7",
+        "name": "loadOlderLocalThenCloud",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}

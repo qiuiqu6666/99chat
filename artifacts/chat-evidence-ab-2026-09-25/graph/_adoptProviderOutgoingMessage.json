@@ -1,0 +1,90 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._adoptProviderOutgoingMessage#3",
+    "name": "_adoptProviderOutgoingMessage",
+    "kind": "Method",
+    "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+    "startLine": 1251,
+    "endLine": 1255
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService",
+        "name": "ConversationSyncService",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._handleMessageIngress#1",
+        "name": "_handleMessageIngress",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Class:lib/src/services/im/im05_persistence.dart:Im05Persistence",
+        "name": "Im05Persistence",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._providerOutgoingIdentity#2",
+        "name": "_providerOutgoingIdentity",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart"
+      }
+    ],
+    "accesses": [
+      {
+        "uid": "Property:lib/src/services/im/contracts/account_scoped_conversation_key.dart:AccountScopedConversationKey.storageKey",
+        "name": "storageKey",
+        "filePath": "lib/src/services/im/contracts/account_scoped_conversation_key.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/contracts/event_envelope.dart:EventEnvelope.payload",
+        "name": "payload",
+        "filePath": "lib/src/services/im/contracts/event_envelope.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.clientCorrelationId",
+        "name": "clientCorrelationId",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.operationId",
+        "name": "operationId",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.payloadFingerprint",
+        "name": "payloadFingerprint",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.scope",
+        "name": "scope",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/writer_lease.dart:ImWriterLease.fencingToken",
+        "name": "fencingToken",
+        "filePath": "lib/src/services/im/writer_lease.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/writer_lease.dart:ImWriterLease.leaseOwnerId",
+        "name": "leaseOwnerId",
+        "filePath": "lib/src/services/im/writer_lease.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/session_identity.dart:SessionIdentity.ownerUserId",
+        "name": "ownerUserId",
+        "filePath": "lib/src/services/session_identity.dart"
+      }
+    ]
+  },
+  "processes": []
+}

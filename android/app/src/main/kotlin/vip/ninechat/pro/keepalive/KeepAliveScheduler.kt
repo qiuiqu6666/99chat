@@ -12,11 +12,48 @@ object KeepAliveScheduler {
     private const val TAG = "AndroidKeepAlive"
     private const val REQUEST_CODE = 0x9902
     private const val PREFS = "keep_alive_scheduler"
+    private const val KEY_ENABLED = "enabled"
     private const val KEY_LAST_SCHEDULE_AT = "last_schedule_at"
     private const val DEBOUNCE_MS = 5000L
 
+    fun isEnabled(context: Context): Boolean = context.applicationContext
+        .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        .getBoolean(KEY_ENABLED, false)
+
+    fun enable(context: Context) {
+        context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_ENABLED, true)
+            .putLong(KEY_LAST_SCHEDULE_AT, 0L)
+            .commit()
+    }
+
+    fun disableAndCancel(context: Context) {
+        val appContext = context.applicationContext
+        appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_ENABLED, false)
+            .commit()
+        cancelRestart(appContext)
+    }
+
+    fun cancelRestart(context: Context) {
+        val appContext = context.applicationContext
+        val alarmManager =
+            appContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val pendingIntent = restartPendingIntent(appContext)
+        alarmManager.cancel(pendingIntent)
+        pendingIntent.cancel()
+    }
+
     fun scheduleRestart(context: Context, delayMs: Long, reason: String) {
         val appContext = context.applicationContext
+        if (!isEnabled(appContext)) {
+            cancelRestart(appContext)
+            Log.d(TAG, "skip restart because keepalive is disabled reason=$reason")
+            return
+        }
         val now = System.currentTimeMillis()
         val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val lastAt = prefs.getLong(KEY_LAST_SCHEDULE_AT, 0L)
@@ -28,21 +65,7 @@ object KeepAliveScheduler {
 
         val alarmManager =
             appContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(appContext, KeepAliveAlarmReceiver::class.java).apply {
-            putExtra(KeepAliveAlarmReceiver.EXTRA_REASON, reason)
-        }
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PendingIntent.FLAG_IMMUTABLE
-            } else {
-                0
-            }
-        val pendingIntent = PendingIntent.getBroadcast(
-            appContext,
-            REQUEST_CODE,
-            intent,
-            flags,
-        )
+        val pendingIntent = restartPendingIntent(appContext, reason)
         val triggerAt = SystemClock.elapsedRealtime() + delayMs.coerceAtLeast(1000L)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -67,5 +90,18 @@ object KeepAliveScheduler {
             )
             Log.w(TAG, "scheduleRestart fallback reason=$reason error=$e")
         }
+    }
+
+    private fun restartPendingIntent(context: Context, reason: String = "restart"): PendingIntent {
+        val intent = Intent(context, KeepAliveAlarmReceiver::class.java).apply {
+            putExtra(KeepAliveAlarmReceiver.EXTRA_REASON, reason)
+        }
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_IMMUTABLE
+            } else {
+                0
+            }
+        return PendingIntent.getBroadcast(context, REQUEST_CODE, intent, flags)
     }
 }

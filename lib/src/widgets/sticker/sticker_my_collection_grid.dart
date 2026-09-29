@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/sticker/sticker_upload_page.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/dice/dice_static_thumb.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/sticker/sticker_panel_theme.dart';
@@ -84,86 +85,105 @@ class StickerMyCollectionGrid extends StatelessWidget {
     // + 添加、（可选）置顶骰子、用户表情。
     final itemCount = stickers.length + (showDice ? 2 : 1);
 
-    return ColoredBox(
-      color: panelTheme.panelBackground,
-      child: Stack(
-        children: [
-          GridView.builder(
-            physics: const ClampingScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(8, 8, 8, bottomPadding),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
-              childAspectRatio: 1,
-            ),
-            itemCount: itemCount,
-            itemBuilder: (context, index) {
-              if (index == 0) {
-                return _AddStickerCell(
-                  onTap: () => _openUpload(context),
-                  panelTheme: panelTheme,
-                );
-              }
-              if (showDice && index == 1) {
-                return _DiceStickerCell(onTap: _onDiceTap);
-              }
-              final sticker = stickers[index - (showDice ? 2 : 1)];
-              final layerLink = LayerLink();
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _onStickerTap(sticker),
-                onLongPressStart: (_) {
-                  StickerPanelLongPressPreview.show(
-                    context: context,
-                    layerLink: layerLink,
-                    sticker: sticker,
+    return LayoutBuilder(builder: (context, constraints) {
+      // Keep four columns on phones, adding columns before thumbnails grow
+      // oversized on tablets and desktop windows.
+      final columns = math.max(
+        crossAxisCount,
+        ((constraints.maxWidth - 16) / 104).ceil(),
+      );
+      return ColoredBox(
+        color: panelTheme.panelBackground,
+        child: Stack(
+          children: [
+            GridView.builder(
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(12, 12, 12, bottomPadding + 12),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 1,
+              ),
+              itemCount: itemCount,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return _AddStickerCell(
+                    onTap: () => _openUpload(context),
+                    panelTheme: panelTheme,
                   );
-                },
-                onLongPressEnd: (_) => StickerPanelLongPressPreview.hide(),
-                onLongPressCancel: StickerPanelLongPressPreview.hide,
-                child: CompositedTransformTarget(
-                  link: layerLink,
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: _StickerThumb(sticker: sticker),
-                  ),
-                ),
-              );
-            },
-          ),
-          if (showDeleteButton && deleteText != null)
-            Align(
-              alignment: Alignment.bottomRight,
-              child: GestureDetector(
-                onTap: deleteText!,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: panelTheme.deleteButtonBackground,
-                    boxShadow: [
-                      BoxShadow(
-                        color: panelTheme.deleteButtonShadow,
-                        offset: Offset.zero,
-                        blurRadius: 10,
-                        spreadRadius: 2,
+                }
+                if (showDice && index == 1) {
+                  return _DiceStickerCell(onTap: _onDiceTap);
+                }
+                final sticker = stickers[index - (showDice ? 2 : 1)];
+                final layerLink = LayerLink();
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _onStickerTap(sticker),
+                  onLongPressStart: (_) {
+                    StickerPanelLongPressPreview.show(
+                      context: context,
+                      layerLink: layerLink,
+                      sticker: sticker,
+                    );
+                  },
+                  onLongPressEnd: (_) => StickerPanelLongPressPreview.hide(),
+                  onLongPressCancel: StickerPanelLongPressPreview.hide,
+                  child: CompositedTransformTarget(
+                    link: layerLink,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: panelTheme.addCellBackground,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ],
-                    borderRadius: const BorderRadius.all(Radius.circular(4)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: _StickerThumb(sticker: sticker),
+                        ),
+                      ),
+                    ),
                   ),
-                  margin: const EdgeInsets.only(right: 10, bottom: 8),
-                  width: 44,
-                  height: 35,
-                  child: Center(
-                    child: Image.asset(
-                      'images/delete_emoji.png',
-                      package: 'tim_ui_kit_sticker_plugin',
-                      width: 28,
+                );
+              },
+            ),
+            if (showDeleteButton && deleteText != null)
+              Align(
+                alignment: Alignment.bottomRight,
+                child: GestureDetector(
+                  onTap: deleteText!,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: panelTheme.deleteButtonBackground,
+                      boxShadow: [
+                        BoxShadow(
+                          color: panelTheme.deleteButtonShadow,
+                          offset: Offset.zero,
+                          blurRadius: 10,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                      borderRadius: const BorderRadius.all(Radius.circular(4)),
+                    ),
+                    margin: const EdgeInsets.only(right: 10, bottom: 8),
+                    width: 44,
+                    height: 35,
+                    child: Center(
+                      child: Image.asset(
+                        'images/delete_emoji.png',
+                        package: 'tim_ui_kit_sticker_plugin',
+                        width: 28,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    });
   }
 }
 
@@ -231,22 +251,38 @@ class _AddStickerCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: panelTheme.addCellBackground,
-            border: Border.all(color: panelTheme.addCellBorder),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Center(
-            child: Icon(
-              Icons.add,
-              size: 28,
-              color: panelTheme.mutedIconColor,
+    final label = AppI18n.of(context).t(
+      zhHans: '添加表情',
+      zhHant: '新增表情',
+      en: 'Add sticker',
+      ja: '追加',
+      ko: '추가',
+    );
+    return Material(
+      color: panelTheme.addCellBackground,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: panelTheme.addCellBorder),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_rounded,
+                      size: 26, color: panelTheme.mutedIconColor),
+                  const SizedBox(height: 4),
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 11, color: panelTheme.mutedIconColor)),
+                ],
+              ),
             ),
           ),
         ),

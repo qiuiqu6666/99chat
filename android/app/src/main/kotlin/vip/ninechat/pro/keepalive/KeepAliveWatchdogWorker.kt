@@ -14,6 +14,9 @@ class KeepAliveWatchdogWorker(
     params: WorkerParameters,
 ) : Worker(appContext, params) {
     override fun doWork(): Result {
+        if (!KeepAliveScheduler.isEnabled(applicationContext)) {
+            return Result.success()
+        }
         if (!KeepAliveForegroundService.isRunning(applicationContext)) {
             KeepAliveForegroundService.start(applicationContext, "watchdog")
         }

@@ -1,0 +1,51 @@
+{
+  "capturedAt": "2026-09-27T18:04:25.4667490Z",
+  "commit": "0e7aa83bc5b096a99ff8bb424842404a3c901cb7",
+  "files": [
+    {
+      "path": "lib/main.dart",
+      "sha256": "CFBF8CC09AFC2102F12E97139FC3CE4C65812924ACDF5C9DC4A81D3277483503",
+      "lastWriteTimeUtc": "2026-09-27T17:56:26.1241400Z"
+    },
+    {
+      "path": "lib/src/api/api_client.dart",
+      "sha256": "EC5E82A958973D39B92D8C8FC8189F9CCDD1A2B0EC7EF3468A6B18E52B1FD71B",
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.2798007Z"
+    },
+    {
+      "path": "lib/src/services/startup_perf_log.dart",
+      "sha256": "FB02C4509E519E0CB8D7598475DFE408CEE1E8E317378D01AC496DD65CCE7081",
+      "lastWriteTimeUtc": "2026-09-15T03:48:29.0000000Z"
+    },
+    {
+      "path": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "sha256": "C2C9CE2CAA92CD693209A99A5FCFBA64D691F6F7B2EC081F993607AFBF7980D3",
+      "lastWriteTimeUtc": "2026-09-26T11:25:30.0113554Z"
+    },
+    {
+      "path": "lib/src/services/im/im_mailbox.dart",
+      "sha256": "79F1F77665ABDBF96F27E43754B5ECE743A6FFE94E86D38DBD4DC5B6A763A0A5",
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.3745750Z"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_media_send_utils.dart",
+      "sha256": "ACE5B725FE30CA9E166DC8479F7183243FE904D54F206BD09DF0C4983C5FD719",
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.5432739Z"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "sha256": "67F898BD6039BAA2018D8B096B473AD9DE1CEE82B1781B21DF5CB59AEDB49F9C",
+      "lastWriteTimeUtc": "2026-09-27T17:37:34.8218317Z"
+    },
+    {
+      "path": "lib/src/pages/wallet/wallet_store.dart",
+      "sha256": "5301E7D4CFBD813384189AEF371D2BA2B74A742830DD7A26047B5D21D09CB752",
+      "lastWriteTimeUtc": "2026-09-15T23:37:56.0000000Z"
+    },
+    {
+      "path": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "sha256": "50AB526510D1E0652F0799BEBF61E8EB1F063163C67D110B8A797EA47C94CB45",
+      "lastWriteTimeUtc": "2026-09-15T03:48:28.0000000Z"
+    }
+  ]
+}

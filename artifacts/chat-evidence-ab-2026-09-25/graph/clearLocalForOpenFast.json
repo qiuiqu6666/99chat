@@ -1,0 +1,58 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService.clearLocalForOpenFast#2",
+    "name": "clearLocalForOpenFast",
+    "kind": "Method",
+    "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+    "startLine": 652,
+    "endLine": 655
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService",
+        "name": "ConversationUnreadClearService",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/conversation.dart:_ConversationState._handleOnConvItemTaped#1",
+        "name": "_handleOnConvItemTaped",
+        "filePath": "lib/src/conversation.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._persistOpenReadIntentAndDispatch#5",
+        "name": "_persistOpenReadIntentAndDispatch",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._watermarkFor#2",
+        "name": "_watermarkFor",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService.beginConversationChatSession#1",
+        "name": "beginConversationChatSession",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService.isGroupConversation#1",
+        "name": "isGroupConversation",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_trace.dart:ConversationUnreadTrace.log#5",
+        "name": "log",
+        "filePath": "lib/src/services/conversation_unread_trace.dart"
+      }
+    ]
+  },
+  "processes": []
+}

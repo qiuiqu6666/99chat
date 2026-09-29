@@ -1,0 +1,3855 @@
+{
+  "summary": {
+    "changed_count": 525,
+    "affected_count": 8,
+    "changed_files": 104,
+    "risk_level": "high"
+  },
+  "changed_symbols": [
+    {
+      "id": "Class:lib/main.dart:TUIKitDemoApp",
+      "name": "TUIKitDemoApp",
+      "type": "Class",
+      "filePath": "lib/main.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/ai_assistant_api.dart:AiAssistantStreamEvent",
+      "name": "AiAssistantStreamEvent",
+      "type": "Class",
+      "filePath": "lib/src/api/ai_assistant_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/ai_assistant_api.dart:AiAssistantApi",
+      "name": "AiAssistantApi",
+      "type": "Class",
+      "filePath": "lib/src/api/ai_assistant_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/ai_assistant_api.dart:AiAssistantApi.uploadFile#5",
+      "name": "uploadFile",
+      "type": "Method",
+      "filePath": "lib/src/api/ai_assistant_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/ai_assistant_api.dart:AiAssistantApi.stream#5",
+      "name": "stream",
+      "type": "Method",
+      "filePath": "lib/src/api/ai_assistant_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/ai_assistant_sse.dart:AiAssistantSseParser",
+      "name": "AiAssistantSseParser",
+      "type": "Class",
+      "filePath": "lib/src/api/ai_assistant_sse.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/ai_assistant_sse.dart:AiAssistantSseParser.finish#0",
+      "name": "finish",
+      "type": "Method",
+      "filePath": "lib/src/api/ai_assistant_sse.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/api_client.dart:ApiClient",
+      "name": "ApiClient",
+      "type": "Class",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/api_client.dart:ApiClient._requestNodeGeneration",
+      "name": "_requestNodeGeneration",
+      "type": "Property",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/api_client.dart:ApiClient._nodeGeneration",
+      "name": "_nodeGeneration",
+      "type": "Property",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/api_client.dart:ApiClient._requestUsedCurrentNode#1",
+      "name": "_requestUsedCurrentNode",
+      "type": "Method",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/me_group_api.dart:MeGroupApi",
+      "name": "MeGroupApi",
+      "type": "Class",
+      "filePath": "lib/src/api/me_group_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/me_group_api.dart:MeGroupApi.updateMyNameCard#3",
+      "name": "updateMyNameCard",
+      "type": "Method",
+      "filePath": "lib/src/api/me_group_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/sync_api.dart:SyncApi",
+      "name": "SyncApi",
+      "type": "Class",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:SyncApi.SyncApi#0",
+      "name": "SyncApi",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:SyncApi._",
+      "name": "_",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:SyncApi.SyncApi#2",
+      "name": "SyncApi",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:SyncApi.withDio",
+      "name": "withDio",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:SyncApi._overrideDio",
+      "name": "_overrideDio",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:SyncApi._overrideDeviceId",
+      "name": "_overrideDeviceId",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:SyncApi._deviceId",
+      "name": "_deviceId",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:SyncApi._dio",
+      "name": "_dio",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/sync_api.dart:SyncApi.fetchStatus#1",
+      "name": "fetchStatus",
+      "type": "Method",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/sync_api.dart:SyncApi.startContactSession#2",
+      "name": "startContactSession",
+      "type": "Method",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/sync_api.dart:SyncApi.uploadContactBatch#5",
+      "name": "uploadContactBatch",
+      "type": "Method",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/sync_api.dart:SyncApi.completeContactSession#4",
+      "name": "completeContactSession",
+      "type": "Method",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/sync_api.dart:SyncStatusResponse",
+      "name": "SyncStatusResponse",
+      "type": "Class",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:SyncStatusResponse.SyncStatusResponse#5",
+      "name": "SyncStatusResponse",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:SyncStatusResponse.videos",
+      "name": "videos",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:SyncStatusResponse.contactsDeltaV2",
+      "name": "contactsDeltaV2",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:SyncStatusResponse.deviceId",
+      "name": "deviceId",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:SyncStatusResponse.fromJson#2",
+      "name": "fromJson",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/sync_api.dart:ContactSessionResponse",
+      "name": "ContactSessionResponse",
+      "type": "Class",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/sync_api.dart:PhotoSessionResponse",
+      "name": "PhotoSessionResponse",
+      "type": "Class",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/sync_api.dart:ContactBatchResponse",
+      "name": "ContactBatchResponse",
+      "type": "Class",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:ContactBatchResponse.ContactBatchResponse#5",
+      "name": "ContactBatchResponse",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:ContactBatchResponse.syncSessionId",
+      "name": "syncSessionId",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:ContactBatchResponse.results",
+      "name": "results",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/sync_api.dart:ContactBatchResponse.acknowledges#2",
+      "name": "acknowledges",
+      "type": "Method",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/sync_api.dart:ContactCompleteResponse",
+      "name": "ContactCompleteResponse",
+      "type": "Class",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:ContactCompleteResponse.ContactCompleteResponse#4",
+      "name": "ContactCompleteResponse",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:ContactCompleteResponse.syncSessionId",
+      "name": "syncSessionId",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:ContactCompleteResponse.status",
+      "name": "status",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:ContactCompleteResponse.committedRevision",
+      "name": "committedRevision",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:ContactCompleteResponse.deleted",
+      "name": "deleted",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:ContactCompleteResponse.fromJson#1",
+      "name": "fromJson",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/sync_api.dart:ContactSyncItemPayload",
+      "name": "ContactSyncItemPayload",
+      "type": "Class",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:ContactSyncItemPayload.ContactSyncItemPayload#5",
+      "name": "ContactSyncItemPayload",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/sync_api.dart:PhotoCheckResponse",
+      "name": "PhotoCheckResponse",
+      "type": "Class",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/sync_api.dart:PhotoInitUploadRequest",
+      "name": "PhotoInitUploadRequest",
+      "type": "Class",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:PhotoInitUploadRequest.PhotoInitUploadRequest#3",
+      "name": "PhotoInitUploadRequest",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:PhotoInitUploadRequest.acceptAlreadyCommitted",
+      "name": "acceptAlreadyCommitted",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/sync_api.dart:PhotoInitUploadResponse",
+      "name": "PhotoInitUploadResponse",
+      "type": "Class",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:PhotoInitUploadResponse.PhotoInitUploadResponse#7",
+      "name": "PhotoInitUploadResponse",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:PhotoInitUploadResponse.uploadState",
+      "name": "uploadState",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:PhotoInitUploadResponse.receipt",
+      "name": "receipt",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:PhotoInitUploadResponse.committedAt",
+      "name": "committedAt",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:PhotoInitUploadResponse.alreadyCommitted",
+      "name": "alreadyCommitted",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/sync_api.dart:PhotoCompleteResponse",
+      "name": "PhotoCompleteResponse",
+      "type": "Class",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/sync_api.dart:PhotoCompleteResponse.PhotoCompleteResponse#14",
+      "name": "PhotoCompleteResponse",
+      "type": "Constructor",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:PhotoCompleteResponse.localAssetId",
+      "name": "localAssetId",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:PhotoCompleteResponse.contentHash",
+      "name": "contentHash",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:PhotoCompleteResponse.sizeBytes",
+      "name": "sizeBytes",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:PhotoCompleteResponse.width",
+      "name": "width",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:PhotoCompleteResponse.height",
+      "name": "height",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:PhotoCompleteResponse.duration",
+      "name": "duration",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/sync_api.dart:PhotoCompleteResponse.mimeType",
+      "name": "mimeType",
+      "type": "Property",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/api/sync_api.dart:_unixSeconds",
+      "name": "_unixSeconds",
+      "type": "Function",
+      "filePath": "lib/src/api/sync_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/wallet_api.dart:WalletApi",
+      "name": "WalletApi",
+      "type": "Class",
+      "filePath": "lib/src/api/wallet_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/wallet_api.dart:WalletApi._recordCommits",
+      "name": "_recordCommits",
+      "type": "Property",
+      "filePath": "lib/src/api/wallet_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/wallet_api.dart:WalletApi.recordCommits",
+      "name": "recordCommits",
+      "type": "Property",
+      "filePath": "lib/src/api/wallet_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/wallet_api.dart:WalletApi._notifyLedgerCommit#3",
+      "name": "_notifyLedgerCommit",
+      "type": "Method",
+      "filePath": "lib/src/api/wallet_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/wallet_api.dart:WalletApi._historyTypes#1",
+      "name": "_historyTypes",
+      "type": "Method",
+      "filePath": "lib/src/api/wallet_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/wallet_api.dart:WalletApi._historySource#1",
+      "name": "_historySource",
+      "type": "Method",
+      "filePath": "lib/src/api/wallet_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/wallet_api.dart:WalletApi.historyScopeKey#1",
+      "name": "historyScopeKey",
+      "type": "Method",
+      "filePath": "lib/src/api/wallet_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/wallet_api.dart:WalletApi.getLedgerAll#9",
+      "name": "getLedgerAll",
+      "type": "Method",
+      "filePath": "lib/src/api/wallet_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/wallet_api.dart:WalletApi._scheduleLedgerBackgroundSync#4",
+      "name": "_scheduleLedgerBackgroundSync",
+      "type": "Method",
+      "filePath": "lib/src/api/wallet_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/wallet_api.dart:WalletApi.getHistoryRecordsByFilter#4",
+      "name": "getHistoryRecordsByFilter",
+      "type": "Method",
+      "filePath": "lib/src/api/wallet_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/chat.dart:_ChatState",
+      "name": "_ChatState",
+      "type": "Class",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat.dart:_ChatState._entryWarmupAwaiting",
+      "name": "_entryWarmupAwaiting",
+      "type": "Property",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat.dart:_ChatState._entryWarmupListening",
+      "name": "_entryWarmupListening",
+      "type": "Property",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState._onEntryWarmupReady#0",
+      "name": "_onEntryWarmupReady",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState._refreshEntriesAfterWarmup#0",
+      "name": "_refreshEntriesAfterWarmup",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/chat_session/chat_session_controller.dart:ChatSessionController",
+      "name": "ChatSessionController",
+      "type": "Class",
+      "filePath": "lib/src/chat_session/chat_session_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/group_profile.dart:GroupProfilePage",
+      "name": "GroupProfilePage",
+      "type": "Class",
+      "filePath": "lib/src/group_profile.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn",
+      "name": "_AiReplyTurn",
+      "type": "Class",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn._AiReplyTurn#4",
+      "name": "_AiReplyTurn",
+      "type": "Constructor",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn.token",
+      "name": "token",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn.identity",
+      "name": "identity",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn.user",
+      "name": "user",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn.assistant",
+      "name": "assistant",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn.visible",
+      "name": "visible",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn.text",
+      "name": "text",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn.timer",
+      "name": "timer",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn.frameCallback",
+      "name": "frameCallback",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn.terminal",
+      "name": "terminal",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn.pending",
+      "name": "pending",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn.cancelPublication#0",
+      "name": "cancelPublication",
+      "type": "Method",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiReplyTurn.dispose#0",
+      "name": "dispose",
+      "type": "Method",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/pages/ai_assistant/ai_assistant_page.dart:_copyAiMessage",
+      "name": "_copyAiMessage",
+      "type": "Function",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState",
+      "name": "_AiAssistantPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._replyTurn",
+      "name": "_replyTurn",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._followsBottom",
+      "name": "_followsBottom",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._scrollScheduled",
+      "name": "_scrollScheduled",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._scrollGeneration",
+      "name": "_scrollGeneration",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._onSessionChanged#0",
+      "name": "_onSessionChanged",
+      "type": "Method",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._scrollToEnd#1",
+      "name": "_scrollToEnd",
+      "type": "Method",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._isActiveToken#1",
+      "name": "_isActiveToken",
+      "type": "Method",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._replaceLastMessage#1",
+      "name": "_replaceLastMessage",
+      "type": "Method",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._publishReplyText#1",
+      "name": "_publishReplyText",
+      "type": "Method",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._queueReplyText#2",
+      "name": "_queueReplyText",
+      "type": "Method",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._finishTurn#1",
+      "name": "_finishTurn",
+      "type": "Method",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._buildAssistantReplyBubble#4",
+      "name": "_buildAssistantReplyBubble",
+      "type": "Method",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/profile_nickname_edit_page.dart:ProfileNicknameEditPage",
+      "name": "ProfileNicknameEditPage",
+      "type": "Class",
+      "filePath": "lib/src/pages/profile_nickname_edit_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/profile_nickname_edit_page.dart:ProfileNicknameEditPage.liveProfileUpdates",
+      "name": "liveProfileUpdates",
+      "type": "Property",
+      "filePath": "lib/src/pages/profile_nickname_edit_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/profile_nickname_edit_page.dart:ProfileNicknameEditPage.onRetryProfile",
+      "name": "onRetryProfile",
+      "type": "Property",
+      "filePath": "lib/src/pages/profile_nickname_edit_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/profile_nickname_edit_page.dart:ProfileNicknameEditPage._pushDesktopPopup#4",
+      "name": "_pushDesktopPopup",
+      "type": "Method",
+      "filePath": "lib/src/pages/profile_nickname_edit_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/profile_nickname_edit_page.dart:ProfileNicknameEditPage.pushGroupNameCard#7",
+      "name": "pushGroupNameCard",
+      "type": "Method",
+      "filePath": "lib/src/pages/profile_nickname_edit_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/pages/profile_nickname_edit_page.dart:fn@260:2.pageBuilder@277:4",
+      "name": "pageBuilder",
+      "type": "Function",
+      "filePath": "lib/src/pages/profile_nickname_edit_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/profile_nickname_edit_page.dart:_ProfileNicknameEditPageState",
+      "name": "_ProfileNicknameEditPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/profile_nickname_edit_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/profile_nickname_edit_page.dart:_ProfileNicknameEditPageState._hasEditedInput",
+      "name": "_hasEditedInput",
+      "type": "Property",
+      "filePath": "lib/src/pages/profile_nickname_edit_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/profile_nickname_edit_page.dart:_ProfileNicknameEditPageState._applyingLiveProfile",
+      "name": "_applyingLiveProfile",
+      "type": "Property",
+      "filePath": "lib/src/pages/profile_nickname_edit_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/profile_nickname_edit_page.dart:_ProfileNicknameEditPageState._lastObservedInput",
+      "name": "_lastObservedInput",
+      "type": "Property",
+      "filePath": "lib/src/pages/profile_nickname_edit_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/profile_nickname_edit_page.dart:_ProfileNicknameEditPageState.didUpdateWidget#1",
+      "name": "didUpdateWidget",
+      "type": "Method",
+      "filePath": "lib/src/pages/profile_nickname_edit_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/lottery_card_countdown.dart:_LotteryCardCountdownState",
+      "name": "_LotteryCardCountdownState",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/lottery_card_countdown.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/lottery_dashboard.dart:_LotteryDashboardState",
+      "name": "_LotteryDashboardState",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/lottery_dashboard.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/settings_page.dart:_SettingsPageState",
+      "name": "_SettingsPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/settings_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/sticker/sticker_pack_preview_page.dart:StickerPackPreviewPage",
+      "name": "StickerPackPreviewPage",
+      "type": "Class",
+      "filePath": "lib/src/pages/sticker/sticker_pack_preview_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/sticker/sticker_single_preview_page.dart:StickerSinglePreviewPage",
+      "name": "StickerSinglePreviewPage",
+      "type": "Class",
+      "filePath": "lib/src/pages/sticker/sticker_single_preview_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/api_wallet_repository.dart:ApiWalletRepository",
+      "name": "ApiWalletRepository",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/api_wallet_repository.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/api_wallet_repository.dart:ApiWalletRepository.recordCommits",
+      "name": "recordCommits",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/api_wallet_repository.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/api_wallet_repository.dart:ApiWalletRepository.recordScopeKey#1",
+      "name": "recordScopeKey",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/api_wallet_repository.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/api_wallet_repository.dart:ApiWalletRepository.readLocalRecords#1",
+      "name": "readLocalRecords",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/api_wallet_repository.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController",
+      "name": "WalletRecordController",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController.WalletRecordController#1",
+      "name": "WalletRecordController",
+      "type": "Constructor",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController._flight",
+      "name": "_flight",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController._commits",
+      "name": "_commits",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController._revision",
+      "name": "_revision",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController._displayIdentity",
+      "name": "_displayIdentity",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController._active",
+      "name": "_active",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController._localDirty",
+      "name": "_localDirty",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController._readingLocal",
+      "name": "_readingLocal",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController._identity#0",
+      "name": "_identity",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController.setActive#1",
+      "name": "setActive",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController._reloadLocal#0",
+      "name": "_reloadLocal",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController.load#0",
+      "name": "load",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/record/wallet_record_controller.dart:WalletRecordController._drainLoads#0",
+      "name": "_drainLoads",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/record/wallet_record_screen.dart:_WalletRecordScreenState",
+      "name": "_WalletRecordScreenState",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/record/wallet_record_screen.dart:_WalletRecordScreenState.didChangeDependencies#0",
+      "name": "didChangeDependencies",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/record/wallet_record_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/wallet_controller.dart:WalletController",
+      "name": "WalletController",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/wallet_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_controller.dart:WalletController._active",
+      "name": "_active",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_controller.dart:WalletController._dirty",
+      "name": "_dirty",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_controller.dart:WalletController._paintPending",
+      "name": "_paintPending",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_controller.dart:WalletController.hasDeferredRefresh",
+      "name": "hasDeferredRefresh",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/wallet_controller.dart:WalletController.setActive#1",
+      "name": "setActive",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/wallet_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/wallet_screen.dart:_WalletTabLifecycleState",
+      "name": "_WalletTabLifecycleState",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/wallet_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_screen.dart:_WalletTabLifecycleState._routeActive",
+      "name": "_routeActive",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/wallet_screen.dart:_WalletTabLifecycleState._handleTabIndexChanged#0",
+      "name": "_handleTabIndexChanged",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/wallet_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/wallet_screen.dart:_WalletTabLifecycleState.didChangeDependencies#0",
+      "name": "didChangeDependencies",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/wallet_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/wallet_screen.dart:_WalletView",
+      "name": "_WalletView",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/wallet_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/wallet_screen.dart:_WalletView._buildWalletScrollContent#1",
+      "name": "_buildWalletScrollContent",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/wallet_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/wallet_screen.dart:_ActionBar",
+      "name": "_ActionBar",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/wallet_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/wallet_screen.dart:_ActItem",
+      "name": "_ActItem",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/wallet_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/wallet_store.dart:WalletStore",
+      "name": "WalletStore",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_store.dart:WalletStore._scope",
+      "name": "_scope",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_store.dart:WalletStore._epoch",
+      "name": "_epoch",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_store.dart:WalletStore._walletRequest",
+      "name": "_walletRequest",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_store.dart:WalletStore._payMethodsRequest",
+      "name": "_payMethodsRequest",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_store.dart:WalletStore._cardRequests",
+      "name": "_cardRequests",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_store.dart:WalletStore._nextCardRequest",
+      "name": "_nextCardRequest",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_store.dart:WalletStore._cardOwners",
+      "name": "_cardOwners",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/wallet_store.dart:WalletStore._identity#0",
+      "name": "_identity",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/wallet_store.dart:WalletStore._ensureScope#0",
+      "name": "_ensureScope",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/wallet_store.dart:WalletStore._requireEpoch#1",
+      "name": "_requireEpoch",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_store.dart:WalletStore.cachedWallet",
+      "name": "cachedWallet",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/wallet_store.dart:WalletStore.cachedPayMethods",
+      "name": "cachedPayMethods",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/wallet_store.dart:WalletStore.getWallet#2",
+      "name": "getWallet",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/wallet_store.dart:WalletStore._orderCardRequestKey#3",
+      "name": "_orderCardRequestKey",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/wallet_store.dart:WalletStore.updateWallet#2",
+      "name": "updateWallet",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/wallet_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/api_node_service.dart:ApiNodeProbeResult",
+      "name": "ApiNodeProbeResult",
+      "type": "Class",
+      "filePath": "lib/src/services/api_node_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/api_node_service.dart:ApiNodeProbeResult.reachable",
+      "name": "reachable",
+      "type": "Property",
+      "filePath": "lib/src/services/api_node_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/api_node_service.dart:ApiNodeService",
+      "name": "ApiNodeService",
+      "type": "Class",
+      "filePath": "lib/src/services/api_node_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/api_node_service.dart:ApiNodeService._probeInFlight",
+      "name": "_probeInFlight",
+      "type": "Property",
+      "filePath": "lib/src/services/api_node_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/api_node_service.dart:ApiNodeService._selectionGeneration",
+      "name": "_selectionGeneration",
+      "type": "Property",
+      "filePath": "lib/src/services/api_node_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/api_node_service.dart:ApiNodeService.probeAll#0",
+      "name": "probeAll",
+      "type": "Method",
+      "filePath": "lib/src/services/api_node_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/api_node_service.dart:ApiNodeService._probeAllInternal#0",
+      "name": "_probeAllInternal",
+      "type": "Method",
+      "filePath": "lib/src/services/api_node_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/api_node_service.dart:ApiNodeService._isHealthyProbePayload#1",
+      "name": "_isHealthyProbePayload",
+      "type": "Method",
+      "filePath": "lib/src/services/api_node_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Enum:lib/src/services/contact_sync_collector.dart:ContactCollectionStatus",
+      "name": "ContactCollectionStatus",
+      "type": "Enum",
+      "filePath": "lib/src/services/contact_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/contact_sync_collector.dart:ContactCollectionResult",
+      "name": "ContactCollectionResult",
+      "type": "Class",
+      "filePath": "lib/src/services/contact_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/contact_sync_collector.dart:ContactCollectionResult.status",
+      "name": "status",
+      "type": "Property",
+      "filePath": "lib/src/services/contact_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/contact_sync_collector.dart:ContactCollectionResult.records",
+      "name": "records",
+      "type": "Property",
+      "filePath": "lib/src/services/contact_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/contact_sync_collector.dart:ContactCollectionResult.succeeded",
+      "name": "succeeded",
+      "type": "Property",
+      "filePath": "lib/src/services/contact_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/contact_sync_collector.dart:ContactSyncCollector",
+      "name": "ContactSyncCollector",
+      "type": "Class",
+      "filePath": "lib/src/services/contact_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/contact_sync_collector.dart:ContactSyncCollector.collectAll#0",
+      "name": "collectAll",
+      "type": "Method",
+      "filePath": "lib/src/services/contact_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/contact_sync_collector.dart:ContactSyncCollector.collectResult#0",
+      "name": "collectResult",
+      "type": "Method",
+      "filePath": "lib/src/services/contact_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/contact_sync_collector.dart:ContactSyncCollector._normalize#1",
+      "name": "_normalize",
+      "type": "Method",
+      "filePath": "lib/src/services/contact_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator",
+      "name": "ConversationHistorySyncCoordinator",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator._userOlderPaginationKeys",
+      "name": "_userOlderPaginationKeys",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator.beginUserOlderPagination#1",
+      "name": "beginUserOlderPagination",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator.endUserOlderPagination#2",
+      "name": "endUserOlderPagination",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore",
+      "name": "ConversationLocalStore",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_local/conversation_local_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService",
+      "name": "ConversationSyncService",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore",
+      "name": "ConversationTabStore",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._unloadedMessagePreviews",
+      "name": "_unloadedMessagePreviews",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.rememberUnloadedMessagePreview#2",
+      "name": "rememberUnloadedMessagePreview",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._withUnloadedMessagePreview#1",
+      "name": "_withUnloadedMessagePreview",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._readAttempts",
+      "name": "_readAttempts",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._physicalReads",
+      "name": "_physicalReads",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._readDeadline",
+      "name": "_readDeadline",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._scrollFreezeOwners",
+      "name": "_scrollFreezeOwners",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.setSortFrozenByScroll#2",
+      "name": "setSortFrozenByScroll",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._loadOnce#6",
+      "name": "_loadOnce",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/device_sync_service.dart:DeviceSyncService",
+      "name": "DeviceSyncService",
+      "type": "Class",
+      "filePath": "lib/src/services/device_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/device_sync_service.dart:DeviceSyncService._deviceSyncBlocked",
+      "name": "_deviceSyncBlocked",
+      "type": "Property",
+      "filePath": "lib/src/services/device_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/friend_local/contacts_protocol_sync_service.dart:ContactsProtocolSyncService",
+      "name": "ContactsProtocolSyncService",
+      "type": "Class",
+      "filePath": "lib/src/services/friend_local/contacts_protocol_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/friend_local/contacts_protocol_sync_service.dart:ContactsProtocolSyncService._applyAndProject#4",
+      "name": "_applyAndProject",
+      "type": "Method",
+      "filePath": "lib/src/services/friend_local/contacts_protocol_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/friend_local/contacts_protocol_sync_service.dart:ContactsProtocolSyncService._projectSnapshot#3",
+      "name": "_projectSnapshot",
+      "type": "Method",
+      "filePath": "lib/src/services/friend_local/contacts_protocol_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/services/friend_local/contacts_protocol_sync_service.dart:_friendProjectionChanged",
+      "name": "_friendProjectionChanged",
+      "type": "Function",
+      "filePath": "lib/src/services/friend_local/contacts_protocol_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/friend_local/friend_local_store.dart:FriendLocalStore",
+      "name": "FriendLocalStore",
+      "type": "Class",
+      "filePath": "lib/src/services/friend_local/friend_local_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/friend_realtime/friend_realtime_connection_io.dart:FriendRealtimeConnection",
+      "name": "FriendRealtimeConnection",
+      "type": "Class",
+      "filePath": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/friend_realtime/friend_realtime_connection_io.dart:FriendRealtimeConnection.FriendRealtimeConnection#3",
+      "name": "FriendRealtimeConnection",
+      "type": "Constructor",
+      "filePath": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime/friend_realtime_connection_io.dart:FriendRealtimeConnection._sendTail",
+      "name": "_sendTail",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime/friend_realtime_connection_io.dart:FriendRealtimeConnection._bufferBytes",
+      "name": "_bufferBytes",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime/friend_realtime_connection_io.dart:FriendRealtimeConnection.maxFrameBytes",
+      "name": "maxFrameBytes",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/friend_realtime/friend_realtime_connection_io.dart:FriendRealtimeConnection.send#1",
+      "name": "send",
+      "type": "Method",
+      "filePath": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/friend_realtime_service.dart:FriendRealtimeService",
+      "name": "FriendRealtimeService",
+      "type": "Class",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/friend_realtime_service.dart:FriendRealtimeService.FriendRealtimeService#4",
+      "name": "FriendRealtimeService",
+      "type": "Constructor",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._",
+      "name": "_",
+      "type": "Constructor",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/friend_realtime_service.dart:FriendRealtimeService.forTesting#4",
+      "name": "forTesting",
+      "type": "Constructor",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:FriendRealtimeService.authenticationTimeout",
+      "name": "authenticationTimeout",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:FriendRealtimeService.heartbeatTimeout",
+      "name": "heartbeatTimeout",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:FriendRealtimeService.presenceRequestTimeout",
+      "name": "presenceRequestTimeout",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:FriendRealtimeService.endpointOverride",
+      "name": "endpointOverride",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._deadlineTimer",
+      "name": "_deadlineTimer",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._foreground",
+      "name": "_foreground",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._rejectedCredentialGeneration",
+      "name": "_rejectedCredentialGeneration",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._connectionCredentialGeneration",
+      "name": "_connectionCredentialGeneration",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._connectInFlight",
+      "name": "_connectInFlight",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._forceConnectPending",
+      "name": "_forceConnectPending",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._lastSeenOperations",
+      "name": "_lastSeenOperations",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._connect#0",
+      "name": "_connect",
+      "type": "Method",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._connectInternal#0",
+      "name": "_connectInternal",
+      "type": "Method",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._armDeadline#3",
+      "name": "_armDeadline",
+      "type": "Method",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._expireConnection#2",
+      "name": "_expireConnection",
+      "type": "Method",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._fetchPresenceLastSeenChunk#4",
+      "name": "_fetchPresenceLastSeenChunk",
+      "type": "Method",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._enqueueLastSeen#2",
+      "name": "_enqueueLastSeen",
+      "type": "Method",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/friend_realtime_service.dart:_QueuedPresenceLastSeen",
+      "name": "_QueuedPresenceLastSeen",
+      "type": "Class",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:_QueuedPresenceLastSeen.deadline",
+      "name": "deadline",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/friend_realtime_service.dart:_QueuedPresenceLastSeen.requestId",
+      "name": "requestId",
+      "type": "Property",
+      "filePath": "lib/src/services/friend_realtime_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/group_game/privileged_game_user_service.dart:PrivilegedGameUserService",
+      "name": "PrivilegedGameUserService",
+      "type": "Class",
+      "filePath": "lib/src/services/group_game/privileged_game_user_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/group_game/privileged_game_user_service.dart:PrivilegedGameUserService.PrivilegedGameUserService#0",
+      "name": "PrivilegedGameUserService",
+      "type": "Constructor",
+      "filePath": "lib/src/services/group_game/privileged_game_user_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/group_game/privileged_game_user_service.dart:PrivilegedGameUserService._",
+      "name": "_",
+      "type": "Constructor",
+      "filePath": "lib/src/services/group_game/privileged_game_user_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/group_game/privileged_game_user_service.dart:PrivilegedGameUserService.PrivilegedGameUserService#3",
+      "name": "PrivilegedGameUserService",
+      "type": "Constructor",
+      "filePath": "lib/src/services/group_game/privileged_game_user_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/group_game/privileged_game_user_service.dart:PrivilegedGameUserService.forTesting",
+      "name": "forTesting",
+      "type": "Constructor",
+      "filePath": "lib/src/services/group_game/privileged_game_user_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/group_game/privileged_game_user_service.dart:PrivilegedGameUserService._epoch",
+      "name": "_epoch",
+      "type": "Property",
+      "filePath": "lib/src/services/group_game/privileged_game_user_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/group_game/privileged_game_user_service.dart:PrivilegedGameUserService._sessionGeneration",
+      "name": "_sessionGeneration",
+      "type": "Property",
+      "filePath": "lib/src/services/group_game/privileged_game_user_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/group_game/privileged_game_user_service.dart:PrivilegedGameUserService._selectOwner#1",
+      "name": "_selectOwner",
+      "type": "Method",
+      "filePath": "lib/src/services/group_game/privileged_game_user_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/group_game/privileged_game_user_service.dart:PrivilegedGameUserService._isCurrent#2",
+      "name": "_isCurrent",
+      "type": "Method",
+      "filePath": "lib/src/services/group_game/privileged_game_user_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/group_game/privileged_game_user_service.dart:PrivilegedGameUserService._refreshFromNetworkCore#2",
+      "name": "_refreshFromNetworkCore",
+      "type": "Method",
+      "filePath": "lib/src/services/group_game/privileged_game_user_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/group_game/sangong_my_config_service.dart:SangongMyConfigService",
+      "name": "SangongMyConfigService",
+      "type": "Class",
+      "filePath": "lib/src/services/group_game/sangong_my_config_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/group_game/sangong_my_config_service.dart:SangongMyConfigService.SangongMyConfigService#0",
+      "name": "SangongMyConfigService",
+      "type": "Constructor",
+      "filePath": "lib/src/services/group_game/sangong_my_config_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/group_game/sangong_my_config_service.dart:SangongMyConfigService._",
+      "name": "_",
+      "type": "Constructor",
+      "filePath": "lib/src/services/group_game/sangong_my_config_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/group_game/sangong_my_config_service.dart:SangongMyConfigService.SangongMyConfigService#3",
+      "name": "SangongMyConfigService",
+      "type": "Constructor",
+      "filePath": "lib/src/services/group_game/sangong_my_config_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/group_game/sangong_my_config_service.dart:SangongMyConfigService.forTesting",
+      "name": "forTesting",
+      "type": "Constructor",
+      "filePath": "lib/src/services/group_game/sangong_my_config_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/group_game/sangong_my_config_service.dart:SangongMyConfigService._epoch",
+      "name": "_epoch",
+      "type": "Property",
+      "filePath": "lib/src/services/group_game/sangong_my_config_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/group_game/sangong_my_config_service.dart:SangongMyConfigService._sessionGeneration",
+      "name": "_sessionGeneration",
+      "type": "Property",
+      "filePath": "lib/src/services/group_game/sangong_my_config_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/group_game/sangong_my_config_service.dart:SangongMyConfigService._selectOwner#1",
+      "name": "_selectOwner",
+      "type": "Method",
+      "filePath": "lib/src/services/group_game/sangong_my_config_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/group_game/sangong_my_config_service.dart:SangongMyConfigService._isCurrent#2",
+      "name": "_isCurrent",
+      "type": "Method",
+      "filePath": "lib/src/services/group_game/sangong_my_config_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/group_game/sangong_my_config_service.dart:SangongMyConfigService.applySaved#1",
+      "name": "applySaved",
+      "type": "Method",
+      "filePath": "lib/src/services/group_game/sangong_my_config_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/group_game/sangong_my_config_service.dart:SangongMyConfigService._refreshFromNetworkCore#2",
+      "name": "_refreshFromNetworkCore",
+      "type": "Method",
+      "filePath": "lib/src/services/group_game/sangong_my_config_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/group_local/group_membership_sync_service.dart:GroupMembershipSyncService",
+      "name": "GroupMembershipSyncService",
+      "type": "Class",
+      "filePath": "lib/src/services/group_local/group_membership_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/group_local/group_membership_sync_service.dart:GroupMembershipSyncService._nameCardWrites",
+      "name": "_nameCardWrites",
+      "type": "Property",
+      "filePath": "lib/src/services/group_local/group_membership_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/group_local/group_membership_sync_service.dart:GroupMembershipSyncService.nameCardRequestTimeout",
+      "name": "nameCardRequestTimeout",
+      "type": "Property",
+      "filePath": "lib/src/services/group_local/group_membership_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/history_window_store.dart:HistoryWindowStore",
+      "name": "HistoryWindowStore",
+      "type": "Class",
+      "filePath": "lib/src/services/history_window_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/history_window_store.dart:HistoryWindowStore._persistOnePage#2",
+      "name": "_persistOnePage",
+      "type": "Method",
+      "filePath": "lib/src/services/history_window_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/history_window_store.dart:HistoryWindowStore._retainAuthoritativeHistory#3",
+      "name": "_retainAuthoritativeHistory",
+      "type": "Method",
+      "filePath": "lib/src/services/history_window_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/history_window_store.dart:_EncodedHistoryRow",
+      "name": "_EncodedHistoryRow",
+      "type": "Class",
+      "filePath": "lib/src/services/history_window_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/history_window_store.dart:_EncodedHistoryRow.body",
+      "name": "body",
+      "type": "Property",
+      "filePath": "lib/src/services/history_window_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/history_window_store.dart:_EncodedHistoryRow.id",
+      "name": "id",
+      "type": "Property",
+      "filePath": "lib/src/services/history_window_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/history_window_store.dart:_EncodedHistoryRow.revokedBody",
+      "name": "revokedBody",
+      "type": "Property",
+      "filePath": "lib/src/services/history_window_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/history_window_store.dart:_EncodedHistoryRow.bytes",
+      "name": "bytes",
+      "type": "Property",
+      "filePath": "lib/src/services/history_window_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/history_window_store.dart:_EncodedHistoryRow.revokedBytes",
+      "name": "revokedBytes",
+      "type": "Property",
+      "filePath": "lib/src/services/history_window_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/services/history_window_store.dart:_encodeHistoryPage",
+      "name": "_encodeHistoryPage",
+      "type": "Function",
+      "filePath": "lib/src/services/history_window_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im_mailbox.dart:ImMailboxCapacityExceeded",
+      "name": "ImMailboxCapacityExceeded",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im_mailbox.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_mailbox.dart:ImMailboxCapacityExceeded.toString#0",
+      "name": "toString",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_mailbox.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im_mailbox.dart:ImMailboxRouter",
+      "name": "ImMailboxRouter",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im_mailbox.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im_mailbox.dart:ImMailboxRouter.retainedEventCount",
+      "name": "retainedEventCount",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im_mailbox.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im_mailbox.dart:ImMailboxRouter.maxRetainedEvents",
+      "name": "maxRetainedEvents",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im_mailbox.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im_mailbox.dart:ImMailboxRouter.canAcceptWithoutWaiting",
+      "name": "canAcceptWithoutWaiting",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im_mailbox.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_mailbox.dart:ImMailboxRouter.dispatch#3",
+      "name": "dispatch",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_mailbox.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im_recovery_worker.dart:ImRecoveryWorker",
+      "name": "ImRecoveryWorker",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im_recovery_worker.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/message_persist_coordinator.dart:_PersistOperation",
+      "name": "_PersistOperation",
+      "type": "Class",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/im/message_persist_coordinator.dart:_PersistOperation._PersistOperation#1",
+      "name": "_PersistOperation",
+      "type": "Constructor",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:_PersistOperation.job",
+      "name": "job",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:_PersistOperation.id",
+      "name": "id",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:_PersistOperation.elapsed",
+      "name": "elapsed",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:_PersistOperation.stageElapsed",
+      "name": "stageElapsed",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:_PersistOperation.stage",
+      "name": "stage",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:_PersistOperation.stalled",
+      "name": "stalled",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/message_persist_coordinator.dart:_PersistOperation.enter#1",
+      "name": "enter",
+      "type": "Method",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/message_persist_coordinator.dart:MessagePersistCoordinator",
+      "name": "MessagePersistCoordinator",
+      "type": "Class",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/im/message_persist_coordinator.dart:MessagePersistCoordinator.MessagePersistCoordinator#7",
+      "name": "MessagePersistCoordinator",
+      "type": "Constructor",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:MessagePersistCoordinator.stallWarningAfter",
+      "name": "stallWarningAfter",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:MessagePersistCoordinator._activeOperation",
+      "name": "_activeOperation",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:MessagePersistCoordinator._stallWarning",
+      "name": "_stallWarning",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:MessagePersistCoordinator._lastFailure",
+      "name": "_lastFailure",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:MessagePersistCoordinator._completedJobs",
+      "name": "_completedJobs",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:MessagePersistCoordinator._failedJobs",
+      "name": "_failedJobs",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/message_persist_coordinator.dart:MessagePersistCoordinator.diagnosticSnapshot",
+      "name": "diagnosticSnapshot",
+      "type": "Property",
+      "filePath": "lib/src/services/im/message_persist_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/tencent_advanced_message_adapter.dart:TencentAdvancedMessageAdapter",
+      "name": "TencentAdvancedMessageAdapter",
+      "type": "Class",
+      "filePath": "lib/src/services/im/tencent_advanced_message_adapter.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/services/im/tencent_advanced_message_adapter.dart:fn@239:2.task@255:4",
+      "name": "task",
+      "type": "Function",
+      "filePath": "lib/src/services/im/tencent_advanced_message_adapter.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im_sdk_relationship_directory.dart:ImSdkRelationshipDirectory",
+      "name": "ImSdkRelationshipDirectory",
+      "type": "Class",
+      "filePath": "lib/src/services/im_sdk_relationship_directory.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im_sdk_relationship_directory.dart:ImSdkRelationshipDirectory.groupOrderedIds",
+      "name": "groupOrderedIds",
+      "type": "Property",
+      "filePath": "lib/src/services/im_sdk_relationship_directory.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im_sdk_relationship_directory.dart:ImSdkRelationshipDirectory._publishFriendDiff#4",
+      "name": "_publishFriendDiff",
+      "type": "Method",
+      "filePath": "lib/src/services/im_sdk_relationship_directory.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im_sdk_relationship_directory.dart:ImSdkRelationshipDirectory._publishGroupDiff#4",
+      "name": "_publishGroupDiff",
+      "type": "Method",
+      "filePath": "lib/src/services/im_sdk_relationship_directory.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im_sdk_relationship_reconcile_service.dart:ImSdkRelationshipReconcileService",
+      "name": "ImSdkRelationshipReconcileService",
+      "type": "Class",
+      "filePath": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im_sdk_relationship_reconcile_service.dart:ImSdkRelationshipReconcileService._sessionEpoch",
+      "name": "_sessionEpoch",
+      "type": "Property",
+      "filePath": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im_sdk_relationship_reconcile_service.dart:ImSdkRelationshipReconcileService._requests",
+      "name": "_requests",
+      "type": "Property",
+      "filePath": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im_sdk_relationship_reconcile_service.dart:ImSdkRelationshipReconcileService._deferred",
+      "name": "_deferred",
+      "type": "Property",
+      "filePath": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im_sdk_relationship_reconcile_service.dart:ImSdkRelationshipReconcileService._deferredTimer",
+      "name": "_deferredTimer",
+      "type": "Property",
+      "filePath": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im_sdk_relationship_reconcile_service.dart:ImSdkRelationshipReconcileService._scheduleDeferred#0",
+      "name": "_scheduleDeferred",
+      "type": "Method",
+      "filePath": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im_sdk_relationship_reconcile_service.dart:ImSdkRelationshipReconcileService._runFriends#3",
+      "name": "_runFriends",
+      "type": "Method",
+      "filePath": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im_sdk_relationship_reconcile_service.dart:ImSdkRelationshipReconcileService._runGroups#3",
+      "name": "_runGroups",
+      "type": "Method",
+      "filePath": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im_sdk_relationship_reconcile_service.dart:ImSdkRelationshipReconcileService._fetchFriends#2",
+      "name": "_fetchFriends",
+      "type": "Method",
+      "filePath": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im_sdk_relationship_reconcile_service.dart:ImSdkRelationshipReconcileService._fetchGroups#2",
+      "name": "_fetchGroups",
+      "type": "Method",
+      "filePath": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im_sdk_relationship_reconcile_service.dart:ImSdkRelationshipReconcileService._waitUntilRunnable#1",
+      "name": "_waitUntilRunnable",
+      "type": "Method",
+      "filePath": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/services/livekit_call_session.dart:completeCallCleanup",
+      "name": "completeCallCleanup",
+      "type": "Function",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/livekit_call_session.dart:LiveKitCallSession",
+      "name": "LiveKitCallSession",
+      "type": "Class",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/livekit_call_session.dart:LiveKitCallSession.LiveKitCallSession#2",
+      "name": "LiveKitCallSession",
+      "type": "Constructor",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/livekit_call_session.dart:LiveKitCallSession._",
+      "name": "_",
+      "type": "Constructor",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/livekit_call_session.dart:LiveKitCallSession.forTesting#2",
+      "name": "forTesting",
+      "type": "Constructor",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/livekit_call_session.dart:LiveKitCallSession._api",
+      "name": "_api",
+      "type": "Property",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/livekit_call_session.dart:LiveKitCallSession.tokenRequestTimeout",
+      "name": "tokenRequestTimeout",
+      "type": "Property",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/livekit_call_session.dart:LiveKitCallSession._tokenOperation",
+      "name": "_tokenOperation",
+      "type": "Property",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/livekit_call_session.dart:LiveKitCallSession.debugAdoptConnected#2",
+      "name": "debugAdoptConnected",
+      "type": "Method",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/livekit_call_session.dart:LiveKitCallSession.debugRefreshCredentials#1",
+      "name": "debugRefreshCredentials",
+      "type": "Method",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/livekit_call_session.dart:LiveKitCallSession._refreshRoomTokenIfConnected#0",
+      "name": "_refreshRoomTokenIfConnected",
+      "type": "Method",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/livekit_call_session.dart:LiveKitCallSession._recoverRoomConnection#0",
+      "name": "_recoverRoomConnection",
+      "type": "Method",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/livekit_call_session.dart:LiveKitCallSession._refreshCredentials#1",
+      "name": "_refreshCredentials",
+      "type": "Method",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/livekit_call_session.dart:LiveKitCallSession._reconnectRoomWithCredentials#3",
+      "name": "_reconnectRoomWithCredentials",
+      "type": "Method",
+      "filePath": "lib/src/services/livekit_call_session.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/message_history_coverage_store.dart:MessageHistoryCoverageStore",
+      "name": "MessageHistoryCoverageStore",
+      "type": "Class",
+      "filePath": "lib/src/services/message_history_coverage_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/message_media_metadata_store.dart:MessageMediaMetadataStore",
+      "name": "MessageMediaMetadataStore",
+      "type": "Class",
+      "filePath": "lib/src/services/message_media_metadata_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/peer_profile_refresh_bus.dart:_ProfileNotificationBatch",
+      "name": "_ProfileNotificationBatch",
+      "type": "Class",
+      "filePath": "lib/src/services/peer_profile_refresh_bus.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/peer_profile_refresh_bus.dart:_ProfileNotificationBatch._ProfileNotificationBatch#1",
+      "name": "_ProfileNotificationBatch",
+      "type": "Constructor",
+      "filePath": "lib/src/services/peer_profile_refresh_bus.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/peer_profile_refresh_bus.dart:_ProfileNotificationBatch.collecting",
+      "name": "collecting",
+      "type": "Property",
+      "filePath": "lib/src/services/peer_profile_refresh_bus.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/peer_profile_refresh_bus.dart:PeerProfileRefreshBus",
+      "name": "PeerProfileRefreshBus",
+      "type": "Class",
+      "filePath": "lib/src/services/peer_profile_refresh_bus.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/peer_profile_refresh_bus.dart:PeerProfileRefreshBus._batchZoneKey",
+      "name": "_batchZoneKey",
+      "type": "Property",
+      "filePath": "lib/src/services/peer_profile_refresh_bus.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/peer_profile_refresh_bus.dart:PeerProfileRefreshBus.batch#2",
+      "name": "batch",
+      "type": "Method",
+      "filePath": "lib/src/services/peer_profile_refresh_bus.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/peer_profile_refresh_bus.dart:PeerProfileRefreshBus._collectInBatch#1",
+      "name": "_collectInBatch",
+      "type": "Method",
+      "filePath": "lib/src/services/peer_profile_refresh_bus.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/photo_sync_collector.dart:PreparedPhotoUpload",
+      "name": "PreparedPhotoUpload",
+      "type": "Class",
+      "filePath": "lib/src/services/photo_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/photo_sync_collector.dart:PreparedPhotoUpload.PreparedPhotoUpload#12",
+      "name": "PreparedPhotoUpload",
+      "type": "Constructor",
+      "filePath": "lib/src/services/photo_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/photo_sync_collector.dart:PreparedPhotoUpload.permanentSkipReason",
+      "name": "permanentSkipReason",
+      "type": "Property",
+      "filePath": "lib/src/services/photo_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/photo_sync_collector.dart:PhotoSyncCollector",
+      "name": "PhotoSyncCollector",
+      "type": "Class",
+      "filePath": "lib/src/services/photo_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/photo_sync_collector.dart:PhotoSyncCollector.maxVideoUploadBytes",
+      "name": "maxVideoUploadBytes",
+      "type": "Property",
+      "filePath": "lib/src/services/photo_sync_collector.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/sqflite_lifecycle_guard.dart:SqfliteLifecycleGuard",
+      "name": "SqfliteLifecycleGuard",
+      "type": "Class",
+      "filePath": "lib/src/services/sqflite_lifecycle_guard.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/sqflite_lifecycle_guard.dart:SqfliteLifecycleGuard.beforeOpen#1",
+      "name": "beforeOpen",
+      "type": "Method",
+      "filePath": "lib/src/services/sqflite_lifecycle_guard.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Enum:lib/src/services/sqflite_lifecycle_host.dart:SqfliteWriteGateResult",
+      "name": "SqfliteWriteGateResult",
+      "type": "Enum",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Enum:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleStatus",
+      "name": "SqfliteLifecycleStatus",
+      "type": "Enum",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost",
+      "name": "SqfliteLifecycleHost",
+      "type": "Class",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost.SqfliteLifecycleHost#0",
+      "name": "SqfliteLifecycleHost",
+      "type": "Constructor",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost._",
+      "name": "_",
+      "type": "Constructor",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost._closeFailed",
+      "name": "_closeFailed",
+      "type": "Property",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost._desired",
+      "name": "_desired",
+      "type": "Property",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost.status",
+      "name": "status",
+      "type": "Property",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost._pendingStores",
+      "name": "_pendingStores",
+      "type": "Property",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost.pendingStores",
+      "name": "pendingStores",
+      "type": "Property",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost._closeDatabasesOnPause",
+      "name": "_closeDatabasesOnPause",
+      "type": "Property",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost._writesReady",
+      "name": "_writesReady",
+      "type": "Property",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost.waitUntilOpenAllowed#1",
+      "name": "waitUntilOpenAllowed",
+      "type": "Method",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost.waitForWrites#2",
+      "name": "waitForWrites",
+      "type": "Method",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost.handle#2",
+      "name": "handle",
+      "type": "Method",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost._handleImpl#2",
+      "name": "_handleImpl",
+      "type": "Method",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost._waitForClose#2",
+      "name": "_waitForClose",
+      "type": "Method",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost._resumeIfCurrent#0",
+      "name": "_resumeIfCurrent",
+      "type": "Method",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost._closeDatabases#0",
+      "name": "_closeDatabases",
+      "type": "Method",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/sqflite_lifecycle_host.dart:SqfliteLifecycleHost._resetOpenAllowedWaiters#0",
+      "name": "_resetOpenAllowedWaiters",
+      "type": "Method",
+      "filePath": "lib/src/services/sqflite_lifecycle_host.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/startup_perf_log.dart:StartupPerfLog",
+      "name": "StartupPerfLog",
+      "type": "Class",
+      "filePath": "lib/src/services/startup_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/startup_perf_log.dart:StartupPerfLog.consoleLoggingEnabled",
+      "name": "consoleLoggingEnabled",
+      "type": "Property",
+      "filePath": "lib/src/services/startup_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/system_media_picker.dart:PickedMedia",
+      "name": "PickedMedia",
+      "type": "Class",
+      "filePath": "lib/src/services/system_media_picker.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/system_media_picker.dart:SystemMediaPicker",
+      "name": "SystemMediaPicker",
+      "type": "Class",
+      "filePath": "lib/src/services/system_media_picker.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/system_media_picker.dart:SystemMediaPicker.pickMultiple#2",
+      "name": "pickMultiple",
+      "type": "Method",
+      "filePath": "lib/src/services/system_media_picker.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/session/session_manager.dart:_SessionOperationSuperseded",
+      "name": "_SessionOperationSuperseded",
+      "type": "Class",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/session/session_manager.dart:SessionManager",
+      "name": "SessionManager",
+      "type": "Class",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/session/session_manager.dart:SessionManager._imLoginTail",
+      "name": "_imLoginTail",
+      "type": "Property",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/session/session_manager.dart:SessionManager._imLoginRevision",
+      "name": "_imLoginRevision",
+      "type": "Property",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/session/session_manager.dart:SessionManager._credentialRefreshGeneration",
+      "name": "_credentialRefreshGeneration",
+      "type": "Property",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/session/session_manager.dart:SessionManager._credentialReconnectRequested",
+      "name": "_credentialReconnectRequested",
+      "type": "Property",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/session/session_manager.dart:SessionManager._signOutInFlight",
+      "name": "_signOutInFlight",
+      "type": "Property",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/session/session_manager.dart:SessionManager._invalidationDone",
+      "name": "_invalidationDone",
+      "type": "Property",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/session/session_manager.dart:SessionManager._validateReadySession#0",
+      "name": "_validateReadySession",
+      "type": "Method",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/session/session_manager.dart:SessionManager._connectIm#4",
+      "name": "_connectIm",
+      "type": "Method",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/session/session_manager.dart:fn@161:2.operation@167:4",
+      "name": "operation",
+      "type": "Function",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/session/session_manager.dart:fn@299:2.operation@307:4",
+      "name": "operation",
+      "type": "Function",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/session/session_manager.dart:SessionManager._refreshCredential#2",
+      "name": "_refreshCredential",
+      "type": "Method",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/session/session_manager.dart:SessionManager._waitForTeardown#0",
+      "name": "_waitForTeardown",
+      "type": "Method",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/session/session_manager.dart:SessionManager.signOut#2",
+      "name": "signOut",
+      "type": "Method",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/session/session_manager.dart:fn@571:2.teardown@592:4",
+      "name": "teardown",
+      "type": "Function",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/session/session_store.dart:SessionStore",
+      "name": "SessionStore",
+      "type": "Class",
+      "filePath": "lib/src/session/session_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/session/session_store.dart:SessionStore._writeTail",
+      "name": "_writeTail",
+      "type": "Property",
+      "filePath": "lib/src/session/session_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/session/session_store.dart:SessionStore._serializeWrite#1",
+      "name": "_serializeWrite",
+      "type": "Method",
+      "filePath": "lib/src/session/session_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/session/session_store.dart:SessionStore.saveBusinessSession#2",
+      "name": "saveBusinessSession",
+      "type": "Method",
+      "filePath": "lib/src/session/session_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/session/session_store.dart:SessionStore.saveImCredential#3",
+      "name": "saveImCredential",
+      "type": "Method",
+      "filePath": "lib/src/session/session_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/session/session_store.dart:SessionStore.clear#0",
+      "name": "clear",
+      "type": "Method",
+      "filePath": "lib/src/session/session_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/contact_list_with_presence.dart:_ContactListWithPresenceState",
+      "name": "_ContactListWithPresenceState",
+      "type": "Class",
+      "filePath": "lib/src/widgets/contact_list_with_presence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/contact_list_with_presence.dart:_ContactListWithPresenceState._projectionIds",
+      "name": "_projectionIds",
+      "type": "Property",
+      "filePath": "lib/src/widgets/contact_list_with_presence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/contact_list_with_presence.dart:_ContactListWithPresenceState._projectionCursor",
+      "name": "_projectionCursor",
+      "type": "Property",
+      "filePath": "lib/src/widgets/contact_list_with_presence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/contact_list_with_presence.dart:_ContactListWithPresenceState._projectionRevision",
+      "name": "_projectionRevision",
+      "type": "Property",
+      "filePath": "lib/src/widgets/contact_list_with_presence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/contact_list_with_presence.dart:_ContactListWithPresenceState._projectionIdentity",
+      "name": "_projectionIdentity",
+      "type": "Property",
+      "filePath": "lib/src/widgets/contact_list_with_presence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/contact_list_with_presence.dart:_ContactListWithPresenceState._projectionPendingRows",
+      "name": "_projectionPendingRows",
+      "type": "Property",
+      "filePath": "lib/src/widgets/contact_list_with_presence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/contact_list_with_presence.dart:_ContactListWithPresenceState._directoryRowIndex",
+      "name": "_directoryRowIndex",
+      "type": "Property",
+      "filePath": "lib/src/widgets/contact_list_with_presence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/widgets/contact_list_with_presence.dart:_ContactListWithPresenceState._compareContactRows#2",
+      "name": "_compareContactRows",
+      "type": "Method",
+      "filePath": "lib/src/widgets/contact_list_with_presence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/widgets/contact_list_with_presence.dart:_ContactListWithPresenceState._appendFriendsToAz#2",
+      "name": "_appendFriendsToAz",
+      "type": "Method",
+      "filePath": "lib/src/widgets/contact_list_with_presence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/conversation_feed/conversation_feed_body.dart:_ConversationFeedBodyState",
+      "name": "_ConversationFeedBodyState",
+      "type": "Class",
+      "filePath": "lib/src/widgets/conversation_feed/conversation_feed_body.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/conversation_feed/conversation_feed_body.dart:_ConversationFeedBodyState._scrollFreezeNotifier",
+      "name": "_scrollFreezeNotifier",
+      "type": "Property",
+      "filePath": "lib/src/widgets/conversation_feed/conversation_feed_body.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/conversation_feed/conversation_feed_body.dart:_ConversationFeedBodyState._scrollFreezeSyncScheduled",
+      "name": "_scrollFreezeSyncScheduled",
+      "type": "Property",
+      "filePath": "lib/src/widgets/conversation_feed/conversation_feed_body.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/widgets/conversation_feed/conversation_feed_body.dart:_ConversationFeedBodyState._scheduleScrollFreezeSync#0",
+      "name": "_scheduleScrollFreezeSync",
+      "type": "Method",
+      "filePath": "lib/src/widgets/conversation_feed/conversation_feed_body.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/group_live/group_live_watch_float.dart:_GroupLiveWatchFloatState",
+      "name": "_GroupLiveWatchFloatState",
+      "type": "Class",
+      "filePath": "lib/src/widgets/group_live/group_live_watch_float.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/group_live/group_live_watch_float.dart:_GroupLiveWatchFloatState._entryReady",
+      "name": "_entryReady",
+      "type": "Property",
+      "filePath": "lib/src/widgets/group_live/group_live_watch_float.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/widgets/group_live/group_live_watch_float.dart:_GroupLiveWatchFloatState._onEntryReady#0",
+      "name": "_onEntryReady",
+      "type": "Method",
+      "filePath": "lib/src/widgets/group_live/group_live_watch_float.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/widgets/group_live/group_live_watch_float.dart:_GroupLiveWatchFloatState.dispose#0",
+      "name": "dispose",
+      "type": "Method",
+      "filePath": "lib/src/widgets/group_live/group_live_watch_float.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/widgets/group_live/group_live_watch_float.dart:_GroupLiveWatchFloatState._restoreEntryPreferences#0",
+      "name": "_restoreEntryPreferences",
+      "type": "Method",
+      "filePath": "lib/src/widgets/group_live/group_live_watch_float.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/sticker/sticker_chat_panel.dart:_WeChatStickerPanelState",
+      "name": "_WeChatStickerPanelState",
+      "type": "Class",
+      "filePath": "lib/src/widgets/sticker/sticker_chat_panel.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/sticker/sticker_chat_panel.dart:_WeChatStickerPanelState._selectedPackName",
+      "name": "_selectedPackName",
+      "type": "Property",
+      "filePath": "lib/src/widgets/sticker/sticker_chat_panel.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/sticker/sticker_chat_panel.dart:_WeChatStickerPanelState._selectionChanged",
+      "name": "_selectionChanged",
+      "type": "Property",
+      "filePath": "lib/src/widgets/sticker/sticker_chat_panel.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/sticker/sticker_chat_panel.dart:_WeChatStickerPanelState._selectedPackIndex",
+      "name": "_selectedPackIndex",
+      "type": "Property",
+      "filePath": "lib/src/widgets/sticker/sticker_chat_panel.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/widgets/sticker/sticker_chat_panel.dart:_WeChatStickerPanelState._restoreSelectedTab#0",
+      "name": "_restoreSelectedTab",
+      "type": "Method",
+      "filePath": "lib/src/widgets/sticker/sticker_chat_panel.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/sticker/sticker_my_collection_grid.dart:StickerMyCollectionGrid",
+      "name": "StickerMyCollectionGrid",
+      "type": "Class",
+      "filePath": "lib/src/widgets/sticker/sticker_my_collection_grid.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/sticker/sticker_my_collection_grid.dart:_AddStickerCell",
+      "name": "_AddStickerCell",
+      "type": "Class",
+      "filePath": "lib/src/widgets/sticker/sticker_my_collection_grid.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/sticker/wechat_sticker_bottom_bar.dart:WeChatStickerBottomBar",
+      "name": "WeChatStickerBottomBar",
+      "type": "Class",
+      "filePath": "lib/src/widgets/sticker/wechat_sticker_bottom_bar.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/utils/group_name_card_policy.dart:GroupNameCardPolicy",
+      "name": "GroupNameCardPolicy",
+      "type": "Class",
+      "filePath": "lib/utils/group_name_card_policy.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/utils/group_name_card_policy.dart:GroupNameCardPolicy.maxUtf8Bytes",
+      "name": "maxUtf8Bytes",
+      "type": "Property",
+      "filePath": "lib/utils/group_name_card_policy.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:test/chat_open_remark_regression_test.dart:_legacyRelationShell",
+      "name": "_legacyRelationShell",
+      "type": "Function",
+      "filePath": "test/chat_open_remark_regression_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:test/durable_unread_tongue_test.dart:_AckStore",
+      "name": "_AckStore",
+      "type": "Class",
+      "filePath": "test/durable_unread_tongue_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:test/durable_unread_tongue_test.dart:_AckStore.acknowledgeVisibleDeferred#4",
+      "name": "acknowledgeVisibleDeferred",
+      "type": "Method",
+      "filePath": "test/durable_unread_tongue_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:test/durable_unread_tongue_test.dart:_AckStore.acknowledgeDeferred#2",
+      "name": "acknowledgeDeferred",
+      "type": "Method",
+      "filePath": "test/durable_unread_tongue_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:test/return_to_latest_rendered_proof_test.dart:_VisibilityProofStore",
+      "name": "_VisibilityProofStore",
+      "type": "Class",
+      "filePath": "test/return_to_latest_rendered_proof_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:test/return_to_latest_rendered_proof_test.dart:_VisibilityProofStore.deferredState#1",
+      "name": "deferredState",
+      "type": "Method",
+      "filePath": "test/return_to_latest_rendered_proof_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:test/search_jump_reentry_test.dart:_DeferredSearchModel",
+      "name": "_DeferredSearchModel",
+      "type": "Class",
+      "filePath": "test/search_jump_reentry_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:test/search_jump_reentry_test.dart:_DeferredSearchModel.initForEachConversation#6",
+      "name": "initForEachConversation",
+      "type": "Method",
+      "filePath": "test/search_jump_reentry_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/controllers/history_pagination_controller.dart:HistoryPaginationController",
+      "name": "HistoryPaginationController",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/controllers/history_pagination_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/controllers/history_pagination_controller.dart:HistoryPaginationController.generation",
+      "name": "generation",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/controllers/history_pagination_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart:ChatLifeCycle",
+      "name": "ChatLifeCycle",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart:ChatLifeCycle.ChatLifeCycle#12",
+      "name": "ChatLifeCycle",
+      "type": "Constructor",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart:HistoryLiveWindow",
+      "name": "HistoryLiveWindow",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart:HistoryPaginationLoadRunner",
+      "name": "HistoryPaginationLoadRunner",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart:HistoryPaginationLoadRunner._stepTimeout",
+      "name": "_stepTimeout",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel",
+      "name": "TUIChatSeparateViewModel",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.onChatRouteCovered#0",
+      "name": "onChatRouteCovered",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.initForEachConversation#6",
+      "name": "initForEachConversation",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.loadHistoryPeekStyle#5",
+      "name": "loadHistoryPeekStyle",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._runBoundedHistoryProjection#2",
+      "name": "_runBoundedHistoryProjection",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._awaitRevokeResponse#6",
+      "name": "_awaitRevokeResponse",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._restoreAbsentHistoryCommand#5",
+      "name": "_restoreAbsentHistoryCommand",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._commitRevokeToSdk#13",
+      "name": "_commitRevokeToSdk",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_group_profile_model.dart:TUIGroupProfileModel",
+      "name": "TUIGroupProfileModel",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_group_profile_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_group_profile_model.dart:TUIGroupProfileModel._nameCardSaveRevision",
+      "name": "_nameCardSaveRevision",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_group_profile_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_group_profile_model.dart:TUIGroupProfileModel._savedNameCard",
+      "name": "_savedNameCard",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_group_profile_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_group_profile_model.dart:TUIGroupProfileModel.nameCardSaveTimeout",
+      "name": "nameCardSaveTimeout",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_group_profile_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Enum:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:VisibleHistoryAckStatus",
+      "name": "VisibleHistoryAckStatus",
+      "type": "Enum",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:VisibleHistoryAckResult",
+      "name": "VisibleHistoryAckResult",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:VisibleHistoryAckResult.status",
+      "name": "status",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:VisibleHistoryAckResult.error",
+      "name": "error",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:VisibleHistoryAckResult.stackTrace",
+      "name": "stackTrace",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:VisibleHistoryAckResult.processed",
+      "name": "processed",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:_BoundedHistoryState",
+      "name": "_BoundedHistoryState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:BoundedChatHistory",
+      "name": "BoundedChatHistory",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:BoundedChatHistory.recordHistoryWindowMutation#12",
+      "name": "recordHistoryWindowMutation",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:BoundedChatHistory._completeHistoryWindowMutation#4",
+      "name": "_completeHistoryWindowMutation",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:BoundedChatHistory.acknowledgeVisibleHistoryMessages#3",
+      "name": "acknowledgeVisibleHistoryMessages",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:BoundedChatHistory.acknowledgeVisibleHistoryMessagesDetailed#3",
+      "name": "acknowledgeVisibleHistoryMessagesDetailed",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:BoundedChatHistory.beginHistoryWindowReturnToLatest#3",
+      "name": "beginHistoryWindowReturnToLatest",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:BoundedChatHistory.resetHistoryWindowAfterLatest#2",
+      "name": "resetHistoryWindowAfterLatest",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:BoundedChatHistory.acknowledgeHistoryWindowReturnToLatest#4",
+      "name": "acknowledgeHistoryWindowReturnToLatest",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:_HistoryScanBudget",
+      "name": "_HistoryScanBudget",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:_HistoryScanBudget._clock",
+      "name": "_clock",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:_HistoryScanBudget.pages",
+      "name": "pages",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:_HistoryScanBudget.messages",
+      "name": "messages",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:_HistoryScanBudget.paused",
+      "name": "paused",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:_HistoryScanBudget.startRead#0",
+      "name": "startRead",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel",
+      "name": "TUISearchViewModel",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel._disposed",
+      "name": "_disposed",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel.dispose#0",
+      "name": "dispose",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel._requestOwnerGuard#0",
+      "name": "_requestOwnerGuard",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel.mediaFileScanPaused",
+      "name": "mediaFileScanPaused",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel.mediaFileScanError",
+      "name": "mediaFileScanError",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel.conversationAssetScanPaused",
+      "name": "conversationAssetScanPaused",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel.conversationAssetScanError",
+      "name": "conversationAssetScanError",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel._loadConversationHistoryBatch#6",
+      "name": "_loadConversationHistoryBatch",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel.loadConversationAssets#5",
+      "name": "loadConversationAssets",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel.conversationFilterScanPaused",
+      "name": "conversationFilterScanPaused",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel.conversationFilterScanError",
+      "name": "conversationFilterScanError",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel._searchConversationFilterViaCloudMessages#6",
+      "name": "_searchConversationFilterViaCloudMessages",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel._searchConversationFilterViaLocalMessages#5",
+      "name": "_searchConversationFilterViaLocalMessages",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart:TUISearchViewModel._searchConversationFilterViaHistoryScan#6",
+      "name": "_searchConversationFilterViaHistoryScan",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart:OutgoingMediaWorkQueue",
+      "name": "OutgoingMediaWorkQueue",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart:OutgoingMediaWorkQueue.OutgoingMediaWorkQueue#2",
+      "name": "OutgoingMediaWorkQueue",
+      "type": "Constructor",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart:OutgoingMediaWorkQueue.imageDecode",
+      "name": "imageDecode",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart:OutgoingMediaWorkQueue.maxWeight",
+      "name": "maxWeight",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart:OutgoingMediaWorkQueue._pending",
+      "name": "_pending",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart:OutgoingMediaWorkQueue._activeWeight",
+      "name": "_activeWeight",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart:OutgoingMediaWorkQueue.run#2",
+      "name": "run",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_gallery_pick_utils.dart:ChatGalleryPickUtils",
+      "name": "ChatGalleryPickUtils",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_gallery_pick_utils.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_gallery_pick_utils.dart:ChatGalleryPickUtils.pickSystemGalleryMedia#2",
+      "name": "pickSystemGalleryMedia",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_gallery_pick_utils.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_media_send_utils.dart:_canSkipChatJpegPreparation",
+      "name": "_canSkipChatJpegPreparation",
+      "type": "Function",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_media_send_utils.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_media_send_utils.dart:chatImageDecodeAdmission",
+      "name": "chatImageDecodeAdmission",
+      "type": "Function",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_media_send_utils.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_message_preview_image_resolver.dart:ChatMessagePreviewImageResolver",
+      "name": "ChatMessagePreviewImageResolver",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_message_preview_image_resolver.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/utils/image_preview_resolution_utils.dart:ImagePreviewDecodeTarget",
+      "name": "ImagePreviewDecodeTarget",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/image_preview_resolution_utils.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/utils/image_preview_resolution_utils.dart:ImagePreviewDecodeTarget.fitWithinBounds",
+      "name": "fitWithinBounds",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/image_preview_resolution_utils.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:TIMUIKitHistoryMessageListTongueContainerState",
+      "name": "TIMUIKitHistoryMessageListTongueContainerState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:TIMUIKitHistoryMessageListTongueContainerState._bottomReturnNeedsRetry",
+      "name": "_bottomReturnNeedsRetry",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:TIMUIKitHistoryMessageListTongueContainerState._onlyPermanentlyHiddenHistory",
+      "name": "_onlyPermanentlyHiddenHistory",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:TIMUIKitHistoryMessageListTongueContainerState._latestRenderedEdgeVisible",
+      "name": "_latestRenderedEdgeVisible",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:TIMUIKitHistoryMessageListTongueContainerState._jumpToFirstUnreadMessage#1",
+      "name": "_jumpToFirstUnreadMessage",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:TIMUIKitHistoryMessageListTongueContainerState._distanceFromBottom#1",
+      "name": "_distanceFromBottom",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:TIMUIKitHistoryMessageListTongueContainerState._buildTongueSelector#1",
+      "name": "_buildTongueSelector",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_message_tooltip.dart:TIMUIKitMessageTooltipState",
+      "name": "TIMUIKitMessageTooltipState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_message_tooltip.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart:_MorePanelState",
+      "name": "_MorePanelState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:_TUIChatState",
+      "name": "_TUIChatState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChatProviderScope",
+      "name": "TIMUIKitChatProviderScope",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_name_card.dart:GroupProfileNameCardState",
+      "name": "GroupProfileNameCardState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_name_card.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_name_card.dart:GroupProfileNameCardState._setNameCard#2",
+      "name": "_setNameCard",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_name_card.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_conversation_filter_msg_page.dart:_TIMUIKitConversationFilterMsgPageState",
+      "name": "_TIMUIKitConversationFilterMsgPageState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_conversation_filter_msg_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_conversation_media_file_page.dart:_TIMUIKitConversationMediaFilePageState",
+      "name": "_TIMUIKitConversationMediaFilePageState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_conversation_media_file_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_history_window_transition.dart:ChatHistoryWindowTransitionState",
+      "name": "ChatHistoryWindowTransitionState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_history_window_transition.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_screen.dart:_ImageScreenState",
+      "name": "_ImageScreenState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_screen.dart",
+      "change_type": "touched"
+    }
+  ],
+  "affected_processes": [
+    {
+      "id": "proc_0_build",
+      "name": "Build → _looksLikeJwt",
+      "process_type": "cross_community",
+      "step_count": 10,
+      "changed_steps": [
+        {
+          "symbol": "_probeAllInternal",
+          "step": 3
+        },
+        {
+          "symbol": "probeAll",
+          "step": 2
+        },
+        {
+          "symbol": "_connectInternal",
+          "step": 8
+        },
+        {
+          "symbol": "_connect",
+          "step": 7
+        }
+      ]
+    },
+    {
+      "id": "proc_1_build",
+      "name": "Build → _looksLikeOpaqueToken",
+      "process_type": "cross_community",
+      "step_count": 10,
+      "changed_steps": [
+        {
+          "symbol": "_probeAllInternal",
+          "step": 3
+        },
+        {
+          "symbol": "probeAll",
+          "step": 2
+        },
+        {
+          "symbol": "_connectInternal",
+          "step": 8
+        },
+        {
+          "symbol": "_connect",
+          "step": 7
+        }
+      ]
+    },
+    {
+      "id": "proc_2_build",
+      "name": "Build → IsJwtExpired",
+      "process_type": "cross_community",
+      "step_count": 10,
+      "changed_steps": [
+        {
+          "symbol": "_probeAllInternal",
+          "step": 3
+        },
+        {
+          "symbol": "probeAll",
+          "step": 2
+        },
+        {
+          "symbol": "_connectInternal",
+          "step": 8
+        },
+        {
+          "symbol": "_connect",
+          "step": 7
+        }
+      ]
+    },
+    {
+      "id": "proc_3_build",
+      "name": "Build → FriendRealtimeEndpoint",
+      "process_type": "cross_community",
+      "step_count": 10,
+      "changed_steps": [
+        {
+          "symbol": "_probeAllInternal",
+          "step": 3
+        },
+        {
+          "symbol": "probeAll",
+          "step": 2
+        },
+        {
+          "symbol": "_connectInternal",
+          "step": 8
+        },
+        {
+          "symbol": "_connect",
+          "step": 7
+        }
+      ]
+    },
+    {
+      "id": "proc_5_build",
+      "name": "Build → _emitReadyIfChanged",
+      "process_type": "cross_community",
+      "step_count": 9,
+      "changed_steps": [
+        {
+          "symbol": "_probeAllInternal",
+          "step": 3
+        },
+        {
+          "symbol": "probeAll",
+          "step": 2
+        },
+        {
+          "symbol": "_connectInternal",
+          "step": 8
+        },
+        {
+          "symbol": "_connect",
+          "step": 7
+        }
+      ]
+    },
+    {
+      "id": "proc_27_build",
+      "name": "Build → _log",
+      "process_type": "cross_community",
+      "step_count": 7,
+      "changed_steps": [
+        {
+          "symbol": "_probeAllInternal",
+          "step": 3
+        },
+        {
+          "symbol": "probeAll",
+          "step": 2
+        }
+      ]
+    },
+    {
+      "id": "proc_58_build",
+      "name": "Build → CreateAppDio",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "_probeAllInternal",
+          "step": 3
+        },
+        {
+          "symbol": "probeAll",
+          "step": 2
+        }
+      ]
+    },
+    {
+      "id": "proc_260_build",
+      "name": "Build → SanitizeBaseUrl",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "_probeAllInternal",
+          "step": 3
+        },
+        {
+          "symbol": "probeAll",
+          "step": 2
+        }
+      ]
+    }
+  ]
+}

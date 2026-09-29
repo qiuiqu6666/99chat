@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_deleted_bus.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/outgoing_visible_probe.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_main_thread_perf.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 import 'package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart';
 import 'package:tencent_cloud_chat_demo/src/chat_session/conversation_projection_reason.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_unread_guard.dart';
@@ -749,9 +750,11 @@ class ConversationSyncService {
   V2TimConversationListener _createConversationListener(
     SessionIdentity identity,
   ) {
-    _listener = V2TimConversationListener(
+    late final V2TimConversationListener listener;
+    listener = V2TimConversationListener(
       onConversationChanged: (list) {
-        if (!_isCurrentRealtimeIdentity(identity)) return;
+        if (!identical(_listener, listener) ||
+            !_isCurrentRealtimeIdentity(identity)) return;
         // SDK callbacks own conversation fields. Only the backend-managed
         // archive subset also needs a business index for archive pagination.
         if (list.isNotEmpty) {
@@ -775,7 +778,8 @@ class ConversationSyncService {
         }
       },
       onNewConversation: (list) {
-        if (!_isCurrentRealtimeIdentity(identity)) return;
+        if (!identical(_listener, listener) ||
+            !_isCurrentRealtimeIdentity(identity)) return;
         if (list.isNotEmpty) {
           ChatSessionController.instance.applyPendingRealtimeProjection(
             list,
@@ -796,18 +800,21 @@ class ConversationSyncService {
         }
       },
       onConversationDeleted: (ids) {
-        if (!_isCurrentRealtimeIdentity(identity)) return;
+        if (!identical(_listener, listener) ||
+            !_isCurrentRealtimeIdentity(identity)) return;
         ChatSessionController.instance.applyPendingRealtimeDeletion(ids);
         unawaited(_persistSdkDeleted(ids, identity: identity));
       },
       onTotalUnreadMessageCountChanged: (totalUnread) {
-        if (!_isCurrentRealtimeIdentity(identity)) return;
+        if (!identical(_listener, listener) ||
+            !_isCurrentRealtimeIdentity(identity)) return;
         ConversationUnreadAggregate.instance.applySdkTotalUnreadCount(
           totalUnread,
         );
       },
       onSyncServerStart: () {
-        if (!_isCurrentRealtimeIdentity(identity)) return;
+        if (!identical(_listener, listener) ||
+            !_isCurrentRealtimeIdentity(identity)) return;
         _sdkServerSyncPending = true;
         ImSdkRelationshipSyncAnchor.serverSyncPending = true;
         ConversationListSyncNotifier.instance.setAwaitingServerSync(true);
@@ -822,7 +829,8 @@ class ConversationSyncService {
         );
       },
       onSyncServerFailed: () {
-        if (!_isCurrentRealtimeIdentity(identity)) return;
+        if (!identical(_listener, listener) ||
+            !_isCurrentRealtimeIdentity(identity)) return;
         _sdkServerSyncPending = false;
         ImSdkRelationshipSyncAnchor.serverSyncPending = false;
         ConversationListSyncNotifier.instance.setAwaitingServerSync(false);
@@ -838,7 +846,8 @@ class ConversationSyncService {
         );
       },
       onSyncServerFinish: () {
-        if (!_isCurrentRealtimeIdentity(identity)) return;
+        if (!identical(_listener, listener) ||
+            !_isCurrentRealtimeIdentity(identity)) return;
         // D3 v15/v16 改造：可观测性埋点，用于审计「同步对齐完成」锚点.
         // 这个事件是 SDK 登录成功 / 上线 / 重连后同步完成的关键事件，
         // 改造工程应以该事件作为「补齐锚点」，触发 UI 同步状态反馈。
@@ -853,6 +862,7 @@ class ConversationSyncService {
         _scheduleSyncServerFinish(identity);
       },
     );
+    _listener = listener;
     return _listener!;
   }
 
@@ -1690,11 +1700,24 @@ class ConversationSyncService {
       final task = TencentImSDKPlugin.v2TIMManager
           .getConversationManager()
           .addConversationListener(listener: conversationListener);
-      _conversationListenerAttachInFlight = task;
+      unawaited(task.then((_) async {
+        if (!identical(_listener, conversationListener) ||
+            !_isCurrentRealtimeIdentity(identity)) {
+          await TencentImSDKPlugin.v2TIMManager
+              .getConversationManager()
+              .removeConversationListener(listener: conversationListener)
+              .timeout(const Duration(seconds: 10));
+        }
+      }).catchError((Object error) {
+        _log(
+            'late conversation listener cleanup errorType=${error.runtimeType}');
+      }));
+      final boundedTask = task.timeout(const Duration(seconds: 10));
+      _conversationListenerAttachInFlight = boundedTask;
       try {
-        await task;
+        await boundedTask;
       } finally {
-        if (identical(_conversationListenerAttachInFlight, task)) {
+        if (identical(_conversationListenerAttachInFlight, boundedTask)) {
           _conversationListenerAttachInFlight = null;
         }
       }
@@ -2004,7 +2027,6 @@ class ConversationSyncService {
     _realtimeIdentity = null;
     _messageCoreHeartbeatTimer?.cancel();
     _messageCoreHeartbeatTimer = null;
-    await _messageMailbox.drain();
     await _detachRealtimeSdkListeners();
     await _messageMailbox.drain();
     if (_isCurrentSessionIdentity(identity)) {
@@ -2048,14 +2070,42 @@ class ConversationSyncService {
 
   Future<T> _enqueueRealtimeLifecycle<T>(Future<T> Function() action) {
     final previous = _realtimeLifecycleTail;
+    final operation = ChatRecoveryTrace.nextOperation('realtime-lifecycle');
+    var stage = 'queued';
+    final elapsed = Stopwatch()..start();
+    // Observe, never force-release, a writer whose native I/O may still commit.
+    final watchdog = Timer(const Duration(seconds: 25), () {
+      ChatRecoveryTrace.log('realtime_lifecycle_waiting', conversationID: '',
+          operation: operation, fields: {
+        'stage': stage,
+        'elapsedMs': elapsed.elapsedMilliseconds,
+        'mailboxPending': _messageMailbox.pendingEventCount,
+        'mailboxActive': _messageMailbox.activeWorkerCount,
+        'oldestInflightMs': _messageMailbox.oldestInflightMs,
+        'teardown': _realtimeTeardownInFlight,
+      });
+    });
     late final Future<T> task;
     task = () async {
       try {
-        await previous;
-      } catch (_) {
-        // A failed teardown must not prevent the next login from retrying.
+        try {
+          await previous;
+        } catch (_) {
+          // A failed teardown must not prevent the next login from retrying.
+        }
+        stage = 'running';
+        return await action();
+      } catch (error) {
+        ChatRecoveryTrace.log('realtime_lifecycle_failed', conversationID: '',
+            operation: operation, fields: {'stage': stage, 'errorType': error.runtimeType});
+        rethrow;
+      } finally {
+        watchdog.cancel();
+        if (elapsed.elapsedMilliseconds >= 25000) {
+          ChatRecoveryTrace.log('realtime_lifecycle_resumed', conversationID: '',
+              operation: operation, fields: {'elapsedMs': elapsed.elapsedMilliseconds});
+        }
       }
-      return action();
     }();
     _realtimeLifecycleTail = task.then<void>(
       (_) {},
@@ -2080,24 +2130,33 @@ class ConversationSyncService {
       _messageCoreAcquireRetryTimer = null;
       _messageCoreHeartbeatTimer?.cancel();
       _messageCoreHeartbeatTimer = null;
+      // Invalidate SDK callbacks before waiting for storage. A stalled native
+      // write must not keep old listeners/retry timers alive during logout.
+      // Keep the actual writer lease until both heartbeat and mailbox drain.
+      await _detachRealtimeSdkListeners();
       final heartbeat = _messageCoreHeartbeatInFlight;
       if (heartbeat != null) {
+        ChatRecoveryTrace.log('realtime_teardown_wait', conversationID: '',
+            fields: {'stage': 'heartbeat'});
         try {
           await heartbeat;
         } catch (_) {}
       }
-      await _messageMailbox.drain();
-      await _detachRealtimeSdkListeners();
+      ChatRecoveryTrace.log('realtime_teardown_wait', conversationID: '',
+          fields: {'stage': 'mailbox', 'pending': _messageMailbox.pendingEventCount});
       await _messageMailbox.drain();
       final lease = _messageCoreLease;
       _messageCoreLease = null;
       if (lease != null) {
         try {
+          ChatRecoveryTrace.log('realtime_teardown_wait', conversationID: '',
+              fields: {'stage': 'lease_release'});
           await _messageWriterLeaseService.release(lease);
         } catch (_) {}
       }
     } finally {
       _realtimeTeardownInFlight = false;
+      ChatRecoveryTrace.log('realtime_teardown_finished', conversationID: '');
     }
   }
 
@@ -2121,7 +2180,8 @@ class ConversationSyncService {
       try {
         await TencentImSDKPlugin.v2TIMManager
             .getConversationManager()
-            .removeConversationListener(listener: conversationListener);
+            .removeConversationListener(listener: conversationListener)
+            .timeout(const Duration(seconds: 10));
       } catch (_) {}
     }
     final pending = _messageListenerAttachInFlight;

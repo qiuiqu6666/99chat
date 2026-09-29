@@ -1,0 +1,30 @@
+# 顶部自定义分组切换闪空修复
+
+范围：用户确认的会话列表顶部自定义分组。修改 conversation.dart、conversation_feed_body.dart，新增 conversation_folder_loading_test.dart；保留工作区其他改动，未提交。
+
+## 原因与修改
+
+- 分组成员不在已加载会话窗口中时，需要按 100 条分批向 SDK 补查；原界面仅按当前行数判断空状态。现在使用现有请求代次标记加载状态，在全部批次结束前不显示“空会话”；已有行可以立即展示。
+- 快速切换 A→B→A 时，只有当前分组、当前账号、当前请求代次可以结束加载。旧响应不能关闭新请求的加载提示。
+- 点击已经选中的分组不再清空列表或重复请求；失败后允许重试，但尚有批次进行时不重复发起。重试保留已加载行，只补查缺失成员。
+- SDK 失败与真正空分组分别展示，失败可手动重试，不无限自动请求。
+- 分组成员变化但名称不变时也刷新成员投影，并使旧请求失效。
+- 可见列表筛选先建立规范化成员 Set，替代每条会话扫描全部分组成员，减少大列表筛选成本；保持既有来源顺序、会话类型及身份归一化规则。
+
+## 验证
+
+最终执行 10 个测试文件，64 项全部通过，见 final-regression.log。
+
+新增 7 项整页组件测试每项使用 3000 条已加载会话，覆盖：201 个缺失成员分批补查、A→B→A 快速切换与重复点击、失败重试、部分批次失败后保留行重试、真正空分组、成员变化、1500 成员分组的即时筛选与来源顺序。
+
+相关回归覆盖分组排他成员与排序、列表来源顺序、后台工作、行构建与身份、滚动生命周期、SDK 实时更新、主页页签生命周期。
+
+定向 Dart 分析无 error，仍有 4 个既有 warning 与 19 个 info，见 analyze-final.log。目标文件 git diff --check 通过。未进行真机性能测量，测试结果不等同于几千条真实 SDK 会话的设备耗时结论。
+
+修复前隔离副本测试被 Flutter native-assets 包根路径检查阻断（baseline-clean.log / flutter-overlay-crash.log），不把该尝试作为有效的修复前失败证明；最终通过结果来自当前生产文件与完整组件测试。
+
+## 影响分析
+
+编辑前 GitNexus：_selectFolder、_hydrateFolderRows 为 HIGH；_getVisibleConversations 为 CRITICAL（9 个直接调用、29 个上游节点），已提示风险；_buildActiveConversationFeed、ConversationFeedBody、_buildFeedForSession 为 LOW。_onFoldersChanged 为 UNKNOWN，源码确认其监听注册和移除，未将空图结果视为无调用。
+
+全工作区 detect_changes 结果保存于 graph-changes.json，包含其他已有修改（45 个文件、216 个变更符号），总体 HIGH，不能解释为本次两个生产文件的独立风险或全工作区无回归保证。

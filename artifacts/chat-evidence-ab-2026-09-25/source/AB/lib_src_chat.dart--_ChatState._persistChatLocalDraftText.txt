@@ -1,0 +1,53 @@
+Future<void> _persistChatLocalDraftText(
+    String text,
+    int generation, {
+    String? conversationID,
+    bool enforceCurrentGeneration = true,
+  }) async {
+    final conversationId = (conversationID ?? _resolvedConversationID()).trim();
+    if (conversationId.isEmpty) {
+      return;
+    }
+    await _draftWrites.enqueue(
+      () async {
+        if (enforceCurrentGeneration && _draft.shouldSuppressLifecyclePersist) {
+          ConversationDraftLeaveTrace.stage(
+            'draft_persist_skipped',
+            conversationId: conversationId,
+            extras: const <String, Object?>{'reason': 'suppress'},
+          );
+          return;
+        }
+        if (enforceCurrentGeneration && generation != _draft.writeGeneration) {
+          ConversationDraftLeaveTrace.stage(
+            'draft_persist_skipped',
+            conversationId: conversationId,
+            extras: const <String, Object?>{'reason': 'generation'},
+          );
+          return;
+        }
+        if (_isCurrentConversation(conversationId)) {
+          _draft.text = text.trim().isEmpty ? null : text;
+        }
+        ConversationDraftLeaveTrace.stage(
+          'draft_persist_enqueue_run',
+          conversationId: conversationId,
+          draftText: text,
+          extras: <String, Object?>{
+            'generation': generation,
+            'suppress': _draft.shouldSuppressLifecyclePersist,
+          },
+        );
+        await ConversationDraftService.instance.persistDraft(
+          conversationID: conversationId,
+          rawInputText: text,
+        );
+      },
+      onError: (error, stackTrace) {
+        debugPrint(
+          '[ChatDraft] persist failed conv=$conversationId error=$error\n'
+          '$stackTrace',
+        );
+      },
+    );
+  }

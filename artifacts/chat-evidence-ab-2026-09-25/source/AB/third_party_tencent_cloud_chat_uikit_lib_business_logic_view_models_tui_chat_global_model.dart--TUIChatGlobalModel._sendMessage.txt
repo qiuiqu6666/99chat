@@ -1,0 +1,108 @@
+Future<V2TimValueCallback<V2TimMessage>> _sendMessage({
+    required String id,
+    required String convID,
+    required ConvType convType,
+    OfflinePushInfo? offlinePushInfo,
+    bool? onlineUserOnly = false,
+    bool? isEditStatusMessage = false,
+    GroupReceiptAllowType? groupType,
+    ValueChanged<String>? setInputField,
+    MessagePriorityEnum priority = MessagePriorityEnum.V2TIM_PRIORITY_NORMAL,
+    bool? isExcludedFromUnreadCount,
+    bool? needReadReceipt,
+    String? cloudCustomData,
+    String? localCustomData,
+    V2TimMessage? messageInfo,
+    bool isExcludedFromContentModeration = false,
+    bool recoverPreparedOutbox = false,
+    String? operationIdOverride,
+    String? clientCorrelationIdOverride,
+    ValueChanged<ImCoordinatedSendResult>? onCoordinatedResult,
+  }) async {
+    String receiver = convType == ConvType.c2c ? convID : '';
+    String groupID = convType == ConvType.group ? convID : '';
+    // 历史桶 key 常带 `c2c_` / `group_` 前缀；IM sendMessage 必须用裸 userID / groupID。
+    if (receiver.toLowerCase().startsWith('c2c_') && receiver.length > 4) {
+      receiver = receiver.substring(4);
+    }
+    if (groupID.toLowerCase().startsWith('group_') && groupID.length > 6) {
+      groupID = groupID.substring(6);
+    }
+    final receiptGroupType = groupType ??
+        (convType == ConvType.group
+            ? await _loadGroupReceiptType(groupID)
+            : null);
+    final useReadReceipt =
+        (needReadReceipt ?? chatConfig.isShowReadingStatus) &&
+            (convType != ConvType.group ||
+                _isReadReceiptAllowedGroup(receiptGroupType)) &&
+            !_looksLikeCommunityGroupId(groupID);
+    final coordinatedSend = await ImOutgoingSendCoordinator.instance.send(
+      messageService: _messageService,
+      sdkLocalId: id,
+      conversationId: convID,
+      conversationType: convType == ConvType.group
+          ? ImConversationType.group
+          : ImConversationType.c2c,
+      receiver: receiver,
+      groupID: groupID,
+      fallbackMessage: messageInfo,
+      needReadReceipt: useReadReceipt,
+      priority: priority,
+      localCustomData: localCustomData,
+      isExcludedFromUnreadCount: isExcludedFromUnreadCount ?? false,
+      offlinePushInfo: offlinePushInfo,
+      isExcludedFromContentModeration: isExcludedFromContentModeration,
+      onlineUserOnly: onlineUserOnly ?? false,
+      businessCloudCustomData: cloudCustomData ??
+          json.encode({
+            "messageFeature": {"needTyping": 1, "version": 1},
+          }),
+      persistOutbox: isEditStatusMessage != true,
+      recoverPreparedOutbox: recoverPreparedOutbox,
+      operationIdOverride: operationIdOverride,
+      clientCorrelationIdOverride: clientCorrelationIdOverride,
+      onSyncMsgID: (syncMsgID) {
+        bindOutgoingSyncMsgId(convID, id, syncMsgID);
+      },
+    );
+    onCoordinatedResult?.call(coordinatedSend);
+    final sendMsgRes = coordinatedSend.sdkResult;
+    // IM-08: when the SDK Future resolves OutcomeUnknown, the dispatch path
+    // cannot prove the provider accepted or rejected the operation. The
+    // Outbox main + recovery copy already record OutcomeUnknown; the
+    // single Writer must keep the optimistic bubble in SENDING and wait
+    // for history/realtime to claim it. Auto-committing a success/failed
+    // projection here would resurrect an in-flight message or flash a
+    // red retry icon on a still-pending send.
+    var projectionCommitted = true;
+    if (isEditStatusMessage == false && !coordinatedSend.outcomeUnknown) {
+      projectionCommitted = applyOutgoingSendResult(
+        sendMsgRes,
+        convID,
+        id,
+        convType,
+        receiptGroupType,
+        setInputField,
+      );
+    } else if (coordinatedSend.outcomeUnknown) {
+      projectionCommitted = false;
+    }
+    if (!coordinatedSend.outcomeUnknown) {
+      insertPeerRejectedLocalTip(
+        convID,
+        sendMsgRes.code,
+        clientId: id,
+      );
+    }
+    if (projectionCommitted && coordinatedSend.canCompleteProjection) {
+      await ImOutgoingSendCoordinator.instance.completeSuccessfulProjection(
+        coordinatedSend,
+      );
+    }
+    if (_lifeCycle?.messageDidSend != null) {
+      _lifeCycle!.messageDidSend(sendMsgRes);
+    }
+
+    return sendMsgRes;
+  }

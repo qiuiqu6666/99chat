@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 
 /// Retain one viewport while a disjoint SDK window is laid out and positioned.
 /// Also covers idle trims whose lazy rows need multiple layouts to remount.
@@ -78,11 +79,16 @@ class ChatHistoryWindowTransitionState
       _showProgress = showProgress;
       _image = image;
     });
-    if (maxRetention != null) {
-      _retentionDeadline = Timer(maxRetention, () {
-        if (mounted && _busy && generation == _generation) _interrupt();
-      });
-    }
+    // Every snapshot/AbsorbPointer has a deadline, including unread/search
+    // jumps whose SDK or layout future may never complete.
+    _retentionDeadline = Timer(maxRetention ?? const Duration(seconds: 25), () {
+      if (mounted && _busy && generation == _generation) {
+        ChatRecoveryTrace.log('viewport_transition_expired',
+            conversationID: '',
+            fields: {'generation': generation, 'snapshot': _image != null});
+        _interrupt();
+      }
+    });
     if (showProgressAfter != null && image != null) {
       _deferredProgressTimer = Timer(showProgressAfter, () {
         _deferredProgressTimer = null;
@@ -104,7 +110,8 @@ class ChatHistoryWindowTransitionState
     // Complete target layout, then replace the retained frame atomically.
     // Fading the old text over the new text causes double-image ghosting.
     WidgetsBinding.instance.scheduleFrame();
-    await WidgetsBinding.instance.endOfFrame;
+    await WidgetsBinding.instance.endOfFrame
+        .timeout(const Duration(seconds: 1), onTimeout: () {});
     if (!mounted || generation != _generation) return;
     release();
   }

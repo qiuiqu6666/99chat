@@ -1,0 +1,724 @@
+[
+  {
+    "target": "fetchPresenceLastSeen",
+    "file_path": "lib/src/services/friend_realtime_service.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService.fetchPresenceLastSeen#1",
+        "name": "fetchPresenceLastSeen",
+        "type": "Method",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 0,
+      "risk": "UNKNOWN",
+      "riskSharedAxes": "UNKNOWN",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "riskNote": "No callers resolved. Absence of edges is not evidence the symbol is unused: a caller reaching it through a reference class this index does not record — plain-object property access, a bare-identifier read of a module-scope const — produces no edge to find. Confirm with a text search before treating the change as safe.",
+      "epistemic": "exact",
+      "summary": {
+        "direct": 0,
+        "processes_affected": 0,
+        "modules_affected": 0
+      },
+      "byDepthCounts": {},
+      "affected_processes": [],
+      "affected_modules": []
+    }
+  },
+  {
+    "target": "_fetchPresenceLastSeenChunk",
+    "file_path": "lib/src/services/friend_realtime_service.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._fetchPresenceLastSeenChunk#2",
+        "name": "_fetchPresenceLastSeenChunk",
+        "type": "Method",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 1,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 1,
+        "processes_affected": 0,
+        "modules_affected": 1
+      },
+      "byDepthCounts": {
+        "1": 1
+      },
+      "affected_processes": [],
+      "affected_modules": [
+        {
+          "name": "Friend_realtime",
+          "hits": 1,
+          "impact": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "target": "_enqueueLastSeen",
+    "file_path": "lib/src/services/friend_realtime_service.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._enqueueLastSeen#1",
+        "name": "_enqueueLastSeen",
+        "type": "Method",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 2,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 1,
+        "processes_affected": 0,
+        "modules_affected": 1
+      },
+      "byDepthCounts": {
+        "1": 1,
+        "2": 1
+      },
+      "affected_processes": [],
+      "affected_modules": [
+        {
+          "name": "Friend_realtime",
+          "hits": 2,
+          "impact": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "target": "_refreshRoomTokenIfConnected",
+    "file_path": "lib/src/services/livekit_call_session.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/livekit_call_session.dart:LiveKitCallSession._refreshRoomTokenIfConnected#0",
+        "name": "_refreshRoomTokenIfConnected",
+        "type": "Method",
+        "filePath": "lib/src/services/livekit_call_session.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 7,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 1,
+        "processes_affected": 0,
+        "modules_affected": 1
+      },
+      "byDepthCounts": {
+        "1": 1,
+        "2": 3,
+        "3": 3
+      },
+      "affected_processes": [],
+      "affected_modules": [
+        {
+          "name": "Services",
+          "hits": 7,
+          "impact": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "target": "_recoverRoomConnection",
+    "file_path": "lib/src/services/livekit_call_session.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/livekit_call_session.dart:LiveKitCallSession._recoverRoomConnection#0",
+        "name": "_recoverRoomConnection",
+        "type": "Method",
+        "filePath": "lib/src/services/livekit_call_session.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 4,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 1,
+        "processes_affected": 0,
+        "modules_affected": 1
+      },
+      "byDepthCounts": {
+        "1": 1,
+        "2": 1,
+        "3": 2
+      },
+      "affected_processes": [],
+      "affected_modules": [
+        {
+          "name": "Services",
+          "hits": 4,
+          "impact": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "target": "_reconnectRoomWithCredentials",
+    "file_path": "lib/src/services/livekit_call_session.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/livekit_call_session.dart:LiveKitCallSession._reconnectRoomWithCredentials#1",
+        "name": "_reconnectRoomWithCredentials",
+        "type": "Method",
+        "filePath": "lib/src/services/livekit_call_session.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 6,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 2,
+        "processes_affected": 0,
+        "modules_affected": 1
+      },
+      "byDepthCounts": {
+        "1": 2,
+        "2": 2,
+        "3": 2
+      },
+      "affected_processes": [],
+      "affected_modules": [
+        {
+          "name": "Services",
+          "hits": 6,
+          "impact": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "target": "_drainLastSeenQueue",
+    "file_path": "lib/src/services/friend_realtime_service.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._drainLastSeenQueue#0",
+        "name": "_drainLastSeenQueue",
+        "type": "Method",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 8,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 3,
+        "processes_affected": 1,
+        "modules_affected": 2
+      },
+      "byDepthCounts": {
+        "1": 3,
+        "2": 3,
+        "3": 2
+      },
+      "affected_processes": [
+        {
+          "name": "build",
+          "type": "Function",
+          "filePath": "lib/src/pages/settings/node_switch_page.dart",
+          "affected_process_count": 5,
+          "total_hits": 5,
+          "earliest_broken_step": 6
+        }
+      ],
+      "affected_modules": [
+        {
+          "name": "Services",
+          "hits": 5,
+          "impact": "direct"
+        },
+        {
+          "name": "Friend_realtime",
+          "hits": 3,
+          "impact": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "target": "_resetState",
+    "file_path": "lib/src/services/livekit_call_session.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/livekit_call_session.dart:LiveKitCallSession._resetState#0",
+        "name": "_resetState",
+        "type": "Method",
+        "filePath": "lib/src/services/livekit_call_session.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 19,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 4,
+        "processes_affected": 0,
+        "modules_affected": 2
+      },
+      "byDepthCounts": {
+        "1": 4,
+        "2": 12,
+        "3": 3
+      },
+      "affected_processes": [],
+      "affected_modules": [
+        {
+          "name": "Services",
+          "hits": 18,
+          "impact": "direct"
+        },
+        {
+          "name": "Api",
+          "hits": 1,
+          "impact": "indirect"
+        }
+      ]
+    }
+  },
+  {
+    "target": "_connect",
+    "file_path": "lib/src/services/friend_realtime_service.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._connect#0",
+        "name": "_connect",
+        "type": "Method",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 6,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 2,
+        "processes_affected": 1,
+        "modules_affected": 1
+      },
+      "byDepthCounts": {
+        "1": 2,
+        "2": 3,
+        "3": 1
+      },
+      "affected_processes": [
+        {
+          "name": "build",
+          "type": "Function",
+          "filePath": "lib/src/pages/settings/node_switch_page.dart",
+          "affected_process_count": 8,
+          "total_hits": 20,
+          "earliest_broken_step": 3
+        }
+      ],
+      "affected_modules": [
+        {
+          "name": "Services",
+          "hits": 6,
+          "impact": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "target": "_finalize",
+    "file_path": "lib/src/services/livekit_call_session.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/livekit_call_session.dart:LiveKitCallSession._finalize#2",
+        "name": "_finalize",
+        "type": "Method",
+        "filePath": "lib/src/services/livekit_call_session.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 18,
+      "risk": "MEDIUM",
+      "riskSharedAxes": "MEDIUM",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 11,
+        "processes_affected": 0,
+        "modules_affected": 2
+      },
+      "byDepthCounts": {
+        "1": 11,
+        "2": 7
+      },
+      "affected_processes": [],
+      "affected_modules": [
+        {
+          "name": "Services",
+          "hits": 17,
+          "impact": "direct"
+        },
+        {
+          "name": "Api",
+          "hits": 1,
+          "impact": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "target": "_armTokenRefresh",
+    "file_path": "lib/src/services/livekit_call_session.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/livekit_call_session.dart:LiveKitCallSession._armTokenRefresh#1",
+        "name": "_armTokenRefresh",
+        "type": "Method",
+        "filePath": "lib/src/services/livekit_call_session.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 8,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 4,
+        "processes_affected": 0,
+        "modules_affected": 1
+      },
+      "byDepthCounts": {
+        "1": 4,
+        "2": 3,
+        "3": 1
+      },
+      "affected_processes": [],
+      "affected_modules": [
+        {
+          "name": "Services",
+          "hits": 8,
+          "impact": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "target": "_failAllLastSeen",
+    "file_path": "lib/src/services/friend_realtime_service.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._failAllLastSeen#1",
+        "name": "_failAllLastSeen",
+        "type": "Method",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 12,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 4,
+        "processes_affected": 1,
+        "modules_affected": 2
+      },
+      "byDepthCounts": {
+        "1": 4,
+        "2": 4,
+        "3": 4
+      },
+      "affected_processes": [
+        {
+          "name": "build",
+          "type": "Function",
+          "filePath": "lib/src/pages/settings/node_switch_page.dart",
+          "affected_process_count": 6,
+          "total_hits": 11,
+          "earliest_broken_step": 5
+        }
+      ],
+      "affected_modules": [
+        {
+          "name": "Services",
+          "hits": 10,
+          "impact": "direct"
+        },
+        {
+          "name": "Friend_realtime",
+          "hits": 2,
+          "impact": "indirect"
+        }
+      ]
+    }
+  },
+  {
+    "target": "_completeLastSeenFail",
+    "file_path": "lib/src/services/friend_realtime_service.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._completeLastSeenFail#1",
+        "name": "_completeLastSeenFail",
+        "type": "Method",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 4,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 1,
+        "processes_affected": 1,
+        "modules_affected": 1
+      },
+      "byDepthCounts": {
+        "1": 1,
+        "2": 1,
+        "3": 2
+      },
+      "affected_processes": [
+        {
+          "name": "build",
+          "type": "Function",
+          "filePath": "lib/src/pages/settings/node_switch_page.dart",
+          "affected_process_count": 6,
+          "total_hits": 11,
+          "earliest_broken_step": 5
+        }
+      ],
+      "affected_modules": [
+        {
+          "name": "Services",
+          "hits": 4,
+          "impact": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "target": "_finishLastSeen",
+    "file_path": "lib/src/services/friend_realtime_service.dart",
+    "result": {
+      "target": {
+        "id": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._finishLastSeen#3",
+        "name": "_finishLastSeen",
+        "type": "Method",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 7,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 3,
+        "processes_affected": 1,
+        "modules_affected": 2
+      },
+      "byDepthCounts": {
+        "1": 3,
+        "2": 2,
+        "3": 2
+      },
+      "affected_processes": [
+        {
+          "name": "build",
+          "type": "Function",
+          "filePath": "lib/src/pages/settings/node_switch_page.dart",
+          "affected_process_count": 5,
+          "total_hits": 5,
+          "earliest_broken_step": 6
+        }
+      ],
+      "affected_modules": [
+        {
+          "name": "Services",
+          "hits": 5,
+          "impact": "direct"
+        },
+        {
+          "name": "Friend_realtime",
+          "hits": 2,
+          "impact": "indirect"
+        }
+      ]
+    }
+  },
+  {
+    "target": "LiveKitCallSession",
+    "file_path": "lib/src/services/livekit_call_session.dart",
+    "result": {
+      "target": {
+        "id": "Class:lib/src/services/livekit_call_session.dart:LiveKitCallSession",
+        "name": "LiveKitCallSession",
+        "type": "Class",
+        "filePath": "lib/src/services/livekit_call_session.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 105,
+      "risk": "HIGH",
+      "riskSharedAxes": "HIGH",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 18,
+        "processes_affected": 0,
+        "modules_affected": 0
+      },
+      "byDepthCounts": {
+        "1": 18,
+        "2": 21,
+        "3": 66
+      },
+      "affected_processes": [],
+      "affected_modules": []
+    }
+  },
+  {
+    "target": "FriendRealtimeService",
+    "file_path": "lib/src/services/friend_realtime_service.dart",
+    "result": {
+      "target": {
+        "id": "Class:lib/src/services/friend_realtime_service.dart:FriendRealtimeService",
+        "name": "FriendRealtimeService",
+        "type": "Class",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 112,
+      "risk": "HIGH",
+      "riskSharedAxes": "HIGH",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 4,
+        "processes_affected": 0,
+        "modules_affected": 0
+      },
+      "byDepthCounts": {
+        "1": 4,
+        "2": 42,
+        "3": 66
+      },
+      "affected_processes": [],
+      "affected_modules": []
+    }
+  },
+  {
+    "target": "_QueuedPresenceLastSeen",
+    "file_path": "lib/src/services/friend_realtime_service.dart",
+    "result": {
+      "target": {
+        "id": "Class:lib/src/services/friend_realtime_service.dart:_QueuedPresenceLastSeen",
+        "name": "_QueuedPresenceLastSeen",
+        "type": "Class",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      },
+      "direction": "upstream",
+      "impactedCount": 118,
+      "risk": "HIGH",
+      "riskSharedAxes": "HIGH",
+      "riskScale": {
+        "comparableAcrossKinds": true,
+        "unusedAxes": []
+      },
+      "epistemic": "exact",
+      "summary": {
+        "direct": 6,
+        "processes_affected": 1,
+        "modules_affected": 2
+      },
+      "byDepthCounts": {
+        "1": 6,
+        "2": 44,
+        "3": 68
+      },
+      "affected_processes": [
+        {
+          "name": "build",
+          "type": "Function",
+          "filePath": "lib/src/pages/settings/node_switch_page.dart",
+          "affected_process_count": 5,
+          "total_hits": 5,
+          "earliest_broken_step": 6
+        }
+      ],
+      "affected_modules": [
+        {
+          "name": "Friend_realtime",
+          "hits": 3,
+          "impact": "direct"
+        },
+        {
+          "name": "Services",
+          "hits": 3,
+          "impact": "direct"
+        }
+      ]
+    }
+  }
+]

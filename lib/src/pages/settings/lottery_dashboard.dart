@@ -248,6 +248,11 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
         return comparison == 0 ? a.compareTo(b) : comparison;
       });
     final latest = _results.isEmpty ? null : _results.first;
+    // The heading and countdown describe the same live round; the ball below
+    // deliberately remains the most recently completed result.
+    final currentRound = widget.live?.draws.firstOrNull;
+    final currentIssue =
+        (currentRound?['issueLabel'] ?? currentRound?['issue'])?.toString().trim();
     final reveal = lotteryRevealState(widget.mappings?.machineCode ?? 'demo');
     final latestCard = latest == null
         ? _pendingLatestCard()
@@ -305,7 +310,13 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
                             ),
                           ),
                         const Spacer(),
-                        Text('第 ${latest.issue} 期',
+                        Text(
+                            currentIssue != null && currentIssue.isNotEmpty
+                                ? '第 $currentIssue 期'
+                                : (widget.live == null
+                                    ? '第 ${latest.issue} 期'
+                                    : '期数待更新'),
+                            key: const ValueKey('lottery-current-issue'),
                             style: const TextStyle(
                                 color: _red,
                                 fontSize: 15,
@@ -317,8 +328,7 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
                             child: _DrawCardClock(
                                 previewOnly: widget.previewOnly,
                                 now: widget.live?.now)),
-                        if (widget.live != null &&
-                            widget.live!.draws.isNotEmpty)
+                        if (currentRound != null)
                           Tooltip(
                             message:
                                 '当前第 ${widget.live!.draws.first['issueLabel'] ?? widget.live!.draws.first['issue']} 期状态',
@@ -339,7 +349,7 @@ class _LotteryDashboardState extends State<_LotteryDashboard> {
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                               child: _LotteryCardCountdown(
-                                round: widget.live!.draws.first,
+                                round: currentRound,
                                 now: widget.live!.now,
                               ),
                             ),

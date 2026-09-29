@@ -1,0 +1,81 @@
+void _runViewportWarmNow({required String reason}) {
+    if (!mounted) {
+      return;
+    }
+    if (!_feedScrollController.hasClients) {
+      return;
+    }
+    final position = _feedScrollController.position;
+    final visible = _getVisibleConversations();
+    ChatCoverageRepairScheduler.instance.resume();
+    final rows = buildConversationFeedRows(
+      conversations: visible,
+      includeArchivedEntry: _selectedFolderId == null &&
+          ArchivedConversationEntryVisibility.instance
+              .shouldShow(_archiveScope),
+      includeGroupNoticeEntry: _selectedFolderId == null &&
+          widget.listScope == ConversationListScope.group,
+      applications: GroupJoinApplicationService.instance.applications,
+      notices: GroupSystemNoticeService.instance.notices,
+      conversationTimestampMs: _getConversationTimestampMs,
+      groupNoticePinned: GroupNoticeEntrySettingsService.instance.isPinned,
+      groupNoticeDismissWatermarkMs:
+          GroupNoticeEntrySettingsService.instance.dismissWatermarkMs,
+    );
+    final rowConversations = <V2TimConversation?>[
+      for (final row in rows)
+        row.kind == ConversationFeedRowKind.conversation
+            ? row.conversation
+            : null,
+    ];
+    if (widget.listScope == ConversationListScope.group) {
+      final candidate =
+          ConversationHistoryWarmScheduler.selectViewportCenterCandidate(
+        rowConversations: rowConversations,
+        scrollOffset: position.pixels,
+        viewportHeight: position.viewportDimension,
+      );
+      if (candidate == null) {
+        return;
+      }
+      ConversationHistoryWarmScheduler.instance.scheduleViewportWarm(
+        visibleOrdered: <V2TimConversation>[candidate],
+        reason: '${reason}_${widget.listScope.name}_center_one',
+      );
+      ChatCoverageRepairScheduler.instance.schedule(
+        <V2TimConversation>[candidate],
+        reason: '${reason}_${widget.listScope.name}_center_one',
+        currentVisible: _getVisibleConversations,
+      );
+      unawaited(
+        OpenViewportCache.instance.prepareVisible(
+          visible: <V2TimConversation>[candidate],
+          viewportHeight: position.viewportDimension,
+          reason: '${reason}_${widget.listScope.name}_center_one',
+        ),
+      );
+      return;
+    }
+    final candidates =
+        ConversationHistoryWarmScheduler.selectViewportCandidates(
+      rowConversations: rowConversations,
+      scrollOffset: position.pixels,
+      viewportHeight: position.viewportDimension,
+    );
+    ConversationHistoryWarmScheduler.instance.scheduleViewportWarm(
+      visibleOrdered: candidates,
+      reason: '${reason}_${widget.listScope.name}',
+    );
+    ChatCoverageRepairScheduler.instance.schedule(
+      candidates,
+      reason: '${reason}_${widget.listScope.name}',
+      currentVisible: _getVisibleConversations,
+    );
+    unawaited(
+      OpenViewportCache.instance.prepareVisible(
+        visible: candidates,
+        viewportHeight: position.viewportDimension,
+        reason: '${reason}_${widget.listScope.name}',
+      ),
+    );
+  }

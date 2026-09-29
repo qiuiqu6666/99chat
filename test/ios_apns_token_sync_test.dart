@@ -131,6 +131,45 @@ void main() {
     expect(finished, isTrue);
   });
 
+  test('logout waits for an in-flight POST and drops queued token callbacks',
+      () async {
+    final postGate = Completer<void>();
+    final order = <String>[];
+    final post = service.runTokenSyncForTest(() async {
+      order.add('POST started');
+      await postGate.future;
+      order.add('POST settled');
+    });
+    final logoutBarrier = service.prepareForLogout().then((_) {
+      order.add('DELETE may start');
+    });
+    await service.runTokenSyncForTest(() async {
+      order.add('stale POST');
+    });
+
+    expect(order, ['POST started']);
+    var barrierFinished = false;
+    logoutBarrier.then((_) => barrierFinished = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(barrierFinished, isFalse);
+
+    postGate.complete();
+    await post;
+    await logoutBarrier;
+    expect(order, ['POST started', 'POST settled', 'DELETE may start']);
+
+    await service.runTokenSyncForTest(() async {
+      order.add('post logout POST');
+    });
+    expect(order, ['POST started', 'POST settled', 'DELETE may start']);
+
+    service.resumeTokenSyncAfterLogin();
+    await service.runTokenSyncForTest(() async {
+      order.add('next account POST');
+    });
+    expect(order.last, 'next account POST');
+  });
+
   test('a failing pass still drains pending work and releases the task',
       () async {
     final gate = Completer<void>();

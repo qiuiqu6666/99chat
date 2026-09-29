@@ -1,10 +1,21 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:tencent_cloud_chat_uikit/ui/utils/picker_recovery_coordinator.dart';
 
 /// Platform-neutral media selected by the application.
 class PickedMedia {
-  const PickedMedia({required this.path, this.fileBytes, this.name, this.mimeType, required this.isVideo, this.width, this.height, this.duration, this.isGif = false});
+  const PickedMedia(
+      {required this.path,
+      this.fileBytes,
+      this.name,
+      this.mimeType,
+      required this.isVideo,
+      this.width,
+      this.height,
+      this.duration,
+      this.isGif = false});
   final String path;
   final List<int>? fileBytes;
   final String? name;
@@ -23,9 +34,11 @@ class SystemMediaPicker {
   SystemMediaPicker._();
   static final ImagePicker _imagePicker = ImagePicker();
 
-  static Future<List<PickedMedia>> pickMultiple({bool allowVideo = true}) async {
-    if (kIsWeb || !defaultTargetPlatform.name.contains('android') &&
-        !defaultTargetPlatform.name.contains('iOS')) {
+  static Future<List<PickedMedia>> pickMultiple(
+      {bool allowVideo = true, String recoveryEntry = 'system.media'}) async {
+    if (kIsWeb ||
+        !defaultTargetPlatform.name.contains('android') &&
+            !defaultTargetPlatform.name.contains('iOS')) {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
         type: FileType.media,
@@ -40,15 +53,28 @@ class SystemMediaPicker {
               ))
           .toList(growable: false);
     }
-    final files = await _imagePicker.pickMultipleMedia(
-      requestFullMetadata: false,
-    );
+    final recovery = PickerRecoveryCoordinator.instance;
+    final files = await recovery.pick(
+            entry: recoveryEntry,
+            launch: () =>
+                _imagePicker.pickMultipleMedia(requestFullMetadata: false)) ??
+        [];
+    await recovery.completePaths(files);
     return files
         .map((file) => PickedMedia(
               path: file.path,
               name: file.name,
               mimeType: file.mimeType,
-              isVideo: file.mimeType?.startsWith('video/') ?? false,
+              isVideo: file.mimeType?.startsWith('video/') ??
+                  const {
+                    '.mp4',
+                    '.mov',
+                    '.m4v',
+                    '.avi',
+                    '.webm',
+                    '.mkv',
+                    '.3gp'
+                  }.contains(p.extension(file.path).toLowerCase()),
             ))
         .where((file) => allowVideo || !file.isVideo)
         .toList(growable: false);
@@ -56,8 +82,9 @@ class SystemMediaPicker {
 
   /// 系统单选：点一下图片即返回，没有"添加/完成"确认步。
   static Future<PickedMedia?> pickSingleImage() async {
-    if (kIsWeb || !defaultTargetPlatform.name.contains('android') &&
-        !defaultTargetPlatform.name.contains('iOS')) {
+    if (kIsWeb ||
+        !defaultTargetPlatform.name.contains('android') &&
+            !defaultTargetPlatform.name.contains('iOS')) {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: false,
         type: FileType.image,
@@ -70,10 +97,16 @@ class SystemMediaPicker {
       }
       return PickedMedia(path: path, name: file.name, isVideo: false);
     }
-    final file = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      requestFullMetadata: false,
-    );
+    final recovery = PickerRecoveryCoordinator.instance;
+    final files = await recovery.pick(
+        entry: 'system.single_image',
+        launch: () async {
+          final file = await _imagePicker.pickImage(
+              source: ImageSource.gallery, requestFullMetadata: false);
+          return file == null ? <XFile>[] : [file];
+        });
+    final file = files?.firstOrNull;
+    if (files != null) await recovery.completePaths(files);
     if (file == null) {
       return null;
     }
@@ -87,12 +120,18 @@ class SystemMediaPicker {
 
   static Future<List<PickedMedia>> pickImages({int? maxAssets}) async {
     final media = await pickMultiple(allowVideo: false);
-    return media.where((item) => !item.isVideo).take(maxAssets ?? media.length).toList(growable: false);
+    return media
+        .where((item) => !item.isVideo)
+        .take(maxAssets ?? media.length)
+        .toList(growable: false);
   }
 
   static Future<List<PickedMedia>> pickVideos({int? maxAssets}) async {
     final media = await pickMultiple(allowVideo: true);
-    return media.where((item) => item.isVideo).take(maxAssets ?? media.length).toList(growable: false);
+    return media
+        .where((item) => item.isVideo)
+        .take(maxAssets ?? media.length)
+        .toList(growable: false);
   }
 
   static Future<List<PickedMedia>> pickMedia({int? maxAssets}) async =>

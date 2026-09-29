@@ -10,6 +10,7 @@ import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/config.dart';
 import 'package:tencent_cloud_chat_demo/src/api/auth_api.dart';
 import 'package:tencent_cloud_chat_demo/src/api/user_api.dart';
+import 'package:tencent_cloud_chat_demo/src/services/group_name_card_profile_source.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
 import 'package:tencent_cloud_chat_demo/src/ui/app_tokens.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/app_user_avatar.dart';
@@ -17,6 +18,7 @@ import 'package:characters/characters.dart';
 import 'package:tencent_cloud_chat_demo/utils/friend_remark_policy.dart';
 import 'package:tencent_cloud_chat_demo/utils/grapheme_length_limiting_formatter.dart';
 import 'package:tencent_cloud_chat_demo/utils/group_name_card_policy.dart';
+import 'package:tencent_cloud_chat_demo/utils/group_name_card_save_failure.dart';
 import 'package:tencent_cloud_chat_demo/utils/nickname_policy.dart';
 import 'package:tencent_cloud_chat_demo/utils/toast.dart';
 import 'package:tencent_cloud_chat_demo/utils/user_api_error_message.dart';
@@ -52,6 +54,8 @@ class ProfileNicknameEditPage extends StatefulWidget {
     this.onFinish,
     this.avatarFaceUrl,
     this.avatarShowName,
+    this.liveProfileUpdates = false,
+    this.onRetryProfile,
   }) : super(key: key);
 
   final String initialNickname;
@@ -94,6 +98,9 @@ class ProfileNicknameEditPage extends StatefulWidget {
   /// 非 null 时启用「头像 + 顶栏完成」布局（方案 C）；群聊名称不传。
   final String? avatarFaceUrl;
   final String? avatarShowName;
+  /// Only the group nickname route opts into late profile hydration.
+  final bool liveProfileUpdates;
+  final VoidCallback? onRetryProfile;
 
   static Future<String?> push(
     BuildContext context, {
@@ -224,7 +231,7 @@ class ProfileNicknameEditPage extends StatefulWidget {
     BuildContext context, {
     required String title,
     double height = 280,
-    required ProfileNicknameEditPage Function({
+    required Widget Function({
       bool embedded,
       ValueChanged<String?>? onFinish,
     }) builder,
@@ -258,6 +265,7 @@ class ProfileNicknameEditPage extends StatefulWidget {
     String? avatarFaceUrl,
     String? avatarShowName,
     required Future<bool> Function(String nameCard) onSave,
+    GroupNameCardProfileSource? profileSource,
   }) {
     final i18n = AppI18n.of(context);
     final title = i18n.t(
@@ -267,49 +275,67 @@ class ProfileNicknameEditPage extends StatefulWidget {
       ja: 'グループ内ニックネームを編集',
       ko: '그룹 닉네임 수정',
     );
-    final pageBuilder = ({
-      bool embedded = false,
-      ValueChanged<String?>? onFinish,
-    }) {
-      return ProfileNicknameEditPage(
-        initialNickname: initialNameCard,
-        hintBaseline: hintBaseline,
-        allowEmpty: true,
-        prefillBaselineWhenEmpty: true,
-        treatEmptySubmitAsNoOp: true,
-        minLength: GroupNameCardPolicy.minLength,
-        maxLength: GroupNameCardPolicy.maxLength,
-        title: title,
-        hintText: i18n.t(
-          zhHans: '填写群昵称',
-          zhHant: '填寫群暱稱',
-          en: 'Enter group nickname',
-          ja: 'グループニックネームを入力',
-          ko: '그룹 닉네임 입력',
-        ),
-        submitLabel: i18n.t(
-          zhHans: '完成',
-          zhHant: '完成',
-          en: 'Done',
-          ja: '完了',
-          ko: '완료',
-        ),
-        rulesHint: i18n.t(
-          zhHans: '留空则不修改，或输入2-20个字',
-          zhHant: '留空則不修改，或輸入2-20個字',
-          en: 'Leave blank to keep unchanged, or enter 2–20 characters',
-          ja: '空欄の場合は変更なし、2〜20文字で入力可',
-          ko: '비워두면 변경 없음, 2~20자 입력 가능',
-        ),
-        signatureStyleInput: false,
-        allowLineBreaks: false,
-        onSave: onSave,
-        embedded: embedded,
-        onFinish: onFinish,
-        avatarFaceUrl: avatarFaceUrl ?? '',
-        avatarShowName: avatarShowName ?? hintBaseline,
-      );
-    };
+    final pageBuilder =
+        ({bool embedded = false, ValueChanged<String?>? onFinish}) {
+          Widget editor() {
+            final profile = profileSource?.value;
+            return ProfileNicknameEditPage(
+              initialNickname: profile?.nameCard ?? initialNameCard,
+              hintBaseline: profile?.nickname ?? hintBaseline,
+              allowEmpty: true,
+              prefillBaselineWhenEmpty: true,
+              treatEmptySubmitAsNoOp: true,
+              minLength: GroupNameCardPolicy.minLength,
+              maxLength: GroupNameCardPolicy.maxLength,
+              title: title,
+              hintText: i18n.t(
+                zhHans: '填写群昵称',
+                zhHant: '填寫群暱稱',
+                en: 'Enter group nickname',
+                ja: 'グループニックネームを入力',
+                ko: '그룹 닉네임 입력',
+              ),
+              submitLabel: i18n.t(
+                zhHans: '完成',
+                zhHant: '完成',
+                en: 'Done',
+                ja: '完了',
+                ko: '완료',
+              ),
+              rulesHint: i18n.t(
+                zhHans: '留空则不修改，或输入2-20个字',
+                zhHant: '留空則不修改，或輸入2-20個字',
+                en: 'Leave blank to keep unchanged, or enter 2–20 characters',
+                ja: '空欄の場合は変更なし、2〜20文字で入力可',
+                ko: '비워두면 변경 없음, 2~20자 입력 가능',
+              ),
+              signatureStyleInput: false,
+              allowLineBreaks: false,
+              onSave: onSave,
+              embedded: embedded,
+              onFinish: onFinish,
+              avatarFaceUrl: profile?.faceUrl ?? avatarFaceUrl ?? '',
+              avatarShowName:
+                  profile?.nickname ?? avatarShowName ?? hintBaseline,
+              liveProfileUpdates: profileSource != null,
+              onRetryProfile:
+                  profileSource != null &&
+                      profileSource.isCurrent &&
+                      profileSource.loadFailed &&
+                      !profileSource.loading &&
+                      (profile!.nickname.isEmpty || profile.faceUrl.isEmpty)
+                  ? () => unawaited(profileSource.reload())
+                  : null,
+            );
+          }
+
+          return profileSource == null
+              ? editor()
+              : AnimatedBuilder(
+                  animation: profileSource,
+                  builder: (_, __) => editor(),
+                );
+        };
 
     if (kIsWeb || DesktopModalLayout.isDesktop(context)) {
       return _pushDesktopPopup(
@@ -322,9 +348,7 @@ class ProfileNicknameEditPage extends StatefulWidget {
 
     return Navigator.push<String>(
       context,
-      AppMaterialPageRoute(
-        builder: (context) => pageBuilder(),
-      ),
+      AppMaterialPageRoute(builder: (context) => pageBuilder()),
     );
   }
 
@@ -455,6 +479,9 @@ class _ProfileNicknameEditPageState extends State<ProfileNicknameEditPage> {
   bool _canSubmit = false;
   int _checkSeq = 0;
   late String _currentNickname;
+  bool _hasEditedInput = false;
+  bool _applyingLiveProfile = false;
+  String? _lastObservedInput;
 
   String _sanitizeInputText(String text) {
     if (widget.allowLineBreaks) {
@@ -480,6 +507,7 @@ class _ProfileNicknameEditPageState extends State<ProfileNicknameEditPage> {
   String _resolveLocalSubmitText(String text) {
     final trimmed = _sanitizeInputText(text).trim();
     if (widget.prefillBaselineWhenEmpty &&
+        (!widget.liveProfileUpdates || !_hasEditedInput) &&
         _currentNickname.isEmpty &&
         trimmed.isNotEmpty) {
       final baseline = widget.hintBaseline?.trim() ?? '';
@@ -505,6 +533,32 @@ class _ProfileNicknameEditPageState extends State<ProfileNicknameEditPage> {
     } else {
       _loadProfile();
     }
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfileNicknameEditPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.liveProfileUpdates ||
+        !_useLocalSave ||
+        _submitting ||
+        (oldWidget.initialNickname == widget.initialNickname &&
+            oldWidget.hintBaseline == widget.hintBaseline)) {
+      return;
+    }
+    _currentNickname = widget.initialNickname.trim();
+    if (!_hasEditedInput && _controller.value.composing.isCollapsed) {
+      final text = _initialInputText();
+      _applyingLiveProfile = true;
+      try {
+        _controller.value = TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+      } finally {
+        _applyingLiveProfile = false;
+      }
+    }
+    _scheduleCheck(immediate: true);
   }
 
   @override
@@ -598,6 +652,12 @@ class _ProfileNicknameEditPageState extends State<ProfileNicknameEditPage> {
   }
 
   void _onTextChanged() {
+    if (widget.liveProfileUpdates &&
+        !_applyingLiveProfile &&
+        _controller.text != (_lastObservedInput ?? _initialInputText())) {
+      _hasEditedInput = true;
+    }
+    _lastObservedInput = _controller.text;
     if (mounted) {
       setState(() {});
     }
@@ -781,7 +841,10 @@ class _ProfileNicknameEditPageState extends State<ProfileNicknameEditPage> {
           return;
         }
       }
-      setState(() => _submitting = true);
+      setState(() {
+        _submitting = true;
+        _inlineError = null;
+      });
       try {
         final ok = await widget.onSave!(submitText);
         if (!mounted) return;
@@ -789,6 +852,12 @@ class _ProfileNicknameEditPageState extends State<ProfileNicknameEditPage> {
           _finish(submitText);
         } else {
           ToastUtils.toast(TIM_t("保存失败"));
+        }
+      } on GroupNameCardSaveFailure catch (error) {
+        if (mounted) setState(() => _inlineError = error.message);
+      } catch (error) {
+        if (mounted) {
+          setState(() => _inlineError = TIM_t("保存失败，请稍后重试"));
         }
       } finally {
         if (mounted) {
@@ -804,9 +873,11 @@ class _ProfileNicknameEditPageState extends State<ProfileNicknameEditPage> {
     }
 
     if (!NicknamePolicy.isLengthValid(text)) {
-      ToastUtils.toast(TIM_t(
-        "昵称长度为 ${NicknamePolicy.minLength}-${NicknamePolicy.maxLength} 个字符",
-      ));
+      ToastUtils.toast(
+        TIM_t(
+          "昵称长度为 ${NicknamePolicy.minLength}-${NicknamePolicy.maxLength} 个字符",
+        ),
+      );
       return;
     }
 
@@ -1119,6 +1190,14 @@ class _ProfileNicknameEditPageState extends State<ProfileNicknameEditPage> {
         (_inlineError == null || _inlineError!.isEmpty);
 
     final statusHints = <Widget>[
+      if (widget.onRetryProfile != null) TextButton(
+        onPressed: widget.onRetryProfile,
+        child: Text(AppI18n.of(context).t(
+          zhHans: '个人资料暂未加载，点击重试；仍可修改群昵称',
+          zhHant: '個人資料暫未載入，點擊重試；仍可修改群暱稱',
+          en: 'Retry loading your profile. You can still edit your group nickname.',
+        )),
+      ),
       if (_checkingHint != null && _checkingHint!.isNotEmpty) ...[
         const SizedBox(height: 8),
         Text(

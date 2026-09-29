@@ -36,6 +36,25 @@ class WalletController extends ChangeNotifier {
   List<CoinDto> coins = [];
 
   bool _dead = false;
+  bool _active = true;
+  bool _dirty = false;
+  bool _paintPending = false;
+  bool get hasDeferredRefresh => _dirty;
+
+  /// Returns whether activation consumed a pending refresh (bypassing tab TTL).
+  bool setActive(bool active) {
+    if (_dead) return false;
+    _active = active;
+    if (active && _paintPending) {
+      _paintPending = false;
+      notifyListeners();
+    }
+    if (!active || !_dirty) return false;
+    _dirty = false;
+    unawaited(load(force: true));
+    return true;
+  }
+
   bool _busy = false;
   bool _refreshAgain = false;
   bool _hasSnapshot = false;
@@ -51,6 +70,10 @@ class WalletController extends ChangeNotifier {
 
   Future<void> load({bool force = false}) async {
     if (_dead) return;
+    if (!_active) {
+      _dirty = true;
+      return;
+    }
     final identity = SessionIdentityService.instance.capture(
       ownerUserId: ApiClient.instance.authenticatedUserId,
     );
@@ -75,7 +98,7 @@ class WalletController extends ChangeNotifier {
         loading = true;
         loadFailed = false;
         lastError = null;
-        notifyListeners();
+        if (_active) notifyListeners();
       }
       return;
     }
@@ -83,7 +106,7 @@ class WalletController extends ChangeNotifier {
     loading = !_hasSnapshot;
     loadFailed = false;
     lastError = null;
-    notifyListeners();
+    if (_active) notifyListeners();
 
     try {
       if (!_hasSnapshot) {
@@ -92,7 +115,7 @@ class WalletController extends ChangeNotifier {
         if (cached != null) {
           _applySnapshot(cached);
           loading = false;
-          notifyListeners();
+          if (_active) notifyListeners();
         }
       }
       _recoverPending().catchError((e) {
@@ -100,14 +123,16 @@ class WalletController extends ChangeNotifier {
       });
 
       // Always revalidate disk snapshots; they must not renew the memory TTL.
-      final data = await _repo.getWallet().timeout(const Duration(seconds: 6));
+      final data = await WalletStore.instance
+          .getWallet(repo: _repo, force: true)
+          .timeout(const Duration(seconds: 6));
       if (!isCurrent()) return;
       _applySnapshot(data);
-      WalletStore.instance.updateWallet(data);
+      if (!_active) _paintPending = true;
       loadFailed = false;
       lastError = null;
       loading = false;
-      notifyListeners();
+      if (_active) notifyListeners();
       try {
         await _localStore.write(identity.ownerUserId, data);
       } catch (_) {
@@ -133,7 +158,7 @@ class WalletController extends ChangeNotifier {
         loadFailed = false;
         lastError = null;
       }
-      if (!_dead) notifyListeners();
+      if (!_dead && _active) notifyListeners();
       if (_refreshAgain && !_dead) {
         _refreshAgain = false;
         unawaited(load(force: true));
@@ -152,6 +177,10 @@ class WalletController extends ChangeNotifier {
 
   void _onBalanceChanged() {
     if (_dead) return;
+    if (!_active) {
+      _dirty = true;
+      return;
+    }
     unawaited(load(force: true));
   }
 

@@ -1,0 +1,21 @@
+Future handleSetDraftText(
+      {String? id, ConvType? convType, String? groupID}) async {
+    if (!widget.model.chatConfig.isUseDraft) {
+      return V2TimCallback(code: 0, desc: '');
+    }
+    String text = textEditingController.text;
+    String convID = id ?? widget.conversationID;
+    final isTopic = convID.contains("@TOPIC#");
+    String conversationID = isTopic
+        ? convID
+        : ((convType ?? widget.conversationType) == ConvType.c2c
+            ? "${TUIConversationViewModel.conversationC2CPrefix}$convID"
+            : "${TUIConversationViewModel.conversationGroupPrefix}$convID");
+    String draftText = _filterU200b(text);
+    return await conversationModel.setConversationDraft(
+        groupID: groupID ?? widget.groupID,
+        isTopic: isTopic,
+        isAllowWeb: widget.model.chatConfig.isUseDraftOnWeb,
+        conversationID: conversationID,
+        draftText: draftText);
+  }

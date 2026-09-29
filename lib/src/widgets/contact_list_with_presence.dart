@@ -1,3 +1,5 @@
+import 'contact_projection_merge.dart';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -108,6 +110,12 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
   final List<V2TimFriendInfo> _directoryFriends = <V2TimFriendInfo>[];
   bool _directoryPumping = false;
   bool _directoryNeedsPump = false;
+  List<String> _projectionIds = const [];
+  int _projectionCursor = 0;
+  int _projectionRevision = -1;
+  SessionIdentity? _projectionIdentity;
+  final List<V2TimFriendInfo> _projectionPendingRows = [];
+  final Map<String, int> _directoryRowIndex = {};
 
   static const double _nameStatusGap = DirectoryListStyle.textGap;
   static const double _textBlockNudgeUp = 0;
@@ -228,6 +236,11 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
   @override
   void didUpdateWidget(covariant ContactListWithPresence oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.friends, widget.friends)) {
+      _projectionRevision = -1;
+      _projectionIds = const [];
+      _projectionCursor = 0;
+    }
     // Do not compare or rebuild from a freshly-created predicate on every
     // parent build. Search callers should provide a new friends projection;
     // presence and ordinary parent rebuilds must not enter this path.
@@ -300,58 +313,80 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
       _directoryNeedsPump = true;
       return;
     }
+    if (!_workGateResolved || !_workEnabled || _scrolling) {
+      _directoryNeedsPump = true;
+      return;
+    }
     _directoryPumping = true;
     var firstBatch = true;
     try {
       final directory = ImSdkRelationshipDirectory.instance;
       while (mounted && widget.friends == null) {
-        final ordered = directory.friendOrderedIds;
-        final batch = <String>[];
-        final limit = _materializedIds.isEmpty
-            ? ImSdkRelationshipPerf.firstScreenCount
-            : ImSdkRelationshipPerf.projectionBatchSize;
-        for (final id in ordered) {
-          if (_materializedIds.contains(id)) {
-            continue;
+        if (!_workEnabled || _scrolling) {
+          _directoryNeedsPump = true;
+          return;
+        }
+        final identity = SessionIdentityService.instance.capture();
+        if (_projectionIdentity != identity) {
+          _projectionIdentity = identity;
+          _projectionRevision = -1;
+          _materializedIds.clear();
+          _directoryFriends.clear();
+          _directoryRowIndex.clear();
+          _projectionPendingRows.clear();
+          _cachedShowList = null;
+          _filteredFriends = const [];
+          _effectiveList = const [];
+          _composeContactEntries();
+          if (notifyFirstBatch && mounted) setState(() {});
+        }
+        if (_projectionRevision != directory.friendRevision) {
+          // One immutable ID snapshot per revision; never rescan the whole
+          // already-materialized prefix for each small construction slice.
+          for (final row in _projectionPendingRows) {
+            _materializedIds.remove(row.userID);
           }
+          _projectionPendingRows.clear();
+          _projectionIds = directory.friendOrderedIds;
+          _projectionCursor = 0;
+          _projectionRevision = directory.friendRevision;
+        }
+        final target = contactProjectionPublishSize(_directoryFriends.length,
+            firstScreen: ImSdkRelationshipPerf.firstScreenCount);
+        var processed = 0;
+        while (_projectionCursor < _projectionIds.length &&
+            processed < 80 &&
+            _projectionPendingRows.length < target) {
+          final id = _projectionIds[_projectionCursor++];
+          processed++;
+          if (!_materializedIds.add(id)) continue;
           if (PlatformOfficialAccountService.shouldHideFromContactAndPickers(
-              id)) {
-            _materializedIds.add(id);
-            continue;
-          }
-          batch.add(id);
-          if (batch.length >= limit) {
-            break;
-          }
-        }
-        if (batch.isEmpty) {
-          break;
-        }
-        final added = <V2TimFriendInfo>[];
-        for (final id in batch) {
+              id)) continue;
           final entry = directory.friend(id);
-          if (entry == null) {
-            continue;
-          }
-          _materializedIds.add(id);
+          if (entry == null) continue;
           final info = entry.toV2TimFriendInfo();
-          _directoryFriends.add(info);
-          added.add(info);
+          _projectionMeta(info);
+          _projectionPendingRows.add(info);
         }
-        final notify = !firstBatch || notifyFirstBatch;
-        firstBatch = false;
-        if (_cachedShowList == null) {
-          _refreshContactProjection(force: true, notify: notify);
-        } else {
+        final exhausted = _projectionCursor >= _projectionIds.length;
+        if (_projectionPendingRows.isNotEmpty &&
+            (_projectionPendingRows.length >= target || exhausted)) {
+          final added = List<V2TimFriendInfo>.of(_projectionPendingRows);
+          _projectionPendingRows.clear();
+          for (final row in added) {
+            _directoryRowIndex[row.userID] = _directoryFriends.length;
+            _directoryFriends.add(row);
+          }
+          final notify = !firstBatch || notifyFirstBatch;
+          firstBatch = false;
           _appendFriendsToAz(added, notify: notify);
         }
-        if (ordered.length > _materializedIds.length) {
-          await Future<void>.delayed(ImSdkRelationshipPerf.stageYield);
-        }
+        if (exhausted) break;
+        await Future<void>.delayed(ImSdkRelationshipPerf.stageYield);
       }
     } finally {
       _directoryPumping = false;
-      _ensureVisibleProfiles();
+      if (_workEnabled && !_scrolling) _ensureVisibleProfiles();
       if (_directoryNeedsPump && mounted && _workEnabled && !_scrolling) {
         _directoryNeedsPump = false;
         unawaited(_pumpDirectoryProjection());
@@ -365,125 +400,78 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
   }) {
     final directory = ImSdkRelationshipDirectory.instance;
     var mutated = false;
-    for (final id in change.removedIds) {
-      if (!_materializedIds.remove(id)) {
-        continue;
+    if (change.removedIds.isNotEmpty) {
+      final removed = change.removedIds.toSet();
+      _materializedIds.removeAll(removed);
+      _directoryFriends.removeWhere((row) => removed.contains(row.userID));
+      _projectionPendingRows.removeWhere((row) => removed.contains(row.userID));
+      _directoryRowIndex.clear();
+      for (var i = 0; i < _directoryFriends.length; i++) {
+        _directoryRowIndex[_directoryFriends[i].userID] = i;
       }
-      _directoryFriends.removeWhere((item) => item.userID == id);
-      _projectionMetaCache.remove(id);
-      _contactRowCache.remove(id);
+      for (final id in removed) {
+        _projectionMetaCache.remove(id);
+        _contactRowCache.remove(id);
+      }
       mutated = true;
     }
-    for (final id in change.metadataChangedIds) {
-      if (!_materializedIds.contains(id)) {
-        continue;
-      }
+    final changed = {...change.metadataChangedIds, ...change.sortKeyChangedIds};
+    for (final id in changed) {
+      final index = _directoryRowIndex[id];
       final entry = directory.friend(id);
-      if (entry == null) {
-        continue;
-      }
-      final idx = _directoryFriends.indexWhere((item) => item.userID == id);
-      if (idx >= 0) {
-        _directoryFriends[idx] = entry.toV2TimFriendInfo();
-        mutated = true;
-      }
-    }
-    for (final id in change.sortKeyChangedIds) {
-      if (!_materializedIds.contains(id)) {
-        continue;
-      }
-      final entry = directory.friend(id);
-      if (entry == null) {
-        continue;
-      }
-      final idx = _directoryFriends.indexWhere((item) => item.userID == id);
-      if (idx >= 0) {
-        _directoryFriends[idx] = entry.toV2TimFriendInfo();
-        mutated = true;
-      }
+      if (index == null || entry == null) continue;
+      _directoryFriends[index] = entry.toV2TimFriendInfo();
+      mutated = true;
     }
     if (deferProjection) return;
-    if (mutated && _cachedShowList != null) {
+    if (mutated && _cachedShowList != null)
       _refreshContactProjection(force: true);
-    }
     if (change.addedIds.isNotEmpty || change.snapshotCompleted) {
       unawaited(_pumpDirectoryProjection());
     }
   }
 
+  int _compareContactRows(ISuspensionBeanImpl a, ISuspensionBeanImpl b) {
+    final left = a.memberInfo as V2TimFriendInfo;
+    final right = b.memberInfo as V2TimFriendInfo;
+    if (a.tagIndex != b.tagIndex) {
+      if (a.tagIndex == '★' || b.tagIndex == '#') return -1;
+      if (b.tagIndex == '★' || a.tagIndex == '#') return 1;
+      return a.tagIndex.compareTo(b.tagIndex);
+    }
+    if (a.tagIndex == '★') {
+      final ta = StarredFriendProvider.shared.starredAtOf(left.userID);
+      final tb = StarredFriendProvider.shared.starredAtOf(right.userID);
+      if (ta != null && tb != null && ta != tb) return tb.compareTo(ta);
+      if (ta == null && tb != null) return 1;
+      if (tb == null && ta != null) return -1;
+    }
+    final directory = ImSdkRelationshipDirectory.instance;
+    final byKey = (directory.friend(left.userID)?.sortKey ?? left.userID)
+        .compareTo(directory.friend(right.userID)?.sortKey ?? right.userID);
+    return byKey != 0 ? byKey : left.userID.compareTo(right.userID);
+  }
+
   void _appendFriendsToAz(List<V2TimFriendInfo> added, {bool notify = true}) {
-    if (added.isEmpty) {
-      return;
-    }
-    // _cachedShowList also contains the fixed top entries. They are composed
-    // again below, so they must not participate in the friend insertion scan.
+    if (added.isEmpty) return;
     final current = (_cachedShowList ?? const <ISuspensionBeanImpl>[])
-        .where((row) => row.memberInfo is! TopListItem)
+        .where((row) => row.memberInfo is V2TimFriendInfo)
         .toList();
-    final accepted = <V2TimFriendInfo>[];
-    final starred = StarredFriendProvider.shared;
-    for (final item in added) {
-      if (widget.filterItem != null && !widget.filterItem!(item)) {
-        continue;
-      }
-      accepted.add(item);
-      final isStarred = starred.isStarred(item.userID);
-      final bean = ISuspensionBeanImpl(
-        memberInfo: item,
-        tagIndex: isStarred ? '★' : _projectionMeta(item).indexTag,
-      );
-      if (isStarred) {
-        var i = 0;
-        while (i < current.length && current[i].tagIndex == '★') {
-          i++;
-        }
-        current.insert(i, bean);
-      } else {
-        final entry = ImSdkRelationshipDirectory.instance.friend(item.userID);
-        var i = 0;
-        while (i < current.length && current[i].tagIndex == '★') {
-          i++;
-        }
-        while (i < current.length) {
-          final otherBean = current[i];
-          final other = otherBean.memberInfo;
-          if (other is! V2TimFriendInfo) break;
-          final otherTag = otherBean.tagIndex;
-          if (otherTag == '★') {
-            i++;
-            continue;
-          }
-          // The visible tag is the primary sort key. The directory sort key
-          // can differ when a local display name overrides the SDK name.
-          if (bean.tagIndex != otherTag) {
-            if (otherTag == '#' ||
-                (bean.tagIndex != '#' &&
-                    bean.tagIndex.compareTo(otherTag) < 0)) {
-              break;
-            }
-            i++;
-            continue;
-          }
-          final otherEntry =
-              ImSdkRelationshipDirectory.instance.friend(other.userID);
-          if (otherEntry != null &&
-              entry != null &&
-              entry.sortKey.compareTo(otherEntry.sortKey) < 0) {
-            break;
-          }
-          i++;
-        }
-        current.insert(i, bean);
-      }
-    }
-    // The build path uses this list for the empty state and contact count.
-    // Keep it in sync when rows arrive through staged directory projection.
-    _filteredFriends = <V2TimFriendInfo>[..._filteredFriends, ...accepted];
-    _cachedShowList = current;
+    final accepted =
+        added.where((row) => widget.filterItem?.call(row) ?? true).toList();
+    final next = [
+      for (final row in accepted)
+        ISuspensionBeanImpl(
+            memberInfo: row,
+            tagIndex: StarredFriendProvider.shared.isStarred(row.userID)
+                ? '★'
+                : _projectionMeta(row).indexTag)
+    ];
+    _cachedShowList =
+        mergeContactProjection(current, next, _compareContactRows);
+    _filteredFriends = [..._filteredFriends, ...accepted];
     _composeContactEntries();
-    if (notify && mounted) {
-      setState(() {});
-    }
+    if (notify && mounted) setState(() {});
   }
 
   void _onFriendshipModelChanged() {
@@ -559,6 +547,7 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
         ? _friendShipModel.friendListRevision
         : _friendListRevision;
     _cachedShowList = _buildShowList(filtered, StarredFriendProvider.shared);
+    if (_usesDirectoryProjection) _cachedShowList!.sort(_compareContactRows);
     final activeIds = source.map((item) => item.userID).toSet();
     _projectionMetaCache.removeWhere(
       (userId, _) => !activeIds.contains(userId),

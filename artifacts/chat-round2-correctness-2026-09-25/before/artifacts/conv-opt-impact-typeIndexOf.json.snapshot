@@ -1,0 +1,70 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.typeIndexOf#2",
+    "name": "typeIndexOf",
+    "type": "Method",
+    "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 3,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 2,
+    "processes_affected": 0,
+    "modules_affected": 1
+  },
+  "byDepthCounts": {
+    "1": 2,
+    "2": 1
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Conversation_local",
+      "hits": 3,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._applyCommittedViewBatchNow#8",
+        "name": "_applyCommittedViewBatchNow",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.applyCommittedViewBatch#4",
+        "name": "applyCommittedViewBatch",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.flushDeferredCommittedProjection#1",
+        "name": "flushDeferredCommittedProjection",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,13 @@
+void _scheduleViewportWarmAfterSettle({required String reason}) {
+    _viewportWarmSettleTimer?.cancel();
+    _viewportWarmSettleTimer = Timer(_viewportWarmSettleDelay, () {
+      if (!mounted) {
+        return;
+      }
+      if (_feedScrollController.hasClients &&
+          _feedScrollController.position.isScrollingNotifier.value) {
+        return;
+      }
+      _runViewportWarmNow(reason: reason);
+    });
+  }

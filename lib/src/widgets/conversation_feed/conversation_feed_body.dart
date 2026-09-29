@@ -200,43 +200,50 @@ class _ConversationFeedBodyState extends State<ConversationFeedBody> {
     _structureFeedListenable = _buildStructureFeedListenable();
     PeerProfileRefreshBus.instance.revision.addListener(_onPeerProfileRefresh);
     widget.feedScrollController.addListener(_onPredictiveAvatarWarm);
-    // 项 9：监听 isScrollingNotifier 广播冻结 sort 状态给 TabStore。
-    if (widget.feedScrollController.hasClients) {
-      widget.feedScrollController.position.isScrollingNotifier
-          .addListener(_onScrollFreezeChange);
-      _scrollFreezeListenerAttached = true;
-    } else {
-      widget.feedScrollController.addListener(_onFirstScrollAttach);
-    }
+    widget.feedScrollController.addListener(_onFirstScrollAttach);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _warmInitialAvatarWindow();
-      // 首次 attach 后挂上 isScrollingNotifier 监听
-      if (widget.feedScrollController.hasClients &&
-          !_scrollFreezeListenerAttached) {
-        widget.feedScrollController.removeListener(_onFirstScrollAttach);
-        widget.feedScrollController.position.isScrollingNotifier
-            .addListener(_onScrollFreezeChange);
-        _scrollFreezeListenerAttached = true;
-      }
+      _onFirstScrollAttach();
     });
   }
 
   // 项 9：滚动状态变化时通知 TabStore 冻结/解冻 sort。
-  bool _scrollFreezeListenerAttached = false;
+  ValueNotifier<bool>? _scrollFreezeNotifier;
+  bool _scrollFreezeSyncScheduled = false;
+
+  void _scheduleScrollFreezeSync() {
+    if (_scrollFreezeSyncScheduled) return;
+    _scrollFreezeSyncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollFreezeSyncScheduled = false;
+      if (mounted) _onFirstScrollAttach();
+    });
+  }
+
   void _onFirstScrollAttach() {
-    if (!mounted || !widget.feedScrollController.hasClients) return;
-    if (_scrollFreezeListenerAttached) return;
-    widget.feedScrollController.removeListener(_onFirstScrollAttach);
-    widget.feedScrollController.position.isScrollingNotifier
-        .addListener(_onScrollFreezeChange);
-    _scrollFreezeListenerAttached = true;
+    if (!mounted) return;
+    final positions = widget.feedScrollController.positions;
+    final next =
+        positions.length == 1 ? positions.single.isScrollingNotifier : null;
+    if (!identical(next, _scrollFreezeNotifier)) {
+      _scrollFreezeNotifier?.removeListener(_onScrollFreezeChange);
+      _scrollFreezeNotifier = next;
+      next?.addListener(_onScrollFreezeChange);
+    }
+    _onScrollFreezeChange();
   }
 
   void _onScrollFreezeChange() {
-    if (!mounted || !widget.feedScrollController.hasClients) return;
-    final isScrolling =
-        widget.feedScrollController.position.isScrollingNotifier.value;
+    if (!mounted) return;
+    final isScrolling = widget.workEnabled &&
+        _feedTickerActive &&
+        (_scrollFreezeNotifier?.value ?? false);
+    if (_isFastScrolling == isScrolling) {
+      ConversationTabStore.instance
+          .setSortFrozenByScroll(isScrolling, owner: this);
+      return;
+    }
     if (isScrolling) {
       _isFastScrolling = true;
       _avatarWarmTimer?.cancel();
@@ -250,12 +257,21 @@ class _ConversationFeedBodyState extends State<ConversationFeedBody> {
         if (mounted) _drainPredictiveAvatarWarm();
       });
     }
-    ConversationTabStore.instance.setSortFrozenByScroll(isScrolling);
+    ConversationTabStore.instance.setSortFrozenByScroll(isScrolling, owner: this);
   }
 
   @override
   void didUpdateWidget(covariant ConversationFeedBody oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.feedScrollController, widget.feedScrollController)) {
+      oldWidget.feedScrollController.removeListener(_onPredictiveAvatarWarm);
+      oldWidget.feedScrollController.removeListener(_onFirstScrollAttach);
+      _scrollFreezeNotifier?.removeListener(_onScrollFreezeChange);
+      _scrollFreezeNotifier = null;
+      widget.feedScrollController.addListener(_onPredictiveAvatarWarm);
+      widget.feedScrollController.addListener(_onFirstScrollAttach);
+    }
+    _scheduleScrollFreezeSync();
     // 非活跃 Tab 整表缓存不得跨深浅主题复用。
     if (!identical(oldWidget.theme, widget.theme)) {
       _inactiveTabCachedChild = null;
@@ -283,6 +299,7 @@ class _ConversationFeedBodyState extends State<ConversationFeedBody> {
       });
     }
     _feedTickerActive = active;
+    _scheduleScrollFreezeSync();
   }
 
   /// Archive / folder / group-notice / settings / live — not list content.
@@ -314,13 +331,10 @@ class _ConversationFeedBodyState extends State<ConversationFeedBody> {
     ImScaleMetrics.release();
     widget.feedScrollController.removeListener(_onPredictiveAvatarWarm);
     widget.feedScrollController.removeListener(_onFirstScrollAttach);
-    if (widget.feedScrollController.hasClients &&
-        _scrollFreezeListenerAttached) {
-      widget.feedScrollController.position.isScrollingNotifier
-          .removeListener(_onScrollFreezeChange);
-    }
+    _scrollFreezeNotifier?.removeListener(_onScrollFreezeChange);
+    _scrollFreezeNotifier = null;
     // 项 9：dispose 时主动解冻，避免冻结状态泄漏到下一次进入。
-    ConversationTabStore.instance.setSortFrozenByScroll(false);
+    ConversationTabStore.instance.setSortFrozenByScroll(false, owner: this);
     _avatarWarmTimer?.cancel();
     _avatarWarmResumeTimer?.cancel();
     PeerProfileRefreshBus.instance.revision.removeListener(
@@ -588,6 +602,7 @@ class _ConversationFeedBodyState extends State<ConversationFeedBody> {
 
   @override
   Widget build(BuildContext context) {
+    _scheduleScrollFreezeSync();
     ConversationFeedPerf.increment(
       'feed_state_build',
       reason: widget.isGroupTab ? 'group' : 'c2c',

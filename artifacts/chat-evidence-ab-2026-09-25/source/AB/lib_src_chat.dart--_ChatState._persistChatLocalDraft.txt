@@ -1,0 +1,21 @@
+Future<void> _persistChatLocalDraft() async {
+    if (_draft.shouldSuppressLifecyclePersist) {
+      return;
+    }
+    _draft.cancelDebounce();
+    final text =
+        _chatController.textFieldController?.textEditingController?.text ?? '';
+    final conversationId = _resolvedConversationID();
+    ConversationDraftLeaveTrace.focus(conversationId);
+    ConversationDraftLeaveTrace.stage(
+      'draft_leave_persist_start',
+      conversationId: conversationId,
+      draftText: text,
+      extras: const <String, Object?>{'source': 'lifecycle'},
+    );
+    await _persistChatLocalDraftText(
+      text,
+      _draft.writeGeneration,
+      conversationID: conversationId,
+    );
+  }

@@ -1,0 +1,16 @@
+void _onChatDraftTextChanged(String text) {
+    final conversationId = _resolvedConversationID();
+    if (text.trim().isNotEmpty) {
+      ConversationDraftLeaveTrace.focus(conversationId);
+    }
+    ConversationDraftLeaveTrace.stage(
+      'draft_input_changed',
+      conversationId: conversationId,
+      draftText: text,
+    );
+    _draft.onChanged(
+      text,
+      persist: (raw, generation) =>
+          unawaited(_persistChatLocalDraftText(raw, generation)),
+    );
+  }

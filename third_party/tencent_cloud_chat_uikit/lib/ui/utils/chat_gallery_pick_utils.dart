@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart'
     as picker;
 import 'package:tencent_cloud_chat_uikit/ui/utils/gallery_send_perf_trace.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/picker_recovery_coordinator.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
 const int _chatGalleryPageSize = 40;
@@ -23,15 +24,20 @@ class ChatGalleryPickUtils {
   /// must terminate that attempt instead of opening a second picker.
   static Future<List<picker.XFile>?> pickSystemGalleryMedia({
     GallerySendPerfTrace? perf,
+    String? recoveryDestination,
   }) async {
     try {
-      return await picker.ImagePickerPlatform.instance.getMedia(
-        options: picker.MediaOptions(
-          allowMultiple: true,
-          limit: maxSelectedAssets,
-          imageOptions: const picker.ImageOptions(requestFullMetadata: false),
-        ),
-      );
+      return await PickerRecoveryCoordinator.instance.pick(
+          entry: 'chat.gallery',
+          destination: recoveryDestination,
+          launch: () => picker.ImagePickerPlatform.instance.getMedia(
+                options: picker.MediaOptions(
+                  allowMultiple: true,
+                  limit: maxSelectedAssets,
+                  imageOptions:
+                      const picker.ImageOptions(requestFullMetadata: false),
+                ),
+              ));
     } on MissingPluginException {
       perf?.log('system_picker_unavailable', detail: 'reason=missing_plugin');
       return null;
@@ -100,7 +106,8 @@ class ChatGalleryPickUtils {
     if (routeCompleted != null) {
       // A paused app may never finish the reverse animation. Accepted media
       // must still progress; keep the wait bounded independently of frames.
-      await routeCompleted.timeout(const Duration(seconds: 1), onTimeout: () {});
+      await routeCompleted.timeout(const Duration(seconds: 1),
+          onTimeout: () {});
       return;
     }
     if (kIsWeb) {

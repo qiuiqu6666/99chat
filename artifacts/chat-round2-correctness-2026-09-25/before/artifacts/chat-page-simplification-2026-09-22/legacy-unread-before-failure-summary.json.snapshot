@@ -1,0 +1,22 @@
+{
+  "total": 39,
+  "by_file": {
+    "chat_visible_latest_ack_recovery_test.dart": 2,
+    "durable_unread_tongue_test.dart": 17,
+    "history_durable_scroll_to_latest_test.dart": 14,
+    "return_to_latest_rendered_proof_test.dart": 4,
+    "unread_visit_baseline_test.dart": 2
+  },
+  "by_category": {
+    "async_progress_precondition": 5,
+    "legacy_scalar_assertion": 21,
+    "capsule_visibility_or_row_coverage": 4,
+    "read_report_visible_proof": 5,
+    "scroll_geometry": 3,
+    "frame_scheduling": 1
+  },
+  "new_since_previous_fix_baseline": [
+    "history_durable_scroll_to_latest_test.dart::production return keeps drag interactive and cancels late publication"
+  ],
+  "removed_since_previous_fix_baseline": []
+}

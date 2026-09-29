@@ -1,0 +1,26 @@
+[
+  {
+    "Path": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\lib\\src\\services\\friend_realtime\\friend_realtime_connection_io.dart",
+    "Hash": "C0033FD44F888D0BC5B761329A451E26B3119548C9D019ED0063CF9A9BF5A980"
+  },
+  {
+    "Path": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\lib\\src\\services\\api_node_service.dart",
+    "Hash": "B913F6D46F76BFC1B51FDB44F78978167AB0CA22D166505A8DC4942837073320"
+  },
+  {
+    "Path": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\lib\\src\\services\\friend_realtime_service.dart",
+    "Hash": "4E3628EBCB916A806148B13990BD9D8BB6783A0659C2F48A68E4083F4957A496"
+  },
+  {
+    "Path": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\lib\\src\\api\\api_client.dart",
+    "Hash": "EC5E82A958973D39B92D8C8FC8189F9CCDD1A2B0EC7EF3468A6B18E52B1FD71B"
+  },
+  {
+    "Path": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\third_party\\tencent_cloud_chat_uikit\\lib\\business_logic\\separate_models\\tui_chat_separate_view_model.dart",
+    "Hash": "B168275CD130EAA0CB489DDE606FAC32FA579F8225A8BF0919EC7B4322BEA127"
+  },
+  {
+    "Path": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\test\\chat_session_recovery_test.dart",
+    "Hash": "804EC53523749662513F8924F2941DAB6EB03B3B1CEE706DF026CE489644873A"
+  }
+]

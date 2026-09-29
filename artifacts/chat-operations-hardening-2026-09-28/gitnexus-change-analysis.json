@@ -1,0 +1,207 @@
+{
+  "summary": {
+    "changed_count": 28,
+    "affected_count": 0,
+    "changed_files": 23,
+    "risk_level": "low"
+  },
+  "changed_symbols": [
+    {
+      "id": "Class:lib/src/pages/settings/settings_page.dart:_SettingsPageState",
+      "name": "_SettingsPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/settings_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator",
+      "name": "ConversationHistorySyncCoordinator",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator._userOlderPaginationKeys",
+      "name": "_userOlderPaginationKeys",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator.beginUserOlderPagination#1",
+      "name": "beginUserOlderPagination",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator.endUserOlderPagination#2",
+      "name": "endUserOlderPagination",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService",
+      "name": "ConversationSyncService",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/tencent_advanced_message_adapter.dart:TencentAdvancedMessageAdapter",
+      "name": "TencentAdvancedMessageAdapter",
+      "type": "Class",
+      "filePath": "lib/src/services/im/tencent_advanced_message_adapter.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/services/im/tencent_advanced_message_adapter.dart:fn@239:2.task@255:4",
+      "name": "task",
+      "type": "Function",
+      "filePath": "lib/src/services/im/tencent_advanced_message_adapter.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:test/return_to_latest_rendered_proof_test.dart:_VisibilityProofStore",
+      "name": "_VisibilityProofStore",
+      "type": "Class",
+      "filePath": "test/return_to_latest_rendered_proof_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:test/return_to_latest_rendered_proof_test.dart:_VisibilityProofStore.acknowledgeVisibleDeferred#4",
+      "name": "acknowledgeVisibleDeferred",
+      "type": "Method",
+      "filePath": "test/return_to_latest_rendered_proof_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/controllers/history_pagination_controller.dart:HistoryPaginationController",
+      "name": "HistoryPaginationController",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/controllers/history_pagination_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/controllers/history_pagination_controller.dart:HistoryPaginationController.generation",
+      "name": "generation",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/controllers/history_pagination_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart:HistoryLiveWindow",
+      "name": "HistoryLiveWindow",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart:HistoryPaginationLoadRunner",
+      "name": "HistoryPaginationLoadRunner",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart:HistoryPaginationLoadRunner._stepTimeout",
+      "name": "_stepTimeout",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel",
+      "name": "TUIChatSeparateViewModel",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.initForEachConversation#6",
+      "name": "initForEachConversation",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.fillHistoryWindowPeekStyle#1",
+      "name": "fillHistoryWindowPeekStyle",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._revokedMessageCopy#2",
+      "name": "_revokedMessageCopy",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._commitRevokeToSdk#13",
+      "name": "_commitRevokeToSdk",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.setMessageItemChecked#2",
+      "name": "setMessageItemChecked",
+      "type": "Constructor",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:BoundedChatHistory",
+      "name": "BoundedChatHistory",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:BoundedChatHistory.recordHistoryWindowMutation#11",
+      "name": "recordHistoryWindowMutation",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart:BoundedChatHistory.beginHistoryWindowReturnToLatest#2",
+      "name": "beginHistoryWindowReturnToLatest",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart:TIMUIKitHistoryMessageListTongueContainerState",
+      "name": "TIMUIKitHistoryMessageListTongueContainerState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_message_tooltip.dart:TIMUIKitMessageTooltipState",
+      "name": "TIMUIKitMessageTooltipState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_message_tooltip.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChatProviderScope",
+      "name": "TIMUIKitChatProviderScope",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_history_window_transition.dart:ChatHistoryWindowTransitionState",
+      "name": "ChatHistoryWindowTransitionState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_history_window_transition.dart",
+      "change_type": "touched"
+    }
+  ],
+  "affected_processes": []
+}

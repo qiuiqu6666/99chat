@@ -2,6 +2,9 @@
 
 import 'package:tencent_cloud_chat_demo/src/widgets/app_qr_icon.dart';
 import 'dart:async';
+import 'package:image_picker/image_picker.dart';
+import 'package:tencent_cloud_chat_demo/src/services/registration_avatar.dart';
+import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -49,8 +52,7 @@ class LoginPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final loginBody =
-        _LoginBody(initIMSDK: initIMSDK, initialTab: initialTab);
+    final loginBody = _LoginBody(initIMSDK: initIMSDK, initialTab: initialTab);
     return AuthLightScope(
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: authImmersiveOverlayStyle,
@@ -123,6 +125,10 @@ class _LoginBodyState extends State<_LoginBody> {
   final _registerPasswordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
   bool _registerObscure = true;
+  bool _registerProfileStep = false;
+  bool _pickingRegisterAvatar = false;
+  Uint8List? _registerAvatar;
+  String _registerAvatarName = 'avatar.jpg';
   bool _confirmRegisterObscure = true;
   Timer? _registerNicknameCheckTimer;
   int _registerNicknameCheckSeq = 0;
@@ -171,6 +177,7 @@ class _LoginBodyState extends State<_LoginBody> {
       _passwordCtrl.text.length >= 8;
   bool get _canSubmitRegister =>
       !_busy &&
+      !_pickingRegisterAvatar &&
       _isPhoneValid &&
       _isSmsCodeComplete &&
       _isRegisterNicknameReady &&
@@ -774,6 +781,10 @@ class _LoginBodyState extends State<_LoginBody> {
         password: _registerPasswordCtrl.text,
         countryCode: _countryCode,
         countryIso: _phoneCountryIso,
+        uploadAvatar: _registerAvatar == null
+            ? null
+            : () =>
+                uploadRegistrationAvatar(_registerAvatar!, _registerAvatarName),
       );
     } on LoginCoordinatorException catch (e) {
       ToastUtils.toast(
@@ -1131,7 +1142,7 @@ class _LoginBodyState extends State<_LoginBody> {
     }
     final qr = payload.isEmpty
         ? AppQrIcon(
-          size: 72,
+            size: 72,
             color: AppTokens.ink300,
           )
         : QrImageView(
@@ -1152,10 +1163,26 @@ class _LoginBodyState extends State<_LoginBody> {
           children: [
             ColorFiltered(
               colorFilter: const ColorFilter.matrix(<double>[
-                0.2126, 0.7152, 0.0722, 0, 36,
-                0.2126, 0.7152, 0.0722, 0, 36,
-                0.2126, 0.7152, 0.0722, 0, 36,
-                0, 0, 0, 0.55, 0,
+                0.2126,
+                0.7152,
+                0.0722,
+                0,
+                36,
+                0.2126,
+                0.7152,
+                0.0722,
+                0,
+                36,
+                0.2126,
+                0.7152,
+                0.0722,
+                0,
+                36,
+                0,
+                0,
+                0,
+                0.55,
+                0,
               ]),
               child: qr,
             ),
@@ -1474,8 +1501,132 @@ class _LoginBodyState extends State<_LoginBody> {
     );
   }
 
+  String _registrationLabel(
+          String zh, String tw, String en, String ja, String ko) =>
+      AppI18n.of(context).t(zhHans: zh, zhHant: tw, en: en, ja: ja, ko: ko);
+
+  bool get _canAdvanceRegister =>
+      !_busy &&
+      _isPhoneValid &&
+      _isSmsCodeComplete &&
+      _registerPasswordOk &&
+      _confirmPasswordOk;
+
+  void _advanceRegister() {
+    if (!_canAdvanceRegister) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _registerProfileStep = true);
+  }
+
+  Future<void> _pickRegisterAvatar() async {
+    if (_busy || _pickingRegisterAvatar) return;
+    setState(() => _pickingRegisterAvatar = true);
+    try {
+      final photo = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85);
+      if (photo == null || !mounted) return;
+      if (await photo.length() > 10 * 1024 * 1024) {
+        ToastUtils.toast(_registrationLabel(
+            '头像不能超过 10 MB',
+            '頭像不能超過 10 MB',
+            'Avatar must be under 10 MB',
+            '画像は10 MB未満にしてください',
+            '사진은 10 MB 미만이어야 합니다'));
+        return;
+      }
+      final bytes = await photo.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _registerAvatar = bytes;
+        _registerAvatarName = photo.name;
+      });
+    } catch (_) {
+      ToastUtils.toast(_registrationLabel(
+          '无法选择头像，请重试',
+          '無法選擇頭像，請重試',
+          'Could not select avatar. Try again.',
+          '画像を選択できません。再試行してください',
+          '사진을 선택할 수 없습니다. 다시 시도해 주세요'));
+    } finally {
+      if (mounted) setState(() => _pickingRegisterAvatar = false);
+    }
+  }
+
+  Widget _buildRegisterProfileStep() {
+    return PopScope(
+      canPop: _activeTab != 1,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && !_busy && mounted) {
+          setState(() => _registerProfileStep = false);
+        }
+      },
+      child: Column(
+          key: const ValueKey('register-profile-step'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+                child: Column(children: [
+              InkWell(
+                  onTap: _busy || _pickingRegisterAvatar
+                      ? null
+                      : _pickRegisterAvatar,
+                  borderRadius: BorderRadius.circular(48),
+                  child: CircleAvatar(
+                      radius: 44,
+                      backgroundColor: AppTokens.ink100,
+                      backgroundImage: _registerAvatar == null
+                          ? null
+                          : MemoryImage(_registerAvatar!),
+                      child: _registerAvatar == null
+                          ? const Icon(Icons.add_a_photo_outlined, size: 30)
+                          : null)),
+              TextButton(
+                  onPressed: _busy || _pickingRegisterAvatar
+                      ? null
+                      : _pickRegisterAvatar,
+                  child: Text(_registrationLabel(
+                      '选择头像', '選擇頭像', 'Choose avatar', '写真を選択', '사진 선택'))),
+            ])),
+            const SizedBox(height: 18),
+            AuthTextField(
+                controller: _nicknameCtrl,
+                focusNode: _nicknameFocusNode,
+                hint: _strings.enterNickname,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _finishField(
+                    submit: _canSubmitRegister ? _register : null)),
+            const SizedBox(height: 6),
+            _registerNicknameInlineMessage(),
+            const SizedBox(height: 20),
+            _buildRegisterAgreement(),
+            const SizedBox(height: 12),
+            AuthPrimaryButton(
+                text: _registrationLabel(
+                    '完成注册', '完成註冊', 'Complete registration', '登録を完了', '가입 완료'),
+                loadingText: _strings.registering,
+                loading: _busy,
+                pill: true,
+                onPressed: _canSubmitRegister ? _register : null),
+            Center(
+                child: TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () {
+                            FocusScope.of(context).unfocus();
+                            setState(() => _registerProfileStep = false);
+                          },
+                    child: Text(
+                        _registrationLabel('上一步', '上一步', 'Back', '戻る', '이전')))),
+          ]),
+    );
+  }
+
   Widget _buildRegisterForm() {
     final strings = _strings;
+    if (_registerProfileStep) return _buildRegisterProfileStep();
     return Column(
       key: const ValueKey('register'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1503,24 +1654,12 @@ class _LoginBodyState extends State<_LoginBody> {
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           maxLength: 6,
           textInputAction: TextInputAction.next,
-          onFieldSubmitted: (_) => _focusField(_nicknameFocusNode),
+          onFieldSubmitted: (_) => _focusField(_registerPasswordFocusNode),
           onChanged: (_) => _handleInputChanged(),
           trailing: _sendCodeAction(_cooldown, _busy, _sendRegisterCode),
           trailingWidth: 122,
         ),
         SizedBox(height: _authFieldGap),
-        AuthTextField(
-          controller: _nicknameCtrl,
-          focusNode: _nicknameFocusNode,
-          hint: strings.enterNickname,
-          textInputAction: TextInputAction.next,
-          onFieldSubmitted: (_) => _focusField(_registerPasswordFocusNode),
-        ),
-        const SizedBox(height: 6),
-        ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 18),
-          child: _registerNicknameInlineMessage(),
-        ),
         AuthTextField(
           controller: _registerPasswordCtrl,
           focusNode: _registerPasswordFocusNode,
@@ -1553,7 +1692,7 @@ class _LoginBodyState extends State<_LoginBody> {
           obscureText: _confirmRegisterObscure,
           textInputAction: TextInputAction.done,
           onFieldSubmitted: (_) => _finishField(
-            submit: _canSubmitRegister ? _register : null,
+            submit: _canAdvanceRegister ? _advanceRegister : null,
           ),
           onChanged: (_) => _handleInputChanged(),
           suffix: GestureDetector(
@@ -1577,11 +1716,11 @@ class _LoginBodyState extends State<_LoginBody> {
         _buildRegisterAgreement(),
         const SizedBox(height: 12),
         AuthPrimaryButton(
-          text: strings.registerButton,
+          text: _registrationLabel('下一步', '下一步', 'Next', '次へ', '다음'),
           loadingText: strings.registering,
           loading: _busy,
           pill: true,
-          onPressed: _canSubmitRegister ? _register : null,
+          onPressed: _canAdvanceRegister ? _advanceRegister : null,
         ),
         if (kIsWeb) const SizedBox(height: 8),
       ],

@@ -1,0 +1,155 @@
+{
+  "target": {
+    "id": "Function:lib/src/navigation/app_chat_route.dart:openOrReuseAppChat",
+    "name": "openOrReuseAppChat",
+    "type": "Function",
+    "filePath": "lib/src/navigation/app_chat_route.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 54,
+  "risk": "CRITICAL",
+  "riskSharedAxes": "MEDIUM",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 13,
+    "processes_affected": 3,
+    "modules_affected": 20
+  },
+  "byDepthCounts": {
+    "1": 13,
+    "2": 23,
+    "3": 18
+  },
+  "affected_processes": [
+    {
+      "name": "build",
+      "type": "Function",
+      "filePath": "lib/src/group_profile.dart",
+      "affected_process_count": 8,
+      "total_hits": 8,
+      "earliest_broken_step": 1
+    },
+    {
+      "name": "build",
+      "type": "Function",
+      "filePath": "lib/src/search.dart",
+      "affected_process_count": 5,
+      "total_hits": 5,
+      "earliest_broken_step": 1
+    },
+    {
+      "name": "build",
+      "type": "Function",
+      "filePath": "lib/src/user_profile.dart",
+      "affected_process_count": 4,
+      "total_hits": 4,
+      "earliest_broken_step": 1
+    }
+  ],
+  "affected_modules": [
+    {
+      "name": "Services",
+      "hits": 8,
+      "impact": "direct"
+    },
+    {
+      "name": "Pages",
+      "hits": 7,
+      "impact": "direct"
+    },
+    {
+      "name": "Widgets",
+      "hits": 6,
+      "impact": "indirect"
+    },
+    {
+      "name": "Search_entry",
+      "hits": 5,
+      "impact": "direct"
+    },
+    {
+      "name": "Platform",
+      "hits": 4,
+      "impact": "direct"
+    },
+    {
+      "name": "Conversation_feed",
+      "hits": 3,
+      "impact": "indirect"
+    },
+    {
+      "name": "Group_local",
+      "hits": 3,
+      "impact": "direct"
+    },
+    {
+      "name": "Conversation_peek",
+      "hits": 2,
+      "impact": "indirect"
+    },
+    {
+      "name": "Settings",
+      "hits": 2,
+      "impact": "direct"
+    },
+    {
+      "name": "Widget",
+      "hits": 2,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_1229",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_1371",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_1431",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_1433",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_1435",
+      "hits": 1,
+      "impact": "direct"
+    },
+    {
+      "name": "Cluster_2021",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_2030",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_658",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Group",
+      "hits": 1,
+      "impact": "direct"
+    },
+    {
+      "name": "Navigation",
+      "hits": 1,
+      "impact": "direct"
+    }
+  ]
+}

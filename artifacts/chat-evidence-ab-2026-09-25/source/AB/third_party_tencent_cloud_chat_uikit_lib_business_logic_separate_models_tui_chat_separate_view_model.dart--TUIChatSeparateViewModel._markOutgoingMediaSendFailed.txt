@@ -1,0 +1,12 @@
+void _markOutgoingMediaSendFailed({
+    required String convID,
+    String? clientId,
+    String? msgID,
+  }) {
+    globalModel.markOutgoingSendFailedByIdentity(
+      conversationID: convID,
+      clientId: clientId,
+      msgID: msgID,
+      reason: 'media_failed',
+    );
+  }

@@ -1,4 +1,9 @@
 import 'dart:async';
+import 'group_channel_metadata.dart';
+import 'package:dio/dio.dart';
+import 'package:tencent_cloud_chat_demo/utils/group_name_card_policy.dart';
+import 'package:tencent_cloud_chat_demo/utils/group_name_card_save_failure.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/group_member_membership.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_local/group_removal_work.dart';
@@ -88,6 +93,9 @@ class ImSdkGroupMembershipDenied implements Exception {
 
 /// HTTP 全量 + TCP `group_changed` 增量，统一写入群本地库。
 class GroupMembershipSyncService {
+  final Map<String, Object> _nameCardWrites = {};
+  @visibleForTesting
+  Duration nameCardRequestTimeout = const Duration(seconds: 12);
   final Set<String> _purgeInFlight = <String>{};
   final GroupRemovalWork _removalWork = GroupRemovalWork();
   GroupMembershipSyncService._();
@@ -114,6 +122,7 @@ class GroupMembershipSyncService {
   bool _installed = false;
   Future<void>? _syncInFlight;
   bool _syncInFlightRefresh = false;
+  bool _businessTypesSynced = false;
   int _syncGeneration = 0;
   final Set<String> _explicitlyRemovedGroupKeys = <String>{};
   final Map<String, int> _snapshotMissingCounts = <String, int>{};
@@ -1355,28 +1364,95 @@ class GroupMembershipSyncService {
     required String nameCard,
   }) async {
     final selfId = _ownerUserId();
-    if (selfId.isEmpty || userId.trim() != selfId) {
+    if (selfId.isEmpty || ChatIdFormat.rawUserUid(userId) != selfId) {
       return MeGroupApi.failureCallback('NOT_SELF');
     }
+    final value = nameCard.trim();
+    final invalid = GroupNameCardPolicy.validationMessage(value);
+    if (invalid != null) return MeGroupApi.failureCallback(invalid);
+    final identity = SessionIdentityService.instance.capture(
+      ownerUserId: selfId,
+    );
+    final key = '$selfId|${GroupLocalStore.groupEquivalenceKey(groupId)}';
+    final request = Object();
+    _nameCardWrites[key] = request;
+    final operation = ChatRecoveryTrace.nextOperation('name_card_rest');
+    final clock = Stopwatch()..start();
+    final cancel = CancelToken();
+    bool isCurrent() =>
+        identical(_nameCardWrites[key], request) &&
+        SessionIdentityService.instance.isCurrent(identity);
+    void trace(String stage, [Map<String, Object?> fields = const {}]) {
+      ChatRecoveryTrace.log(
+        'name_card_$stage',
+        conversationID: 'group_$groupId',
+        operation: operation,
+        fields: {
+          'route': 'rest',
+          'elapsedMs': clock.elapsedMilliseconds,
+          ...fields,
+        },
+      );
+    }
+
     try {
-      await MeGroupApi.instance.updateMyNameCard(
-        groupId: groupId,
-        nameCard: nameCard,
-      );
-      await applyOptimisticMyNameCard(groupId: groupId, nameCard: nameCard);
-      // This endpoint may return only the changed member fields. Never persist
-      // that partial response as a complete group row: doing so clears notice,
-      // name and avatar. The field-level optimistic patch above is sufficient.
-      await GroupMemberLocalStore.instance.patchUser(
-        ownerUserId: selfId,
-        groupId: groupId,
-        userId: selfId,
-        transform: (current) =>
-            current.copyWith(nameCard: nameCard, isSelf: true),
-      );
+      trace('request');
+      try {
+        await MeGroupApi.instance
+            .updateMyNameCard(
+              groupId: groupId,
+              nameCard: value,
+              cancelToken: cancel,
+            )
+            .timeout(
+              nameCardRequestTimeout,
+              onTimeout: () {
+                cancel.cancel('name_card_deadline');
+                throw TimeoutException('name_card_deadline');
+              },
+            );
+      } catch (error) {
+        final failure = GroupNameCardSaveFailure.fromError(error);
+        trace('request_failed', {
+          'code': failure.code,
+          'type': error.runtimeType,
+        });
+        return MeGroupApi.failureCallback(failure.message);
+      }
+      trace('server_committed');
+      if (!isCurrent()) return MeGroupApi.failureCallback('SESSION_CHANGED');
+
+      // A committed server write must not become a save failure because a
+      // local projection fails. Bound the wait and fence late transformations.
+      try {
+        await (() async {
+          await GroupLocalStore.instance.patch(
+            ownerUserId: selfId,
+            groupId: groupId,
+            transform: (current) {
+              if (!isCurrent()) throw StateError('stale_name_card_projection');
+              return current.copyWith(myNameCard: value);
+            },
+          );
+          if (!isCurrent()) return;
+          await GroupMemberLocalStore.instance.patchUser(
+            ownerUserId: selfId,
+            groupId: groupId,
+            userId: selfId,
+            transform: (current) {
+              if (!isCurrent()) throw StateError('stale_name_card_projection');
+              return current.copyWith(nameCard: value, isSelf: true);
+            },
+          );
+        })().timeout(const Duration(seconds: 2));
+        trace('local_updated');
+      } catch (error) {
+        trace('local_refresh_deferred', {'type': error.runtimeType});
+      }
+      if (!isCurrent()) return MeGroupApi.failureCallback('SESSION_CHANGED');
       return MeGroupApi.successCallback();
-    } catch (e) {
-      return MeGroupApi.failureCallback(e.toString());
+    } finally {
+      if (identical(_nameCardWrites[key], request)) _nameCardWrites.remove(key);
     }
   }
 
@@ -1872,6 +1948,7 @@ class GroupMembershipSyncService {
     // 服务端约 10s 短缓存；非 refresh 时短时间重复拉无意义。
     if (!refresh &&
         _groupListSyncedOnce &&
+        _businessTypesSynced &&
         _lastMeGroupsNetworkAt != null &&
         DateTime.now().difference(_lastMeGroupsNetworkAt!) <
             _meGroupsNetworkCooldown) {
@@ -2037,7 +2114,7 @@ class GroupMembershipSyncService {
       final localCount = await GroupLocalStore.instance.countGroups(
         ownerUserId: owner,
       );
-      if (startupLocalFirst && !refresh && localCount > 0) {
+      if (startupLocalFirst && !refresh && localCount > 0 && _businessTypesSynced) {
         _groupListSyncedOnce = true;
         _log(
           'syncFull skip startup network reason=$reason '
@@ -2053,7 +2130,7 @@ class GroupMembershipSyncService {
         );
         return;
       }
-      if (await _shouldSkipNetworkSyncFull(
+      if (_businessTypesSynced && await _shouldSkipNetworkSyncFull(
         owner: owner,
         reason: reason,
         refresh: refresh,
@@ -2080,21 +2157,20 @@ class GroupMembershipSyncService {
         caller: 'syncFull',
       );
       final existingById = {for (final item in existing) item.groupId: item};
-      final records = await _fetchJoinedGroupsFromImSdk(
+      final sdkRecords = await _fetchJoinedGroupsFromImSdk(
         existingById: existingById,
       );
+      if (!_isCurrentSync(owner, generation)) return;
+      // Channel is an application field, absent from the IM joined-group API.
+      // Fetch all pages before committing; a failed page is not an empty list.
+      final businessRecords = await MeGroupApi.instance.fetchMyGroupsFromNetwork(
+        shouldContinueAfterPage: () async => _isCurrentSync(owner, generation),
+      );
+      final records = mergeGroupChannelMetadata(
+        sdkRecords: sdkRecords ?? existing,
+        businessRecords: businessRecords,
+      );
       if (!_isCurrentSync(owner, generation)) {
-        return;
-      }
-      if (records == null) {
-        _log('syncFull sdk unavailable reason=$reason');
-        SqfliteLockProfileLog.event(
-          'syncFull_skip',
-          extras: <String, Object?>{
-            'reason': reason,
-            'cause': 'imsdk_unavailable',
-          },
-        );
         return;
       }
       _lastMeGroupsNetworkAt = DateTime.now();
@@ -2148,6 +2224,7 @@ class GroupMembershipSyncService {
         count: records.length,
       );
       _groupListSyncedOnce = true;
+      _businessTypesSynced = true;
       _bumpJoinedGroupsRevision();
       // /me/groups 快照差异只能更新可见性，不能作为删除 SDK 会话的证据。
       // 分页缺页、缓存或短暂网络异常都可能让真实群暂时不在 records 中。
@@ -3947,6 +4024,7 @@ class GroupMembershipSyncService {
     _snapshotMissingCounts.clear();
     _syncInFlight = null;
     _syncInFlightRefresh = false;
+    _businessTypesSynced = false;
     _groupListSyncedOnce = false;
     _lastMeGroupsNetworkAt = null;
     _groupDetailRefreshInFlight.clear();

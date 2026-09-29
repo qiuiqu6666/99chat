@@ -1,4 +1,5 @@
 import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_history_window_transition.dart';
+import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_history_recovery_notice.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/entry_unread_locator.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/message_partition_prefix.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/message_history_around_loader.dart';
@@ -46,6 +47,7 @@ import 'package:tencent_cloud_chat_uikit/ui/widgets/chat_history_visibility.dart
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKItMessageList/utils.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/keepalive_wrapper.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_history_trace.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_initial_window_reveal_policy.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_jitter_diag.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_cover_diag.dart';
@@ -369,12 +371,22 @@ class _TIMUIKitHistoryMessageListState
   HistoryReadingViewportAnchor? _revealGeometryAnchor;
   RenderObject? _revealAnchorRenderObject;
   int _revealAnchorGeneration = 0;
+  HistoryReadingViewportAnchor? _readingGeometryAnchor;
+  RenderObject? _readingAnchorRenderObject;
+  int _readingAnchorGeneration = 0;
+  bool _readingAnchorCaptureScheduled = false;
+  bool _dragTowardLatest = false;
+  double? _followingDragLatestMinExtent;
   bool _progressiveRevealGrowthPending = false;
   int _progressiveRevealGeneration = 0;
   Timer? _followingLatestRestoreRetryTimer;
   double? _lastGeometryViewportDimension;
   bool _listGeometryLatchHeld = false;
   int _listGeometryStableMetrics = 0;
+  int _listGeometryGeneration = 0;
+  bool _listGeometryFrameScheduled = false;
+  TUIChatGlobalModel? _listGeometryOwner;
+  String? _listGeometryConversation;
   int _contextMenuViewportRestoreGeneration = 0;
   bool _contextMenuViewportRestoreScheduled = false;
   bool _contextMenuViewportRestoreCallbackPending = false;
@@ -2380,6 +2392,10 @@ class _TIMUIKitHistoryMessageListState
         oldWidget.model.conversationID != widget.model.conversationID ||
         oldWidget.searchJumpAnchor != widget.searchJumpAnchor ||
         oldWidget.initFindingMsg != widget.initFindingMsg) {
+      _clearFollowingDragLatestEdge();
+      _clearReadingViewportAnchor();
+      _finishListGeometryTransition();
+      _lastGeometryViewportDimension = null;
       _latestLoadIntent.cancel();
       _previousLoadQueue.cancel();
       _invalidatePreviousPagination();
@@ -2784,6 +2800,9 @@ class _TIMUIKitHistoryMessageListState
 
   @override
   void dispose() {
+    _clearFollowingDragLatestEdge();
+    _clearReadingViewportAnchor();
+    _finishListGeometryTransition();
     _disposeShortListInsertions();
     _latestLoadIntent.dispose();
     _releaseAtJumpCenterOwnership(notify: false);
@@ -3838,6 +3857,223 @@ class _TIMUIKitHistoryMessageListState
 
   bool _bufferedRevealAnchorRetryScheduled = false;
 
+  void _clearFollowingDragLatestEdge() {
+    _dragTowardLatest = false;
+    _followingDragLatestMinExtent = null;
+  }
+
+  bool get _canFollowLatestDuringDrag {
+    final global = _chatGlobalModel;
+    final conv = _conversationId();
+    if (!mounted ||
+        global == null ||
+        !_dragTowardLatest ||
+        !_userScrollGestureActive ||
+        !global.isChatListUserScrolling ||
+        !global.isFollowingLatest(conv) ||
+        widget.model.haveMoreLatestData ||
+        global.memoryWindowMissingNewer(conv) ||
+        global.isSearchJumpPending(conv) ||
+        (widget.model.hasHistoryReadingWindow &&
+            widget.model.hasHistoryKnownTipMissing) ||
+        widget.model.isLoadingChatHistory ||
+        global.isUserScrollToBottomInProgress(conv) ||
+        global.isGeometryViewportTransitionActive(conv) ||
+        global.isMessageContextMenuOverlayOpen ||
+        global.isContextMenuViewportRestoreActive(conv) ||
+        global.shouldLockChatScrollForMediaPreview ||
+        global.hasPendingScrollRestore(conv) ||
+        _historyWindowTrimUi.isBusy) {
+      return false;
+    }
+    if (!global.hasDurableHistoryDeferred(conv)) {
+      return global.deferredIncomingBufferedCount(conv) == 0 &&
+          global.unadmittedRemainingLiveCountFor(conv) == 0;
+    }
+    // Durable bodies remain buffered until their visible receipt. A connected
+    // published tail may follow visually without treating those receipts as read.
+    if (!global.canRevealDurableIncomingAfterLatestReturn(conv)) return false;
+    final publishedIDs = (global.rawMessageList(conv) ?? const <V2TimMessage>[])
+        .map(TUIChatGlobalModel.liveIncomingIdentity)
+        .toSet();
+    return publishedIDs.containsAll(global.remainingLiveIncomingIdsFor(conv));
+  }
+
+  void _rememberFollowingDragLatestEdge() {
+    if (!_canFollowLatestDuringDrag) return;
+    final position = _singleScrollPositionOrNull();
+    if (position == null ||
+        !position.hasContentDimensions ||
+        !TrueLatestEnd.atListEndFromPosition(position) ||
+        !_isLatestMessageRowVisible()) {
+      return;
+    }
+    _followingDragLatestMinExtent = position.minScrollExtent;
+  }
+
+  double? _correctFollowingLatestDrag(ScrollMetrics metrics) {
+    final previousMin = _followingDragLatestMinExtent;
+    if (!_canFollowLatestDuringDrag) {
+      _followingDragLatestMinExtent = null;
+      return null;
+    }
+    if (previousMin == null) return null;
+    final growth = metrics.minScrollExtent - previousMin;
+    // A center release/window replacement changes coordinate systems. It must
+    // never be replayed as a newest-row insertion against the old minimum.
+    if (growth > 0.5 ||
+        (metrics.pixels - previousMin).abs() > TrueLatestEnd.geometryEpsilon) {
+      _followingDragLatestMinExtent = null;
+      return null;
+    }
+    if (growth >= -0.5) return null;
+    _followingDragLatestMinExtent = metrics.minScrollExtent;
+    // The held gesture already reached the real latest row and FOLLOW owns
+    // new arrivals. Move with the growing minimum during layout, preserving
+    // that gesture; jumpTo/animateTo here would cancel the user's pointer.
+    return growth;
+  }
+
+  bool get _canPreserveReadingViewport {
+    final global = _chatGlobalModel;
+    final conv = _conversationId();
+    return mounted &&
+        global != null &&
+        !global.isFollowingLatest(conv) &&
+        !global.isChatListUserScrolling &&
+        !_userScrollGestureActive &&
+        !_pageUi.userScrolling.value &&
+        !global.isUserScrollToBottomInProgress(conv) &&
+        !global.isSearchJumpPending(conv) &&
+        !_initialSearchJumpPending &&
+        !_isSearchJumpStabilizing &&
+        !_scrollToFindInFlight &&
+        _revealGeometryAnchor == null &&
+        !_historyWindowTrimUi.isBusy &&
+        !_paginationUi.isLoadingPrevious &&
+        !_paginationUi.isLoadingLatest &&
+        !_shouldCompensateScrollForPagination() &&
+        !global.isGeometryViewportTransitionActive(conv) &&
+        !global.isMessageContextMenuOverlayOpen &&
+        !global.isContextMenuViewportRestoreActive(conv) &&
+        !global.shouldLockChatScrollForMediaPreview &&
+        !global.hasPendingScrollRestore(conv) &&
+        !global.isRestoringScrollAfterMediaPreview &&
+        !_isLiveViewportPushActive();
+  }
+
+  void _clearReadingViewportAnchor() {
+    _readingGeometryAnchor = null;
+    _readingAnchorRenderObject = null;
+    _readingAnchorGeneration++;
+    _readingAnchorCaptureScheduled = false;
+  }
+
+  void _scheduleReadingViewportAnchorCapture() {
+    if (_readingAnchorCaptureScheduled || !mounted) return;
+    _readingAnchorCaptureScheduled = true;
+    final generation = _readingAnchorGeneration;
+    final model = widget.model;
+    final conv = _conversationId();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || generation != _readingAnchorGeneration) return;
+      _readingAnchorCaptureScheduled = false;
+      if (!identical(model, widget.model) || conv != _conversationId() ||
+          !_canPreserveReadingViewport) {
+        _clearReadingViewportAnchor();
+        return;
+      }
+      // Capture a real row after the gesture/layout settles. Unlike the short
+      // insertion transaction, this anchor lasts throughout historical reading
+      // so a late media decode cannot move the text the user is reading.
+      final anchor = _captureVisiblePaginationViewportAnchor();
+      final index = anchor == null ? null : _globalIndexForPreviousLoadAnchor(
+          _PreviousLoadAnchor(msgID: anchor.msgID, seq: anchor.seq));
+      final row = index == null ? null :
+          _autoScrollController.tagMap[-index]?.context.findRenderObject();
+      _readingAnchorRenderObject = row;
+      _readingGeometryAnchor = HistoryReadingViewportAnchor.capture(row);
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  double? _correctReadingViewportAnchor() {
+    if (!_canPreserveReadingViewport) {
+      _clearReadingViewportAnchor();
+      return null;
+    }
+    final row = _readingAnchorRenderObject;
+    final anchor = _readingGeometryAnchor;
+    if (row == null || anchor == null || !row.attached) {
+      _scheduleReadingViewportAnchorCapture();
+      return null;
+    }
+    if (_renderObjectNeedsLayout(row)) return 0.0;
+    final correction = anchor.correctionFor(row);
+    if (correction == null) {
+      _clearReadingViewportAnchor();
+      _scheduleReadingViewportAnchorCapture();
+    }
+    return correction;
+  }
+
+  void _finishListGeometryTransition() {
+    _listGeometryGeneration++;
+    _listGeometryFrameScheduled = false;
+    _listGeometryStableMetrics = 0;
+    final owner = _listGeometryOwner;
+    final conv = _listGeometryConversation;
+    _listGeometryOwner = null;
+    _listGeometryConversation = null;
+    _listGeometryLatchHeld = false;
+    if (owner != null && conv != null) {
+      owner.endGeometryViewportTransition(conv);
+    }
+  }
+
+  void _scheduleListGeometrySettleFrame() {
+    if (!_listGeometryLatchHeld || _listGeometryFrameScheduled) return;
+    _listGeometryFrameScheduled = true;
+    final generation = _listGeometryGeneration;
+    final owner = _listGeometryOwner;
+    final conv = _listGeometryConversation;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || generation != _listGeometryGeneration) return;
+      _listGeometryFrameScheduled = false;
+      if (!identical(owner, _chatGlobalModel) || conv != _conversationId() ||
+          (_chatGlobalModel?.isChatListUserScrolling ?? false) ||
+          _userScrollGestureActive) {
+        _finishListGeometryTransition();
+        return;
+      }
+      final position = _singleScrollPositionOrNull();
+      if (position == null || !position.hasViewportDimension) {
+        _finishListGeometryTransition();
+        return;
+      }
+      final dimension = position.viewportDimension;
+      final previous = _lastGeometryViewportDimension;
+      if (previous != null &&
+          (dimension - previous).abs() <= TrueLatestEnd.geometryEpsilon) {
+        _listGeometryStableMetrics++;
+      } else {
+        _lastGeometryViewportDimension = dimension;
+        _listGeometryStableMetrics = 0;
+      }
+      // Metrics notifications only report changes. Stable layout must instead
+      // be observed across real frames, including a resize with no new rows.
+      if (_listGeometryStableMetrics >= 2) {
+        _finishListGeometryTransition();
+        _scheduleReadingViewportAnchorCapture();
+        _scheduleVisibleIncomingProgress();
+        _scheduleVisibleLatestConfirmation();
+      } else {
+        _scheduleListGeometrySettleFrame();
+      }
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
   /// Keep one real message fixed during a newer-page or buffered-row insert.
   /// ScrollPhysics corrects its geometry before paint, including during a drag.
   bool _beginBufferedRevealAnchor({
@@ -3879,9 +4115,18 @@ class _TIMUIKitHistoryMessageListState
   }
 
   double? _correctNewestInsertFromVisibleAnchor(ScrollMetrics metrics) {
+    final followingDragCorrection = _correctFollowingLatestDrag(metrics);
+    if (followingDragCorrection != null) {
+      _clearReadingViewportAnchor();
+      _clearBufferedRevealAnchor(reason: 'following_latest_drag');
+      return followingDragCorrection;
+    }
     final anchor = _revealViewportAnchor;
     final geometry = _revealGeometryAnchor;
-    if (anchor == null || geometry == null) return null;
+    if (anchor == null || geometry == null) {
+      return _correctReadingViewportAnchor();
+    }
+    _clearReadingViewportAnchor();
     final global = _chatGlobalModel;
     if (global?.isFollowingLatest(_conversationId()) == true ||
         global?.isUserScrollToBottomInProgress(_conversationId()) == true ||
@@ -3942,6 +4187,7 @@ class _TIMUIKitHistoryMessageListState
     _newestInsertRoom = 0.0;
     _newestInsertRoomAtMs = 0;
     _revealAnchorGeneration++;
+    _scheduleReadingViewportAnchorCapture();
     if (reason != null) {
       ChatJitterDiag.logFollowingLatest(
         action: 'reveal_anchor_clear',
@@ -5810,7 +6056,12 @@ class _TIMUIKitHistoryMessageListState
   bool _isLatestMessageRowVisible() {
     if (_viewportInsert.viewportInsertSlideActive) return false;
     final messages = _currentVisibleMessageList();
-    if (messages.isEmpty) return false;
+    if (messages.isEmpty) {
+      // An explicitly hidden-only confirmed window has no row to measure.
+      // An ordinary empty projection (loading/filtering) is not proof of end.
+      return _chatGlobalModel?.hasOnlyPermanentlyHiddenConfirmedMessages(
+              _conversationId()) ?? false;
+    }
     final tag = _autoScrollController.tagMap[0];
     final tagContext = tag?.context;
     if (tagContext == null ||
@@ -5907,6 +6158,8 @@ class _TIMUIKitHistoryMessageListState
   String? _visibleIncomingProgressConversation;
   TUIChatSeparateViewModel? _visibleIncomingProgressModel;
   bool Function()? _visibleIncomingProgressFence;
+  int? _visibleIncomingProgressWindowRevision;
+  final Set<String> _processedVisibleIncomingProgress = {};
   final Map<String, V2TimMessage> _pendingVisibleIncomingProgress = {};
 
   void _scheduleVisibleIncomingProgress() {
@@ -5923,10 +6176,22 @@ class _TIMUIKitHistoryMessageListState
           _visibleIncomingProgressFence?.call() != true) {
         _visibleIncomingProgressConversation = conv;
         _visibleIncomingProgressModel = model;
+        _visibleIncomingProgressWindowRevision = null;
         _visibleIncomingProgressFence =
             global.captureHistoryUnreadVisitFence(conv);
         _visibleIncomingProgressSignature = null;
         _pendingVisibleIncomingProgress.clear();
+        _processedVisibleIncomingProgress.clear();
+      }
+      if (_visibleIncomingProgressWindowRevision != model.historyReadingWindowRevision) {
+        _visibleIncomingProgressWindowRevision = model.historyReadingWindowRevision;
+        // A count/projection refresh may revise the window without changing
+        // these exact identities. Keep their receipts, but evict trimmed IDs
+        // so this cache is bounded by the current reading window.
+        final windowIds = _currentVisibleMessageList().whereType<V2TimMessage>()
+            .map((message) => (message.msgID?.trim().isNotEmpty ?? false)
+                ? message.msgID!.trim() : message.id?.trim() ?? '').toSet();
+        _processedVisibleIncomingProgress.retainAll(windowIds);
       }
       // Loading a page is not a read. A measured visible row can settle an
       // identity while reading history, independently of FOLLOW.
@@ -5947,27 +6212,33 @@ class _TIMUIKitHistoryMessageListState
           global.isUserScrollToBottomInProgress(conv)) return;
       final messages = _currentVisibleMessageList();
       int? readingEdge;
-      for (var index = 0; index < messages.length; index++) {
+      for (final tagIndex in _autoScrollController.tagMap.keys) {
+        final index = -tagIndex;
+        if (index < 0 || index >= messages.length) continue;
         final message = messages[index];
         if (message == null || message.elemType == 11) continue;
         final tag = _autoScrollController.tagMap[-index];
         final rowContext = tag?.context;
         if (rowContext == null ||
-            tag?.widget.key != ValueKey<String>(
-                _stableMessageListKey(message, index))) continue;
+            tag?.widget.key !=
+                ValueKey<String>(_stableMessageListKey(message, index)))
+          continue;
         final row = rowContext.findRenderObject();
         final viewport = _viewportRenderBoxFor(rowContext);
-        if (row is! RenderBox || viewport == null || !row.attached ||
-            !row.hasSize || row.size.height <= 0 ||
+        if (row is! RenderBox ||
+            viewport == null ||
+            !row.attached ||
+            !row.hasSize ||
+            row.size.height <= 0 ||
             _renderObjectNeedsLayout(row)) continue;
         final top = row.localToGlobal(Offset.zero, ancestor: viewport).dy;
         final bottom = top + row.size.height;
         // A long message is crossed once its bottom has entered the viewport.
         // A normal row must be fully visible, not merely prefetched or peeking.
-        if (bottom > 0 && bottom <= viewport.size.height + 0.5 &&
+        if (bottom > 0 &&
+            bottom <= viewport.size.height + 0.5 &&
             (top >= -0.5 || row.size.height > viewport.size.height)) {
-          readingEdge = index;
-          break;
+          if (readingEdge == null || index < readingEdge) readingEdge = index;
         }
       }
       if (readingEdge == null) return;
@@ -5984,18 +6255,24 @@ class _TIMUIKitHistoryMessageListState
       // crossed between frames before a bounded window trims their widgets.
       global.markLiveIncomingSeen(
         conversationID: conv,
-        ids: messages.skip(readingEdge).whereType<V2TimMessage>()
+        ids: messages
+            .skip(readingEdge)
+            .whereType<V2TimMessage>()
             .where(TUIChatGlobalModel.isConfirmedProjectionMessage)
             .map(TUIChatGlobalModel.liveIncomingIdentity),
       );
       // A fast drag can cross several rows in one frame. Only rows behind this
       // measured edge in the connected window qualify, never the prefetched
       // newer rows still below it. Exact IDs keep arrival order independent.
-      for (final message in messages.skip(readingEdge).whereType<V2TimMessage>()) {
+      for (final message
+          in messages.skip(readingEdge).whereType<V2TimMessage>()) {
         if (message.elemType == 11) continue;
         final id = (message.msgID?.trim().isNotEmpty ?? false)
-            ? message.msgID!.trim() : message.id?.trim() ?? '';
-        if (id.isNotEmpty) _pendingVisibleIncomingProgress[id] = message;
+            ? message.msgID!.trim()
+            : message.id?.trim() ?? '';
+        if (id.isNotEmpty && !_processedVisibleIncomingProgress.contains(id)) {
+          _pendingVisibleIncomingProgress[id] = message;
+        }
       }
       _drainVisibleIncomingProgress();
     });
@@ -6003,15 +6280,19 @@ class _TIMUIKitHistoryMessageListState
 
   void _drainVisibleIncomingProgress() {
     if (_visibleIncomingProgressInFlight ||
-        _pendingVisibleIncomingProgress.isEmpty || !mounted) return;
+        _pendingVisibleIncomingProgress.isEmpty ||
+        !mounted) return;
     final model = widget.model;
     final conv = _conversationId();
     final fence = _visibleIncomingProgressFence;
-    bool sameProofOwner() => mounted && identical(widget.model, model) &&
+    bool sameProofOwner() =>
+        mounted &&
+        identical(widget.model, model) &&
         _conversationId() == conv &&
-        identical(_visibleIncomingProgressFence, fence) && fence?.call() == true;
-    bool current() => sameProofOwner() &&
-        ModalRoute.of(context)?.isCurrent != false;
+        identical(_visibleIncomingProgressFence, fence) &&
+        fence?.call() == true;
+    bool current() =>
+        sameProofOwner() && ModalRoute.of(context)?.isCurrent != false;
     if (!current()) return;
     _visibleIncomingProgressInFlight = true;
     var failed = false;
@@ -6022,19 +6303,33 @@ class _TIMUIKitHistoryMessageListState
           batch = _pendingVisibleIncomingProgress.values.take(120).toList();
           for (final message in batch) {
             final id = (message.msgID?.trim().isNotEmpty ?? false)
-                ? message.msgID!.trim() : message.id?.trim() ?? '';
+                ? message.msgID!.trim()
+                : message.id?.trim() ?? '';
             _pendingVisibleIncomingProgress.remove(id);
           }
-          final consumed = await model.globalModel.acknowledgeVisibleHistoryMessages(
-              conv, batch, isCurrent: current);
-          if (!consumed && sameProofOwner()) {
-            _visibleIncomingProgressSignature = null;
-            if (!current()) {
+          final receipt = await model.globalModel
+              .acknowledgeVisibleHistoryMessagesDetailed(conv, batch,
+                  isCurrent: current);
+          if (sameProofOwner()) {
+            if (receipt.processed) {
               for (final message in batch) {
                 final id = (message.msgID?.trim().isNotEmpty ?? false)
-                    ? message.msgID!.trim() : message.id?.trim() ?? '';
+                    ? message.msgID!.trim()
+                    : message.id?.trim() ?? '';
+                _processedVisibleIncomingProgress.add(id);
+                _pendingVisibleIncomingProgress.remove(id);
+              }
+            } else {
+              _visibleIncomingProgressSignature = null;
+              failed =
+                  receipt.status == VisibleHistoryAckStatus.retryableFailure;
+              for (final message in batch) {
+                final id = (message.msgID?.trim().isNotEmpty ?? false)
+                    ? message.msgID!.trim()
+                    : message.id?.trim() ?? '';
                 _pendingVisibleIncomingProgress[id] = message;
               }
+              break;
             }
           }
           batch = const [];
@@ -6047,7 +6342,8 @@ class _TIMUIKitHistoryMessageListState
           _visibleIncomingProgressSignature = null;
           for (final message in batch) {
             final id = (message.msgID?.trim().isNotEmpty ?? false)
-                ? message.msgID!.trim() : message.id?.trim() ?? '';
+                ? message.msgID!.trim()
+                : message.id?.trim() ?? '';
             _pendingVisibleIncomingProgress[id] = message;
           }
         }
@@ -6237,6 +6533,7 @@ class _TIMUIKitHistoryMessageListState
             atEdge() &&
             !model.hasHistoryReadingWindow &&
             !model.globalModel.hasDurableHistoryDeferred(conv)) {
+          _rememberFollowingDragLatestEdge();
           _paginationUi.historyScrollProtectUntilMs = 0;
           _scheduleLiveCenterRelease();
           _maybeReleaseLiveNewestSliver();
@@ -6276,7 +6573,8 @@ class _TIMUIKitHistoryMessageListState
   Future<void> _onJumpToBottomFromPill() async {
     await _bottomTongueKey.currentState
         ?.scrollToLatestAndDismissUnreadCapsule();
-    if (mounted) setState(() => _unreadCountBelowViewport = 0);
+    // Scroll/visibility confirmation clears the count. A failed or skipped
+    // return must leave the affordance available for another tap.
   }
 
   void _armNewestInsertRoom(List<V2TimMessage> messages) {
@@ -14399,9 +14697,32 @@ class _TIMUIKitHistoryMessageListState
     );
   }
 
+  void _traceRevokeFrames(List<V2TimMessage?> messages) {
+    if (!ChatRecoveryTrace.hasPendingRevokeFrames) return;
+    final conversation = _conversationId();
+    for (final message in messages) {
+      if (message?.status != MessageStatus.V2TIM_MSG_STATUS_LOCAL_REVOKED)
+        continue;
+      final id = message?.msgID ?? '';
+      final operation = ChatRecoveryTrace.takeRevokeFrame(conversation, id);
+      if (operation == null) continue;
+      ChatRecoveryTrace.log('revoke_message_list_updated',
+          conversationID: conversation, operation: operation, messageID: id);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _conversationId() != conversation) return;
+        ChatRecoveryTrace.log('revoke_ui_frame',
+            conversationID: conversation,
+            operation: operation,
+            messageID: id,
+            fields: {'revealed': _historyOpenRevealPainted});
+      });
+    }
+  }
+
   @override
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     KeyboardViewportTransitionCoordinator.active?.noteHistoryBuild();
+    _scheduleReadingViewportAnchorCapture();
     _scheduleVisibleIncomingProgress();
     _scheduleLiveCenterRelease();
     final globalModel = context.read<TUIChatGlobalModel>();
@@ -14431,6 +14752,7 @@ class _TIMUIKitHistoryMessageListState
         ? fullMessageList
         : _applyInitialMountBatch(fullMessageList);
     _renderedVisibleMessages = messageList;
+    _traceRevokeFrames(messageList);
     _handleInitialHistoryBootstrapTransition(globalModel);
     // Never exchange this list for a spinner/empty container while history is
     // loading. That structural replacement deactivates the scroll tree just
@@ -14686,28 +15008,23 @@ class _TIMUIKitHistoryMessageListState
               (_chatGlobalModel?.isChatListUserScrolling ?? false) ||
                   _userScrollGestureActive;
           if (_listGeometryLatchHeld && userScrolling) {
-            final conv = _conversationId();
-            _chatGlobalModel?.endGeometryViewportTransition(conv);
-            _listGeometryLatchHeld = false;
-            _listGeometryStableMetrics = 0;
+            _finishListGeometryTransition();
           } else if (previous != null && dim > 0 && !userScrolling) {
             final delta = (dim - previous).abs();
             final conv = _conversationId();
             if (delta > TrueLatestEnd.geometryEpsilon) {
               if (!_listGeometryLatchHeld) {
-                _chatGlobalModel?.beginGeometryViewportTransition(conv);
+                _listGeometryOwner = _chatGlobalModel;
+                _listGeometryConversation = conv;
+                _listGeometryOwner?.beginGeometryViewportTransition(conv);
                 _listGeometryLatchHeld = true;
               }
               _listGeometryStableMetrics = 0;
-            } else if (_listGeometryLatchHeld) {
-              _listGeometryStableMetrics++;
-              if (_listGeometryStableMetrics >= 2) {
-                _chatGlobalModel?.endGeometryViewportTransition(conv);
-                _listGeometryLatchHeld = false;
-                _listGeometryStableMetrics = 0;
-              }
+              _clearReadingViewportAnchor();
+              _scheduleListGeometrySettleFrame();
             }
           }
+          _scheduleReadingViewportAnchorCapture();
         }
         return false;
       },
@@ -14725,6 +15042,9 @@ class _TIMUIKitHistoryMessageListState
                 }
                 if (notification is ScrollStartNotification &&
                     notification.dragDetails != null) {
+                  _clearFollowingDragLatestEdge();
+                  _clearReadingViewportAnchor();
+                  _finishListGeometryTransition();
                   // A short-window retry waits for a deliberate older drag.
                   // Merely starting a reversed drag must not release its latch.
                   if (_shortViewportPreviousPointer == null) {
@@ -14789,6 +15109,23 @@ class _TIMUIKitHistoryMessageListState
                       latestDragActive ||
                       _singleScrollPositionOrNull()?.userScrollDirection ==
                           ScrollDirection.forward;
+                  if (latestUserGesture && latestScrollDelta < 0) {
+                    _dragTowardLatest = true;
+                  } else if (latestScrollDelta > 0) {
+                    final leavingOwnedLatestEdge = latestDragActive &&
+                        _followingDragLatestMinExtent != null;
+                    _clearFollowingDragLatestEdge();
+                    // This pointer already owned the real latest edge. Its
+                    // first reverse motion transfers ownership to reading,
+                    // including motions smaller than the usual exit threshold.
+                    if (leavingOwnedLatestEdge &&
+                        globalModel.isFollowingLatest(_conversationId())) {
+                      globalModel.setFollowingLatest(_conversationId(), false,
+                          notify: false);
+                      widget.model.freezeVisibleHistoryWindowIfNeeded();
+                      _logReadingHistoryIncoming('following_drag_reverse');
+                    }
+                  }
                   // iOS bounce reverses delta after release without a new drag.
                   final previousUserGesture = latestScrollDelta > 0 &&
                       (latestUserGesture ||
@@ -14841,6 +15178,7 @@ class _TIMUIKitHistoryMessageListState
                     dragActive: notification is ScrollUpdateNotification &&
                         notification.dragDetails != null,
                   );
+                  _rememberFollowingDragLatestEdge();
                   _sampleOffsetJump(notification);
                   if (globalModel.hasLockedEntryUnreadFor(_conversationId()) &&
                       tongueMetricsUnreadCount > 0) {
@@ -14885,6 +15223,8 @@ class _TIMUIKitHistoryMessageListState
                     }
                   }
                 } else if (notification is ScrollEndNotification) {
+                  _clearFollowingDragLatestEdge();
+                  _scheduleReadingViewportAnchorCapture();
                   _syncTopHistoryLoadingVisible();
                   // 无论是否标记过 active，都清全局滚动态，防止掐断后丢 End 导致永久失灵。
                   _userScrollGestureActive = false;
@@ -15260,6 +15600,40 @@ class _TIMUIKitHistoryMessageListState
           _buildTongueContainer(messageList),
           if (shouldShowCenterHistoryLoading)
             _buildCenterHistoryLoadingOverlay(),
+            if ((messageList.isEmpty &&
+                    (stillBootstrapping ||
+                        globalModel.lastHistoryErrorType(_conversationId()) !=
+                            null)) ||
+                (messageList.isNotEmpty &&
+                    !_historyOpenRevealPainted &&
+                    !isSearchJump))
+              Positioned.fill(
+                  child: ChatHistoryRecoveryNotice(
+                key: ValueKey(
+                    'recovery:${_conversationId()}:${identityHashCode(widget.model)}'),
+                conversationID: _conversationId(),
+                onTimeout: () {
+                  if (mounted &&
+                      widget.messageList.isNotEmpty &&
+                      !_initialSearchJumpPending) {
+                    setState(() => _commitHistoryOpenRevealReady(
+                        source: 'recovery_deadline'));
+                  }
+                },
+                onRetry: () async {
+                  final model = widget.model;
+                  final conv = _conversationId();
+                  await model.loadChatRecord(
+                      count: HistoryMessageDartConstant.initialOpenFetchCount,
+                      forceReloadNewest: true,
+                      direction: LoadDirection.latest);
+                  if (!mounted ||
+                      !identical(widget.model, model) ||
+                      _conversationId() != conv) return;
+                  setState(() =>
+                      _commitHistoryOpenRevealReady(source: 'manual_recovery'));
+                },
+              )),
           // K.9：new message pill（用户不在底部时显示）
           if (_unreadCountBelowViewport > 0 && !_isPinnedToBottom)
             Positioned(

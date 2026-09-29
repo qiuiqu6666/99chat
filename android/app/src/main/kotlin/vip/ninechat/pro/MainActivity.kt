@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.provider.Settings
 import vip.ninechat.pro.battery.AndroidBatteryOptimizationPlugin
 import vip.ninechat.pro.ime.AndroidImeInsetsPlugin
+import vip.ninechat.pro.update.AndroidAppUpdatePlugin
 import vip.ninechat.pro.keepalive.AndroidKeepAlivePlugin
 import vip.ninechat.pro.notification.AppSystemNotificationPlugin
 import vip.ninechat.pro.image.ImageRegionDecoderPlugin
@@ -81,6 +82,7 @@ class MainActivity : FlutterFragmentActivity() {
         flutterEngine.plugins.add(ImageRegionDecoderPlugin())
         flutterEngine.plugins.add(WalletWithdrawProgressPlugin())
         flutterEngine.plugins.add(AndroidImeInsetsPlugin())
+        flutterEngine.plugins.add(AndroidAppUpdatePlugin())
         liveKitChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "livekit_call_platform",

@@ -1,0 +1,182 @@
+diff --git a/artifacts/chat-scroll-audit/history_message_list_before_follow_drag_fix.dart b/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart
+index f79dae1..7e32cc1 100644
+--- a/artifacts/chat-scroll-audit/history_message_list_before_follow_drag_fix.dart
++++ b/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart
+@@ -375,6 +375,8 @@ class _TIMUIKitHistoryMessageListState
+   RenderObject? _readingAnchorRenderObject;
+   int _readingAnchorGeneration = 0;
+   bool _readingAnchorCaptureScheduled = false;
++  bool _dragTowardLatest = false;
++  double? _followingDragLatestMinExtent;
+   bool _progressiveRevealGrowthPending = false;
+   int _progressiveRevealGeneration = 0;
+   Timer? _followingLatestRestoreRetryTimer;
+@@ -2390,6 +2392,7 @@ class _TIMUIKitHistoryMessageListState
+         oldWidget.model.conversationID != widget.model.conversationID ||
+         oldWidget.searchJumpAnchor != widget.searchJumpAnchor ||
+         oldWidget.initFindingMsg != widget.initFindingMsg) {
++      _clearFollowingDragLatestEdge();
+       _clearReadingViewportAnchor();
+       _finishListGeometryTransition();
+       _lastGeometryViewportDimension = null;
+@@ -2797,6 +2800,7 @@ class _TIMUIKitHistoryMessageListState
+ 
+   @override
+   void dispose() {
++    _clearFollowingDragLatestEdge();
+     _clearReadingViewportAnchor();
+     _finishListGeometryTransition();
+     _disposeShortListInsertions();
+@@ -3853,6 +3857,83 @@ class _TIMUIKitHistoryMessageListState
+ 
+   bool _bufferedRevealAnchorRetryScheduled = false;
+ 
++  void _clearFollowingDragLatestEdge() {
++    _dragTowardLatest = false;
++    _followingDragLatestMinExtent = null;
++  }
++
++  bool get _canFollowLatestDuringDrag {
++    final global = _chatGlobalModel;
++    final conv = _conversationId();
++    if (!mounted ||
++        global == null ||
++        !_dragTowardLatest ||
++        !_userScrollGestureActive ||
++        !global.isChatListUserScrolling ||
++        !global.isFollowingLatest(conv) ||
++        widget.model.haveMoreLatestData ||
++        global.memoryWindowMissingNewer(conv) ||
++        global.isSearchJumpPending(conv) ||
++        (widget.model.hasHistoryReadingWindow &&
++            widget.model.hasHistoryKnownTipMissing) ||
++        widget.model.isLoadingChatHistory ||
++        global.isUserScrollToBottomInProgress(conv) ||
++        global.isGeometryViewportTransitionActive(conv) ||
++        global.isMessageContextMenuOverlayOpen ||
++        global.isContextMenuViewportRestoreActive(conv) ||
++        global.shouldLockChatScrollForMediaPreview ||
++        global.hasPendingScrollRestore(conv) ||
++        _historyWindowTrimUi.isBusy) {
++      return false;
++    }
++    if (!global.hasDurableHistoryDeferred(conv)) {
++      return global.deferredIncomingBufferedCount(conv) == 0 &&
++          global.unadmittedRemainingLiveCountFor(conv) == 0;
++    }
++    // Durable bodies remain buffered until their visible receipt. A connected
++    // published tail may follow visually without treating those receipts as read.
++    if (!global.canRevealDurableIncomingAfterLatestReturn(conv)) return false;
++    final publishedIDs = (global.rawMessageList(conv) ?? const <V2TimMessage>[])
++        .map(TUIChatGlobalModel.liveIncomingIdentity)
++        .toSet();
++    return publishedIDs.containsAll(global.remainingLiveIncomingIdsFor(conv));
++  }
++
++  void _rememberFollowingDragLatestEdge() {
++    if (!_canFollowLatestDuringDrag) return;
++    final position = _singleScrollPositionOrNull();
++    if (position == null ||
++        !position.hasContentDimensions ||
++        !TrueLatestEnd.atListEndFromPosition(position) ||
++        !_isLatestMessageRowVisible()) {
++      return;
++    }
++    _followingDragLatestMinExtent = position.minScrollExtent;
++  }
++
++  double? _correctFollowingLatestDrag(ScrollMetrics metrics) {
++    final previousMin = _followingDragLatestMinExtent;
++    if (!_canFollowLatestDuringDrag) {
++      _followingDragLatestMinExtent = null;
++      return null;
++    }
++    if (previousMin == null) return null;
++    final growth = metrics.minScrollExtent - previousMin;
++    // A center release/window replacement changes coordinate systems. It must
++    // never be replayed as a newest-row insertion against the old minimum.
++    if (growth > 0.5 ||
++        (metrics.pixels - previousMin).abs() > TrueLatestEnd.geometryEpsilon) {
++      _followingDragLatestMinExtent = null;
++      return null;
++    }
++    if (growth >= -0.5) return null;
++    _followingDragLatestMinExtent = metrics.minScrollExtent;
++    // The held gesture already reached the real latest row and FOLLOW owns
++    // new arrivals. Move with the growing minimum during layout, preserving
++    // that gesture; jumpTo/animateTo here would cancel the user's pointer.
++    return growth;
++  }
++
+   bool get _canPreserveReadingViewport {
+     final global = _chatGlobalModel;
+     final conv = _conversationId();
+@@ -4034,6 +4115,12 @@ class _TIMUIKitHistoryMessageListState
+   }
+ 
+   double? _correctNewestInsertFromVisibleAnchor(ScrollMetrics metrics) {
++    final followingDragCorrection = _correctFollowingLatestDrag(metrics);
++    if (followingDragCorrection != null) {
++      _clearReadingViewportAnchor();
++      _clearBufferedRevealAnchor(reason: 'following_latest_drag');
++      return followingDragCorrection;
++    }
+     final anchor = _revealViewportAnchor;
+     final geometry = _revealGeometryAnchor;
+     if (anchor == null || geometry == null) {
+@@ -6446,6 +6533,7 @@ class _TIMUIKitHistoryMessageListState
+             atEdge() &&
+             !model.hasHistoryReadingWindow &&
+             !model.globalModel.hasDurableHistoryDeferred(conv)) {
++          _rememberFollowingDragLatestEdge();
+           _paginationUi.historyScrollProtectUntilMs = 0;
+           _scheduleLiveCenterRelease();
+           _maybeReleaseLiveNewestSliver();
+@@ -14954,6 +15042,7 @@ class _TIMUIKitHistoryMessageListState
+                 }
+                 if (notification is ScrollStartNotification &&
+                     notification.dragDetails != null) {
++                  _clearFollowingDragLatestEdge();
+                   _clearReadingViewportAnchor();
+                   _finishListGeometryTransition();
+                   // A short-window retry waits for a deliberate older drag.
+@@ -15020,6 +15109,23 @@ class _TIMUIKitHistoryMessageListState
+                       latestDragActive ||
+                       _singleScrollPositionOrNull()?.userScrollDirection ==
+                           ScrollDirection.forward;
++                  if (latestUserGesture && latestScrollDelta < 0) {
++                    _dragTowardLatest = true;
++                  } else if (latestScrollDelta > 0) {
++                    final leavingOwnedLatestEdge = latestDragActive &&
++                        _followingDragLatestMinExtent != null;
++                    _clearFollowingDragLatestEdge();
++                    // This pointer already owned the real latest edge. Its
++                    // first reverse motion transfers ownership to reading,
++                    // including motions smaller than the usual exit threshold.
++                    if (leavingOwnedLatestEdge &&
++                        globalModel.isFollowingLatest(_conversationId())) {
++                      globalModel.setFollowingLatest(_conversationId(), false,
++                          notify: false);
++                      widget.model.freezeVisibleHistoryWindowIfNeeded();
++                      _logReadingHistoryIncoming('following_drag_reverse');
++                    }
++                  }
+                   // iOS bounce reverses delta after release without a new drag.
+                   final previousUserGesture = latestScrollDelta > 0 &&
+                       (latestUserGesture ||
+@@ -15072,6 +15178,7 @@ class _TIMUIKitHistoryMessageListState
+                     dragActive: notification is ScrollUpdateNotification &&
+                         notification.dragDetails != null,
+                   );
++                  _rememberFollowingDragLatestEdge();
+                   _sampleOffsetJump(notification);
+                   if (globalModel.hasLockedEntryUnreadFor(_conversationId()) &&
+                       tongueMetricsUnreadCount > 0) {
+@@ -15116,6 +15223,7 @@ class _TIMUIKitHistoryMessageListState
+                     }
+                   }
+                 } else if (notification is ScrollEndNotification) {
++                  _clearFollowingDragLatestEdge();
+                   _scheduleReadingViewportAnchorCapture();
+                   _syncTopHistoryLoadingVisible();
+                   // 无论是否标记过 active，都清全局滚动态，防止掐断后丢 End 导致永久失灵。

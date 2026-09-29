@@ -1,0 +1,20 @@
+void _adoptOptimisticOutgoingTextMessage({
+    required String optimisticId,
+    required V2TimMessage newMessage,
+  }) {
+    final convID = conversationID;
+    _swapOutgoingMessage(
+      convID: convID,
+      oldClientId: optimisticId,
+      newMessage: newMessage,
+    );
+    final clientId = newMessage.id;
+    if (clientId != null && clientId.isNotEmpty) {
+      chatUiStateStore.bindMessageAlias(
+        convID,
+        optimisticId,
+        ChatUiStateStore.messageKeyOf(newMessage),
+      );
+      addSendingMessageID(clientId);
+    }
+  }

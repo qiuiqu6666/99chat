@@ -1,3 +1,7 @@
+import 'package:tencent_cloud_chat_demo/src/bootstrap/recoverable_startup.dart';
+import 'package:tencent_cloud_chat_demo/src/bootstrap/startup_entry_preferences.dart';
+import 'package:tencent_cloud_chat_demo/src/services/picker_recovery_service.dart';
+import 'package:tencent_cloud_chat_demo/src/widgets/picker_recovery_notice.dart';
 import 'package:tencent_cloud_chat_demo/src/services/history_window_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_recovery_diagnostics.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/history_window_repository.dart';
@@ -342,167 +346,130 @@ void _startApp(List<String> args) {
   WidgetsFlutterBinding.ensureInitialized();
   LocaleSettings.setLocale(AppLocale.zhHans);
 
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
-      .then((_) async {
-    StartupPerfLog.mark('orientation_ready');
+  final startupTasks = StartupTasks();
+  final localSetting = LocalSetting(autoLoad: false);
+  StartupPerfLog.mark('run_app_start', <String, Object>{
+    'buildId':
+        const String.fromEnvironment('APP_BUILD_ID', defaultValue: 'local'),
+  });
+  runApp(RecoverableStartup(bootstrap: () async {
+    await startupTasks.run(
+        'orientation',
+        () => SystemChrome.setPreferredOrientations(
+            [DeviceOrientation.portraitUp]));
     ApiClient.onAuthExpired = SessionExpiryService.instance.handleExpired;
     ApiClient.onAccountDisabled =
         SessionExpiryService.instance.handleAccountDisabled;
     SessionManager.instance.onSessionInvalidated =
         SessionExpiryService.instance.handleImSessionInvalidated;
-    // 节点选择须在首次 Dio 请求前恢复，否则会打到编译期默认域名。
-    StartupPerfLog.mark('node_hydrate_start');
-    await ApiNodeService.instance.hydrate();
-    StartupPerfLog.mark('node_hydrate_done');
-    // Restore read anchors before login can replay native SDK unread snapshots.
-    await ConversationLocalStore.instance.restoreReadBarriers();
-    StartupPerfLog.mark('api_bootstrap_start');
-    await ApiClient.instance.bootstrap();
-    // 版本检测属于启动能力，独立于登录链路；失败不阻塞首屏。
-    unawaited(StartupVersionCheckService.instance.check());
-    // 注册 App 前后台切换监听：恢复前台 + 距上次成功 >1h 时自动重拉
-    StartupVersionCheckService.instance.attachLifecycleObserver();
-    StartupPerfLog.mark('api_bootstrap_done');
+    // These dependencies remain mandatory before any message/login UI opens.
+    await startupTasks.run('node', ApiNodeService.instance.hydrate);
+    await startupTasks.run(
+        'read_barriers', ConversationLocalStore.instance.restoreReadBarriers);
+    await startupTasks.run('identity', ApiClient.instance.bootstrap);
+    await startupTasks.run('settings', localSetting.loadSettingsFromLocal);
+    await startupTasks.run('picker_recovery', PickerRecoveryService.initialize);
     if (!kIsWeb) {
-      StartupPerfLog.mark('splash_prepare_start');
-      await SplashConfigService.instance.prepareForLaunch();
-      StartupPerfLog.mark('splash_prepare_done');
+      await startupTasks.run(
+          'splash', SplashConfigService.instance.prepareForLaunch);
+    } else {
+      await startupTasks.run('web_fonts', _warmWebBundledFonts);
     }
-    if (IMDemoConfig.selfHostedPushEnabled && PlatformUtils().isIOS) {
-      StartupPerfLog.mark('apns_install_start');
-      // 不阻塞冷启动：APNS install 约 1.2s，后台执行。
-      // push 回调通过 NotificationSettingsService.instance.handleVoipPushPayloadForBootstrap
-      // 异步接收，对冷启动体验无影响。
-      unawaited(IosApnsPushService.instance.install(
-        onVoipPush: NotificationSettingsService
-            .instance.handleVoipPushPayloadForBootstrap,
-      ));
-      StartupPerfLog.mark('apns_install_done');
-    }
-    StartupPerfLog.mark('platform_bridges_start');
-    UikitPermissionBridge.install();
-    DeviceSyncService.installPermissionHooks();
-    UikitMediaUrlBridge.install();
-    DesktopMediaPopout.install();
-    UikitAddFriendBridge.install();
-    UikitSelfHostedFriendBridge.install();
-    UikitVoiceToTextBridge.install();
-    UikitSelfHostedGroupBridge.install();
-    StartupPerfLog.mark('platform_bridges_done');
-    installForwardPickPages();
-    // IMP(ArchiveRegister)：注册 3 个 UIKit 委托到本地自建后端实现。
-    // 必须在 ApiClient.bootstrap 之后、runApp 之前调用。
-    installBackendServices();
-    // 主动预热 msg_history DB（避开首次进入聊天页时的 ~74ms sqflite open 开销）。
-    _warmupMessageCoverageStore();
-    // 主动预热 msg_media DB（避开首次进入聊天页时的 PRAGMA 异常同步栈 trace 阻塞 paint）。
-    unawaited(MessageMediaMetadataStore.warmUp());
-    final localSetting = LocalSetting(autoLoad: false);
-    // 让 SDK 回调路径（无 BuildContext）在收到 onConnectSuccess /
-    // onDisconnected 时也能同步 UI 状态。修复标题 stuck failed 的根因。
-    ImConnectStatusService.instance.attach(localSetting);
-
-    Future<void> finishDeferredBootstrap() async {
-      StartupPerfLog.mark('deferred_bootstrap_start');
-      // 进首页前最后一个 await 优化：
-      // NetworkStatusService.start() 内做 `connectivity.checkConnectivity()` +
-      // listen subscription，结果通过 ValueNotifier 异步推到 UI；首帧
-      // 短暂显示 `unknown`，下一帧 connectivity 回调后切到正确值。
-      // 所有读点（home_page / chat_connect_status_strip）用
-      // ValueListenableBuilder 自动跟随 status 变化重建，无需在 start 完成
-      // 后才 runApp。
-      unawaited(NetworkStatusService.instance.start());
-      unawaited(GroupNoticeUnreadService.instance.ensureLoaded());
-      unawaited(GroupNoticeEntrySettingsService.instance.ensureLoaded());
-      StartupPerfLog.mark('local_setting_load_start');
-      await localSetting.loadSettingsFromLocal();
-      // owner 已从本地设置恢复，此时明确等待代理入口快照灌入内存。
-      // 聊天页随后同步 readCachedSync，首帧即可决定是否显示浮窗。
-      await _warmupAgentRebateEntryStore();
-      // 三公浮窗偏好同样在首帧前进入内存，避免先按默认位置/可见性
-      // 绘制，再在 SharedPreferences 返回后跳动或消失。
-      await GroupGamePrefs.instance.preload();
-      await GroupLiveWatchFloatPrefs.instance.preload();
-      // 决定三公入口是否存在的两份状态也必须在 runApp 前从本地恢复。
-      // activateSession 内的网络刷新是 fire-and-forget，这里只等待本地读取。
-      await Future.wait<void>([
-        PrivilegedGameUserService.instance.activateSession(),
-        SangongMyConfigService.instance.ensureHydrated(),
-      ]);
-      StartupPerfLog.mark('local_setting_load_done');
+    await startupTasks.run('bridges', () {
+      UikitPermissionBridge.install();
+      DeviceSyncService.installPermissionHooks();
+      UikitMediaUrlBridge.install();
+      DesktopMediaPopout.install();
+      UikitAddFriendBridge.install();
+      UikitSelfHostedFriendBridge.install();
+      UikitVoiceToTextBridge.install();
+      UikitSelfHostedGroupBridge.install();
+      installForwardPickPages();
+      installBackendServices();
+      ImConnectStatusService.instance.attach(localSetting);
       InAppNotificationSound.soundIdResolver =
           () => localSetting.messageNotificationSoundId;
       InAppNotificationSound.soundEnabledResolver =
           () => localSetting.notifyMessageSound;
       NotificationSettingsService.instance.attach(localSetting);
-      if (!kIsWeb) {
-        await NotificationSettingsService.instance
-            .ensureSelfHostedPushTapHandler();
-      }
       final language = LocalSetting.normalizeLanguage(localSetting.language);
       localSetting.updateLanguageWithoutWriteLocal(language);
       LocaleSettings.setLocale(LanguageSwitchSheet.toAppLocale(language));
-      StartupPerfLog.mark('deferred_bootstrap_done');
-    }
-
-    if (kIsWeb) {
-      // Web：预热内置字体后再 runApp，避免首帧仍走 gstatic 回退。
-      await _warmWebBundledFonts();
-      StartupPerfLog.mark('run_app_start');
-      runApp(
-        TranslationProvider(
-          child: MultiProvider(
-            providers: [
-              ChangeNotifierProvider(create: (_) => LoginUserInfo()),
-              ChangeNotifierProvider(create: (_) => DefaultThemeData()),
-              ChangeNotifierProvider(create: (_) => CustomStickerPackageData()),
-              ChangeNotifierProvider.value(value: localSetting),
-              ChangeNotifierProvider.value(value: LoginCoordinator.instance),
-              ChangeNotifierProvider.value(value: SessionManager.instance),
-              ChangeNotifierProvider(create: (_) => UserGuideProvider()),
-              ChangeNotifierProvider(create: (_) => PresenceProvider()),
-              ChangeNotifierProvider.value(value: StarredFriendProvider.shared),
-            ],
-            child: const TUIKitDemoApp(),
-          ),
-        ),
-      );
-      StartupPerfLog.mark('run_app_returned');
-      unawaited(finishDeferredBootstrap());
-      return;
-    }
-
-    await finishDeferredBootstrap();
-    if (Platform.isAndroid) {
-      await AndroidPerformanceProfile.instance.initialize();
+    });
+    // Entry consumers stay hidden until their optional visibility/position
+    // caches are ready. Their disk reads no longer hold the whole app frame.
+    StartupEntryPreferences.configure(() => Future.wait<void>([
+          _warmupAgentRebateEntryStore(),
+          GroupGamePrefs.instance.preload(),
+          GroupLiveWatchFloatPrefs.instance.preload(),
+          PrivilegedGameUserService.instance.activateSession(),
+          SangongMyConfigService.instance.ensureHydrated(),
+        ]));
+    if (!kIsWeb && Platform.isAndroid) {
+      await startupTasks.run(
+          'device_profile', AndroidPerformanceProfile.instance.initialize);
       configureImageCache();
     }
-    StartupPerfLog.mark('run_app_start');
-    runApp(
-      // runAutoApp(
-      TranslationProvider(
-        child: MultiProvider(
-          providers: [
-            ChangeNotifierProvider(create: (_) => LoginUserInfo()),
-            ChangeNotifierProvider(create: (_) => DefaultThemeData()),
-            ChangeNotifierProvider(create: (_) => CustomStickerPackageData()),
-            ChangeNotifierProvider.value(value: localSetting),
-            ChangeNotifierProvider.value(value: LoginCoordinator.instance),
-            ChangeNotifierProvider.value(value: SessionManager.instance),
-            ChangeNotifierProvider(create: (_) => UserGuideProvider()),
-            ChangeNotifierProvider(create: (_) => PresenceProvider()),
-            ChangeNotifierProvider.value(value: StarredFriendProvider.shared),
-          ],
-          child: const TUIKitDemoApp(),
-        ),
+    await startupTasks.run('post_frame_services', () {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Optional work runs only after a usable app frame. Failure is isolated
+        // per task and never changes authenticated startup into a login screen.
+        void start(String key, FutureOr<void> Function() work) {
+          unawaited(
+              startupTasks.run<void>(key, work).catchError((Object error) {
+            StartupPerfLog.markTagged('optional_bootstrap_failed',
+                category: 'startup',
+                details: {
+                  'step': key,
+                  'errorType': error.runtimeType.toString()
+                });
+          }));
+        }
+
+        start('network', NetworkStatusService.instance.start);
+        start('entry_preferences', StartupEntryPreferences.ensureReady);
+        start('notices', GroupNoticeUnreadService.instance.ensureLoaded);
+        start('notice_preferences',
+            GroupNoticeEntrySettingsService.instance.ensureLoaded);
+        start('version', StartupVersionCheckService.instance.check);
+        StartupVersionCheckService.instance.attachLifecycleObserver();
+        _warmupMessageCoverageStore();
+        start('media_metadata', MessageMediaMetadataStore.warmUp);
+        if (!kIsWeb) {
+          start(
+              'push_taps',
+              NotificationSettingsService
+                  .instance.ensureSelfHostedPushTapHandler);
+          start('splash_refresh',
+              SplashConfigService.instance.refreshInBackground);
+        }
+        if (IMDemoConfig.selfHostedPushEnabled && PlatformUtils().isIOS) {
+          start(
+              'apns',
+              () => IosApnsPushService.instance.install(
+                  onVoipPush: NotificationSettingsService
+                      .instance.handleVoipPushPayloadForBootstrap));
+        }
+      });
+    });
+    return TranslationProvider(
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => LoginUserInfo()),
+          ChangeNotifierProvider(create: (_) => DefaultThemeData()),
+          ChangeNotifierProvider(create: (_) => CustomStickerPackageData()),
+          ChangeNotifierProvider.value(value: localSetting),
+          ChangeNotifierProvider.value(value: LoginCoordinator.instance),
+          ChangeNotifierProvider.value(value: SessionManager.instance),
+          ChangeNotifierProvider(create: (_) => UserGuideProvider()),
+          ChangeNotifierProvider(create: (_) => PresenceProvider()),
+          ChangeNotifierProvider.value(value: StarredFriendProvider.shared),
+        ],
+        child: const TUIKitDemoApp(),
       ),
     );
-    StartupPerfLog.mark('run_app_returned');
-    // 不阻塞冷启动：拉取/下载供下次 LaunchPage 使用（Web 无启动页，跳过）。
-    if (!kIsWeb) {
-      unawaited(SplashConfigService.instance.refreshInBackground());
-    }
-  });
+  }));
+  StartupPerfLog.mark('run_app_returned');
 
   if (PlatformUtils().isDesktop) {
     doWhenWindowReady(() {
@@ -546,22 +513,24 @@ class TUIKitDemoApp extends StatelessWidget {
                 '/homePage': (_) => const TencentChatApp(),
                 '/login': (_) => const TencentChatApp(),
               },
-              builder: (context, child) =>
-                  AnnotatedRegion<SystemUiOverlayStyle>(
-                value: LaunchSystemUi.overlayForApp(context),
-                child: Listener(
-                  behavior: HitTestBehavior.translucent,
-                  onPointerDown: (_) =>
-                      DeviceSyncService.instance.markUserActive(),
-                  onPointerMove: (_) =>
-                      DeviceSyncService.instance.markUserActive(),
-                  onPointerSignal: (_) =>
-                      DeviceSyncService.instance.markUserActive(),
-                  child: BusinessSessionGuard(
-                    child: AppMaterialAppBuilder(child: child),
+              builder: (context, child) => PickerRecoveryNotice(
+                  child: DatabaseRecoveryNotice(
+                child: AnnotatedRegion<SystemUiOverlayStyle>(
+                  value: LaunchSystemUi.overlayForApp(context),
+                  child: Listener(
+                    behavior: HitTestBehavior.translucent,
+                    onPointerDown: (_) =>
+                        DeviceSyncService.instance.markUserActive(),
+                    onPointerMove: (_) =>
+                        DeviceSyncService.instance.markUserActive(),
+                    onPointerSignal: (_) =>
+                        DeviceSyncService.instance.markUserActive(),
+                    child: BusinessSessionGuard(
+                      child: AppMaterialAppBuilder(child: child),
+                    ),
                   ),
                 ),
-              ),
+              )),
               navigatorObservers: [
                 appRouteObserver,
                 AppRouteLifecycleObserver(),

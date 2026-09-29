@@ -1,0 +1,96 @@
+[
+  {
+    "target": {
+      "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence._recordOutboxSdkResult#14",
+      "name": "_recordOutboxSdkResult",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_persistence.dart"
+    },
+    "direction": "upstream",
+    "impactedCount": 6,
+    "risk": "LOW",
+    "riskSharedAxes": "LOW",
+    "riskScale": {
+      "comparableAcrossKinds": true,
+      "unusedAxes": []
+    },
+    "epistemic": "exact",
+    "summary": {
+      "direct": 4,
+      "processes_affected": 0,
+      "modules_affected": 1
+    },
+    "byDepthCounts": {
+      "1": 4,
+      "2": 2
+    },
+    "affected_processes": [],
+    "affected_modules": [
+      {
+        "name": "Im",
+        "hits": 6,
+        "impact": "direct"
+      }
+    ],
+    "byDepth": {
+      "1": [
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.adjudicateOutboxSdkResult#10",
+          "name": "adjudicateOutboxSdkResult",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.adoptOutboxProviderSucceeded#10",
+          "name": "adoptOutboxProviderSucceeded",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.recordOutboxSdkFailed#8",
+          "name": "recordOutboxSdkFailed",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.recordOutboxSdkSucceeded#8",
+          "name": "recordOutboxSdkSucceeded",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ],
+      "2": [
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.adoptProviderHistory#1",
+          "name": "adoptProviderHistory",
+          "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.send#21",
+          "name": "send",
+          "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,41 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":30208,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":1,"time":2,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":6091}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":15,"line":null,"column":null,"url":null},"type":"group","time":6092}
+{"test":{"id":3,"name":"acknowledged and completed reject late failure without ambiguous bool","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":28,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6092}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6112}
+{"test":{"id":4,"name":"a durable provider success supersedes an already-created failure verdict","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":53,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6112}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6125}
+{"test":{"id":5,"name":"stale attempt failure is rejected; exact provider success may settle the operation","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":76,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6125}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6127}
+{"test":{"id":6,"name":"unknown dispatch callbacks stay unknown until exact provider evidence","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":87,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6127}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6130}
+{"test":{"id":7,"name":"rejecting an old event does not erase the current attempt retry verdict","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":104,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6130}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6132}
+{"test":{"id":8,"name":"abandonment does not discard later delivery evidence","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":116,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6132}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6135}
+{"test":{"id":9,"name":"persistence failure cannot turn valid SDK success into retryable failure","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":134,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6135}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6136}
+{"test":{"id":10,"name":"provider-confirmed UI row survives a late explicit failure","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":153,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6136}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6183}
+{"test":{"id":11,"name":"a sync msgID alone does not suppress a real sending failure","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":186,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6183}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6198}
+{"test":{"id":12,"name":"a revoked row cannot be revived by a late success result","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":203,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6198}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6200}
+{"test":{"id":13,"name":"a deleted row and its preview are not recreated by late success","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":232,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6201}
+{"testID":13,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6204}
+{"test":{"id":14,"name":"provider evidence must match operation, owner, correlation, conversation and payload","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":261,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6204}
+{"testID":14,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6207}
+{"test":{"id":15,"name":"conflicted verdicts cannot publish success or enable retry","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":291,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6207}
+{"testID":15,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6208}
+{"test":{"id":16,"name":"an already completed dispatch refusal reports the confirmed result","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":307,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6209}
+{"testID":16,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6211}
+{"test":{"id":17,"name":"SQLite result transaction rolls back both copies and version survives reopen","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":328,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/outgoing_result_arbitration_test.dart"},"type":"testStart","time":6211}
+{"testID":17,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=33 created=true","type":"print","time":6276}
+{"testID":17,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=7.5 deltaMs=7.5 prev=message_core_db_open durationMs=40","type":"print","time":6281}
+{"testID":17,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=40.8 deltaMs=33.3 prev=message_core_db_ready durationMs=2 created=false","type":"print","time":6314}
+{"testID":17,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=41.7 deltaMs=0.9 prev=message_core_db_open durationMs=3","type":"print","time":6315}
+{"testID":17,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6320}
+{"success":true,"type":"done","time":6355}

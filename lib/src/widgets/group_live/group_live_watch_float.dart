@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_demo/src/bootstrap/startup_entry_preferences.dart';
 import 'package:tencent_cloud_chat_demo/src/models/group_live_models.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_live_watch_float_prefs.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/group_game_float_geometry.dart';
@@ -40,10 +41,34 @@ class GroupLiveWatchFloat extends StatefulWidget {
 class _GroupLiveWatchFloatState extends State<GroupLiveWatchFloat> {
   Offset? _offset;
   late Size _size;
+  bool _entryReady = false;
 
   @override
   void initState() {
     super.initState();
+    StartupEntryPreferences.readiness.addListener(_onEntryReady);
+    if (!StartupEntryPreferences.isReady) {
+      unawaited(StartupEntryPreferences.ensureReady().then((_) {
+        _onEntryReady();
+      }).catchError((Object _) {}));
+      return;
+    }
+    _restoreEntryPreferences();
+  }
+
+  void _onEntryReady() {
+    if (mounted && !_entryReady && StartupEntryPreferences.isReady) {
+      setState(_restoreEntryPreferences);
+    }
+  }
+
+  @override
+  void dispose() {
+    StartupEntryPreferences.readiness.removeListener(_onEntryReady);
+    super.dispose();
+  }
+
+  void _restoreEntryPreferences() {
     final prefs = GroupLiveWatchFloatPrefs.instance;
     final width = prefs.readWidthSync();
     _offset = prefs.readOffsetSync();
@@ -52,6 +77,7 @@ class _GroupLiveWatchFloatState extends State<GroupLiveWatchFloat> {
     } else {
       _size = GroupLiveWatchFloat.minSize;
     }
+    _entryReady = true;
   }
 
   Offset _defaultOffset(Size stackSize, Size size) {
@@ -237,6 +263,7 @@ class _GroupLiveWatchFloatState extends State<GroupLiveWatchFloat> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_entryReady) return const SizedBox.shrink();
     return Positioned.fill(
       child: Offstage(
         offstage: !widget.visible,

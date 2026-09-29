@@ -1,0 +1,233 @@
+[
+  {
+    "file": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart",
+    "groups": [
+      "03-profile-trace"
+    ],
+    "beforeSha256": "9f4e7fa709f52f1180557e4ad9395a6f578a8c43f129a1240b6af3d9c54cbffd",
+    "afterSha256": "60e74dd084e5845554d26ae0c71656fea43a1176509591ef912485613476a809",
+    "baselineSnapshot": "before/third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "lib/src/chat_page/chat_draft_controller.dart",
+    "groups": [
+      "01-f1-draft"
+    ],
+    "beforeSha256": "f9caa11c2fafc44f7bed94d458a9e7c963d658d94db3f6fe16141a6afbbc5cf0",
+    "afterSha256": "567330932284faac5178bb502bb1d7dd076ca762827b59071916afad2c8f5cbc",
+    "baselineSnapshot": "before/lib/src/chat_page/chat_draft_controller.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "lib/src/services/conversation_local/conversation_draft_service.dart",
+    "groups": [
+      "01-f1-draft"
+    ],
+    "beforeSha256": "cea1ad6f1c622bf83c8eeeed6f67d6b7e6e0d85116f03a7608bd517ae1b9c51c",
+    "afterSha256": "91acee492f8e33bd8e61b8a482b03545d71d79d99f14d8014b3580dd4e524c41",
+    "baselineSnapshot": "before/lib/src/services/conversation_local/conversation_draft_service.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "lib/src/chat.dart",
+    "groups": [
+      "01-f1-draft"
+    ],
+    "beforeSha256": "8e85c50850633db73bb3105265e6a5aebb76ba3d9ecee9823b224370cceea9c7",
+    "afterSha256": "2695c903f47d8cfe5e30e826f88f0319d9258a350fe7d874df5d3a1e88cb1689",
+    "baselineSnapshot": "before/lib/src/chat.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart",
+    "groups": [
+      "01-f1-draft"
+    ],
+    "beforeSha256": "e37335379757e02cd29b4f8fccc62db075f8ce385a415b68c95f93235304a4c0",
+    "afterSha256": "1e07dd531464d6c9410b36351d93e45bb12469c1b50a5f796c1deaad4cab57eb",
+    "baselineSnapshot": "before/third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+    "groups": [
+      "01-f1-draft"
+    ],
+    "beforeSha256": "8d3d2b365d3879da24bb1f8cef28b113f798e84b63755ea150f53f349a7ed853",
+    "afterSha256": "07e92363275cbd399a0aba73dc7e73c3a85c061759b8cc81408c25c7b0513059",
+    "baselineSnapshot": "before/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "test/chat_draft_submission_test.dart",
+    "groups": [
+      "01-f1-draft"
+    ],
+    "beforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "afterSha256": "33ad67f3a0d8baf317ebdeb88b67dac4cceb5cc75323b8d4b40a7ad65b60c5e1",
+    "baselineSnapshot": "before/test/chat_draft_submission_test.dart.snapshot",
+    "newFile": true
+  },
+  {
+    "file": "test/chat_input_composition_guard_test.dart",
+    "groups": [
+      "01-f1-draft"
+    ],
+    "beforeSha256": "c640b066d535d69670fd50465eda158535d5eaffd27e8ebef2f899a4fd35a404",
+    "afterSha256": "758baca5e644dc558a9229096da94997c9d131f2dd1bc38f74badbfc042319d1",
+    "baselineSnapshot": "before/test/chat_input_composition_guard_test.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "lib/src/services/im/im05_contracts.dart",
+    "groups": [
+      "02-f2-outbox"
+    ],
+    "beforeSha256": "1b4ff8d87aacc7f7dfff20ee594b5534defbfd3a9b415eeba18d25330653a752",
+    "afterSha256": "fc09618fec5e03c7c3a54f40175c0b123ba7c91fdd79a3506a3be3537eb2db39",
+    "baselineSnapshot": "before/lib/src/services/im/im05_contracts.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "lib/src/services/im/im05_persistence.dart",
+    "groups": [
+      "02-f2-outbox"
+    ],
+    "beforeSha256": "9d22e2bdacb142a8fc2aedb291a55c5a424b9d10526e0962e00d07d9171c5182",
+    "afterSha256": "ec73d90eb6bb717a54b620970399930e303b7e57403fc79db4f442e0a6e5fb38",
+    "baselineSnapshot": "before/lib/src/services/im/im05_persistence.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "lib/src/services/im/outgoing_send_coordinator.dart",
+    "groups": [
+      "02-f2-outbox"
+    ],
+    "beforeSha256": "85935bc79a56bce194fced4b7d7b4fd7c96f222d6ef89e6a66473d1f841f6987",
+    "afterSha256": "6d607d320b90d4e389cc9e2b0f5973b2aab73e935fef980a8d8b4cd1098b16dd",
+    "baselineSnapshot": "before/lib/src/services/im/outgoing_send_coordinator.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "lib/src/services/chat_failed_message_retry_service.dart",
+    "groups": [
+      "02-f2-outbox"
+    ],
+    "beforeSha256": "59ca041a1c5dc9de87a3abff8e73876e0ea9706a3d3b4c82c2c49f20c9e0e413",
+    "afterSha256": "a807eb7364a3adcdbe869fb92c988420074f05428d811a93ad92c74d25ec967b",
+    "baselineSnapshot": "before/lib/src/services/chat_failed_message_retry_service.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+    "groups": [
+      "02-f2-outbox",
+      "03-profile-trace"
+    ],
+    "beforeSha256": "75a7a073a41bbc07eb9871fa4b94b7db92800695022c41875c95b4a4389a4923",
+    "afterSha256": "75555d406023b52475c492b565efc08ba6f69f039e4e9d3a12dd9b90802a1308",
+    "baselineSnapshot": "before/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+    "groups": [
+      "02-f2-outbox"
+    ],
+    "beforeSha256": "07b0aa5194bc7c660b947f7f87268af7ce9edd5b29e3d9cf056c6aa89e1a2ec8",
+    "afterSha256": "5201c6a4104756a3f4747a7a39c00c3a4de55c7de6017d876a45a3d08957abdb",
+    "baselineSnapshot": "before/third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "test/outgoing_result_arbitration_test.dart",
+    "groups": [
+      "02-f2-outbox"
+    ],
+    "beforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "afterSha256": "ad921e1696ff80d9558e0c113dba1176dd32f336001ea89f7e91af423f260c18",
+    "baselineSnapshot": "before/test/outgoing_result_arbitration_test.dart.snapshot",
+    "newFile": true
+  },
+  {
+    "file": "test/chat_reliability_regression_test.dart",
+    "groups": [
+      "02-f2-outbox"
+    ],
+    "beforeSha256": "c74bfc21c17e9829d089c2ec0e7406f7b800d46980329632e03444124bc47a53",
+    "afterSha256": "4aec9ece03b4606770dfc242ebaef457099fdd31c589cbb3b0fb5c96199e65d0",
+    "baselineSnapshot": "before/test/chat_reliability_regression_test.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "lib/src/services/chat_open_perf_log.dart",
+    "groups": [
+      "03-profile-trace"
+    ],
+    "beforeSha256": "79bf24b9154f019d4a890b5915a152fae6949b7ba621b4660accc620c6e95a52",
+    "afterSha256": "27bd0033b01bb2ec73f3f328a907df794dde7b0e0af892ba6241257d46a7a584",
+    "baselineSnapshot": "before/lib/src/services/chat_open_perf_log.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "lib/src/services/conversation_peek_service.dart",
+    "groups": [
+      "03-profile-trace"
+    ],
+    "beforeSha256": "da878cd96b3e624f5cbc1d588efa2df6071416bc7ea5b2536fd229094cd4c9b1",
+    "afterSha256": "7b4f9bbedc0b1333d6c84631cfef017bbb828367bdf8cf5cd70f1401960499fe",
+    "baselineSnapshot": "before/lib/src/services/conversation_peek_service.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "lib/src/services/chat_open_viewport_coordinator.dart",
+    "groups": [
+      "03-profile-trace"
+    ],
+    "beforeSha256": "ccef282be4e3a3bc3842c9e79c630e9e4dc22991704d034db3175bca2a2e0ce6",
+    "afterSha256": "6e0bd4999c76d52f56ac22414c70517c46fb0c02da7be83f629d05b0710915d2",
+    "baselineSnapshot": "before/lib/src/services/chat_open_viewport_coordinator.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "lib/src/navigation/app_chat_route.dart",
+    "groups": [
+      "03-profile-trace"
+    ],
+    "beforeSha256": "010c683e3047f99f8e9ee16b1a7e45c0f633a766f19998a8d38313ae78ab0b56",
+    "afterSha256": "5e95c642542cbdc113061865cd658b5a1f08973a44ec6775f001b438b5eb7804",
+    "baselineSnapshot": "before/lib/src/navigation/app_chat_route.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "lib/src/conversation.dart",
+    "groups": [
+      "03-profile-trace"
+    ],
+    "beforeSha256": "c4840f607c63e594c29331708f0032e855ff6cfb155313dcf9fa1f75f0c38067",
+    "afterSha256": "0f5937cd59183b012134e7773045e33acba0b203a38e89a3df5af7ee328a2888",
+    "baselineSnapshot": "before/lib/src/conversation.dart.snapshot",
+    "newFile": false
+  },
+  {
+    "file": "test/chat_open_profile_trace_test.dart",
+    "groups": [
+      "03-profile-trace"
+    ],
+    "beforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "afterSha256": "43885c60e1461f774bf065bde72f21555cac15f2f8a85e51d6c0c009e448fd57",
+    "baselineSnapshot": "before/test/chat_open_profile_trace_test.dart.snapshot",
+    "newFile": true
+  },
+  {
+    "file": "test/app_chat_route_session_reuse_test.dart",
+    "groups": [
+      "03-profile-trace"
+    ],
+    "beforeSha256": "35890d5166975b08c0cee34a28d7a8cf821ef1ee63447cf820e444577666b47b",
+    "afterSha256": "9bb0cc67f2e5ee61f8b4869db9aa07aa6c6af572800fc47ba99b06592b0e0dcc",
+    "baselineSnapshot": "before/test/app_chat_route_session_reuse_test.dart.snapshot",
+    "newFile": false
+  }
+]

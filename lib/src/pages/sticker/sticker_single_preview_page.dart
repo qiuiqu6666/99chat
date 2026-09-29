@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/sticker_preview_voice_scope.dart';
 import 'package:flutter/services.dart';
 import 'package:tencent_cloud_chat_demo/src/models/sticker_models.dart';
 import 'package:tencent_cloud_chat_demo/src/repository/sticker_repository.dart';
@@ -25,15 +26,15 @@ class StickerSinglePreviewPage extends StatefulWidget {
     String? assetPath,
     StickerItem? preloadedItem,
   }) {
-    return Navigator.of(context).push(
-      AppFullscreenDialogRoute(
-        builder: (_) => StickerSinglePreviewPage(
-          data: data,
-          assetPath: assetPath,
-          preloadedItem: preloadedItem,
-        ),
-      ),
-    );
+    return StickerPreviewVoiceScope.run(() => Navigator.of(context).push<void>(
+          AppFullscreenDialogRoute(
+            builder: (_) => StickerSinglePreviewPage(
+              data: data,
+              assetPath: assetPath,
+              preloadedItem: preloadedItem,
+            ),
+          ),
+        ));
   }
 
   @override

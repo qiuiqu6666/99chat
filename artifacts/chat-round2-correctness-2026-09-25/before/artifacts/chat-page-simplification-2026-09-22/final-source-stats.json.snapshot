@@ -1,0 +1,32 @@
+[
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart",
+    "added": 12,
+    "removed": 20,
+    "sha256": "96ECD847CAC589482B2589117B2DA3C1F3794B2EB645250A15047354CF75F892"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+    "added": 32,
+    "removed": 81,
+    "sha256": "F39E174E51D021A00F0FD2698041B259ECC1F88206DD05FE063D879FFB66B0DE"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/controllers/chat_list_pagination_ui_gate.dart",
+    "added": 83,
+    "removed": 24,
+    "sha256": "7F89C62D6D5AF483565E127DBA27E61CB28D919D03186F0888AF97173829766C"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+    "added": 223,
+    "removed": 403,
+    "sha256": "11FE244F66BC414F955B25515B0ADF7828D0F99ECA61266B50C247A346EE181D"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+    "added": 48,
+    "removed": 76,
+    "sha256": "4D0E4C7A922DED60CFDBF71AF395EF286E4D23960CBCFA03347AA293E41DC96D"
+  }
+]

@@ -1,0 +1,58 @@
+{
+  "target": {
+    "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.recordPrepareStart#2",
+    "name": "recordPrepareStart",
+    "type": "Method",
+    "filePath": "lib/src/services/chat_open_perf_log.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 2,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 1,
+    "processes_affected": 0,
+    "modules_affected": 1
+  },
+  "byDepthCounts": {
+    "1": 1,
+    "2": 1
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Services",
+      "hits": 2,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.recordPrepareStart#2",
+        "name": "recordPrepareStart",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.prepareOpenViewport#5",
+        "name": "prepareOpenViewport",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}

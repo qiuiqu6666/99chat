@@ -1,0 +1,160 @@
+{
+  "target": {
+    "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._runSdkClean#5",
+    "name": "_runSdkClean",
+    "type": "Method",
+    "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 13,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 1,
+    "processes_affected": 0,
+    "modules_affected": 1
+  },
+  "byDepthCounts": {
+    "1": 1,
+    "2": 1,
+    "3": 11
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Services",
+      "hits": 11,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._drainSdkClean#5",
+        "name": "_drainSdkClean",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService.scheduleSdkUnreadClean#3",
+        "name": "scheduleSdkUnreadClean",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat.dart:_ChatState._publishExternalEntryState#1",
+        "name": "_publishExternalEntryState",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ArchivedConversationPageState._cleanConversationUnread#2",
+        "name": "_cleanConversationUnread",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._cleanConversationUnread#2",
+        "name": "_cleanConversationUnread",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._finalizeConversationLeave#7",
+        "name": "_finalizeConversationLeave",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._persistOpenReadIntentAndDispatch#5",
+        "name": "_persistOpenReadIntentAndDispatch",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._recoverPendingReadOutbox#0",
+        "name": "_recoverPendingReadOutbox",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._restartTrailingSdkCleanIfDue#1",
+        "name": "_restartTrailingSdkCleanIfDue",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._runQueuedSdkUnreadClean#2",
+        "name": "_runQueuedSdkUnreadClean",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService.clearForOpen#2",
+        "name": "clearForOpen",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService.clearSdkUnreadAsync#2",
+        "name": "clearSdkUnreadAsync",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/group_conversation_unread_helper.dart:GroupConversationUnreadHelper.clearConversationUnread#2",
+        "name": "clearConversationUnread",
+        "filePath": "lib/src/services/group_conversation_unread_helper.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}

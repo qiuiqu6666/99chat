@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_demo/utils/sticker_panel_tab_store.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/user_sticker_provider.dart';
 import 'package:tencent_cloud_chat_demo/utils/sticker_constants.dart';
@@ -66,14 +69,30 @@ class _WeChatStickerPanel extends StatefulWidget {
 }
 
 class _WeChatStickerPanelState extends State<_WeChatStickerPanel> {
-  int _selectedPackIndex = 0;
+  String? _selectedPackName;
+  bool _selectionChanged = false;
   List<CustomStickerPackage> _allPackages = [];
+
+  int get _selectedPackIndex => StickerPanelTabStore.indexFor(
+        _allPackages.map((pack) => pack.name).toList(),
+        _selectedPackName,
+      );
+
+  Future<void> _restoreSelectedTab() async {
+    await StickerPanelTabStore.instance.load();
+    if (!mounted || _selectionChanged) return;
+    setState(() {
+      _selectedPackName = StickerPanelTabStore.instance.selectedName;
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     UserStickerProvider.shared.addListener(_onProviderChanged);
     _allPackages = _loadPackages();
+    _selectedPackName = StickerPanelTabStore.instance.selectedName;
+    unawaited(_restoreSelectedTab());
     if (!UserStickerProvider.shared.loaded) {
       UserStickerProvider.shared.refresh(force: true);
     }
@@ -91,9 +110,6 @@ class _WeChatStickerPanelState extends State<_WeChatStickerPanel> {
     }
     setState(() {
       _allPackages = _loadPackages();
-      if (_selectedPackIndex >= _allPackages.length) {
-        _selectedPackIndex = 0;
-      }
     });
   }
 
@@ -209,7 +225,12 @@ class _WeChatStickerPanelState extends State<_WeChatStickerPanel> {
               packages: _allPackages,
               selectedIndex: _selectedPackIndex,
               onSelected: (index) {
-                setState(() => _selectedPackIndex = index);
+                final name = _allPackages[index].name;
+                setState(() {
+                  _selectionChanged = true;
+                  _selectedPackName = name;
+                });
+                unawaited(StickerPanelTabStore.instance.select(name));
               },
               onPackPreview: _openPackPreview,
               height: StickerChatPanel.bottomBarHeight,

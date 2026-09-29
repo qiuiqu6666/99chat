@@ -1,0 +1,25 @@
+void _seedCachedHistoryOnOpen(String convKey) {
+    if (convKey.isEmpty) {
+      return;
+    }
+    final globalModel = serviceLocator<TUIChatGlobalModel>();
+    globalModel.setMessageListPosition(
+      convKey,
+      HistoryMessagePosition.bottom,
+      notify: false,
+    );
+
+    final rawCount = globalModel.rawMessageCount(convKey);
+    if (rawCount > 0) {
+      final list = globalModel.getMessageList(convKey);
+      if (list != null) {
+        _normalizeSelfMessageAvatars(list);
+      }
+      if (globalModel.hasInitialHistoryLoaded(convKey)) {
+        return;
+      }
+      if (rawCount >= HistoryMessageDartConstant.initialOpenFetchCount) {
+        globalModel.markInitialHistoryLoaded(convKey);
+      }
+    }
+  }

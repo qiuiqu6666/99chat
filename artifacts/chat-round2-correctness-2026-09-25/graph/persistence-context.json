@@ -1,0 +1,283 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/im/im05_persistence.dart:Im05Persistence",
+    "name": "Im05Persistence",
+    "kind": "Class",
+    "filePath": "lib/src/services/im/im05_persistence.dart",
+    "startLine": 83,
+    "endLine": 1414
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "calls": [
+      {
+        "uid": "Function:test/im05_persistence_test.dart:main",
+        "name": "main",
+        "filePath": "test/im05_persistence_test.dart"
+      },
+      {
+        "uid": "Function:test/im08_outgoing_send_coordinator_test.dart:main",
+        "name": "main",
+        "filePath": "test/im08_outgoing_send_coordinator_test.dart"
+      },
+      {
+        "uid": "Function:test/outgoing_result_arbitration_test.dart:main",
+        "name": "main",
+        "filePath": "test/outgoing_result_arbitration_test.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_failed_message_retry_service.dart:ChatFailedMessageRetryService.recordOutboxFailureForStuckMessage#4",
+        "name": "recordOutboxFailureForStuckMessage",
+        "filePath": "lib/src/services/chat_failed_message_retry_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._adoptProviderOutgoingMessage#3",
+        "name": "_adoptProviderOutgoingMessage",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._handleMessageIngress#1",
+        "name": "_handleMessageIngress",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/outgoing_outbox_recovery_service.dart:OutgoingOutboxRecoveryService._recover#0",
+        "name": "_recover",
+        "filePath": "lib/src/services/im/outgoing_outbox_recovery_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.abandonOutcomeUnknown#3",
+        "name": "abandonOutcomeUnknown",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.adoptProviderHistory#1",
+        "name": "adoptProviderHistory",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.completeSuccessfulProjection#1",
+        "name": "completeSuccessfulProjection",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.send#21",
+        "name": "send",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "Method:test/outgoing_result_arbitration_test.dart:_SendFixture.create#1",
+        "name": "create",
+        "filePath": "test/outgoing_result_arbitration_test.dart"
+      }
+    ],
+    "imports": [
+      {
+        "uid": "File:lib/src/services/chat_failed_message_retry_service.dart",
+        "name": "chat_failed_message_retry_service.dart",
+        "filePath": "lib/src/services/chat_failed_message_retry_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_local/conversation_sync_service.dart",
+        "name": "conversation_sync_service.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im.dart",
+        "name": "im.dart",
+        "filePath": "lib/src/services/im/im.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/outgoing_outbox_recovery_service.dart",
+        "name": "outgoing_outbox_recovery_service.dart",
+        "filePath": "lib/src/services/im/outgoing_outbox_recovery_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/outgoing_send_coordinator.dart",
+        "name": "outgoing_send_coordinator.dart",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "File:test/im05_persistence_test.dart",
+        "name": "im05_persistence_test.dart",
+        "filePath": "test/im05_persistence_test.dart"
+      },
+      {
+        "uid": "File:test/im08_outgoing_send_coordinator_test.dart",
+        "name": "im08_outgoing_send_coordinator_test.dart",
+        "filePath": "test/im08_outgoing_send_coordinator_test.dart"
+      },
+      {
+        "uid": "File:test/outgoing_result_arbitration_test.dart",
+        "name": "outgoing_result_arbitration_test.dart",
+        "filePath": "test/outgoing_result_arbitration_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/im/im05_persistence.dart:Im05Persistence.Im05Persistence#1",
+        "name": "Im05Persistence",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence._publishResult#1",
+        "name": "_publishResult",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence._recordOutboxSdkResult#14",
+        "name": "_recordOutboxSdkResult",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.abandonOutcomeUnknown#5",
+        "name": "abandonOutcomeUnknown",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.adjudicateOutboxSdkResult#10",
+        "name": "adjudicateOutboxSdkResult",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.adoptOutboxProviderSucceeded#10",
+        "name": "adoptOutboxProviderSucceeded",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.assessOutboxForDispatch#5",
+        "name": "assessOutboxForDispatch",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.commitMetadata#4",
+        "name": "commitMetadata",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.completeJournal#6",
+        "name": "completeJournal",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.completeOutboxProjection#5",
+        "name": "completeOutboxProjection",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.ensureEffect#4",
+        "name": "ensureEffect",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.findOutboxBySdkLocalId#3",
+        "name": "findOutboxBySdkLocalId",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.finishEffect#7",
+        "name": "finishEffect",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.listOutboxesForRecovery#3",
+        "name": "listOutboxesForRecovery",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.markPreparedOutboxManualRequired#6",
+        "name": "markPreparedOutboxManualRequired",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.prepareJournal#4",
+        "name": "prepareJournal",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.prepareOutbox#5",
+        "name": "prepareOutbox",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.publishProjection#5",
+        "name": "publishProjection",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.readOutboxResult#2",
+        "name": "readOutboxResult",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.recordDispatchIntent#6",
+        "name": "recordDispatchIntent",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.recordOutboxSdkFailed#8",
+        "name": "recordOutboxSdkFailed",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.recordOutboxSdkSucceeded#8",
+        "name": "recordOutboxSdkSucceeded",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.recordOutcomeUnknown#6",
+        "name": "recordOutcomeUnknown",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.recoverOutbox#2",
+        "name": "recoverOutbox",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.startEffect#5",
+        "name": "startEffect",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.transitionOutbox#5",
+        "name": "transitionOutbox",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.transitionOutboxRecoveryCopy#5",
+        "name": "transitionOutboxRecoveryCopy",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.watchOutboxResult#2",
+        "name": "watchOutboxResult",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/services/im/im05_persistence.dart:Im05Persistence._resultViews",
+        "name": "_resultViews",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_persistence.dart:Im05Persistence._store",
+        "name": "_store",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      }
+    ]
+  },
+  "typed_properties": [
+    {
+      "uid": "Property:test/outgoing_result_arbitration_test.dart:_SendFixture.persistence",
+      "name": "persistence",
+      "filePath": "test/outgoing_result_arbitration_test.dart",
+      "declaredType": "Im05Persistence"
+    }
+  ],
+  "processes": []
+}

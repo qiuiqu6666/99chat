@@ -1,0 +1,517 @@
+[
+  {
+    "target": {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.applyOutgoingSendResult#7",
+      "name": "applyOutgoingSendResult",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+    },
+    "direction": "upstream",
+    "impactedCount": 48,
+    "risk": "CRITICAL",
+    "riskSharedAxes": "MEDIUM",
+    "riskScale": {
+      "comparableAcrossKinds": true,
+      "unusedAxes": []
+    },
+    "epistemic": "exact",
+    "summary": {
+      "direct": 3,
+      "processes_affected": 0,
+      "modules_affected": 9
+    },
+    "byDepthCounts": {
+      "1": 3,
+      "2": 17,
+      "3": 28
+    },
+    "affected_processes": [],
+    "affected_modules": [
+      {
+        "name": "Separate_models",
+        "hits": 17,
+        "impact": "direct"
+      },
+      {
+        "name": "TIMUIKitTextField",
+        "hits": 6,
+        "impact": "indirect"
+      },
+      {
+        "name": "View_models",
+        "hits": 4,
+        "impact": "direct"
+      },
+      {
+        "name": "Cluster_2236",
+        "hits": 2,
+        "impact": "indirect"
+      },
+      {
+        "name": "Test",
+        "hits": 2,
+        "impact": "direct"
+      },
+      {
+        "name": "Image_edit",
+        "hits": 1,
+        "impact": "indirect"
+      },
+      {
+        "name": "Services",
+        "hits": 1,
+        "impact": "indirect"
+      },
+      {
+        "name": "Sticker",
+        "hits": 1,
+        "impact": "indirect"
+      },
+      {
+        "name": "TIMUIKitMessageItem",
+        "hits": 1,
+        "impact": "indirect"
+      }
+    ],
+    "byDepth": {
+      "1": [
+        {
+          "depth": 1,
+          "id": "Method:lib/src/utils/c2c_blocked_outgoing_message_sync.dart:C2cBlockedOutgoingMessageSync.markInFlightAsFriendBlocked#3",
+          "name": "markInFlightAsFriendBlocked",
+          "filePath": "lib/src/utils/c2c_blocked_outgoing_message_sync.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._sendMessage#14",
+          "name": "_sendMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel._sendMessage#19",
+          "name": "_sendMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ],
+      "2": [
+        {
+          "depth": 2,
+          "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendForwardMessage#1",
+          "name": "sendForwardMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:lib/src/chat.dart:_ChatState._syncInFlightOutgoingOnC2cBlocked#0",
+          "name": "_syncInFlightOutgoingOnC2cBlocked",
+          "filePath": "lib/src/chat.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._performFailedMessageResend#4",
+          "name": "_performFailedMessageResend",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendCustomMessage#3",
+          "name": "sendCustomMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendFaceMessage#4",
+          "name": "sendFaceMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendFileMessage#6",
+          "name": "sendFileMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendImageMessage#10",
+          "name": "sendImageMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendLocationMessage#5",
+          "name": "sendLocationMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendMergerMessage#4",
+          "name": "sendMergerMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendMessageFromController#8",
+          "name": "sendMessageFromController",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendReplyMessage#5",
+          "name": "sendReplyMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendSoundMessage#5",
+          "name": "sendSoundMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendTextAtMessage#5",
+          "name": "sendTextAtMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendTextMessage#3",
+          "name": "sendTextMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendVideoMessage#7",
+          "name": "sendVideoMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.sendMessageFromController#15",
+          "name": "sendMessageFromController",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.sendReplyMessageFromController#11",
+          "name": "sendReplyMessageFromController",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ],
+      "3": [
+        {
+          "depth": 3,
+          "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart:TIMUIKitChatController.sendForwardMessage#1",
+          "name": "sendForwardMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart:_MorePanelState._sendFile#2",
+          "name": "_sendFile",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart:_MorePanelState._sendImageFileOnWeb#1",
+          "name": "_sendImageFileOnWeb",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart:_MorePanelState._sendVideoFileOnWeb#1",
+          "name": "_sendVideoFileOnWeb",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart:_TIMUIKitTextFieldLayoutWideState._sendFile#2",
+          "name": "_sendFile",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart:_TIMUIKitTextFieldLayoutWideState._sendImageFileOnWeb#1",
+          "name": "_sendImageFileOnWeb",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart:_TIMUIKitTextFieldLayoutWideState._sendMediaMessage#3",
+          "name": "_sendMediaMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart:_TIMUIKitTextFieldLayoutWideState._sendVideoFileOnWeb#1",
+          "name": "_sendVideoFileOnWeb",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart:_TIMUIKitTextFieldLayoutWideState._sendVideoMessage#4",
+          "name": "_sendVideoMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Function:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_send_file.dart:sendFiles",
+          "name": "sendFiles",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_send_file.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/pages/sticker/sticker_pack_preview_page.dart:StickerPackPreviewPage._sendAndClose#3",
+          "name": "_sendAndClose",
+          "filePath": "lib/src/pages/sticker/sticker_pack_preview_page.dart",
+          "relationType": "CALLS",
+          "confidence": 0.5,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/utils/favorite_message_chat_sender.dart:FavoriteMessageChatSender._sendImage#4",
+          "name": "_sendImage",
+          "filePath": "lib/utils/favorite_message_chat_sender.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/utils/favorite_message_chat_sender.dart:FavoriteMessageChatSender._sendText#4",
+          "name": "_sendText",
+          "filePath": "lib/utils/favorite_message_chat_sender.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/utils/favorite_message_chat_sender.dart:FavoriteMessageChatSender._sendVideo#4",
+          "name": "_sendVideo",
+          "filePath": "lib/utils/favorite_message_chat_sender.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/utils/sticker_send_helper.dart:StickerSendHelper.sendViaPanelCallback#4",
+          "name": "sendViaPanelCallback",
+          "filePath": "lib/utils/sticker_send_helper.dart",
+          "relationType": "CALLS",
+          "confidence": 0.5,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.reSendFailMessage#3",
+          "name": "reSendFailMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendFinalizingRecording#4",
+          "name": "sendFinalizingRecording",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendRecordingAsTextMessage#4",
+          "name": "sendRecordingAsTextMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart:TIMUIKitChatController.sendMergerMessage#4",
+          "name": "sendMergerMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart:TIMUIKitChatController.sendMessage#13",
+          "name": "sendMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart:TIMUIKitChatController.sendReplyMessage#13",
+          "name": "sendReplyMessage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/utils/image_edit/image_preview_editor.dart:ImagePreviewEditor.sendMessageImage#5",
+          "name": "sendMessageImage",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/image_edit/image_preview_editor.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart:_MorePanelState._dispatchImageSendWithoutAwait#6",
+          "name": "_dispatchImageSendWithoutAwait",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart:_MorePanelState._dispatchVideoSendWithoutAwait#8",
+          "name": "_dispatchVideoSendWithoutAwait",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart:_MorePanelState._sendPendingGalleryImagesConcurrently#3",
+          "name": "_sendPendingGalleryImagesConcurrently",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_send_sound_message.dart:_SendSoundMessageState._sendConvertedText#1",
+          "name": "_sendConvertedText",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_send_sound_message.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_send_sound_message.dart:_SendSoundMessageState._sendOriginalVoice#1",
+          "name": "_sendOriginalVoice",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_send_sound_message.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_send_sound_message.dart:_SendSoundMessageState.sendSound#3",
+          "name": "sendSound",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_send_sound_message.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ]
+    }
+  }
+]

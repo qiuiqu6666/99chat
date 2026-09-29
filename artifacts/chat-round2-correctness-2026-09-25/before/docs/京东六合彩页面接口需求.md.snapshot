@@ -1,0 +1,555 @@
+# 京东六合彩页面接口需求与数据约定
+
+版本：v1.2（群聊 UID 隔离、毫秒时间戳版，建议联调稿）  
+整理日期：2026-09-21  
+当前入口：设置 → 测试页面 → 京东六合彩  
+后续入口：群聊页面 → 传入群聊 UID → 京东六合彩
+
+群聊入口显示条件：IM SDK群 `customInfo.gameid` 非空，且 App 主服务 `GET /group/{URL编码后的群UID}` 返回布尔值 `gameEnabled: true`（`GET /me/groups` 每项也包含同名字段）。不读取机器人绑定接口的 `enabled` 或 IM 的 `customInfo.enabled`，不依赖 bound、代理身份或三公权限。后台管理接口的 `game_enabled` 不是 App 字段。群详情请求使用 App 主服务客户端；六合彩业务及查、反、历仍使用统一的 `GROUP_QUERY_BASE_URL`，本地测试直连 `http://47.242.90.129/`。请求失败或未完成时隐藏入口。导航传入当前原始群UID及gameid；gameid不是群UID，不能替代请求中的groupUid。当前开奖数据仍为演示，正式接口接入另行完成。
+
+> 本文根据当前 Flutter 页面整理。所有 `/api/v1/lotteries/...` 路径、字段和响应结构均为建议契约，不代表后端已经实现。示例为虚构联调数据，不是实际开奖结果或真实预测。本文不涉及投注、支付或账户资金接口。
+
+## 1. 当前实现与接入目标
+
+当前源码：
+
+- `lib/src/pages/settings/test_page.dart`：页面入口、开奖数据模型、12 条本地演示记录、开奖历史。
+- `lib/src/pages/settings/lottery_dashboard.dart`：预测、遗漏、冷热、长龙、复制、统计范围及实时时钟。
+
+现状：所有开奖数据来自本地 `_results`，没有在此页面调用开奖接口。预测是客户端按历史频次即时计算的**演示回测**，不是开奖前已发布的预测。当前时间来自设备 `DateTime.now()`。
+
+接入目标：统一开奖结果、规则版本和数据快照；正式预测由服务端在开奖前生成并保存，开奖后结算。前端仅负责展示、筛选和复制，避免不同设备得到不同的历史预测。
+
+### 页面范围
+
+| 区域 | 需要的数据 | 约束 |
+| --- | --- | --- |
+| 最新开奖 | 期号、特码、生肖、单双、大小、头、尾、合单双、五行、波色 | 只需要特码相关属性，不需要六个正码 |
+| 当前时间 | 服务端时间、时区 | 在开奖卡片显示，每秒本地更新；不是下期开奖时间 |
+| 预测 | 下一期及逐期预测、开奖结果、命中状态 | 支持全部九项和单项查看 |
+| 遗漏 | 每个候选值的当前遗漏期数 | 默认顺序、遗漏最多 |
+| 长龙 | 连续开/连续未开期数及是否只确定下限 | 特码和其他属性分开；已开和未开分开 |
+| 冷热 | 次数、占比、冷热分类 | 热号优先、冷号优先 |
+| 开奖历史 | 最新已开奖记录 | 页面最多展示100期，时间倒序，无横向滚动 |
+
+已删除且不要恢复的区域：下期开奖时间、彩种切换、品牌图标和英文、独立开奖中心说明区域，以及冷热/遗漏顶部三个统计块。实际样本数等仍可作为计算元数据返回，但不要渲染成这些统计块。
+
+### 统计范围
+
+- 允许值：`6、12、20、30、40`；默认 `40`；最大 `40`。
+- 当前页面预测、遗漏、冷热共用一个范围状态；长龙沿用遗漏的范围。
+- `window` 表示计算窗口，不等同于列表条数 `limit`。
+- 开奖历史独立限制100期，不随 `window` 改为40期。
+- 当前代码预测历史遍历所有演示记录，没有单独限制40条；建议正式接口预测历史 `limit` 默认40、最大40，另加一条 `next`。此项为接入时需要落实的行为。
+
+## 2. 接口交付方案
+
+### 本地测试直连地址
+
+「查、反、历」及其绑定/身份、下级详情、返水申请、申请状态、个人/代理历史、导出任务与下载，统一通过 `GroupQueryEndpoint.client` 使用 `GROUP_QUERY_BASE_URL`。开奖入口判定与号码映射也使用同一客户端。切换环境只改这一项，不逐接口改域名；默认非release为 `http://47.242.90.129`，release未显式指定时保留主服务地址。三公的 `SangongGameHttp` 不参与此配置。
+
+本地测试时，代理上下级查询及本页面接口均直连 `http://47.242.90.129/`，不经主服务转发、不添加 `/sangong` 前缀。三公服务的现有地址与请求流程保持不变。
+
+例如：`http://47.242.90.129/api/v1/lotteries/{lotteryId}/overview?groupUid=%40team%23001`。
+
+代码配置 `GroupQueryEndpoint`：非release构建默认该测试地址，release保持现有路由；可用 `--dart-define=GROUP_QUERY_BASE_URL=http://47.242.90.129` 显式指定测试构建。线上不应自动使用测试IP。六合彩仍为本地演示页面，未来接入时使用该独立配置，不复用主服务转发路径。
+
+该测试地址使用HTTP明文，仅供当前联调；不要用于发送生产凭证。Web跨域时由目标服务配置CORS，HTTPS页面访问HTTP可能受浏览器混合内容限制，不以主服务转发作为兜底。
+
+推荐以下6个只读接口。正式预测的生成、发布、结算属于后端内部任务，不由客户端点击标签触发。
+
+| 方法 | 建议路径 | 用途 |
+| --- | --- | --- |
+| GET | `/api/v1/lotteries/{lotteryId}/config` | 彩种配置、枚举、属性规则、范围选项 |
+| GET | `/api/v1/lotteries/{lotteryId}/overview` | 服务端时间、最新开奖、下一期期号、快照版本 |
+| GET | `/api/v1/lotteries/{lotteryId}/draws` | 最近最多100期开奖记录 |
+| GET | `/api/v1/lotteries/{lotteryId}/predictions` | 下一期及历史预测、逐项结算 |
+| GET | `/api/v1/lotteries/{lotteryId}/statistics` | 遗漏、冷热的完整候选数据 |
+| GET | `/api/v1/lotteries/{lotteryId}/streaks` | 按分组和状态筛选后的长龙排行 |
+
+最小演示接入可以仅提供配置、概览及开奖历史，由前端计算统计和回测。但不能把即时回测标注为正式预测；如需展示每期真实发布内容及命中情况，必须提供持久化预测记录。
+
+## 3. 通用约定
+
+### 3.0 群聊 UID：所有接口的必填上下文
+
+**六个接口均必须携带查询参数 `groupUid`。后端使用该群聊 UID 选择该群对应的配置、开奖源、历史记录、预测和统计数据。** 路径中的 `lotteryId` 仍表示彩种，不取代群聊隔离；同一彩种、同一期号在不同群可以对应不同数据。
+
+| 参数 | 位置 | 类型 | 必填 | 约定 |
+| --- | --- | --- | --- | --- |
+| groupUid | URL query | string | 是 | 群聊页面传入的原始群UID，不是群名、用户UID或显示昵称 |
+
+- 支持 `@`、`#` 等特殊字符；将 UID 视作不透明字符串，不按符号拆分，不转换为数字，不去掉前缀，不改变大小写，不自动trim。
+- 页面构造参数/导航参数传递原始值，例如 `@team#001`。只有生成HTTP请求时由URL库进行一次查询参数编码，不把已编码字符串作为业务UID保存。
+- UID不得直接拼接到URL路径或查询字符串中。特别是原始 `#` 会被解释为fragment，之后内容不会发送给服务器。
+- 后端由框架解析查询参数一次，再以原始UID精确匹配。不要二次URL解码；例如UID中原本包含字面量 `%23`，不能误变成 `#`。
+- 缺失、空字符串、重复的 `groupUid` 参数返回400 `INVALID_GROUP_UID`，不使用默认群或上次访问的群。长度限制由群系统契约确定，不得用只允许字母数字的校验器拒绝合法特殊字符UID。
+- 后端必须先验证登录身份及访问该群的权限，再读取群数据。不能仅凭客户端提供UID获得其他群数据；UID不是密码或访问凭证。
+- 未授权/不存在的群可统一返回403 `GROUP_ACCESS_DENIED`，避免暴露群是否存在；已授权但未配置开奖源返回409 `GROUP_DATA_NOT_CONFIGURED`，不回退到别的群的数据。
+- 所有成功响应的公共包装增加必填 `groupUid`，值为解码后的原始UID。前端核对返回值与当前页面UID一致，不一致则丢弃响应。
+
+编码示例：
+
+| 原始UID | query中编码后的值 |
+| --- | --- |
+| `@team#001` | `%40team%23001` |
+| `a+b&c/d?e` | `a%2Bb%26c%2Fd%3Fe` |
+| `room%23one` | `room%2523one` |
+
+例如请求 `GET /api/v1/lotteries/mark-six-demo/overview?groupUid=%40team%23001`，后端收到的业务UID必须是 `@team#001`。
+
+Flutter请求构建示意（不是已实现代码）：
+
+```dart
+final uri = Uri.https(apiHost, '/api/v1/lotteries/$lotteryId/statistics', {
+  'groupUid': groupUid, // 原始UID；不要先调用encodeComponent
+  'window': '40',
+  'attribute': 'special',
+  'snapshotId': snapshotId,
+});
+```
+
+群聊页应从当前群模型取得权威UID，并作为页面必填参数传入；若保留设置中的测试入口，必须显式选择测试群UID，不能静默省略。页面/导航参数保存原值；若导航本身使用URL，也须由路由库编码和解析，不手工拼接。
+
+下面接口清单中的路径是基础路径；各详细请求示例均携带 `groupUid`，任何接口都不例外。
+
+### 3.1 请求与响应
+
+- 线上使用HTTPS；当前本地测试按上述HTTP直连地址。JSON编码UTF-8；GET无请求体。
+- `lotteryId` 为后端分配的稳定彩种ID，不使用页面中文标题作为主键。
+- 是否需要登录及实际鉴权方案沿用项目后端规范，待确认。若采用 Bearer，则使用 `Authorization: Bearer <token>`，不得在URL传递令牌。
+- 成功 HTTP 200；统一响应包装如下。后续示例中的 `data` 均放入此结构。
+
+```json
+{
+  "code": "OK",
+  "message": "success",
+  "requestId": "req-example-001",
+  "groupUid": "@team#001",
+  "serverTime": 1789981450000,
+  "data": {}
+}
+```
+
+| 公共字段 | 类型 | 说明 |
+| --- | --- | --- |
+| code | string | 机器可读状态码 |
+| message | string | 错误说明；前端映射友好提示，不直接展示堆栈 |
+| requestId | string | 排查日志用 |
+| groupUid | string | 成功响应必填，原始群UID；鉴权或参数校验失败响应可省略 |
+| serverTime | integer | Unix毫秒时间戳，服务端当前时间 |
+| data | object/null | 成功数据；失败可为null |
+
+#### 统一时间格式（所有接口适用）
+
+- 所有表示时间点的字段统一返回 **Unix毫秒时间戳**（UTC epoch，自1970-01-01 00:00:00 UTC起的毫秒数），JSON类型为整数，不是字符串；不返回格式化日期或ISO日期字符串。
+- 适用于 `serverTime`、`drawAt`、`updatedAt`、`sourceUpdatedAt`、`generatedAt`、`publishedAt`，以及后续新增的结算时间 `settledAt`、过期时间 `expiresAt` 等字段。
+- 未发生或未知且允许缺省的时间返回 `null`，不要用 `0`、空字符串或当前时间代替。必填时间字段必须返回有效整数。
+- 时间戳使用64位整数保存，并保持在JSON客户端安全整数范围内。单位固定为毫秒，不接收秒级时间戳，不通过位数猜测单位；例如 `1789981440000` 表示配置时区UTC+8下的 `2026-09-21 17:04:00`。
+- 时间戳本身与时区无关。`timezone` 仍为IANA时区字符串，前端根据它转换显示，不对时间戳额外加减8小时，也不能仅依赖设备默认时区。
+- `pollIntervalSeconds` 等持续时长不是时间点，保持字段名标明的秒单位；统计“期数”也不受此约定影响。
+- Flutter可用 `DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true)` 读取，再通过项目时区工具转成配置时区进行格式化；不要先乘1000。
+
+### 3.2 标识、排序和快照
+
+- `issue` 用字符串，保留年份和前导零；示例 `2026-0203`。禁止前端自行 `issue + 1` 推算下一期。
+- `issueLabel` 是展示短期号，如 `203`；唯一键使用 `groupUid + lotteryId + issue`。
+- `sequence` 为该彩种单调递增安全整数，用于排序；不同年份不得简单按短期号排序。
+- `drawAt` 是开奖发生时间，`updatedAt` 是数据最后修订时间，两者不得混用。
+- `snapshotId` 是不可猜测的服务端快照标识，绑定群UID、彩种、开奖数据版本、最新期号及相关预测状态版本。请求必须校验快照所属群与当前 `groupUid` 相同，不允许跨群复用快照。
+- 概览、历史、统计和长龙必须基于同一 `snapshotId`，避免顶部已更新而统计仍停留上一期。
+- 数据更正必须更新 `revision` 和 `snapshotId`，不能只判断期号是否变化。
+- 快照过期返回409 `SNAPSHOT_EXPIRED`，前端重新获取概览再加载当前区域，不混用旧新快照。
+
+## 4. 基础对象与枚举
+
+### 4.1 属性键
+
+API使用稳定英文键，值使用以下字符串；号码不使用整数，避免丢失前导零。
+
+| key | 中文 | 合法值 | 每期预测数量 |
+| --- | --- | --- | --- |
+| special | 特码 | `01`～`49` | 18个，不重复 |
+| zodiac | 生肖 | 鼠、牛、虎、兔、龙、蛇、马、羊、猴、鸡、狗、猪 | 5个，不重复 |
+| parity | 单双 | 单、双 | 1个 |
+| size | 大小 | 大、小 | 1个 |
+| head | 头数 | `0`～`4` | 3个，不重复 |
+| tail | 尾数 | `0`～`9` | 4个，不重复 |
+| sumParity | 合单双 | 单、双 | 1个 |
+| fiveElement | 五行 | 金、木、水、火、土 | 3个，不重复 |
+| wave | 波色 | 红、蓝、绿 | 1个 |
+
+### 4.2 开奖对象 Draw
+
+```json
+{
+  "issue": "2026-0203",
+  "issueLabel": "203",
+  "sequence": 203,
+  "drawAt": 1789981440000,
+  "updatedAt": 1789981445000,
+  "revision": 1,
+  "status": "drawn",
+  "ruleVersion": "rules-example-v1",
+  "attributes": {
+    "special": "48",
+    "zodiac": "羊",
+    "parity": "双",
+    "size": "大",
+    "head": "4",
+    "tail": "8",
+    "sumParity": "双",
+    "fiveElement": "火",
+    "wave": "蓝"
+  }
+}
+```
+
+上面字段均为必填且非null。`revision` 为正整数；`status` 在正式已开奖列表固定为 `drawn`。待开奖不能伪造 `00` 或空属性的 Draw，应放在下一期/预测对象中。
+
+属性规则：
+
+- 当前演示代码：奇数为单，偶数为双；01～24为小，25～49为大；头数为整除10，尾数为模10；合单双取十位与个位之和的单双。
+- 这是**当前代码口径**，不是对所有六合彩玩法的通用定义。特别是49是否为和局，必须与业务方确认；若存在和局，需扩展枚举、结算与页面，而不能偷偷映射成“大/单”。
+- 生肖、五行、波色以服务端对应期次的规则表为准；演示记录不是正式映射表，前端不能根据当前年份重新解释历史数据。
+- 每期绑定 `ruleVersion`；更换规则不得覆盖历史期次的属性。
+- 历史时间前端可显示 `MM-dd HH:mm`，实时时钟显示 `yyyy-MM-dd HH:mm:ss`，统一使用配置时区。
+
+## 5. 配置接口
+
+### 已接入的机器号码映射接口
+
+进入群聊开奖抽屉时请求 `GET http://47.242.90.129/api/admin/robot-desk/number-mappings?machineCode=机器码`。机器码取IM SDK `customInfo.gameid`，通过queryParameters编码，不能用群UID代替。三公地址不变。
+
+响应 `code=0`，`data` 含 `machineCode`、字符串 `databaseGeneration`、`zodiacNumbers`、`colorNumbers`、`fiveElementNumbers`（也兼容 `fiveElementsNumbers`）。每个映射为“属性名 → 整数号码数组”，分别完整覆盖01～49，不能重复。颜色兼容“绿”和“绿色”。兼容所提供示例的“代码/数据/五个元素编号s”字段；正式后端建议使用英文字段。JSON必须使用标准双引号，示例中 `2 1` 应为整数21，不接受损坏JSON或自动猜测数字。
+
+返回机器码必须与请求一致；加载失败可重试。配置影响页面号码的生肖、波色与五行，以及相关统计。当前开奖记录仍为演示，不能将配置接入视为实时开奖已接入；正式历史需遵循各期规则版本，不能盲目用当前映射覆盖历史。
+
+以下原规划配置接口暂保留为待后端确认方案，不会与上述已接入接口重复请求。
+
+`GET /api/v1/lotteries/{lotteryId}/config?groupUid=%40team%23001`
+
+```json
+{
+  "lotteryId": "mark-six-demo",
+  "displayName": "京东六合彩",
+  "timezone": "Asia/Shanghai",
+  "ruleVersion": "rules-example-v1",
+  "windowOptions": [6, 12, 20, 30, 40],
+  "defaultWindow": 40,
+  "maxHistoryLimit": 100,
+  "maxPredictionLimit": 40,
+  "attributeOrder": ["special", "zodiac", "parity", "size", "head", "tail", "sumParity", "fiveElement", "wave"],
+  "predictionCounts": {"special": 18, "zodiac": 5, "parity": 1, "size": 1, "head": 3, "tail": 4, "sumParity": 1, "fiveElement": 3, "wave": 1},
+  "predictionMode": "published",
+  "pollIntervalSeconds": 15
+}
+```
+
+以上为必填字段。`predictionMode` 为 `published`（正式发布）或 `backtest`（回测）。15秒是建议刷新间隔，可由后端调整，不是现有实现。时区示例需业务确认。
+
+服务端负责维护01～49完整属性映射。若决定由前端计算，配置接口还需返回完整49项映射及其生效范围，而不是只返回上述版本号；推荐直接使用 Draw 中的最终属性。
+
+## 6. 概览接口
+
+`GET /api/v1/lotteries/{lotteryId}/overview?groupUid=%40team%23001`
+
+`data` 字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| snapshotId | string | 当前一致性快照 |
+| sourceUpdatedAt | integer/null | 数据源最近成功同步的Unix毫秒时间戳，便于识别陈旧数据 |
+| latest | Draw/null | 最新已开奖；无记录为null |
+| nextIssue | object/null | `{issue, issueLabel, sequence}`，不能确定时为null |
+| dataStatus | string | `fresh`、`stale`、`unavailable` |
+
+时间校准：读取公共 `serverTime` 毫秒时间戳后在本地每秒更新，可用单调计时器计算经过的毫秒数并累加，再按配置时区格式化，定期请求时重新校准。不要每秒请求后端。应用恢复前台时重新校准；本次请求失败时不冒充已经同步。
+
+无最新开奖时应显示空态，不访问 `.first`；当前演示代码假定始终有数据，接入时需要补齐空态。无需返回下期开奖倒计时字段。
+
+## 7. 开奖历史接口
+
+`GET /api/v1/lotteries/{lotteryId}/draws?groupUid=%40team%23001&limit=100&snapshotId=snap-example-203`
+
+| 参数 | 必填 | 规则 |
+| --- | --- | --- |
+| limit | 否 | 默认100，整数1～100，超出返回400 |
+| snapshotId | 是 | 概览返回的快照 |
+
+返回 `data = {snapshotId, items: Draw[], returnedCount}`，`returnedCount` 等于 `items.length`。按 `sequence` 降序，去重后最多100条；零条为成功空数组。
+
+页面只展示最近100期，不需要无限下拉分页。后端内部应保留更多历史供统计和预测使用，不受UI100期限制。只计入完成且有效的开奖，待开奖、取消期不当成“未开一期”；异常缺失须明确标记，不能默认为连续完整样本。
+
+## 8. 逐期预测接口
+
+`GET /api/v1/lotteries/{lotteryId}/predictions?groupUid=%40team%23001&window=40&limit=40&snapshotId=snap-example-203`
+
+| 参数 | 必填 | 说明 |
+| --- | --- | --- |
+| window | 否 | 默认40，只能为范围允许值，表示训练窗口 |
+| limit | 否 | 历史预测条数，默认40、最大40，不含下一期 |
+| snapshotId | 是 | 与当前页面快照一致 |
+
+一次返回九项预测，综合/单项切换在前端完成，不重复生成预测。`data`：
+
+```json
+{
+  "snapshotId": "snap-example-203",
+  "window": 40,
+  "mode": "published",
+  "next": {
+    "predictionId": "pred-example-204-w40",
+    "issue": "2026-0204",
+    "issueLabel": "204",
+    "generatedAt": 1789981446000,
+    "publishedAt": 1789981447000,
+    "basisIssue": "2026-0203",
+    "sampleCount": 40,
+    "algorithmVersion": "frequency-v1",
+    "ruleVersion": "rules-example-v1",
+    "predictionState": "ready",
+    "drawState": "pending",
+    "actual": null,
+    "items": [
+      {"attribute": "special", "values": ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18"], "result": "pending"},
+      {"attribute": "zodiac", "values": ["鼠", "牛", "虎", "兔", "龙"], "result": "pending"},
+      {"attribute": "parity", "values": ["单"], "result": "pending"},
+      {"attribute": "size", "values": ["小"], "result": "pending"},
+      {"attribute": "head", "values": ["0", "1", "2"], "result": "pending"},
+      {"attribute": "tail", "values": ["1", "2", "3", "4"], "result": "pending"},
+      {"attribute": "sumParity", "values": ["单"], "result": "pending"},
+      {"attribute": "fiveElement", "values": ["金", "木", "水"], "result": "pending"},
+      {"attribute": "wave", "values": ["红"], "result": "pending"}
+    ]
+  },
+  "history": []
+}
+```
+
+该示例只演示结构和数量，不代表频次算法的实际输出。
+
+### 8.1 字段与状态
+
+- `next` 可为null；无下一期期号时不编造记录。
+- `history` 每项结构与 `next` 一致，按目标期次降序；已开奖时 `actual` 为完整 Draw，未开奖为null。
+- `predictionId`、期号、算法版本、规则版本、样本数、基准期均由服务端保存。`basisIssue` 在无任何历史样本时可为null。
+- `generatedAt` 是计算时间的Unix毫秒时间戳；`publishedAt` 是实际发布时间的Unix毫秒时间戳，回测或未发布时为null。正式发布记录必须在目标期开奖前发布。
+- `predictionState`：`ready` / `insufficient_sample` / `not_published`。
+- `drawState`：`pending` / `drawn` / `cancelled`。
+- `items[].result`：`pending`（待开奖）、`hit`（中）、`miss`（未中）、`insufficient_sample`（样本不足）、`not_published`（未发布）、`void`（取消/无法结算）。
+- `values` 始终为数组；样本不足/未发布时为空数组，不能用 `"—"` 混入数据。取消期优先展示 `void`；样本不足或未发布不显示中/未中；已有有效预测且未开奖才显示 `pending`。
+- 当前演示对下一期样本不足仍显示“待开奖”；正式接入建议明确显示“样本不足”，这是需同步调整的展示差异。
+
+### 8.2 命中规则
+
+每个属性独立判定：对应实际属性值存在于该属性 `values` 数组中即 `hit`，否则 `miss`。18个特码命中任意一个即中；5肖、4尾、3头、3五行同理。综合模式不是“九项必须全中”，不增加含义不明的整期命中布尔值。
+
+例如预测 `head=["0","1","2"]`，实际48的 `head="4"`，结果为 `miss`；预测 `wave=["蓝"]`，实际波色蓝，结果为 `hit`。
+
+### 8.3 生成、冻结与回测
+
+1. 当前演示算法：取目标期**之前**最近 `window` 条已开奖记录，对完整候选集合计数，频次降序选取规定数量；不足 `window` 条不产生预测。
+2. 同频使用当前 Dart `String.compareTo` 字符串序升序，不是生肖排列顺序。若后端改用配置候选顺序，必须更换算法版本并明确与现状不同。
+3. 正式方案如让范围切换改变预测，应分别保存5个窗口对应的开奖前预测，以 `(groupUid, lotteryId, issue, window, algorithmVersion)` 唯一约束；不能在开奖结果已知后补算并宣称早已发布。
+4. 正式已发布 `values` 不可被历史重算覆盖。开奖修订仅重新结算，记录结算修订号和实际开奖revision，保留审计轨迹。
+5. 回测接口/结果必须 `mode=backtest`，保留“演示回测，并非已发布预测”提示，不得写虚假 `publishedAt`。
+6. 若展示最近40个历史预测且每个使用40期训练，完整回测至少需要80条连续有效开奖；展示100个历史回测则至少需要140条。显示100期不意味着后台只存100期。
+7. 热频统计不保证未来命中，接口不能返回未经证明的“必中特码”等承诺。
+
+### 8.4 点击复制
+
+无需复制接口，前端从 `values` 按顺序格式化后写入剪贴板，提示居中。
+
+| 类型 | 复制示例 |
+| --- | --- |
+| 特码 | `01.09.18.48`（正式记录须18码，此处仅示意分隔符） |
+| 生肖 | `鼠.牛.虎.兔.龙` |
+| 五行 | `金.木.水` |
+| 头数 | `0头1头2头` |
+| 尾数 | `1尾2尾3尾4尾` |
+| 其他 | 单个值，如 `单`、`大`、`蓝` |
+
+使用半角句点，不加尾部分隔符。为空时不可复制；当前点任一预测号码区域复制的是该期该属性的整组候选。
+
+## 9. 遗漏与冷热共用统计接口
+
+`GET /api/v1/lotteries/{lotteryId}/statistics?groupUid=%40team%23001&window=40&attribute=special&snapshotId=snap-example-203`
+
+`window` 默认40；`attribute` 必填，为九项属性键之一；`snapshotId` 必填。
+
+返回对象：
+
+```json
+{
+  "snapshotId": "snap-example-203",
+  "window": 40,
+  "sampleCount": 12,
+  "basisIssue": "2026-0203",
+  "sampleComplete": true,
+  "items": [
+    {"value": "01", "order": 0, "count": 0, "ratio": 0.0, "temperature": "unopened", "omission": {"periods": 12, "isLowerBound": true}},
+    {"value": "48", "order": 47, "count": 2, "ratio": 0.1666666667, "temperature": "hot", "omission": {"periods": 0, "isLowerBound": false}}
+  ]
+}
+```
+
+**示例仅节选两项。真实响应必须包含完整候选集合，包括零次出现的值。** 本例样本12期表示当前可用历史不足40期，但这12期内部没有缺期，因此 `sampleComplete=true`。
+
+| 字段 | 说明 |
+| --- | --- |
+| sampleCount | 实际纳入的有效开奖数，0～window，不得把不足40写成40 |
+| basisIssue | 截止最新期号，空样本为null |
+| sampleComplete | 样本内部是否缺失本应存在的有效期次；不是是否达到window |
+| value | 对应属性候选字符串 |
+| order | 默认排列的零基序号 |
+| count | 出现次数，整数0～sampleCount |
+| ratio | count/sampleCount，0～1；sampleCount=0时为null |
+| temperature | `hot` / `cold` / `normal` / `unopened` / `unknown` |
+| omission | `{periods, isLowerBound}`，空样本或不可计算时为null |
+
+### 9.1 遗漏计算
+
+从最新一期向前找首次出现的位置，零基索引就是当前遗漏。最新期开出为0；上期出现、本期未出为1；样本中没有出现时返回 `periods=sampleCount, isLowerBound=true`，展示 `≥N期`，不是精确N期。
+
+默认顺序使用配置枚举顺序；遗漏最多按 `periods` 降序，同期数按候选字符串序升序（与当前代码一致）。是否下限不能隐式改变同值排序。
+
+### 9.2 冷热计算
+
+- 最大频次并列项均为热、最小频次并列项均为冷；其余为平。
+- 零次出现展示“未开”，优先于“冷”。
+- 所有候选同频时不区分热/冷，有出现为平，零次为未开；真正空样本应统一为 `unknown`，不能把没有数据误导成所有号码都未开。
+- 热号优先：次数降序；冷号优先：次数升序；同次数按候选字符串序升序。
+- 百分比显示 `ratio × 100`，保留一位小数；进度条使用0～1原值。
+- 每个属性为互斥完备分类时，所有候选 `count` 之和必须等于 `sampleCount`。
+- 不返回也不展示最高频次、最低频次等独立顶部统计卡片。
+
+## 10. 长龙接口
+
+`GET /api/v1/lotteries/{lotteryId}/streaks?groupUid=%40team%23001&window=40&group=other&state=missing&snapshotId=snap-example-203`
+
+注意：`groupUid` 是群聊UID，`group` 是长龙分类（特码/其他），两者含义完全不同，不可混用。
+
+| 参数 | 默认 | 合法值 |
+| --- | --- | --- |
+| window | 40 | 6、12、20、30、40 |
+| group | special | `special`=特码；`other`=其他八项属性合并 |
+| state | missing | `missing`=连续未开；`opened`=连续已开 |
+| snapshotId | 必填 | 当前快照 |
+
+```json
+{
+  "snapshotId": "snap-example-203",
+  "window": 40,
+  "sampleCount": 12,
+  "sampleComplete": true,
+  "basisIssue": "2026-0203",
+  "group": "other",
+  "state": "opened",
+  "items": [
+    {"rank": 1, "attribute": "size", "value": "大", "periods": 4, "isLowerBound": false},
+    {"rank": 2, "attribute": "head", "value": "4", "periods": 3, "isLowerBound": false},
+    {"rank": 3, "attribute": "parity", "value": "双", "periods": 2, "isLowerBound": false}
+  ]
+}
+```
+
+上述响应是 `state=opened` 的结构节选；完整接口须返回该组该状态所有候选，不截断在前三条。
+
+计算与显示：
+
+1. 每个候选从最新一期开始检查。最新期等于候选，属于 `opened`，向前累计连续相等期数；否则属于 `missing`，累计连续不相等期数。
+2. 首次反转即停止，不能将历史所有出现次数当作连续次数。
+3. 连续段抵达样本边界时 `isLowerBound=true`，显示“至少N期未开”或“至少连续开N期”；即使窗口已满40也可能只是下限。
+4. 特码列表只包含 `special`；其他列表包含生肖、单双、大小、头数、尾数、合单双、五行、波色，统一排序，不再逐属性分组。
+5. 先按 `periods` 降序；并列按属性配置顺序，再按候选字符串升序。
+6. 排名采用竞赛排名，如期数 `[12,12,8]` 对应名次 `[1,1,3]`；在筛选后的列表内重新计算。
+7. 已开/未开互斥；已开特码最多一项，其他属性已开最多八项，均须以该快照最新开奖号为依据。
+8. 无数据返回 `items=[]`；中间缺期时不得跨缺口断言连续，应返回 `sampleComplete=false` 并将列表置空，前端提示数据不完整。这是正式接口的安全约定，当前演示没有缺期处理。
+
+## 11. 刷新、缓存和异常
+
+### 11.1 建议调用顺序
+
+1. 群聊页面传入原始 `groupUid`，验证非空后并行请求 `config`、`overview`；两个请求必须使用同一群UID。
+2. 取得快照后请求当前标签数据；开奖历史按需加载，避免首屏同时加载全部区域。
+3. 默认预测请求 `window=40&limit=40`；进入遗漏/冷热按当前属性请求统计；长龙按分组和状态请求。
+4. 范围或属性改变时使用缓存或重新请求。缓存键至少含登录账号、原始群UID、彩种、快照、window、attribute，以及长龙group/state。使用结构化键或无歧义序列化，不用特殊字符简单拼接导致键冲突。服务端/代理缓存也必须按群及授权上下文隔离，不能只按路径缓存。
+5. 用请求序号或取消机制防止旧响应覆盖用户新选择。
+6. 按配置间隔刷新概览，进入后台停止轮询；前台恢复立即刷新。同快照无需反复拉全部数据。
+7. 快照变更后原子更新顶部与当前区域，或先保留旧快照直到新区数据齐全，不展示混合期次。
+8. 从群A切到群B时取消A的请求和轮询、清空A的可见数据与快照，再加载B；迟到的A响应必须按群UID和请求代次丢弃。退出登录或失去群访问权限后清理对应缓存，不显示旧群数据作为兜底。
+
+### 11.2 错误码建议
+
+| HTTP | code | 处理 |
+| --- | --- | --- |
+| 400 | INVALID_ARGUMENT | 参数/范围不合法，不自动无限重试 |
+| 400 | INVALID_GROUP_UID | 缺失、空或重复群UID参数 |
+| 401 | UNAUTHORIZED | 按项目登录流程处理 |
+| 403 | FORBIDDEN | 提示无访问权限 |
+| 403 | GROUP_ACCESS_DENIED | 无权访问该群，不读取/展示缓存群数据 |
+| 409 | GROUP_DATA_NOT_CONFIGURED | 当前群尚未配置数据源，不回退其他群 |
+| 409 | SNAPSHOT_GROUP_MISMATCH | 快照与群不匹配，丢弃并重新加载当前群 |
+| 404 | LOTTERY_NOT_FOUND | 彩种不存在 |
+| 409 | SNAPSHOT_EXPIRED | 重新获取概览及当前区域 |
+| 429 | RATE_LIMITED | 遵循Retry-After，退避重试 |
+| 503 | DATA_SOURCE_UNAVAILABLE | 有缓存则保留并标注未更新，无缓存显示失败重试 |
+
+成功但无数据不是500错误。建议请求超时10秒，最多自动重试2次并退避；该数值属于建议，按项目网络层规范调整。错误提示复用居中提示；不要用演示数据静默替代真实接口失败。
+
+服务端时间、数据更新时间、开奖结果时间必须分别保存。设备当前时间走动不代表开奖源正在实时更新。
+
+## 12. 后端数据保存建议
+
+| 实体 | 核心字段/约束 |
+| --- | --- |
+| 群数据绑定 | groupUid+lotteryId唯一、数据源ID、启用状态；按原始UID精确匹配 |
+| 彩种配置 | groupUid、lotteryId、时区、有效规则版本、窗口范围 |
+| 属性规则版本 | 生效范围、49号码映射、大小及和局规则，版本不可覆盖 |
+| 开奖记录 | 群UID+彩种+期号唯一、sequence、drawAt、九项属性、revision、来源和更新时间 |
+| 预测发布记录 | 群UID+彩种+目标期+窗口+算法版本唯一，候选数组、生成/发布时间、基准期、样本数、模式 |
+| 预测结算 | groupUid、predictionId、属性、命中状态、实际开奖revision、结算时间与结算revision |
+| 数据快照 | snapshotId、groupUid、lotteryId、关联开奖版本、预测发布/结算版本、过期时间 |
+
+所有读写、后台生成/结算任务及缓存均携带群上下文。数据库需采用保留大小写的精确匹配语义；使用参数化查询，不将群UID拼入SQL。若多个群明确配置同一公共数据源，可以复用底层开奖源，但群授权、配置、预测及返回上下文仍须隔离，不能因期号相同误合并数据。
+
+源数据同步、生成预测、发布预测、开奖入库、预测结算应具备幂等性。重复同步同一期不能生成重复列表行。任何修订保留来源和变更记录，不直接删除旧证据。
+
+## 13. 前后端验收清单
+
+- [ ] 所有时间点以JSON整数形式返回Unix毫秒时间戳；可空时间用null，无秒/毫秒混用或日期字符串。
+- [ ] 前端按配置时区显示时间，设备更换时区不改变业务时间含义；未重复乘1000或叠加时区偏移。
+
+- [ ] 群聊入口传入原始UID，六个接口全部携带 `groupUid`，响应回显一致。
+- [ ] `@team#001`、`a+b&c/d?e`、字面量 `room%23one` 均正确往返，无截断、二次编码或二次解码。
+- [ ] 群A与群B相同期号可返回不同数据；历史、预测、统计、长龙与缓存均不串群。
+- [ ] 群切换时A迟到响应不覆盖B；跨群快照被拒绝；无权限不能仅修改UID读取他群。
+- [ ] 空UID、重复UID、未配置群与无权限群处理明确，无默认群兜底。
+
+- [ ] 默认范围40，可选6/12/20/30/40；超范围请求被拒绝。
+- [ ] 特码补零，期号保留年份与前导零，跨年排序正确。
+- [ ] 最新卡片与历史第一条及统计快照一致；更正同一期后可刷新。
+- [ ] 开奖历史最多100条，不受统计窗口影响。
+- [ ] 预测18码、5肖、4尾、3头、3五行，其余各1个，均合法且去重。
+- [ ] 单项/综合显示同一份预测，切换不改变已发布内容。
+- [ ] 发布预测无未来数据泄漏；回测明确标记；样本不足不判中/未中。
+- [ ] 中与未中逐属性判断，待开奖无虚假实际值。
+- [ ] 复制格式正确：特码/生肖/五行用句点，头尾带后缀连续拼接。
+- [ ] 遗漏0表示本期已开；未出现显示下限，不误报精确期数。
+- [ ] 冷热含零频项、正确处理同频、空样本及百分比分母。
+- [ ] 长龙特码/其他、已开/未开独立筛选；其他八项统一排序；并列排名正确。
+- [ ] 连续段触及边界带“至少”；缺期不伪造连续。
+- [ ] 已删除的顶部统计块及下期开奖时间不再出现。
+- [ ] 空数据、网络失败、401、429、快照过期及旧请求迟到均有处理。
+
+## 14. 联调前必须确认
+
+1. 正式彩种ID、各群数据源绑定、后端地址、鉴权与群访问权限校验方式、更新频率；群UID来源字段及长度上限。支持 `@`、`#` 等合法特殊字符是既定需求，不是待定项。
+2. 业务时区、期号完整格式、跨年sequence规则、取消期与漏采数据识别方式。
+3. 正式生肖/五行/波色映射；49的大小、单双与和局结算口径。
+4. 预测是正式发布还是回测；是否为5种窗口各保存一份发布记录；算法及固定同频规则。
+5. 每期预测发布截止时间、开奖修订后的结算审计及历史保存周期。
+6. 是否按建议限制预测历史40条；这与开奖历史100条及训练窗口40条是三个不同约束。
+
+以上未确认部分不得用截图或本地12条演示记录反推真实业务规则。本文仅新增接口文档，不代表已完成接口开发或前端联网改造。

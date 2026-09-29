@@ -1,0 +1,13 @@
+@override
+  Future<ImOutboxRecord?> findOutbox({
+    required String ownerUserId,
+    required String operationId,
+  }) async {
+    final rows = await _db.query(
+      _outboxTable,
+      where: 'owner_user_id = ? AND operation_id = ?',
+      whereArgs: <Object?>[ownerUserId, operationId],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : imOutboxFromStorageMap(rows.first);
+  }

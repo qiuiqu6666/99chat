@@ -1,12 +1,20 @@
 // ignore_for_file: avoid_print
 
 import 'dart:async' show unawaited;
+import 'auth_failure_policy.dart';
+import '../services/auth_version_prompt.dart';
 import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart'
-    show kDebugMode, kIsWeb, kReleaseMode, visibleForTesting, ValueNotifier, ValueListenable;
+    show
+        kDebugMode,
+        kIsWeb,
+        kReleaseMode,
+        visibleForTesting,
+        ValueNotifier,
+        ValueListenable;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +24,7 @@ import 'package:tencent_cloud_chat_demo/src/api/agent_rebate_http.dart';
 import 'package:tencent_cloud_chat_demo/src/api/agent_session_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/client_device_info.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/dio_factory.dart';
+import 'package:tencent_cloud_chat_demo/src/services/startup_perf_log.dart';
 import 'package:tencent_cloud_chat_demo/src/services/api_failure_diagnostics.dart';
 
 class ApiClient {
@@ -24,6 +33,8 @@ class ApiClient {
   static Future<void> Function()? onAuthExpired;
   static Future<void> Function(String message)? onAccountDisabled;
   static const _requestCredentialGeneration = 'apiCredentialGeneration';
+  static const _requestNodeGeneration = 'apiNodeGeneration';
+  static int _nodeGeneration = 0;
   bool _handlingAccountDisabled = false;
 
   /// 节点链路成功/传输失败回调（由 ApiNodeService 在 hydrate 时注入）。
@@ -86,6 +97,7 @@ class ApiClient {
     if (sanitized == null) {
       return;
     }
+    if (resolveBaseUrl() != sanitized) _nodeGeneration++;
     _runtimeBaseUrlOverride = sanitized;
     // dio 可能尚未首次访问；已构建则立刻改 options。
     try {
@@ -149,10 +161,14 @@ class ApiClient {
     d.interceptors.add(ApiFailureInterceptor());
     d.interceptors.add(AgentSessionInterceptor());
     d.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
+      onRequest: (options, handler) async {
+        if (AuthFailurePolicy.requiresVersion(options.path)) {
+          await _ensureClientInfoReady();
+        }
         if (AgentSessionInterceptor.rejectStaleRequest(options, handler))
           return;
         options.extra[_requestCredentialGeneration] = _credentialGeneration;
+        options.extra[_requestNodeGeneration] = _nodeGeneration;
         final path = _requestPath(options);
         if (!_isPublicPath(path) && isJwtExpired(_token)) {
           unawaited(expireSessionIfNeeded());
@@ -173,7 +189,7 @@ class ApiClient {
             options.headers.remove('Authorization');
           }
         }
-        final webPublicRequest = kIsWeb && _isPublicPath(path);
+        final webPublicRequest = kIsWeb && _isPublicPath(path) && !AuthFailurePolicy.requiresVersion(path);
         if (webPublicRequest) {
           options.headers.remove('X-Client-Version');
           options.headers.remove('X-Client-Platform');
@@ -199,7 +215,14 @@ class ApiClient {
       },
       onResponse: (response, handler) async {
         // 有正常响应说明当前节点链路可用，清零失败计数。
-        onTransportSuccess?.call();
+        if (_requestUsedCurrentNode(response.requestOptions)) {
+          final status = response.statusCode ?? 0;
+          if (status == 502 || status == 503 || status == 504) {
+            onTransportFailure?.call();
+          } else {
+            onTransportSuccess?.call();
+          }
+        }
         _logResponse(response);
         if (accountDisabledMessage(response) != null) {
           await _handleAccountDisabled(response);
@@ -223,7 +246,13 @@ class ApiClient {
       },
       onError: (error, handler) async {
         _logRequestError(error);
-        if (_isNodeTransportFailure(error)) {
+        final versionFailure = AuthFailurePolicy.versionFailure(error.response);
+        if (versionFailure != null) unawaited(AuthVersionPrompt.show(versionFailure));
+        if (!_requestUsedCurrentNode(error.requestOptions) ||
+            error.type == DioErrorType.cancel) {
+          // Old-node completions and deliberate cancellation say nothing
+          // about the health of the currently selected node.
+        } else if (_isNodeTransportFailure(error)) {
           onTransportFailure?.call();
         } else {
           // 业务错误（有响应）也说明节点可达。
@@ -283,11 +312,22 @@ class ApiClient {
 
   /// 节点传输失败：无响应（超时/断连）或网关类 5xx。
   static bool _isNodeTransportFailure(DioError error) {
+    if (error.type == DioErrorType.cancel) return false;
     if (error.response == null) {
       return true;
     }
     final code = error.response!.statusCode ?? 0;
     return code == 502 || code == 503 || code == 504;
+  }
+
+  static bool _requestUsedCurrentNode(RequestOptions options) {
+    if (options.extra[_requestNodeGeneration] != _nodeGeneration) return false;
+    final current = Uri.parse(resolveBaseUrl());
+    final actual = options.uri;
+    // Absolute attachment/third-party URLs must not influence API failover.
+    return actual.scheme == current.scheme &&
+        actual.host == current.host &&
+        actual.port == current.port;
   }
 
   bool _shouldNotifyAuthExpired(DioError error) {
@@ -325,9 +365,9 @@ class ApiClient {
     final currentToken = _token;
     // A token may expire while the request is in flight. Compare its identity,
     // not its remaining lifetime, and fence even same-token relogins.
-    final generation =
-        error.requestOptions.extra[_requestCredentialGeneration];
-    if (currentToken == null || currentToken.isEmpty ||
+    final generation = error.requestOptions.extra[_requestCredentialGeneration];
+    if (currentToken == null ||
+        currentToken.isEmpty ||
         (generation != null && generation != _credentialGeneration)) {
       return false;
     }
@@ -791,8 +831,8 @@ class ApiClient {
         normalized == '/platform/splash';
   }
 
-  /// 后台 `/platform/contact` 按 `X-Client-Platform` 返回不同 version/build/downloadUrl。
-  /// 安卓通道仍是旧值，检查更新与 iOS 对齐，统一走 iOS 发布信息。
+  /// 后台 `/platform/contact` 按实际客户端平台返回发布信息。
+  /// Android 的已发布 20 号包在更新服务中有独立兜底。
   @visibleForTesting
   static String? resolveClientPlatformHeader({
     required String path,
@@ -801,7 +841,7 @@ class ApiClient {
     final p = path.trim();
     final normalized = p.startsWith('/') ? p : '/$p';
     if (normalized == '/api/v1/platform/contact') {
-      return 'iOS';
+      return clientPlatform;
     }
     // Chat attachment capability matching uses canonical lower-case platforms.
     // Keep legacy platform spellings for the existing APIs.
@@ -815,6 +855,12 @@ class ApiClient {
     await loadToken();
     await _ensureDeviceId();
     await _loadClientInfo();
+    StartupPerfLog.markTagged('build_identity', category: 'startup', details: {
+      'version': _cachedPkg?.version ?? 'unknown',
+      'buildNumber': _cachedPkg?.buildNumber ?? 'unknown',
+      'buildId':
+          const String.fromEnvironment('APP_BUILD_ID', defaultValue: 'local'),
+    });
     unawaited(ClientDeviceInfo.deviceModel());
   }
 
@@ -959,7 +1005,26 @@ class ApiClient {
 
   Future<void> ensureDeviceIdReady() => _ensureDeviceId();
 
+  Future<void>? _deviceIdTask;
+  Future<void>? _clientInfoTask;
+
+  Future<void> _ensureClientInfoReady() async {
+    if (_cachedPkg != null && _clientPlatform != null) return;
+    final pending = _clientInfoTask ??= _loadClientInfo();
+    try { await pending; } finally {
+      if (identical(_clientInfoTask, pending)) _clientInfoTask = null;
+    }
+  }
+
   Future<void> _ensureDeviceId() async {
+    if (_deviceId?.isNotEmpty == true) return;
+    final pending = _deviceIdTask ??= _readOrCreateDeviceId();
+    try { await pending; } finally {
+      if (identical(_deviceIdTask, pending)) _deviceIdTask = null;
+    }
+  }
+
+  Future<void> _readOrCreateDeviceId() async {
     String? id = await _secure.read(key: _deviceIdKey);
     if (id == null || id.isEmpty) {
       id = const Uuid().v4();

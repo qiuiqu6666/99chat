@@ -1,0 +1,106 @@
+{
+  "capturedAtUtc": "2026-09-27T19:02:30.027146+00:00",
+  "head": "0e7aa83bc5b096a99ff8bb424842404a3c901cb7",
+  "files": [
+    {
+      "path": "lib/main.dart",
+      "sha256": "cfbf8cc09afc2102f12e97139fc3ce4c65812924acdf5c9dc4a81d3277483503"
+    },
+    {
+      "path": "lib/src/api/api_client.dart",
+      "sha256": "670346d0312626659caa769f3e8cc5fb98f03ce5a8f0fd631efd31f63e9ffbe1"
+    },
+    {
+      "path": "lib/src/services/api_node_service.dart",
+      "sha256": "d5503994388e2eeedb2b0a572150cba19c60df7af6ca1d1ad8d322de37ac39cb"
+    },
+    {
+      "path": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart",
+      "sha256": "7fc434674b301ce3b90c56443ec1936db4149c8beca4af0b96f828fbf1a0e351"
+    },
+    {
+      "path": "lib/src/services/friend_realtime_service.dart",
+      "sha256": "8d4e9a1ad81989f5901ee64902224a6a8b4e3bc24c11c5f8c5cc69728ba645b8"
+    },
+    {
+      "path": "lib/src/services/friend_realtime/presence_last_seen_codec.dart",
+      "sha256": "cc7e3324be83dcb98ca0ebef9f3035db80095a5ff0dccdcfc416a249ec4b0324"
+    },
+    {
+      "path": "lib/src/provider/presence_provider.dart",
+      "sha256": "f9465954c168a770b39b90914af2f58ef25791252f7ace8e598b359c5c08eae9"
+    },
+    {
+      "path": "lib/src/services/friend_local/contacts_protocol_sync_service.dart",
+      "sha256": "97e40ccd53761ce13d65b01d7ba2e473139b65f0d7b47112d5dfb8ce7ace5643"
+    },
+    {
+      "path": "lib/src/services/im_sdk_relationship_directory.dart",
+      "sha256": "cbfd43f8d9e16742dd709d0159d464886a765cabc4d030e9274341af7c7dd3ee"
+    },
+    {
+      "path": "lib/src/services/livekit_call_session.dart",
+      "sha256": "d6d5dbc715f4569f4b3cf1653f798ef84bd5aaec7ee4df23d5261d13ec342217"
+    },
+    {
+      "path": "lib/src/services/android_performance_profile.dart",
+      "sha256": "5fe7c512c7273b04c30676a275cc86885aba643efcca9a3b5a44c4dde976734e"
+    },
+    {
+      "path": "lib/src/services/sqflite_lifecycle_host.dart",
+      "sha256": "a9dac5a913c620e3e40f6e61d948ade94b2b3571d64b7ec565d4fb1bd90678ba"
+    },
+    {
+      "path": "lib/src/services/sqflite_lifecycle_guard.dart",
+      "sha256": "b293c8e1fc201d1f7b4c2e4752b07900d5d9076ee9227b83121fd91f259ed181"
+    },
+    {
+      "path": "lib/src/services/history_window_store.dart",
+      "sha256": "144b04c0f18c73c155b3e9b48795ccdaef4fb433dd98a45638fca68462d0dd08"
+    },
+    {
+      "path": "lib/src/services/im/message_persist_coordinator.dart",
+      "sha256": "8cec05277ccf38a2f71f83d64b4a350ba061dbebe3f35c51b27f40e132f47ba4"
+    },
+    {
+      "path": "lib/src/navigation/home_tab_stack.dart",
+      "sha256": "c0368390049fdce9bd5a7168976f2d402c6fe150dc256032ca57821dc401ee32"
+    },
+    {
+      "path": "lib/src/pages/wallet/wallet_controller.dart",
+      "sha256": "f8dbb0cd9266a11deea6f4843152bcab4bb642403a87b9a85c629546d68faad2"
+    },
+    {
+      "path": "lib/src/pages/wallet/wallet_screen.dart",
+      "sha256": "baba876a02e3ee347ff729ee2b0aa696a9fe8299698bc9025fa9ff720b2f5312"
+    },
+    {
+      "path": "lib/src/services/chat_recovery_diagnostics.dart",
+      "sha256": "00400660a7a05070961b063a279755c9bc45b604237c013b9c8c03bd2eabe549"
+    },
+    {
+      "path": "lib/src/services/recovery_log_buffer.dart",
+      "sha256": "cbdad520c6f642ee3271df4852bf8e35f7d1b9e5799679e2f23437901f1a986b"
+    },
+    {
+      "path": "lib/src/services/recovery_log_file.dart",
+      "sha256": "6dc8e671729f6cd7840478320af214f90bb65088862218eae7a6e8f51ffb9168"
+    },
+    {
+      "path": "lib/src/services/conversation_local/conversation_sync_service.dart",
+      "sha256": "6b9c2693dfa9c31db9a9fea86e9897d2d1312021e5accdff979c8bb658b68ff9"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_recovery_trace.dart",
+      "sha256": "e79989a0bacbb0358c6c2b7712b2ef52ebf82359520ed7feacd2dbb5afea882a"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "sha256": "b168275cd130eaa0cb489dde606fac32fa579f8225a8bf0919ec7b4322bea127"
+    },
+    {
+      "path": "test/chat_session_recovery_test.dart",
+      "sha256": "804ec53523749662513f8924f2941dab6eb03b3b1cee706df026ce489644873a"
+    }
+  ]
+}

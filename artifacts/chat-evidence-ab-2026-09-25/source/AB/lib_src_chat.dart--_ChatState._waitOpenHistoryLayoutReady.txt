@@ -1,0 +1,14 @@
+Future<void> _waitOpenHistoryLayoutReady(String convKey) async {
+    // History preparation already has a 1.2s soft timeout. Do not add another
+    // full second of shell time when hidden-list geometry cannot settle yet.
+    final ready = await ChatHistoryOpenLayoutReady.wait(
+      convKey,
+      timeout: const Duration(milliseconds: 300),
+    );
+    if (!ready) {
+      ChatOpenPerfLog.mark(
+        'history_open_ready_timeout',
+        conversationID: convKey,
+      );
+    }
+  }

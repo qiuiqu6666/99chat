@@ -15,6 +15,30 @@ class WalletStore {
 
   static final WalletStore instance = WalletStore._();
 
+  SessionIdentity? _scope;
+  int _epoch = 0;
+  int _walletRequest = 0;
+  int _payMethodsRequest = 0;
+  final Map<String, int> _cardRequests = {};
+  int _nextCardRequest = 0;
+  final Map<String, String> _cardOwners = {};
+
+  SessionIdentity _identity() => SessionIdentityService.instance
+      .capture(ownerUserId: ApiClient.instance.authenticatedUserId);
+
+  void _ensureScope() {
+    final current = _identity();
+    if (_scope != current) {
+      clear();
+      _scope = current;
+    }
+  }
+
+  void _requireEpoch(int epoch) {
+    _ensureScope();
+    if (epoch != _epoch) throw StateError('wallet_request_superseded');
+  }
+
   WalletDto? _wallet;
   List<WalletPayMethodDto>? _payMethods;
   final Map<String, List<RedPacketMember>> _members = {};
@@ -31,31 +55,53 @@ class WalletStore {
   static const Duration _ttl = Duration(seconds: 20);
   static const Duration _timeout = Duration(seconds: 6);
 
-  WalletDto? get cachedWallet => _wallet;
+  WalletDto? get cachedWallet {
+    _ensureScope();
+    return _wallet;
+  }
 
-  List<WalletPayMethodDto>? get cachedPayMethods => _payMethods;
+  List<WalletPayMethodDto>? get cachedPayMethods {
+    _ensureScope();
+    return _payMethods;
+  }
 
-  Future<WalletDto> getWallet({
-    WalletRepository? repo,
-    bool force = false,
-  }) {
-    final now = DateTime.now();
+  Future<WalletDto> getWallet({WalletRepository? repo, bool force = false}) {
+    _ensureScope();
     final cached = _wallet;
-    final fresh = _walletAt != null && now.difference(_walletAt!) < _ttl;
-    if (!force && cached != null && fresh) {
+    if (!force &&
+        cached != null &&
+        _walletAt != null &&
+        DateTime.now().difference(_walletAt!) < _ttl)
       return Future.value(cached);
-    }
-
-    final running = _walletFuture;
-    if (!force && running != null) return running;
-
-    final repository = repo ?? createWalletRepository();
-    final future = repository.getWallet().timeout(_timeout).then((value) {
+    if (!force && _walletFuture != null) return _walletFuture!;
+    final epoch = _epoch;
+    final request = ++_walletRequest;
+    late final Future<WalletDto> future;
+    future = (repo ?? createWalletRepository())
+        .getWallet()
+        .timeout(_timeout)
+        .then((value) async {
+      _requireEpoch(epoch);
+      if (request != _walletRequest) {
+        final latest = _walletFuture;
+        if (latest != null && !identical(latest, future)) return latest;
+        if (_wallet != null) return _wallet!;
+        throw StateError('wallet_request_superseded');
+      }
       _wallet = value;
       _walletAt = DateTime.now();
       return value;
+    }).catchError((Object error) async {
+      _requireEpoch(epoch);
+      if (request != _walletRequest) {
+        final latest = _walletFuture;
+        if (latest != null && !identical(latest, future)) return latest;
+        if (_wallet != null) return _wallet!;
+        throw StateError('wallet_request_superseded');
+      }
+      throw error;
     }).whenComplete(() {
-      _walletFuture = null;
+      if (identical(_walletFuture, future)) _walletFuture = null;
     });
     _walletFuture = future;
     return future;
@@ -65,29 +111,47 @@ class WalletStore {
     WalletRepository? repo,
     bool force = false,
   }) {
-    final now = DateTime.now();
+    _ensureScope();
     final cached = _payMethods;
-    final fresh =
-        _payMethodsAt != null && now.difference(_payMethodsAt!) < _ttl;
-    if (!force && cached != null && fresh) {
+    if (!force &&
+        cached != null &&
+        _payMethodsAt != null &&
+        DateTime.now().difference(_payMethodsAt!) < _ttl)
       return Future.value(cached);
+    if (!force && _payMethodsFuture != null) return _payMethodsFuture!;
+    final epoch = _epoch;
+    final request = ++_payMethodsRequest;
+    late final Future<List<WalletPayMethodDto>> future;
+    Future<List<WalletPayMethodDto>> latestOr(
+        List<WalletPayMethodDto> value) async {
+      _requireEpoch(epoch);
+      if (request != _payMethodsRequest) {
+        final latest = _payMethodsFuture;
+        if (latest != null && !identical(latest, future)) return latest;
+        if (_payMethods != null) return _payMethods!;
+        throw StateError('wallet_request_superseded');
+      }
+      return value;
     }
 
-    final running = _payMethodsFuture;
-    if (!force && running != null) return running;
-
-    final repository = repo ?? createWalletRepository();
-    final future = repository.getPayMethods().timeout(_timeout).then((value) {
+    future = (repo ?? createWalletRepository())
+        .getPayMethods()
+        .timeout(_timeout)
+        .then((value) async {
+      _requireEpoch(epoch);
+      if (request != _payMethodsRequest) return latestOr(value);
       final next = value.isNotEmpty ? value : _payMethodsFromWallet(_wallet);
       _payMethods = next;
       _payMethodsAt = DateTime.now();
       return next;
-    }).catchError((Object e) {
+    }).catchError((Object error) async {
+      _requireEpoch(epoch);
       final fallback = _payMethods ?? _payMethodsFromWallet(_wallet);
+      if (request != _payMethodsRequest) return latestOr(fallback);
       if (fallback.isNotEmpty) return fallback;
-      throw e;
+      throw error;
     }).whenComplete(() {
-      _payMethodsFuture = null;
+      if (identical(_payMethodsFuture, future)) _payMethodsFuture = null;
     });
     _payMethodsFuture = future;
     return future;
@@ -99,12 +163,14 @@ class WalletStore {
   }) {
     final id = conversationId.trim();
     if (id.isEmpty) return Future.value(const []);
-    final identity = SessionIdentityService.instance.capture(
-        ownerUserId: ApiClient.instance.authenticatedUserId);
+    final identity = SessionIdentityService.instance
+        .capture(ownerUserId: ApiClient.instance.authenticatedUserId);
     final key = '${identity.ownerUserId}|${identity.generation}|$id';
     final cached = _members[key];
     final at = _membersAt[key];
-    if (cached != null && at != null && DateTime.now().difference(at) < const Duration(seconds: 30)) {
+    if (cached != null &&
+        at != null &&
+        DateTime.now().difference(at) < const Duration(seconds: 30)) {
       return Future.value(cached);
     }
     final pending = _memberFutures[key];
@@ -113,26 +179,34 @@ class WalletStore {
     final repository = repo ?? createWalletRepository();
     final generation = _memberGeneration;
     late final Future<List<RedPacketMember>> future;
-    future = repository.getRedPacketMembers(id).timeout(_timeout).then((list) {
-      if (generation != _memberGeneration || SessionIdentityService.instance.capture(
-          ownerUserId: ApiClient.instance.authenticatedUserId) != identity) {
-        return <RedPacketMember>[];
-      }
-      // Full legacy lists are still returned, but never retained indefinitely.
-      if (list.length <= 200) {
-        _members.remove(key);
-        _members[key] = list;
-        _membersAt[key] = DateTime.now();
-        while (_members.length > 8) {
-          final oldest = _members.keys.first;
-          _members.remove(oldest);
-          _membersAt.remove(oldest);
-        }
-      }
-      return list;
-    }).catchError((Object _) => <RedPacketMember>[]).whenComplete(() {
-      if (identical(_memberFutures[key], future)) _memberFutures.remove(key);
-    });
+    future = repository
+        .getRedPacketMembers(id)
+        .timeout(_timeout)
+        .then((list) {
+          if (generation != _memberGeneration ||
+              SessionIdentityService.instance.capture(
+                      ownerUserId: ApiClient.instance.authenticatedUserId) !=
+                  identity) {
+            return <RedPacketMember>[];
+          }
+          // Full legacy lists are still returned, but never retained indefinitely.
+          if (list.length <= 200) {
+            _members.remove(key);
+            _members[key] = list;
+            _membersAt[key] = DateTime.now();
+            while (_members.length > 8) {
+              final oldest = _members.keys.first;
+              _members.remove(oldest);
+              _membersAt.remove(oldest);
+            }
+          }
+          return list;
+        })
+        .catchError((Object _) => <RedPacketMember>[])
+        .whenComplete(() {
+          if (identical(_memberFutures[key], future))
+            _memberFutures.remove(key);
+        });
     _memberFutures[key] = future;
     return future;
   }
@@ -157,7 +231,7 @@ class WalletStore {
     ].join('|');
   }
 
-  /// Simplified key for in-flight request dedup: only type + orderId.
+  /// Stable request identity, using the client ID before a server ID exists.
   /// The full cache key includes status/greeting which can differ across
   /// calls (null vs empty string vs COMPLETED), causing the same API
   /// endpoint to be hit 3-4 times per chat open. Using a stable request
@@ -165,8 +239,11 @@ class WalletStore {
   String _orderCardRequestKey({
     required String type,
     required String orderId,
+    required String clientOrderId,
   }) {
-    return '${type}_$orderId';
+    final order =
+        orderId.isNotEmpty ? 'order:$orderId' : 'client:$clientOrderId';
+    return '${_scope?.ownerUserId}|${_scope?.generation}|$type|$order';
   }
 
   WalletOrderCardDto? peekOrderCard({
@@ -178,6 +255,7 @@ class WalletStore {
     String? status,
     String? greeting,
   }) {
+    _ensureScope();
     return _cards[orderCardCacheKey(
       type: type,
       orderId: orderId,
@@ -199,6 +277,8 @@ class WalletStore {
     String? status,
     String? greeting,
   }) {
+    _ensureScope();
+    final epoch = _epoch;
     final key = orderCardCacheKey(
       type: type,
       orderId: orderId,
@@ -217,10 +297,17 @@ class WalletStore {
     // Request dedup: use a stable key (type + orderId) so that multiple
     // callers with slightly different status/greeting values (null vs
     // empty vs COMPLETED) don't each trigger a separate API call.
-    final requestKey = _orderCardRequestKey(type: type, orderId: orderId);
+    final requestKey = _orderCardRequestKey(
+      type: type,
+      orderId: orderId,
+      clientOrderId: clientOrderId,
+    );
     final running = _cardFutures[requestKey];
+    _cardOwners[key] = requestKey;
     if (running != null) return running;
 
+    final revision = ++_nextCardRequest;
+    _cardRequests[requestKey] = revision;
     final local = buildLocalOrderCard(
       type: type,
       currency: currency,
@@ -229,7 +316,8 @@ class WalletStore {
       greeting: greeting,
     );
 
-    final future = repo
+    late final Future<WalletOrderCardDto> future;
+    future = repo
         .getWalletOrderCard(
           type: type,
           orderId: orderId,
@@ -241,11 +329,10 @@ class WalletStore {
         )
         .timeout(_timeout)
         .then((value) {
-      // 404/鉴权导致的 invalid 不覆盖 IM 本地可展示卡，避免会话刷成「无效卡片」。
-      if (value.invalid) return local ?? value;
+      // A rejected/nonexistent order must never be revived from untrusted IM data.
+      if (value.invalid) return value;
       return value.ok ? value : (local ?? value);
-    })
-        .catchError((_) {
+    }).catchError((_) {
       if (local != null) return local;
       return WalletOrderCardDto(
         ok: false,
@@ -269,25 +356,52 @@ class WalletStore {
         ),
       );
     }).then((value) {
-      _cards[key] = value;
+      _requireEpoch(epoch);
+      if (_cardRequests[requestKey] != revision) {
+        throw StateError('wallet_order_card_superseded');
+      }
+      _cardOwners[key] = requestKey;
+      _cardOwners[requestKey] = requestKey;
+      for (final alias in _cardOwners.keys
+          .where((alias) => _cardOwners[alias] == requestKey)
+          .toList()) {
+        _cards[alias] = value;
+      }
       // Also populate requestKey-based lookups for callers that used
       // different status/greeting values.
       _cards[requestKey] = value;
+      while (_cards.length > 256) {
+        final oldest = _cards.keys.first;
+        _cards.remove(oldest);
+        final canonical = _cardOwners.remove(oldest);
+        if (canonical != null &&
+            !_cardFutures.containsKey(canonical) &&
+            !_cardOwners.containsValue(canonical))
+          _cardRequests.remove(canonical);
+      }
       return value;
     }).whenComplete(() {
-      _cardFutures.remove(requestKey);
+      if (identical(_cardFutures[requestKey], future))
+        _cardFutures.remove(requestKey);
     });
 
     _cardFutures[requestKey] = future;
     return future;
   }
 
-  void updateWallet(WalletDto value) {
+  void updateWallet(WalletDto value, {SessionIdentity? identity}) {
+    _ensureScope();
+    if (identity != null && identity != _scope) return;
+    _walletRequest++;
+    _walletFuture = null;
     _wallet = value;
     _walletAt = DateTime.now();
   }
 
   void updatePayMethods(List<WalletPayMethodDto> value) {
+    _ensureScope();
+    _payMethodsRequest++;
+    _payMethodsFuture = null;
     _payMethods = value;
     _payMethodsAt = DateTime.now();
   }
@@ -301,23 +415,30 @@ class WalletStore {
     String? status,
     String? greeting,
   }) {
-    final key = orderCardCacheKey(
+    _ensureScope();
+    final requestKey = _orderCardRequestKey(
       type: type,
       orderId: orderId,
       clientOrderId: clientOrderId,
-      currency: currency,
-      amount: amount,
-      status: status,
-      greeting: greeting,
     );
-    _cards.remove(key);
-    // Also remove any requestKey-based cache entry.
-    final requestKey = _orderCardRequestKey(type: type, orderId: orderId);
-    _cards.remove(requestKey);
+    _cardRequests.remove(requestKey);
+    final aliases = _cardOwners.keys
+        .where((key) => _cardOwners[key] == requestKey)
+        .toList();
+    for (final key in aliases) {
+      _cards.remove(key);
+      _cardOwners.remove(key);
+    }
     _cardFutures.remove(requestKey);
   }
 
   void clear() {
+    _epoch++;
+    _scope = _identity();
+    _walletRequest++;
+    _payMethodsRequest++;
+    _cardRequests.clear();
+    _cardOwners.clear();
     _memberGeneration++;
     _memberFutures.clear();
     _membersAt.clear();
@@ -381,9 +502,8 @@ class WalletStore {
         ok: true,
         type: type,
         status: _cardStatus(status),
-        amount: amount != null
-            ? formatWalletAmount(resolvedCurrency, amount)
-            : '',
+        amount:
+            amount != null ? formatWalletAmount(resolvedCurrency, amount) : '',
         coin: walletDisplayCoin(resolvedCurrency),
         title: AppI18n.current.t(
           zhHans: isGroupTransfer ? '群转账' : '转账',

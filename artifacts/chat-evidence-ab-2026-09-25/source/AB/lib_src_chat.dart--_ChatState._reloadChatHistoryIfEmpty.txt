@@ -1,0 +1,195 @@
+Future<void> _reloadChatHistoryIfEmpty({required String reason}) async {
+    if (!mounted) {
+      return;
+    }
+    if (_hasVisibleHistoryMessages()) {
+      return;
+    }
+    final convId = _resolvedConversationID();
+    final convKey = _getConvID()?.trim() ?? '';
+    final reloadTrace = ChatOpenPerfLog.captureCurrent(conversationKey: convKey);
+    if (convId.isEmpty ||
+        !MessageConversationId.sameConversation(
+          ActiveChatRegistry.instance.activeConversationId,
+          convId,
+        )) {
+      return;
+    }
+    final globalModel = serviceLocator<TUIChatGlobalModel>();
+    final initialLoaded = globalModel.hasInitialHistoryLoaded(convKey);
+    final model = _chatController.model;
+    // 冷启动首屏由 UIKit hydrate 独占；post_open 不要抢先塞预览消息造成 1→30 抖动。
+    if (!initialLoaded) {
+      if (model?.isLoadingChatHistory == true) {
+        ChatDiagLog.log(
+          'ChatHistory',
+          'reload_if_empty_skip_hydrating',
+          conversationID: convId,
+          extras: <String, Object?>{'reason': reason},
+        );
+        return;
+      }
+      if (reason == 'post_open') {
+        ChatDiagLog.log(
+          'ChatHistory',
+          'reload_if_empty_skip_post_open_cold',
+          conversationID: convId,
+        );
+        return;
+      }
+    }
+    final preview = await _fetchConversationPreviewLastMessage();
+    final previewMsgId = preview?.msgID?.trim() ?? '';
+    // 已确认空会话（清空记录后标了 empty-loaded、且不再可能有更早历史）
+    // 且预览也无消息：没有任何可补拉的内容，跳过 local/cloud 双拉，
+    // 避免清空后进页对同一空会话反复 setMessageList 的加载风暴。
+    if (preview == null &&
+        globalModel.hasInitialHistoryLoaded(convKey) &&
+        globalModel.rawMessageCount(convKey) == 0 &&
+        !globalModel.mayHaveOlderHistory(convKey)) {
+      ChatDiagLog.log(
+        'ChatHistory',
+        'reload_if_empty_skip_confirmed_empty',
+        conversationID: convId,
+        extras: <String, Object?>{'reason': reason},
+      );
+      return;
+    }
+    ChatDiagLog.log(
+      'ChatHistory',
+      'reload_if_empty_start',
+      conversationID: convId,
+      extras: <String, Object?>{
+        'reason': reason,
+        'convKey': convKey,
+        'type': _getConvType().name,
+        'hasPreviewLastMessage': preview != null,
+        'previewMsgId': previewMsgId,
+        'entryUnread': widget.entryUnreadCount ?? 0,
+        'cachedRaw': serviceLocator<TUIChatGlobalModel>().rawMessageCount(
+          convKey,
+        ),
+        'initialLoaded': serviceLocator<TUIChatGlobalModel>()
+            .hasInitialHistoryLoaded(convKey),
+      },
+    );
+    try {
+      if (model == null) {
+        ChatDiagLog.log(
+          'ChatHistory',
+          'reload_if_empty_no_model',
+          conversationID: convId,
+          extras: <String, Object?>{'reason': reason},
+        );
+        await _chatController.refreshCurrentHistoryList();
+        return;
+      }
+      // 仅在首屏已加载完成时补预览，避免冷启动先显示 1 条再 hydrate 整页抖动。
+      if (preview != null && initialLoaded) {
+        final merged = await _mergePreviewMessageIfMissing();
+        ChatDiagLog.log(
+          'ChatHistory',
+          'reload_if_empty_preview_merge',
+          conversationID: convId,
+          extras: <String, Object?>{
+            'merged': merged,
+            'hasMessages': _hasVisibleHistoryMessages(),
+          },
+        );
+      }
+      ChatOpenPerfLog.mark(
+        'chat_reload_if_empty_load',
+        conversationID: convId,
+        extras: <String, Object?>{
+          'reason': reason,
+          'producer': 'reload_if_empty',
+        },
+        trace: reloadTrace,
+      );
+      await model.loadChatRecord(
+        count: 20,
+        getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
+      );
+      var hasMessages = _hasVisibleHistoryMessages();
+      ChatDiagLog.log(
+        'ChatHistory',
+        'reload_if_empty_local_done',
+        conversationID: convId,
+        extras: <String, Object?>{
+          'hasMessages': hasMessages,
+          'listLen': model.globalModel.rawMessageCount(convKey),
+        },
+      );
+      if (!hasMessages) {
+        // Cloud recovery is owned by ConversationHistorySyncCoordinator.
+        // Keep this legacy empty-page hook local-only so it cannot create a
+        // second cloud pagination owner beside the open/reconnect pipeline.
+        await ConversationHistorySyncCoordinator.instance.verifyAfterFirstFrame(
+          conversation: _conversation,
+          reason: 'reload_if_empty_$reason',
+          delay: Duration.zero,
+          logTrace: reloadTrace,
+        );
+        hasMessages = _hasVisibleHistoryMessages();
+        ChatDiagLog.log(
+          'ChatHistory',
+          'reload_if_empty_coordinator_done',
+          conversationID: convId,
+          extras: <String, Object?>{
+            'hasMessages': hasMessages,
+            'listLen': model.globalModel.rawMessageCount(convKey),
+          },
+        );
+      }
+      if (hasMessages) {
+        serviceLocator<TUIChatGlobalModel>().markInitialHistoryLoaded(convKey);
+      }
+      // 清空后确实无消息：标记 empty-loaded，避免一直 bootstrapping 转圈。
+      if (!hasMessages && !globalModel.hasInitialHistoryLoaded(convKey)) {
+        final clearedAt =
+            await ChatSessionController.instance.historyClearedAtMs(convKey);
+        final inGrace = ArchiveHistoryProvider.isInHistoryClearGrace(convKey);
+        if (clearedAt > 0 ||
+            inGrace ||
+            reason == 'return_from_profile' ||
+            reason == 'return_from_settings') {
+          globalModel.clearLocalHistoryAsEmptyLoaded(convKey);
+          if (convId.isNotEmpty && convId != convKey) {
+            globalModel.clearLocalHistoryAsEmptyLoaded(convId);
+          }
+          ChatDiagLog.log(
+            'ChatHistory',
+            'reload_if_empty_mark_empty_loaded',
+            conversationID: convId,
+            extras: <String, Object?>{
+              'reason': reason,
+              'clearedAt': clearedAt,
+              'inGrace': inGrace,
+            },
+          );
+        }
+      }
+    } catch (e) {
+      ChatDiagLog.log(
+        'ChatHistory',
+        'reload_if_empty_error',
+        conversationID: convId,
+        extras: <String, Object?>{'reason': reason, 'error': e.toString()},
+      );
+      try {
+        await _chatController.refreshCurrentHistoryList();
+      } catch (_) {}
+    }
+    ChatDiagLog.log(
+      'ChatHistory',
+      'reload_if_empty_end',
+      conversationID: convId,
+      extras: <String, Object?>{
+        'reason': reason,
+        'hasMessages': _hasVisibleHistoryMessages(),
+      },
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }

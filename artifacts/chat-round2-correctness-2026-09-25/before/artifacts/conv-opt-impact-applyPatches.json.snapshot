@@ -1,0 +1,197 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.applyPatches#12",
+    "name": "applyPatches",
+    "type": "Method",
+    "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 15,
+  "risk": "MEDIUM",
+  "riskSharedAxes": "MEDIUM",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "lower-bound",
+  "boundaries": [
+    "29 call sites invoking `applyPatches` were dropped at index time because the receiver's type could not be established (e.g. an unresolved constructor, factory or chained expression). Those callers are absent from this result — actual impact may be higher."
+  ],
+  "causes": {
+    "scopeExtractionFiles": 0,
+    "receiverTyping": 29,
+    "dispatchBoundary": 0,
+    "externalBoundary": 0,
+    "undecidedSatisfaction": 0,
+    "callableValueReferences": 0
+  },
+  "summary": {
+    "direct": 9,
+    "processes_affected": 0,
+    "modules_affected": 2
+  },
+  "byDepthCounts": {
+    "1": 9,
+    "2": 5,
+    "3": 1
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Chat_session",
+      "hits": 8,
+      "impact": "direct"
+    },
+    {
+      "name": "Conversation_local",
+      "hits": 7,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._applyPinnedWithDeferredReorderFromController#6",
+        "name": "_applyPinnedWithDeferredReorderFromController",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.applyC2cShowNamesBatch#1",
+        "name": "applyC2cShowNamesBatch",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.applyFaceUrlLocally#2",
+        "name": "applyFaceUrlLocally",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.applyLastMessageLocally#5",
+        "name": "applyLastMessageLocally",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.applyRecvOptLocally#3",
+        "name": "applyRecvOptLocally",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.clearLastMessageLocally#1",
+        "name": "clearLastMessageLocally",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.replaceLastMessageAfterDeleteLocally#3",
+        "name": "replaceLastMessageAfterDeleteLocally",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._applyCommittedViewBatchNow#8",
+        "name": "_applyCommittedViewBatchNow",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.restoreSdkConversationsByIds#1",
+        "name": "restoreSdkConversationsByIds",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.applyPeerDisplayNameFromStore#2",
+        "name": "applyPeerDisplayNameFromStore",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.applyPinnedWithDeferredReorder#6",
+        "name": "applyPinnedWithDeferredReorder",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.applyShowNameLocally#2",
+        "name": "applyShowNameLocally",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.applyCommittedViewBatch#4",
+        "name": "applyCommittedViewBatch",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.flushDeferredCommittedProjection#1",
+        "name": "flushDeferredCommittedProjection",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._applyCommittedPinProjectionFromController#4",
+        "name": "_applyCommittedPinProjectionFromController",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}
+

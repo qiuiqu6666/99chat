@@ -1,0 +1,58 @@
+[
+  {
+    "path": "lib/src/navigation/app_chat_route.dart",
+    "stat": "30\t7\tartifacts/chat-round1-fixes-2026-09-25/before/lib/src/navigation/app_chat_route.dart.snapshot => lib/src/navigation/app_chat_route.dart"
+  },
+  {
+    "path": "lib/src/services/chat_open_viewport_coordinator.dart",
+    "stat": "4\t4\tartifacts/chat-round1-fixes-2026-09-25/before/lib/src/services/chat_open_viewport_coordinator.dart.snapshot => lib/src/services/chat_open_viewport_coordinator.dart"
+  },
+  {
+    "path": "lib/src/services/chat_open_perf_log.dart",
+    "stat": "179\t21\tartifacts/chat-round1-fixes-2026-09-25/before/lib/src/services/chat_open_perf_log.dart.snapshot => lib/src/services/chat_open_perf_log.dart"
+  },
+  {
+    "path": "lib/src/chat.dart",
+    "stat": "62\t24\tartifacts/chat-round1-fixes-2026-09-25/before/lib/src/chat.dart.snapshot => lib/src/chat.dart"
+  },
+  {
+    "path": "lib/src/conversation.dart",
+    "stat": "16\t12\tartifacts/chat-round1-fixes-2026-09-25/before/lib/src/conversation.dart.snapshot => lib/src/conversation.dart"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+    "stat": "68\t6\tartifacts/chat-round1-fixes-2026-09-25/before/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart.snapshot => third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+    "stat": "6\t3\tartifacts/chat-round1-fixes-2026-09-25/before/third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart.snapshot => third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart"
+  },
+  {
+    "path": "lib/src/chat_page/chat_draft_controller.dart",
+    "stat": "37\t1\tartifacts/chat-round1-fixes-2026-09-25/before/lib/src/chat_page/chat_draft_controller.dart.snapshot => lib/src/chat_page/chat_draft_controller.dart"
+  },
+  {
+    "path": "lib/src/services/conversation_local/conversation_draft_service.dart",
+    "stat": "127\t14\tartifacts/chat-round1-fixes-2026-09-25/before/lib/src/services/conversation_local/conversation_draft_service.dart.snapshot => lib/src/services/conversation_local/conversation_draft_service.dart"
+  },
+  {
+    "path": "lib/src/services/im/outgoing_send_coordinator.dart",
+    "stat": "166\t96\tartifacts/chat-round1-fixes-2026-09-25/before/lib/src/services/im/outgoing_send_coordinator.dart.snapshot => lib/src/services/im/outgoing_send_coordinator.dart"
+  },
+  {
+    "path": "lib/src/services/im/im05_persistence.dart",
+    "stat": "277\t172\tartifacts/chat-round1-fixes-2026-09-25/before/lib/src/services/im/im05_persistence.dart.snapshot => lib/src/services/im/im05_persistence.dart"
+  },
+  {
+    "path": "lib/src/services/im/im05_contracts.dart",
+    "stat": "8\t3\tartifacts/chat-round1-fixes-2026-09-25/before/lib/src/services/im/im05_contracts.dart.snapshot => lib/src/services/im/im05_contracts.dart"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+    "stat": "80\t44\tartifacts/chat-round1-fixes-2026-09-25/before/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart.snapshot => third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart"
+  },
+  {
+    "path": "lib/src/services/conversation_peek_service.dart",
+    "stat": "28\t11\tartifacts/chat-round1-fixes-2026-09-25/before/lib/src/services/conversation_peek_service.dart.snapshot => lib/src/services/conversation_peek_service.dart"
+  }
+]

@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart';
+import 'package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/message_media_metadata_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_demo/utils/group_tips_message_helper.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
@@ -111,6 +113,15 @@ class ConversationPeekService {
   static final MessageService _messageService =
       serviceLocator<MessageService>();
 
+  static bool _isIdentityCurrent(SessionIdentity identity) {
+    final sessions = SessionIdentityService.instance;
+    if (!sessions.isGenerationCurrent(identity.generation)) return false;
+    if (identity.ownerUserId.isEmpty) {
+      return ContactSocialCacheStore.safeLoginUserId().trim().isEmpty;
+    }
+    return sessions.isCurrent(identity);
+  }
+
   static bool canPeek(V2TimConversation conversation) {
     if ((conversation.userID ?? '').trim() == '10000') {
       return false;
@@ -190,12 +201,21 @@ class ConversationPeekService {
   }
 
   static Future<void> _hydrateLocalMessageMetadata(
-    List<V2TimMessage> messages,
-  ) async {
+    List<V2TimMessage> messages, {
+    required SessionIdentity identity,
+  }) async {
     try {
-      await MessageMediaMetadataStore.instance.hydrateMessages(messages);
+      if (!_isIdentityCurrent(identity)) return;
+      await MessageMediaMetadataStore.instance.hydrateMessages(
+        messages,
+        ownerUserId: identity.ownerUserId,
+      );
+      if (!_isIdentityCurrent(identity)) return;
       unawaited(
-        MessageMediaMetadataStore.instance.persistFromMessages(messages),
+        MessageMediaMetadataStore.instance.persistFromMessages(
+          messages,
+          ownerUserId: identity.ownerUserId,
+        ),
       );
     } catch (_) {
       // A media metadata miss cannot invalidate the local history snapshot.
@@ -205,8 +225,18 @@ class ConversationPeekService {
   /// 冷启动聊天首屏快路径：只读 IM SDK 本地库，不等待云端或归档。
   /// 查到的消息应立即上屏；完整窗口随后由 [loadForChatEntry] 异步校对。
   static Future<ConversationPeekLoadResult> loadLocalForChatEntry(
-    V2TimConversation conversation,
-  ) async {
+    V2TimConversation conversation, {
+    SessionIdentity? identity,
+  }) async {
+    final requestIdentity =
+        identity ?? SessionIdentityService.instance.capture();
+    if (!_isIdentityCurrent(requestIdentity)) {
+      return const ConversationPeekLoadResult(
+        messages: <V2TimMessage>[],
+        hasMoreOlder: false,
+        isFinished: true,
+      );
+    }
     if (!canPeek(conversation)) {
       return const ConversationPeekLoadResult(
         messages: <V2TimMessage>[],
@@ -232,6 +262,13 @@ class ConversationPeekService {
             ),
         trace: trace,
         source: 'sdk_local');
+    if (!_isIdentityCurrent(requestIdentity)) {
+      return const ConversationPeekLoadResult(
+        messages: <V2TimMessage>[],
+        hasMoreOlder: false,
+        isFinished: true,
+      );
+    }
     final messages = await ChatOpenPerfLog.measure(
         'local_history_filter',
         () => _dropMessagesAtOrBeforeHistoryClear(
@@ -240,6 +277,13 @@ class ConversationPeekService {
             ),
         trace: trace,
         source: 'sdk_local');
+    if (!_isIdentityCurrent(requestIdentity)) {
+      return const ConversationPeekLoadResult(
+        messages: <V2TimMessage>[],
+        hasMoreOlder: false,
+        isFinished: true,
+      );
+    }
     ChatOpenPerfLog.mark('local_read_result',
         trace: trace,
         extras: <String, Object?>{
@@ -249,7 +293,10 @@ class ConversationPeekService {
         });
     // Text and message identity are ready after the SDK local query. Media
     // metadata is enrichment and must not delay the local first frame.
-    unawaited(_hydrateLocalMessageMetadata(messages));
+    unawaited(_hydrateLocalMessageMetadata(
+      messages,
+      identity: requestIdentity,
+    ));
     return ConversationPeekLoadResult(
       messages: messages,
       hasMoreOlder:

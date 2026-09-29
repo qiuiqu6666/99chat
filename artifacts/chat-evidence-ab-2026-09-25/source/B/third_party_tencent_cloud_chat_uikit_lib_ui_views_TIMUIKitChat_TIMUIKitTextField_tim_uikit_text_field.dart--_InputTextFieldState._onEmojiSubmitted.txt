@@ -1,0 +1,33 @@
+_onEmojiSubmitted() {
+    lastText = "";
+    final text = textEditingController.text.trim();
+    final convType = widget.conversationType;
+    conversationModel.clearWebDraft(conversationID: widget.conversationID);
+    if (text.isNotEmpty && text != zeroWidthSpace) {
+      if (widget.model.repliedMessage != null) {
+        MessageUtils.handleMessageError(
+            widget.model.sendReplyMessage(
+              text: text,
+              convID: widget.conversationID,
+              convType: convType,
+              atUserIDList: getUserIdFromMemberInfoMap(),
+            ),
+            context);
+      } else {
+        MessageUtils.handleMessageError(
+            widget.model.sendTextMessage(
+              text: text,
+              convID: widget.conversationID,
+              convType: convType,
+            ),
+            context);
+      }
+      textEditingController.clear();
+      // Controller mutations do not invoke TextField.onChanged. Notify the
+      // host explicitly so its local draft is cleared at send intent instead
+      // of waiting for the asynchronous messageDidSend callback.
+      widget.onChanged?.call("");
+      goDownBottom(fromOutgoingSend: true);
+    }
+    currentCursor = null;
+  }

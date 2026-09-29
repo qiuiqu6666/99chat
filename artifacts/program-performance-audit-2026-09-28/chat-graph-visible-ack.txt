@@ -1,0 +1,68 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._drainVisibleIncomingProgress#0",
+    "name": "_drainVisibleIncomingProgress",
+    "kind": "Method",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+    "startLine": 6006,
+    "endLine": 6006
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState",
+        "name": "_TIMUIKitHistoryMessageListState",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._drainVisibleIncomingProgress#0",
+        "name": "_drainVisibleIncomingProgress",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._scheduleVisibleIncomingProgress#0",
+        "name": "_scheduleVisibleIncomingProgress",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/api/group_live_api.dart:GroupLiveApi.current#2",
+        "name": "current",
+        "filePath": "lib/src/api/group_live_api.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._conversationId#0",
+        "name": "_conversationId",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._drainVisibleIncomingProgress#0",
+        "name": "_drainVisibleIncomingProgress",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._scheduleLiveCenterRelease#0",
+        "name": "_scheduleLiveCenterRelease",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._scheduleVisibleIncomingProgress#0",
+        "name": "_scheduleVisibleIncomingProgress",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._scheduleVisibleLatestConfirmation#0",
+        "name": "_scheduleVisibleLatestConfirmation",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart"
+      }
+    ]
+  },
+  "processes": []
+}

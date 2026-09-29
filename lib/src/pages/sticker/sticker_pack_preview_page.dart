@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/sticker_preview_voice_scope.dart';
 import 'package:flutter/services.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/sticker/sticker_my_collection_grid.dart';
@@ -82,17 +83,17 @@ class StickerPackPreviewPage extends StatelessWidget {
     void Function(int unicode)? addText,
     void Function(String singleEmojiName)? addCustomEmojiText,
   }) {
-    return Navigator.of(context).push(
-      AppFullscreenDialogRoute(
-        builder: (_) => StickerPackPreviewPage(
-          pack: pack,
-          sendFaceMessage: sendFaceMessage,
-          deleteText: deleteText,
-          addText: addText,
-          addCustomEmojiText: addCustomEmojiText,
-        ),
-      ),
-    );
+    return StickerPreviewVoiceScope.run(() => Navigator.of(context).push<void>(
+          AppFullscreenDialogRoute(
+            builder: (_) => StickerPackPreviewPage(
+              pack: pack,
+              sendFaceMessage: sendFaceMessage,
+              deleteText: deleteText,
+              addText: addText,
+              addCustomEmojiText: addCustomEmojiText,
+            ),
+          ),
+        ));
   }
 
   void _sendAndClose(BuildContext context, int index, String data) {
@@ -105,8 +106,7 @@ class StickerPackPreviewPage extends StatelessWidget {
     final i18n = AppI18n.of(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final panelTheme = StickerPanelTheme.of(context);
-    final isFavorites =
-        pack.name == StickerConstants.virtualPackFavorites;
+    final isFavorites = pack.name == StickerConstants.virtualPackFavorites;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,

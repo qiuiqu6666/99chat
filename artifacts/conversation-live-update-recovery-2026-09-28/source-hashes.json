@@ -1,0 +1,34 @@
+[
+  {
+    "path": "lib/src/chat_session/chat_session_controller.dart",
+    "sha256": "788EFF43FC689D609A298B00454D028F1C101505E027A2B3B476AF8E0C82C364"
+  },
+  {
+    "path": "lib/src/services/conversation_local/conversation_local_store.dart",
+    "sha256": "EF942EAD881239D70498719F895C37C1706A1CFE10ECA8C4EA3BA4C7D134CDF4"
+  },
+  {
+    "path": "lib/src/services/conversation_local/conversation_tab_store.dart",
+    "sha256": "226738BD8398E4D55C59AE8475EF42481EF2EB0D3040126B3A5ED79EC4A2F32E"
+  },
+  {
+    "path": "lib/src/widgets/conversation_feed/conversation_feed_body.dart",
+    "sha256": "4265795A76167CED688E9AEA0517958591646A25D601D3A87C467CDD2E8A221E"
+  },
+  {
+    "path": "lib/src/services/contact_sync_transaction.dart",
+    "sha256": "CCC83F45C4BF220A987790CE832D903830FAD111E69C67C27FBE71096360FB2E"
+  },
+  {
+    "path": "test/conversation_live_update_recovery_test.dart",
+    "sha256": "3B497FAC601C72D5A1243BB8F561A5D2890AAF542A932715AC632BF1CCFC6D22"
+  },
+  {
+    "path": "test/conversation_sdk_live_feed_test.dart",
+    "sha256": "ADB3DA4E8DBF53C22EF6BCC09369517F2D3F3DCC3C4B0BA2F31AFF61796FFC08"
+  },
+  {
+    "path": "test/conversation_feed_hidden_work_test.dart",
+    "sha256": "0E5C1D29DCA1B2C6A0293D0180CC35C519E50B7B08846348C9BF6E7625A086C1"
+  }
+]

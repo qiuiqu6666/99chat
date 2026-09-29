@@ -1,0 +1,275 @@
+Future<V2TimValueCallback<V2TimMessage>> _sendMessage({
+    required String id,
+    required String convID,
+    required ConvType convType,
+    V2TimMessage? messageInfo,
+    OfflinePushInfo? offlinePushInfo,
+    bool? onlineUserOnly = false,
+    MessagePriorityEnum priority = MessagePriorityEnum.V2TIM_PRIORITY_NORMAL,
+    bool? isExcludedFromUnreadCount,
+    bool? needReadReceipt,
+    String? cloudCustomData,
+    String? localCustomData,
+    bool? isEditStatusMessage = false,
+    bool? isExcludedFromContentModeration,
+    bool preserveTargetGroupID = false,
+  }) async {
+    debugPrint(
+      '[IM_SEND_INTENT] conv=$convID type=${convType.name} clientId=$id',
+    );
+    if (!canSendCapturedMedia) {
+      return V2TimValueCallback<V2TimMessage>(
+        code: -1,
+        desc: 'media session changed',
+        data: messageInfo,
+      );
+    }
+    final target = _resolveSendTarget(
+      convID: convID,
+      convType: convType,
+      messageID: id,
+    );
+    if (target == null) {
+      debugPrint(
+        '[IM_SEND_BLOCKED] conv=$convID clientId=$id reason=invalid_target',
+      );
+      removeSendingMessageID(id);
+      final invalidResult = _buildInvalidTargetResult(
+        id: id,
+        convID: convID,
+        convType: convType,
+        messageInfo: messageInfo,
+      );
+      if (messageInfo != null) {
+        messageInfo.status = MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL;
+        globalModel.updateMessage(
+          invalidResult,
+          convID,
+          id,
+          convType,
+          groupType,
+          setInputField,
+        );
+      }
+      return invalidResult;
+    }
+    String receiver = target.receiver;
+    String groupID = target.groupID;
+    // IM peer-blacklist is sendMessage code (20007 if console fails closed).
+    // App POST /me/blocks does not produce 20007. This gate only reads
+    // confirmed relation canMessage=false.
+    if (convType == ConvType.c2c) {
+      final snapshot = C2cFriendMessageGuard.cachedUiSnapshot(receiver);
+      if (snapshot != null &&
+          snapshot.decision == C2cSendPermissionDecision.blocked &&
+          snapshot.relationConfirmed) {
+        debugPrint(
+          '[IM_SEND_BLOCKED] conv=$convID clientId=$id reason=relation_blocked',
+        );
+        removeSendingMessageID(id);
+        final failedMessage = messageInfo ??
+            V2TimMessage(
+              id: id,
+              msgID: id,
+              elemType: MessageElemType.V2TIM_ELEM_TYPE_NONE,
+            );
+        failedMessage.status = MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL;
+        final blockedResult = V2TimValueCallback<V2TimMessage>(
+          code: C2cBlockedOutgoingMessageSync.blockedCode,
+          desc: 'friend relation blocked',
+          data: failedMessage,
+        );
+        globalModel.applyOutgoingSendResult(
+          blockedResult,
+          convID,
+          id,
+          convType,
+          groupType,
+          setInputField,
+        );
+        return blockedResult;
+      }
+    }
+    // Dispatch C2C messages without a blocking friend-relation HTTP lookup.
+    // Provider send results own rejection; UI relation refresh runs separately.
+    if (convType == ConvType.group &&
+        _groupType == null &&
+        !preserveTargetGroupID) {
+      await loadGroupInfo(groupID);
+    }
+    // SelfHosted 拉到的真源 groupID（如 @TGS#_mc…）优先于会话里错误加成的 ID。
+    final infoGroupId = _groupInfo?.groupID?.trim() ?? '';
+    if (convType == ConvType.group &&
+        !preserveTargetGroupID &&
+        infoGroupId.isNotEmpty &&
+        infoGroupId != groupID &&
+        (_looksLikeCommunityGroupId(infoGroupId) ||
+            !_looksLikeCommunityGroupId(groupID))) {
+      groupID = infoGroupId;
+      if (_groupID != infoGroupId) {
+        _groupID = infoGroupId;
+      }
+    }
+    final useReadReceipt =
+        (needReadReceipt ?? chatConfig.isShowReadingStatus) &&
+            (convType != ConvType.group || _isReadReceiptAllowedGroup) &&
+            !_looksLikeCommunityGroupId(groupID);
+    if (!canSendCapturedMedia) {
+      return V2TimValueCallback<V2TimMessage>(
+        code: -1,
+        desc: 'media session changed',
+        data: messageInfo,
+      );
+    }
+    if (messageInfo != null) {
+      setLoadingMessageMap(convID, messageInfo);
+    }
+    final mediaKind = switch (messageInfo?.elemType) {
+      MessageElemType.V2TIM_ELEM_TYPE_IMAGE => 'image',
+      MessageElemType.V2TIM_ELEM_TYPE_VIDEO => 'video',
+      MessageElemType.V2TIM_ELEM_TYPE_FILE => 'file',
+      _ => null,
+    };
+    if (mediaKind != null) {
+      final raw = localCustomData ?? messageInfo?.localCustomData;
+      try {
+        final decoded = raw == null || raw.isEmpty ? <String, dynamic>{} : jsonDecode(raw);
+        if (decoded is Map) {
+          localCustomData = jsonEncode({...decoded, 'mediaSendKind': mediaKind});
+          messageInfo?.localCustomData = localCustomData;
+        }
+      } catch (_) {
+        // Preserve opaque metadata; it keeps the legacy serial admission.
+      }
+    }
+    final coordinatedSend = await ImOutgoingSendCoordinator.instance.send(
+      messageService: _messageService,
+      sdkLocalId: id,
+      conversationId: convType == ConvType.group ? groupID : receiver,
+      conversationType: convType == ConvType.group
+          ? ImConversationType.group
+          : ImConversationType.c2c,
+      receiver: receiver,
+      groupID: groupID,
+      fallbackMessage: messageInfo,
+      needReadReceipt: useReadReceipt,
+      priority: priority,
+      localCustomData: localCustomData ?? messageInfo?.localCustomData,
+      isExcludedFromUnreadCount: isExcludedFromUnreadCount ?? false,
+      offlinePushInfo: offlinePushInfo,
+      onlineUserOnly: onlineUserOnly ?? false,
+      isExcludedFromContentModeration: isExcludedFromContentModeration ?? false,
+      businessCloudCustomData: cloudCustomData ??
+          (showC2cMessageEditStatus == true
+              ? json.encode({
+                  "messageFeature": {"needTyping": 1, "version": 1},
+                })
+              : ""),
+      persistOutbox: isEditStatusMessage != true,
+      expectedSessionIdentity: _outgoingMediaIdentity,
+      onSyncMsgID: (syncMsgID) {
+        globalModel.bindOutgoingSyncMsgId(convID, id, syncMsgID);
+      },
+    );
+    final sendMsgRes = coordinatedSend.sdkResult;
+    if (!canSendCapturedMedia) return sendMsgRes;
+    debugPrint(
+      '[IM_SEND_COORDINATOR_RESULT] conv=$convID clientId=$id '
+      'code=${sendMsgRes.code} desc=${sendMsgRes.desc} '
+      'outcomeUnknown=${coordinatedSend.outcomeUnknown}',
+    );
+    if (_isOutgoingMediaCancelled(id) ||
+        _isOutgoingMediaCancelled(messageInfo?.msgID) ||
+        _isOutgoingMediaCancelled(sendMsgRes.data?.msgID)) {
+      removeSendingMessageID(id);
+      final sdkMsgID = TencentUtils.checkString(sendMsgRes.data?.msgID);
+      if (sendMsgRes.code == 0 && sdkMsgID != null) {
+        try {
+          await _messageService.revokeMessage(
+            msgID: sdkMsgID,
+            webMessageInstance: sendMsgRes.data?.messageFromWeb,
+          );
+        } catch (_) {}
+        await _messageService.deleteMessageFromLocalStorage(
+          msgID: sdkMsgID,
+          webMessageInstance: sendMsgRes.data?.messageFromWeb,
+        );
+      }
+      globalModel.markOutgoingSendFailedByIdentity(
+        conversationID: convID,
+        clientId: id,
+        msgID: sdkMsgID ?? messageInfo?.msgID,
+        reason: 'cancelled',
+      );
+      globalModel.clearMessageProgress(id);
+      globalModel.clearMessageProgress(messageInfo?.msgID);
+      globalModel.clearMessageProgress(sendMsgRes.data?.msgID);
+      _clearOutgoingMediaCancelled(id);
+      _clearOutgoingMediaCancelled(messageInfo?.msgID);
+      _clearOutgoingMediaCancelled(sendMsgRes.data?.msgID);
+      return V2TimValueCallback<V2TimMessage>(
+        code: -1,
+        desc: 'cancelled',
+        data: messageInfo,
+      );
+    }
+    removeSendingMessageID(id);
+    OutgoingVisibleProbe.log(
+      'send_sdk_result',
+      conversationID: convID,
+      message: sendMsgRes.data ?? messageInfo,
+      extras: <String, Object?>{
+        'code': sendMsgRes.code,
+        'desc': sendMsgRes.desc,
+        'clientId': id,
+        'hasData': sendMsgRes.data != null,
+        'dataMsgID': sendMsgRes.data?.msgID ?? '',
+        ...OutgoingVisibleProbe.trackedInList(
+          globalModel.rawMessageList(convID),
+        ),
+      },
+    );
+    if (sendMsgRes.data != null) {
+      OutgoingVisibleProbe.rememberSent(
+        conversationID: convID,
+        message: sendMsgRes.data!,
+      );
+    }
+    // IM-08: when the SDK Future resolves OutcomeUnknown, the dispatch path
+    // cannot prove the provider accepted or rejected the operation. The
+    // Outbox main + recovery copy already record OutcomeUnknown; the
+    // single Writer must keep the optimistic bubble in SENDING and wait
+    // for history/realtime to claim it. Auto-committing a success/failed
+    // projection here would resurrect an in-flight message or flash a
+    // red retry icon on a still-pending send.
+    var projectionCommitted = true;
+    if (isEditStatusMessage == false && !coordinatedSend.outcomeUnknown) {
+      projectionCommitted = globalModel.applyOutgoingSendResult(
+        sendMsgRes,
+        convID,
+        id,
+        convType,
+        groupType,
+        setInputField,
+      );
+    } else if (coordinatedSend.outcomeUnknown) {
+      projectionCommitted = false;
+    }
+    if (!coordinatedSend.outcomeUnknown) {
+      globalModel.insertPeerRejectedLocalTip(
+        convID,
+        sendMsgRes.code,
+        clientId: id,
+      );
+    }
+    if (projectionCommitted && coordinatedSend.canCompleteProjection) {
+      await ImOutgoingSendCoordinator.instance.completeSuccessfulProjection(
+        coordinatedSend,
+      );
+    }
+    if (lifeCycle?.messageDidSend != null) {
+      lifeCycle!.messageDidSend(sendMsgRes);
+    }
+
+    return sendMsgRes;
+  }

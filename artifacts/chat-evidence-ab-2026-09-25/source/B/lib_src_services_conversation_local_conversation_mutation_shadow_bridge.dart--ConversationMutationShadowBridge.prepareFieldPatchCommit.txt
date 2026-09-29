@@ -1,0 +1,47 @@
+Future<ConversationDatabaseCommitPlan<V2TimConversation>?>
+      prepareFieldPatchCommit({
+    required String ownerUserId,
+    required String conversationId,
+    required ConversationMutationSource source,
+    required Map<ConversationMutationField, Object?> fieldPatch,
+    V2TimConversation? fullSnapshot,
+    int? sourceVersion,
+  }) async {
+    final owner = ownerUserId.trim();
+    final rawId = conversationId.trim();
+    final type = _conversationTypeFromId(rawId);
+    if (owner.isEmpty || rawId.isEmpty || type == null || fieldPatch.isEmpty) {
+      return null;
+    }
+    _ensureOwner(owner);
+    final canonical = canonicalizeConversationMutationId(rawId, type);
+    if (canonical.isEmpty) {
+      return null;
+    }
+    final sequence = ++_eventSequence;
+    final eventVersion = sourceVersion != null && sourceVersion > sequence
+        ? sourceVersion
+        : sequence;
+    final result =
+        await _coordinator.submitForDatabaseCommit<V2TimConversation>(
+      ConversationMutationEvent(
+        eventId: _eventIdForFieldPatch(
+          source: source,
+          sequence: sequence,
+          fieldPatch: fieldPatch,
+        ),
+        ownerUserId: owner,
+        conversationId: canonical,
+        conversationType: type,
+        kind: ConversationMutationKind.patch,
+        source: source,
+        ownerGeneration: _ownerGeneration,
+        conversationGeneration: _conversationGenerations[canonical] ?? 0,
+        sourceVersion: eventVersion,
+        values: fieldPatch,
+      ),
+      fullSnapshot: fullSnapshot,
+      fieldPatch: fieldPatch,
+    );
+    return result.plan;
+  }

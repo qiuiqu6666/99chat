@@ -1,0 +1,70 @@
+
+  GitNexus Detect Changes (1.6.12)
+warning: in the working copy of 'lib/main.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/api/ai_assistant_api.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/api/ai_assistant_sse.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/chat.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/pages/settings/settings_page.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/conversation_local/conversation_local_store.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/conversation_local/conversation_sync_service.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/friend_local/contacts_protocol_sync_service.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/friend_local/friend_local_store.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/history_window_store.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/im/im_recovery_worker.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/im/message_persist_coordinator.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/livekit_call_session.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/peer_profile_refresh_bus.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/sqflite_lifecycle_guard.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/startup_perf_log.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/services/system_media_picker.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/session/session_manager.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/src/session/session_store.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'pubspec.yaml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test/chat_lifecycle_generation_contract_test.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test/chat_open_remark_regression_test.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test/chat_page_controllers_test.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test/chat_page_scope_test.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test/chat_reliability_regression_test.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test/chat_system_picker_failure_test.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test/history_window_pagination_integration_test.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'test/return_to_latest_rendered_proof_test.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_media_send_utils.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_conversation_filter_msg_page.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'third_party/tencent_cloud_chat_uikit/test/gallery_adjacent_decode_budget_test.dart', LF will be replaced by CRLF the next time Git touches it
+Changes: 75 files, 402 symbols
+Affected processes: 12
+Risk level: high
+
+Changed symbols:
+  Class TUIKitDemoApp → lib/main.dart
+  Class AiAssistantApi → lib/src/api/ai_assistant_api.dart
+  Method uploadFile → lib/src/api/ai_assistant_api.dart
+  Method stream → lib/src/api/ai_assistant_api.dart
+  Class AiAssistantSseParser → lib/src/api/ai_assistant_sse.dart
+  Method finish → lib/src/api/ai_assistant_sse.dart
+  Class ApiClient → lib/src/api/api_client.dart
+  Property _requestNodeGeneration → lib/src/api/api_client.dart
+  Property _nodeGeneration → lib/src/api/api_client.dart
+  Method _requestUsedCurrentNode → lib/src/api/api_client.dart
+  Class WalletApi → lib/src/api/wallet_api.dart
+  Property _recordCommits → lib/src/api/wallet_api.dart
+  Property recordCommits → lib/src/api/wallet_api.dart
+  Method _notifyLedgerCommit → lib/src/api/wallet_api.dart
+  Method _historyTypes → lib/src/api/wallet_api.dart
+... and 387 more
+
+Affected execution flows:
+  • Build → AppBackground (4 steps) — changed: build
+  • Build → AppSurface (4 steps) — changed: build
+  • Build → IsCommunityShortToken (4 steps) — changed: build
+  • Build → _fromLocale (3 steps) — changed: build
+  • Build → _looksLikeJwt (10 steps) — changed: _connect, _connectInternal, probeAll, _probeAllInternal
+  • Build → _looksLikeOpaqueToken (10 steps) — changed: _connect, _connectInternal, probeAll, _probeAllInternal
+  • Build → IsJwtExpired (10 steps) — changed: _connect, _connectInternal, probeAll, _probeAllInternal
+  • Build → FriendRealtimeEndpoint (10 steps) — changed: _connect, _connectInternal, probeAll, _probeAllInternal
+  • Build → _emitReadyIfChanged (9 steps) — changed: _connect, _connectInternal, probeAll, _probeAllInternal
+  • Build → _log (7 steps) — changed: probeAll, _probeAllInternal
+... and 2 more

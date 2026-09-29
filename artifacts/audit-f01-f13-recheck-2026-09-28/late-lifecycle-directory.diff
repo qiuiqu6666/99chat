@@ -1,0 +1,406 @@
+diff --git a/lib/src/services/im_sdk_relationship_directory.dart b/lib/src/services/im_sdk_relationship_directory.dart
+index 01d85f7..508bceb 100644
+--- a/lib/src/services/im_sdk_relationship_directory.dart
++++ b/lib/src/services/im_sdk_relationship_directory.dart
+@@ -214,8 +214,8 @@ class ImSdkRelationshipDirectory {
+     _groupOrderedIds.clear();
+     _friendCaptures.clear();
+     _groupCaptures.clear();
+-    _friendFetchGeneration = 0;
+-    _groupFetchGeneration = 0;
++    // Capture IDs remain monotonic across account resets. Late drops must not
++    // remove a capture owned by the new session.
+     _friendRevision = 0;
+     _groupRevision = 0;
+     _friendsComplete = false;
+diff --git a/lib/src/services/sqflite_lifecycle_guard.dart b/lib/src/services/sqflite_lifecycle_guard.dart
+index b70bdc2..d69e31f 100644
+--- a/lib/src/services/sqflite_lifecycle_guard.dart
++++ b/lib/src/services/sqflite_lifecycle_guard.dart
+@@ -30,13 +30,10 @@ class SqfliteLifecycleGuard {
+ 
+   /// 已打开则返回现有连接；后台已关且未打开则抛 [SqfliteClosedForBackground]。
+   static Database? beforeOpen(Database? existing) {
+-    if (existing != null) {
+-      return existing;
+-    }
+     if (!instance.canOpenDatabase) {
+       throw const SqfliteClosedForBackground();
+     }
+-    return null;
++    return existing;
+   }
+ 
+   static Future<void> closeDatabase(Database? db) async {
+@@ -45,7 +42,10 @@ class SqfliteLifecycleGuard {
+     }
+     try {
+       await db.close();
+-    } catch (_) {}
++    } catch (_) {
++      // A failed native close is not proof that a new handle is safe.
++      if (db.isOpen) rethrow;
++    }
+   }
+ 
+   @visibleForTesting
+diff --git a/lib/src/services/sqflite_lifecycle_host.dart b/lib/src/services/sqflite_lifecycle_host.dart
+index af62e84..97ed681 100644
+--- a/lib/src/services/sqflite_lifecycle_host.dart
++++ b/lib/src/services/sqflite_lifecycle_host.dart
+@@ -1,4 +1,4 @@
+-import 'dart:async' show Completer, TimeoutException, unawaited;
++import 'dart:async';
+ 
+ import 'package:flutter/foundation.dart';
+ import 'package:flutter/widgets.dart';
+@@ -17,177 +17,234 @@ import 'package:tencent_cloud_chat_demo/src/services/red_packet_local_store.dart
+ import 'package:tencent_cloud_chat_demo/src/services/sqflite_lifecycle_guard.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_store.dart';
+ 
+-/// 生命周期到 SQLite 停写/关库的唯一入口，避免 Store 与 Guard 循环引用。
+-///
+-/// 事件串行处理：保证 `resumed` 一定发生在对应 pause 关库完成之后，避免
+-/// 前台 hydrate 撞上 `forbidOpen` 窗口。
++import 'package:tencent_cloud_chat_demo/src/services/startup_perf_log.dart';
++import 'package:tencent_cloud_chat_demo/src/services/agent_rebate_local/agent_rebate_entry_local_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/message_history_coverage_store.dart';
++import 'package:tencent_cloud_chat_demo/src/pages/wallet/wallet_snapshot_local_store.dart';
++
++enum SqfliteWriteGateResult { ready, deferred, cancelled }
++
++enum SqfliteLifecycleStatus { ready, paused, closing, degraded }
++
++/// UI deadlines never release the real native close fence. Lifecycle events
++/// overwrite one desired state instead of queueing behind an unbounded close.
+ class SqfliteLifecycleHost {
+   SqfliteLifecycleHost._();
+-
+-  static Future<void>? _chain;
+   static Completer<void>? _closeInFlight;
+   static Completer<void>? _openAllowed;
+   static int _epoch = 0;
++  static bool _closeFailed = false;
++  static AppLifecycleState _desired = AppLifecycleState.resumed;
++  static final ValueNotifier<SqfliteLifecycleStatus> status =
++      ValueNotifier(SqfliteLifecycleStatus.ready);
++  static final Set<String> _pendingStores = {};
++  static Set<String> get pendingStores => Set.unmodifiable(_pendingStores);
++  static bool get _closeDatabasesOnPause =>
++      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
++  static bool get _writesReady =>
++      !_closeFailed &&
++      _closeInFlight == null &&
++      SqfliteLifecycleGuard.instance.writesAllowed &&
++      SqfliteLifecycleGuard.instance.canOpenDatabase;
+ 
+-  static bool get _closeDatabasesOnPause {
+-    return !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+-  }
+-
+-  /// 供 open 路径在撞上 [SqfliteClosedForBackground] 时等待：
+-  /// 1) 等在途关库结束；2) 再等 `resume()` 打开闸门（有超时）。
+   static Future<bool> waitUntilOpenAllowed({
+     Duration timeout = const Duration(seconds: 2),
++  }) async =>
++      await waitForWrites(timeout: timeout) == SqfliteWriteGateResult.ready;
++
++  static Future<SqfliteWriteGateResult> waitForWrites({
++    Duration timeout = const Duration(seconds: 2),
++    bool Function()? isCurrent,
+   }) async {
+-    final pendingClose = _closeInFlight;
+-    if (pendingClose != null) {
++    final watch = Stopwatch()..start();
++    while (true) {
++      if (!(isCurrent?.call() ?? true)) return SqfliteWriteGateResult.cancelled;
++      if (_writesReady) return SqfliteWriteGateResult.ready;
++      final remaining = timeout - watch.elapsed;
++      if (_closeFailed || remaining <= Duration.zero)
++        return SqfliteWriteGateResult.deferred;
++      final waiting =
++          _closeInFlight?.future ?? (_openAllowed ??= Completer<void>()).future;
+       try {
+-        await pendingClose.future.timeout(timeout);
++        await waiting.timeout(remaining);
+       } on TimeoutException {
+-        return SqfliteLifecycleGuard.instance.canOpenDatabase;
++        if (!(isCurrent?.call() ?? true))
++          return SqfliteWriteGateResult.cancelled;
++        return _writesReady
++            ? SqfliteWriteGateResult.ready
++            : SqfliteWriteGateResult.deferred;
+       }
+     }
+-    if (SqfliteLifecycleGuard.instance.canOpenDatabase) {
+-      return true;
+-    }
+-    final waiter = _openAllowed ??= Completer<void>();
+-    try {
+-      await waiter.future.timeout(timeout);
+-    } on TimeoutException {
+-      return SqfliteLifecycleGuard.instance.canOpenDatabase;
+-    }
+-    return SqfliteLifecycleGuard.instance.canOpenDatabase;
+   }
+ 
+-  /// Command completions retain their small token while inactive and resume
+-  /// on the lifecycle event. No polling timer or background SQLite write.
++  /// Compatibility for durable command workers that retain their exact token.
++  /// UI paths use waitForWrites and must consume its deferred result.
+   static Future<void> waitUntilWritesAllowed() async {
+-    while (!SqfliteLifecycleGuard.instance.writesAllowed ||
+-        !SqfliteLifecycleGuard.instance.canOpenDatabase || _closeInFlight != null) {
+-      final closing = _closeInFlight;
+-      if (closing != null) {
+-        await closing.future;
+-      } else {
+-        await (_openAllowed ??= Completer<void>()).future;
+-      }
++    while (!_writesReady) {
++      await (_openAllowed ??= Completer<void>()).future;
+     }
+   }
+ 
+-  static Future<void> handle(AppLifecycleState state) {
+-    final previous = _chain;
+-    final gate = Completer<void>();
+-    _chain = gate.future;
+-    unawaited(() async {
+-      try {
+-        if (previous != null) {
+-          await previous;
+-        }
+-        await _handleImpl(state);
+-      } finally {
+-        if (!gate.isCompleted) {
+-          gate.complete();
+-        }
+-        if (identical(_chain, gate.future)) {
+-          _chain = null;
+-        }
+-      }
+-    }());
+-    return gate.future;
++  static Future<void> handle(
++    AppLifecycleState state, {
++    Duration waitBudget = const Duration(seconds: 2),
++  }) async {
++    _desired = state;
++    await _handleImpl(state, waitBudget: waitBudget);
+   }
+ 
+-  static Future<void> _handleImpl(AppLifecycleState state) async {
++  static Future<void> _handleImpl(
++    AppLifecycleState state, {
++    Duration waitBudget = const Duration(seconds: 2),
++  }) async {
+     switch (state) {
+       case AppLifecycleState.inactive:
+         _pauseWrites();
+-        break;
++        return;
+       case AppLifecycleState.paused:
+       case AppLifecycleState.hidden:
+       case AppLifecycleState.detached:
+         _pauseWrites();
+-        if (_closeDatabasesOnPause) {
+-          await _closeDatabases();
+-        }
+-        break;
++        if (!_closeDatabasesOnPause || _closeFailed) return;
++        await _waitForClose(_closeDatabases(), waitBudget);
++        return;
+       case AppLifecycleState.resumed:
+-        final pendingClose = _closeInFlight;
+-        if (pendingClose != null) {
+-          await pendingClose.future;
++        if (_closeFailed) {
++          status.value = SqfliteLifecycleStatus.degraded;
++          return;
++        }
++        final pending = _closeInFlight;
++        if (pending != null) {
++          await _waitForClose(pending.future, waitBudget);
++        } else {
++          _resumeIfCurrent();
+         }
+-        SqfliteLifecycleGuard.instance.resume();
+-        ConversationLocalStore.instance.resumeCoalesceAfterForeground();
+-        _signalOpenAllowed();
+-        break;
++        return;
++    }
++  }
++
++  static Future<void> _waitForClose(Future<void> close, Duration budget) async {
++    final epoch = _epoch;
++    try {
++      await close.timeout(budget);
++    } on TimeoutException {
++      if (epoch == _epoch && _closeInFlight != null) {
++        status.value = SqfliteLifecycleStatus.degraded;
++        StartupPerfLog.markTagged('database_close_deferred',
++            category: 'database',
++            details: {'epoch': epoch, 'pendingStores': _pendingStores.length});
++      }
+     }
+   }
+ 
+   static void _pauseWrites() {
+     SqfliteLifecycleGuard.instance.pauseWrites();
+     ConversationLocalStore.instance.pauseCoalesceForBackground();
++    if (_closeInFlight == null && !_closeFailed)
++      status.value = SqfliteLifecycleStatus.paused;
++  }
++
++  static void _resumeIfCurrent() {
++    if (_desired != AppLifecycleState.resumed ||
++        _closeInFlight != null ||
++        _closeFailed) return;
++    SqfliteLifecycleGuard.instance.resume();
++    ConversationLocalStore.instance.resumeCoalesceAfterForeground();
++    status.value = SqfliteLifecycleStatus.ready;
++    _signalOpenAllowed();
+   }
+ 
+-  static Future<void> _closeDatabases() async {
++  static Future<void> _closeDatabases() {
++    final existing = _closeInFlight;
++    if (existing != null) return existing.future;
+     final myEpoch = ++_epoch;
+-    final closeGate = Completer<void>();
+-    _closeInFlight = closeGate;
++    final gate = Completer<void>();
++    _closeInFlight = gate;
+     SqfliteLifecycleGuard.instance.forbidOpen();
+-    // 新的关库周期：旧的 open-allowed waiters 不应在关库中途被误唤醒。
+     _resetOpenAllowedWaiters();
+-    try {
+-      await ConversationLocalStore.instance.waitUntilUpsertWriteIdle(
+-        maxWait: const Duration(milliseconds: 250),
+-      );
+-      await Future.wait<void>(<Future<void>>[
+-        ConversationLocalStore.instance.closeIfOpen(),
+-        MessageCoreStore.instance.closeIfOpen(),
+-        HistoryWindowStore.instance.closeIfOpen(),
+-        FriendLocalStore.instance.closeIfOpen(),
+-        GroupLocalStore.instance.closeIfOpen(),
+-        GroupMemberLocalStore.instance.closeIfOpen(),
+-        MessageMediaMetadataStore.instance.closeIfOpen(),
+-        MomentsLocalStore.instance.closeIfOpen(),
+-        RedPacketLocalStore.instance.closeIfOpen(),
+-        PushTokenUploadLocalStore.instance.closeIfOpen(),
+-        UserProfileLocalStore.instance.closeIfOpen(),
+-        SangongMyConfigStore.instance.closeIfOpen(),
+-        PrivilegedGameUserStore.instance.closeIfOpen(),
+-      ]);
+-    } finally {
+-      if (_epoch == myEpoch) {
+-        if (!closeGate.isCompleted) {
+-          closeGate.complete();
++    status.value = SqfliteLifecycleStatus.closing;
++    unawaited(() async {
++      var safelyClosed = false;
++      try {
++        await ConversationLocalStore.instance.waitUntilUpsertWriteIdle(
++            maxWait: const Duration(milliseconds: 250));
++        final stores = <String, Future<void> Function()>{
++          'conversation': ConversationLocalStore.instance.closeIfOpen,
++          'message_core': MessageCoreStore.instance.closeIfOpen,
++          'history_window': HistoryWindowStore.instance.closeIfOpen,
++          'history_coverage': MessageHistoryCoverageStore.instance.closeIfOpen,
++          'friend': FriendLocalStore.instance.closeIfOpen,
++          'group': GroupLocalStore.instance.closeIfOpen,
++          'group_member': GroupMemberLocalStore.instance.closeIfOpen,
++          'media': MessageMediaMetadataStore.instance.closeIfOpen,
++          'moments': MomentsLocalStore.instance.closeIfOpen,
++          'red_packet': RedPacketLocalStore.instance.closeIfOpen,
++          'push': PushTokenUploadLocalStore.instance.closeIfOpen,
++          'profile': UserProfileLocalStore.instance.closeIfOpen,
++          'game': SangongMyConfigStore.instance.closeIfOpen,
++          'privilege': PrivilegedGameUserStore.instance.closeIfOpen,
++          'agent_entry': AgentRebateEntryLocalStore.instance.closeIfOpen,
++          'wallet_snapshot': WalletSnapshotLocalStore.instance.close,
++        };
++        await Future.wait(stores.entries.map((entry) async {
++          if (myEpoch != _epoch) return;
++          _pendingStores.add(entry.key);
++          final watch = Stopwatch()..start();
++          StartupPerfLog.markTagged('database_close_start',
++              category: 'database',
++              details: {'epoch': myEpoch, 'store': entry.key});
++          try {
++            await entry.value();
++            if (myEpoch == _epoch) _pendingStores.remove(entry.key);
++            StartupPerfLog.markTagged('database_close_done',
++                category: 'database',
++                details: {
++                  'epoch': myEpoch,
++                  'store': entry.key,
++                  'elapsedMs': watch.elapsedMilliseconds
++                });
++          } catch (_) {
++            // The handle's state is unknown. Keep its fence and report degraded.
++            rethrow;
++          }
++        }));
++        safelyClosed = true;
++      } catch (_) {
++        if (myEpoch == _epoch) {
++          _closeFailed = true;
++          status.value = SqfliteLifecycleStatus.degraded;
+         }
+-        if (identical(_closeInFlight, closeGate)) {
++      } finally {
++        if (myEpoch == _epoch) {
+           _closeInFlight = null;
++          if (safelyClosed) {
++            status.value = SqfliteLifecycleStatus.paused;
++            _resumeIfCurrent();
++          }
+         }
+-      } else if (!closeGate.isCompleted) {
+-        // 过期关库轮次：仍要放行等待方，避免永久挂起。
+-        closeGate.complete();
++        if (!gate.isCompleted) gate.complete();
+       }
+-    }
++    }());
++    return gate.future;
+   }
+ 
+   static void _signalOpenAllowed() {
+     final waiter = _openAllowed;
+     _openAllowed = null;
+-    if (waiter != null && !waiter.isCompleted) {
+-      waiter.complete();
+-    }
++    if (waiter != null && !waiter.isCompleted) waiter.complete();
+   }
+ 
+-  static void _resetOpenAllowedWaiters() {
+-    final waiter = _openAllowed;
+-    _openAllowed = null;
+-    if (waiter != null && !waiter.isCompleted) {
+-      // 不 completeError：调用方会在 timeout / 二次检查 canOpen 后自行处理。
+-      waiter.complete();
+-    }
+-  }
++  static void _resetOpenAllowedWaiters() => _signalOpenAllowed();
+ 
+   @visibleForTesting
+   static void debugReset() {
+-    _chain = null;
++    _epoch++;
+     _closeInFlight = null;
+-    _openAllowed = null;
+-    _epoch = 0;
++    _closeFailed = false;
++    _desired = AppLifecycleState.resumed;
++    _pendingStores.clear();
++    status.value = SqfliteLifecycleStatus.ready;
++    _signalOpenAllowed();
+   }
+ }
+ 

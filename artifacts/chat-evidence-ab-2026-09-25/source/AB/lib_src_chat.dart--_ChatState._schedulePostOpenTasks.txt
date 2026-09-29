@@ -1,0 +1,202 @@
+void _schedulePostOpenTasks() {
+    if (_openLifecycle.postOpenTasksScheduled) return;
+    final taskGeneration = _openLifecycle.beginPostOpenTasks();
+    final schedulerGeneration = _postOpenScheduler.beginRun();
+    final scheduledConversationId = _resolvedConversationID();
+    final scheduledConvKey = _getConvID()?.trim() ?? scheduledConversationId;
+
+    bool canRun() {
+      return taskGeneration == _openLifecycle.postOpenTasksGeneration &&
+          _isCurrentConversation(scheduledConversationId);
+    }
+
+    Future<void> runTasks() async {
+      if (!canRun()) return;
+      await _openLifecycle.waitForOpenHistoryPreparationGate();
+      if (!canRun()) return;
+      ChatOpenPerfLog.mark(
+        'post_open_tasks_run',
+        extras: <String, Object?>{'isGroup': _getConvType() == ConvType.group},
+      );
+      ChatJitterDiag.log(
+        'post_open_tasks',
+        extras: const <String, Object?>{'source': 'route_animation_or_delay'},
+      );
+      _postOpenScheduler.schedule(
+        generation: schedulerGeneration,
+        key: 'local_foundation',
+        delay: Duration.zero,
+        canRun: canRun,
+        task: () async {
+          await Future.wait<void>(<Future<void>>[
+            _loadChatBackground(),
+            _loadChatLocalDraft(),
+            _hydrateGroupDisplayForOpen(),
+            _resolveImGroupIdAfterOpen(),
+          ]);
+          if (canRun()) {
+            await _prepareOfficialAccountChat();
+          }
+          if (canRun() && _getConvType() == ConvType.c2c) {
+            await Future.wait<void>(<Future<void>>[
+              _loadPeerFaceUrl(),
+              _loadPeerLocalProfile(),
+            ]);
+            if (canRun()) {
+              _schedulePeerMessagePermissionSync(forceNetwork: true);
+            }
+          }
+        },
+      );
+      _postOpenScheduler.schedule(
+        generation: schedulerGeneration,
+        key: 'history_enrichment',
+        delay: ChatPostOpenScheduler.p1Delay,
+        canRun: canRun,
+        task: () => _runOpenHistoryEnrichment(scheduledConvKey, canRun: canRun),
+      );
+      if (_getConvType() == ConvType.group) {
+        final groupId = ChatIdFormat.normalizeGroupId(
+          widget.selectedConversation.groupID,
+        );
+        if (groupId.isNotEmpty) {
+          // 与进页成员最小集错峰；本地已 seed 时只做权威补证。
+          final muteGeneration = _openLifecycle.muteFetchGeneration;
+          _postOpenScheduler.schedule(
+            generation: schedulerGeneration,
+            key: 'mute_status',
+            delay: ChatPostOpenScheduler.muteNetworkDelay,
+            canRun: canRun,
+            task: () async {
+              if (!mounted ||
+                  muteGeneration != _openLifecycle.muteFetchGeneration) {
+                return;
+              }
+              ChatOpenPerfLog.mark('mute_network_fetch_start');
+              await _fetchAndStoreBackendMuteStatus(groupId);
+              if (canRun()) {
+                _markChatOpenBackgroundPart(
+                  part: 'mute',
+                  generation: taskGeneration,
+                );
+              }
+            },
+          );
+        } else {
+          _markChatOpenBackgroundPart(part: 'mute', generation: taskGeneration);
+        }
+      }
+      _postOpenScheduler.schedule(
+        generation: schedulerGeneration,
+        key: 'group_metadata',
+        // Group metadata is enrichment, never a chat first-frame dependency.
+        delay: ChatPostOpenScheduler.idleDelay,
+        canRun: canRun,
+        task: () async {
+          if (!canRun()) return;
+          if (_getConvType() != ConvType.group) {
+            _markChatOpenBackgroundPart(
+              part: 'c2c',
+              generation: taskGeneration,
+            );
+            return;
+          }
+          await _runOpenGroupMetadataEnrichment(
+            generation: taskGeneration,
+            canRun: canRun,
+          );
+        },
+      );
+      _postOpenScheduler.schedule(
+        generation: schedulerGeneration,
+        key: 'business_enrichment',
+        delay: const Duration(milliseconds: 650),
+        priority: ChatTaskPriority.background,
+        canRun: canRun,
+        task: () async {
+          if (!canRun()) return;
+          await Future.wait<void>(<Future<void>>[
+            _loadGroupGameStatus(),
+            _loadAgentRebateIdentity(),
+            _loadSangongAgentEntry(),
+            _loadGroupLiveCurrent(),
+          ]);
+          if (canRun()) {
+            _markChatOpenBackgroundPart(
+              part: 'group_game',
+              generation: taskGeneration,
+            );
+            if (_getConvType() == ConvType.group) {
+              _startGroupLiveCurrentPoll();
+            }
+          }
+        },
+      );
+      _postOpenScheduler.schedule(
+        generation: schedulerGeneration,
+        key: 'idle_enrichment',
+        delay: ChatPostOpenScheduler.idleDelay,
+        priority: ChatTaskPriority.background,
+        canRun: canRun,
+        task: () async {
+          if (!canRun()) return;
+          final idleTasks = <Future<void>>[
+            DiceAssetWarmup.warm(context),
+            _retryWalletCardsForConversation(
+              source: WalletCardSendSource.autoRetry,
+            ),
+            if (!CallLifecycleService.instance.isInActiveCall)
+              SoundPlayer.ensurePlaybackReady(),
+          ];
+          await Future.wait<void>(idleTasks);
+          if (!canRun()) return;
+          if (!_hasVisibleHistoryMessages()) {
+            await _reloadChatHistoryIfEmpty(reason: 'post_open');
+          }
+        },
+      );
+      _postOpenScheduler.schedule(
+        generation: schedulerGeneration,
+        key: 'group_feature_idle',
+        delay: const Duration(milliseconds: 900),
+        priority: ChatTaskPriority.background,
+        canRun: canRun,
+        task: () async {
+          if (!canRun() || _getConvType() != ConvType.group) return;
+          // Member verification and feature APIs share an idle lane and are
+          // intentionally independent of chat history/readback. Their
+          // failures must not delay the message list or trigger a reload.
+          if (canRun()) {
+            await _verifyGroupMembershipOnOpen();
+          }
+        },
+      );
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final animation = ModalRoute.of(context)?.animation;
+      if (animation != null && !animation.isCompleted) {
+        void listener(AnimationStatus status) {
+          if (status != AnimationStatus.completed &&
+              status != AnimationStatus.dismissed) {
+            return;
+          }
+          _removeRouteTransitionListener(animation, listener);
+          if (status == AnimationStatus.completed) {
+            unawaited(runTasks());
+          }
+        }
+
+        _addRouteTransitionListener(animation, listener);
+        return;
+      }
+      _postOpenScheduler.schedule(
+        generation: schedulerGeneration,
+        key: 'route_fallback',
+        delay: ChatPostOpenScheduler.routeFallbackDelay,
+        canRun: canRun,
+        task: runTasks,
+      );
+    });
+  }

@@ -1,0 +1,12 @@
+V2TimMessage? _currentResendMessage(String convID, V2TimMessage original) {
+    final clientId = original.id?.trim() ?? '';
+    final msgID = original.msgID?.trim() ?? '';
+    for (final current in globalModel.rawMessageList(convID) ??
+        const <V2TimMessage>[]) {
+      if ((clientId.isNotEmpty && current.id == clientId) ||
+          (msgID.isNotEmpty && current.msgID == msgID)) {
+        return current;
+      }
+    }
+    return null;
+  }

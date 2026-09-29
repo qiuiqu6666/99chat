@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_demo/src/pages/wallet/order/wallet_payment_presentation.dart';
 import 'package:tencent_cloud_chat_demo/src/ui/utils/adaptive_modal.dart';
 import 'package:tencent_cloud_chat_demo/utils/group_privacy_guard.dart';
 import 'package:tencent_cloud_chat_demo/utils/toast.dart';
@@ -26,6 +27,7 @@ class WalletTransferScreen extends StatefulWidget {
   final String? avatar;
   final String receiverId;
   final String conversationId;
+
   /// 群聊时为选人转账页；提交走红包 `GROUP_TRANSFER`，不再调用 `/wallet/transfer`。
   final bool isGroup;
 
@@ -50,6 +52,7 @@ class _WalletTransferScreenState extends State<WalletTransferScreen> {
   final FocusNode amtFocus = FocusNode();
   final FocusNode memoFocus = FocusNode();
   bool _sheetOpen = false;
+
   /// 群隐私保护开启时不展示收款人 99Chat ID。
   bool _hideReceiverUserId = false;
 
@@ -250,29 +253,26 @@ class _WalletTransferScreenState extends State<WalletTransferScreen> {
             ctl.state == WalletOrderState.accepted ||
             ctl.state == WalletOrderState.pending ||
             ctl.state == WalletOrderState.unknown) {
+          final presentation =
+              WalletPaymentPresentation(ctl.state, ctl.lastResult);
           await PaySuccessOverlay.showFor(
             context,
-            title: AppI18n.of(context).t(
-              zhHans: '支付成功',
-              zhHant: '支付成功',
-              en: 'Payment successful',
-              ja: '支払いが完了しました',
-              ko: '결제가 완료되었습니다',
-            ),
-            message: AppI18n.of(context).t(
-              zhHans: '转账已完成',
-              zhHant: '轉帳已完成',
-              en: 'Transfer completed',
-              ja: '送金が完了しました',
-              ko: '이체가 완료되었습니다',
-            ),
+            title: presentation.title(AppI18n.of(context)),
+            message:
+                presentation.message(AppI18n.of(context), redPacket: false),
+            duration:
+                presentation.deliveryPending || !presentation.paymentCommitted
+                    ? const Duration(seconds: 4)
+                    : null,
           );
           if (!mounted) return;
-          await BiometricPayEnablePrompt.maybeShowAfterPaySuccess(
-            context,
-            authMethod: auth.method ?? PayAuthMethod.manual,
-            verifiedPayPin: auth.verifiedPayPin,
-          );
+          if (presentation.paymentCommitted) {
+            await BiometricPayEnablePrompt.maybeShowAfterPaySuccess(
+              context,
+              authMethod: auth.method ?? PayAuthMethod.manual,
+              verifiedPayPin: auth.verifiedPayPin,
+            );
+          }
           if (!mounted) return;
           Navigator.of(context).pop(true);
           return;
@@ -308,85 +308,86 @@ class _WalletTransferScreenState extends State<WalletTransferScreen> {
         return wrapWalletPage(
           context,
           Scaffold(
-          backgroundColor: cs.bg,
-          resizeToAvoidBottomInset: true,
-          body: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: () => FocusScope.of(context).unfocus(),
-            child: SafeArea(
-              bottom: false,
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: 52 * scale,
-                    child: Row(
-                      children: [
-                        SizedBox(width: 4 * scale),
-                        IconButton(
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          icon: Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: appBar.icon,
-                            size: 19 * scale,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        ListView(
-                          padding: EdgeInsets.fromLTRB(0, 18 * scale, 0, 120 * scale),
-                          children: [
-                            _ReceiverBox(
-                              cs: cs,
-                              scale: scale,
-                              name: receiverName,
-                              qq: ctl.toUserId.isNotEmpty
-                                  ? ctl.toUserId
-                                  : widget.receiverId,
-                              avatar: ctl.avatar.isEmpty
-                                  ? widget.avatar
-                                  : ctl.avatar,
-                              hideUserId: _hideReceiverUserId,
-                              enabled: ctl.isGroup,
-                              onTap: _chooseReceiver,
-                            ),
-                            SizedBox(height: 18 * scale),
-                            _TransferBody(
-                              cs: cs,
-                              scale: scale,
-                              ctl: ctl,
-                              amtCtrl: amtCtrl,
-                              memoCtrl: memoCtrl,
-                              amtFocus: amtFocus,
-                              memoFocus: memoFocus,
-                              onChoosePay: _choosePay,
-                            ),
-                          ],
-                        ),
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 24 * scale,
-                          child: Center(
-                            child: _ConfirmBtn(
-                              cs: cs,
-                              scale: scale,
-                              onTap: _confirm,
-                              enabled: ctl.canConfirm && !_sheetOpen,
+            backgroundColor: cs.bg,
+            resizeToAvoidBottomInset: true,
+            body: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 52 * scale,
+                      child: Row(
+                        children: [
+                          SizedBox(width: 4 * scale),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            icon: Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              color: appBar.icon,
+                              size: 19 * scale,
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          ListView(
+                            padding: EdgeInsets.fromLTRB(
+                                0, 18 * scale, 0, 120 * scale),
+                            children: [
+                              _ReceiverBox(
+                                cs: cs,
+                                scale: scale,
+                                name: receiverName,
+                                qq: ctl.toUserId.isNotEmpty
+                                    ? ctl.toUserId
+                                    : widget.receiverId,
+                                avatar: ctl.avatar.isEmpty
+                                    ? widget.avatar
+                                    : ctl.avatar,
+                                hideUserId: _hideReceiverUserId,
+                                enabled: ctl.isGroup,
+                                onTap: _chooseReceiver,
+                              ),
+                              SizedBox(height: 18 * scale),
+                              _TransferBody(
+                                cs: cs,
+                                scale: scale,
+                                ctl: ctl,
+                                amtCtrl: amtCtrl,
+                                memoCtrl: memoCtrl,
+                                amtFocus: amtFocus,
+                                memoFocus: memoFocus,
+                                onChoosePay: _choosePay,
+                              ),
+                            ],
+                          ),
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 24 * scale,
+                            child: Center(
+                              child: _ConfirmBtn(
+                                cs: cs,
+                                scale: scale,
+                                onTap: _confirm,
+                                enabled: ctl.canConfirm && !_sheetOpen,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
         );
       },
     );
@@ -497,7 +498,8 @@ class _ReceiverBox extends StatelessWidget {
                 height: 56 * scale,
                 color: cs.avatarPlaceholder,
                 child: avatar == null || avatar!.isEmpty
-                    ? Icon(Icons.person_rounded, size: 26 * scale, color: cs.avatarIcon)
+                    ? Icon(Icons.person_rounded,
+                        size: 26 * scale, color: cs.avatarIcon)
                     : Image.network(
                         avatar!,
                         fit: BoxFit.cover,
@@ -511,7 +513,8 @@ class _ReceiverBox extends StatelessWidget {
             ),
             if (enabled) ...[
               SizedBox(width: 6 * scale),
-              Icon(Icons.chevron_right_rounded, size: 22 * scale, color: cs.subText),
+              Icon(Icons.chevron_right_rounded,
+                  size: 22 * scale, color: cs.subText),
             ],
           ],
         ),
@@ -731,7 +734,8 @@ class _ConfirmBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final i18n = AppI18n.of(context);
-    final disabledBg = cs.dark ? const Color(0xFF2A2D33) : const Color(0xFFDDDDDD);
+    final disabledBg =
+        cs.dark ? const Color(0xFF2A2D33) : const Color(0xFFDDDDDD);
 
     return GestureDetector(
       onTap: enabled ? onTap : null,

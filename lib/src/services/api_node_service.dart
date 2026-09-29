@@ -32,10 +32,12 @@ class ApiNodeProbeResult {
   const ApiNodeProbeResult({
     required this.status,
     this.latencyMs,
+    this.reachable = false,
   });
 
   final ApiNodeProbeStatus status;
   final int? latencyMs;
+  final bool reachable;
 }
 
 /// 业务 API / 实时 TCP 节点选择与测速。
@@ -58,7 +60,7 @@ class ApiNodeService extends ChangeNotifier {
     ApiNodeDefinition(
       id: 'cn',
       name: '节点01(CN)',
-      apiBaseUrl: 'http://119.28.179.146:8081',
+      apiBaseUrl: 'https://119.28.179.146:8081',
       realtimeTcpBase: 'http://43.154.162.29:8082',
     ),
     ApiNodeDefinition(
@@ -77,6 +79,10 @@ class ApiNodeService extends ChangeNotifier {
       <String, ApiNodeProbeResult>{};
   bool _hydrated = false;
   bool _probing = false;
+  Future<void>? _probeInFlight;
+  @visibleForTesting
+  Future<ApiNodeProbeResult> Function(ApiNodeDefinition)? probeOverride;
+  int _selectionGeneration = 0;
   int _consecutiveFailures = 0;
   bool _failoverInFlight = false;
 
@@ -187,8 +193,10 @@ class ApiNodeService extends ChangeNotifier {
   }
 
   Future<void> _failoverAfterFailures() async {
+    final generation = _selectionGeneration;
     try {
       await probeAll();
+      if (generation != _selectionGeneration) return;
       final next = pickFastestNormal(
         probes: _probeById,
         excludeId: _selectedNodeId,
@@ -208,13 +216,16 @@ class ApiNodeService extends ChangeNotifier {
   }
 
   Future<void> selectNode(String nodeId) async {
+    final generation = ++_selectionGeneration;
     final node = nodeById(nodeId);
     _selectedNodeId = node.id;
     _consecutiveFailures = 0;
     final prefs = await SharedPreferences.getInstance();
+    if (generation != _selectionGeneration) return;
     await prefs.setString(_prefsSelectedNodeId, node.id);
     // 手动/自动选过后都视为「首次流程已结束」。
     await prefs.setBool(_prefsFirstAutoProbeDone, true);
+    if (generation != _selectionGeneration) return;
     ApiClient.applyRuntimeBaseUrl(node.apiBaseUrl);
     // 切节点后重连实时 TCP（若已启动）。
     unawaited(_reconnectRealtimeIfNeeded());
@@ -227,16 +238,24 @@ class ApiNodeService extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> probeAll() async {
-    if (_probing) {
-      return;
-    }
+  Future<void> probeAll() {
+    final running = _probeInFlight;
+    if (running != null) return running;
+    late final Future<void> operation;
+    operation = _probeAllInternal().whenComplete(() {
+      if (identical(_probeInFlight, operation)) _probeInFlight = null;
+    });
+    _probeInFlight = operation;
+    return operation;
+  }
+
+  Future<void> _probeAllInternal() async {
     _probing = true;
     notifyListeners();
     try {
       final results = await Future.wait(
         catalog.map((node) async {
-          final result = await probeNode(node);
+          final result = await (probeOverride?.call(node) ?? probeNode(node));
           return MapEntry(node.id, result);
         }),
       );
@@ -268,13 +287,14 @@ class ApiNodeService extends ChangeNotifier {
         baseUrl: base,
         connectTimeout: 6000,
         receiveTimeout: 6000,
-        // Cloudflare 403 / 业务 401 仍说明链路可达。
+        // Capture reachability separately; auth/gateway responses are not
+        // healthy candidates for an unauthenticated public probe.
         validateStatus: (_) => true,
       ),
     );
     final sw = Stopwatch()..start();
     try {
-      await dio.get<dynamic>(
+      final response = await dio.get<dynamic>(
         '/api/v1/platform/splash',
         queryParameters: <String, dynamic>{
           'channel': IMDemoConfig.appChannel,
@@ -282,16 +302,21 @@ class ApiNodeService extends ChangeNotifier {
       );
       sw.stop();
       return ApiNodeProbeResult(
-        status: ApiNodeProbeStatus.normal,
+        status:
+            response.statusCode == 200 && _isHealthyProbePayload(response.data)
+                ? ApiNodeProbeStatus.normal
+                : ApiNodeProbeStatus.abnormal,
         latencyMs: sw.elapsedMilliseconds,
+        reachable: true,
       );
     } on DioError catch (e) {
       sw.stop();
-      // 有响应即视为链路通。
+      // Reachable does not mean usable (e.g. CDN 403 or gateway 503).
       if (e.response != null) {
         return ApiNodeProbeResult(
-          status: ApiNodeProbeStatus.normal,
+          status: ApiNodeProbeStatus.abnormal,
           latencyMs: sw.elapsedMilliseconds,
+          reachable: true,
         );
       }
       return const ApiNodeProbeResult(status: ApiNodeProbeStatus.abnormal);
@@ -304,7 +329,16 @@ class ApiNodeService extends ChangeNotifier {
 
   static String _encodeProbe(ApiNodeProbeResult result) {
     final ms = result.latencyMs;
-    return '${result.status.name}|${ms ?? ''}';
+    return '${result.status.name}|${ms ?? ''}|${result.reachable}';
+  }
+
+  static bool _isHealthyProbePayload(dynamic data) {
+    // Public SplashResponse always includes enabled, even with no configured
+    // splash. Reject HTML/CDN pages and JSON error envelopes with HTTP 200.
+    if (data is! Map) return false;
+    if (data['enabled'] is bool) return true;
+    final payload = data['data'];
+    return payload is Map && payload['enabled'] is bool;
   }
 
   static ApiNodeProbeResult? _decodeProbe(String? raw) {
@@ -321,6 +355,11 @@ class ApiNodeService extends ChangeNotifier {
       orElse: () => ApiNodeProbeStatus.unknown,
     );
     final ms = parts.length > 1 ? int.tryParse(parts[1]) : null;
-    return ApiNodeProbeResult(status: status, latencyMs: ms);
+    return ApiNodeProbeResult(
+        status: status,
+        latencyMs: ms,
+        reachable: parts.length > 2
+            ? parts[2] == 'true'
+            : status == ApiNodeProbeStatus.normal);
   }
 }

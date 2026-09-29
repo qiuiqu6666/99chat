@@ -1,0 +1,20 @@
+/// Builds one typed local-intent plan. The Store remains the only place that
+  /// interprets and persists [fieldPatch]; callers must not write the same
+  /// field through a legacy Store API after consuming this plan.
+  Future<ConversationDatabaseCommitPlan<V2TimConversation>?>
+      prepareLocalIntentCommit({
+    required String ownerUserId,
+    required String conversationId,
+    required Map<ConversationMutationField, Object?> fieldPatch,
+    V2TimConversation? fullSnapshot,
+    int? sourceVersion,
+  }) {
+    return prepareFieldPatchCommit(
+      ownerUserId: ownerUserId,
+      conversationId: conversationId,
+      source: ConversationMutationSource.localIntent,
+      fieldPatch: fieldPatch,
+      fullSnapshot: fullSnapshot,
+      sourceVersion: sourceVersion,
+    );
+  }

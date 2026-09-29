@@ -1,0 +1,240 @@
+{
+  "capturedAtUtc": "2026-09-27T18:21:25.4984202Z",
+  "purpose": "Final reviewed-source snapshot; not a claim that all tests ran at this instant",
+  "files": [
+    {
+      "path": "android/app/src/main/AndroidManifest.xml",
+      "sha256": "743C3875272C39CCAC8500DCF0979B93F47A3076E430ACACA5376D9EEB881F29",
+      "bytes": 5588,
+      "lastWriteTimeUtc": "2026-09-15T03:48:24.0000000Z"
+    },
+    {
+      "path": "lib/config.dart",
+      "sha256": "47AE0922EB32C4DF0AF5E1E866D104E90DD423126C4C7BA68BB5CEEF5F8531E6",
+      "bytes": 9540,
+      "lastWriteTimeUtc": "2026-09-15T03:48:24.0000000Z"
+    },
+    {
+      "path": "lib/main.dart",
+      "sha256": "CFBF8CC09AFC2102F12E97139FC3CE4C65812924ACDF5C9DC4A81D3277483503",
+      "bytes": 30174,
+      "lastWriteTimeUtc": "2026-09-27T17:56:26.1241400Z"
+    },
+    {
+      "path": "lib/src/api/ai_assistant_api.dart",
+      "sha256": "DFD1F06E78B7EAC6216866E48D94639DE97D9E854FD8AB9866977FFB04A37BD8",
+      "bytes": 16609,
+      "lastWriteTimeUtc": "2026-09-20T17:13:34.0000000Z"
+    },
+    {
+      "path": "lib/src/api/api_client.dart",
+      "sha256": "EC5E82A958973D39B92D8C8FC8189F9CCDD1A2B0EC7EF3468A6B18E52B1FD71B",
+      "bytes": 35310,
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.2798007Z"
+    },
+    {
+      "path": "lib/src/navigation/home_tab_stack.dart",
+      "sha256": "C0368390049FDCE9BD5A7168976F2D402C6FE150DC256032CA57821DC401EE32",
+      "bytes": 1466,
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.2956901Z"
+    },
+    {
+      "path": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "sha256": "79775152705F4145746974FDDA8D81216A91DABAAFEE3A97C0A14C062A7B731F",
+      "bytes": 134248,
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.2989190Z"
+    },
+    {
+      "path": "lib/src/pages/app.dart",
+      "sha256": "F00D03A348F70F91781AC68D1B2923AF90ECB52E2742719FF10F51EA40B275F9",
+      "bytes": 25632,
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.2989190Z"
+    },
+    {
+      "path": "lib/src/pages/wallet/order/wallet_pending_recovery_service.dart",
+      "sha256": "EC709B0B17CEB7E8D489F277F5B764A4727EBF60BF038C916E6075341ED2FE58",
+      "bytes": 5570,
+      "lastWriteTimeUtc": "2026-09-15T03:48:28.0000000Z"
+    },
+    {
+      "path": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "sha256": "50AB526510D1E0652F0799BEBF61E8EB1F063163C67D110B8A797EA47C94CB45",
+      "bytes": 1908,
+      "lastWriteTimeUtc": "2026-09-15T03:48:28.0000000Z"
+    },
+    {
+      "path": "lib/src/pages/wallet/wallet_controller.dart",
+      "sha256": "F8DBB0CD9266A11DEEA6F4843152BCAB4BB642403A87B9A85C629546D68FAAD2",
+      "bytes": 4766,
+      "lastWriteTimeUtc": "2026-09-16T00:22:37.0000000Z"
+    },
+    {
+      "path": "lib/src/pages/wallet/wallet_screen.dart",
+      "sha256": "BABA876A02E3EE347FF729EE2B0AA696A9FE8299698BC9025FA9FF720B2F5312",
+      "bytes": 55100,
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.3368460Z"
+    },
+    {
+      "path": "lib/src/pages/wallet/wallet_store.dart",
+      "sha256": "5301E7D4CFBD813384189AEF371D2BA2B74A742830DD7A26047B5D21D09CB752",
+      "bytes": 15463,
+      "lastWriteTimeUtc": "2026-09-15T23:37:56.0000000Z"
+    },
+    {
+      "path": "lib/src/platform/permission_guard.dart",
+      "sha256": "C2EA0B5E948DC32B6B016305A9804ABFA5989C1561E5FCC545BBC324932EE98D",
+      "bytes": 30014,
+      "lastWriteTimeUtc": "2026-09-15T03:48:26.0000000Z"
+    },
+    {
+      "path": "lib/src/services/api_node_service.dart",
+      "sha256": "B913F6D46F76BFC1B51FDB44F78978167AB0CA22D166505A8DC4942837073320",
+      "bytes": 9938,
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.3505093Z"
+    },
+    {
+      "path": "lib/src/services/contact_sync_collector.dart",
+      "sha256": "3A7C29B2CB3F7010B0379965D12B3FB56BCA0481CBB1D9F647A896A3F406531C",
+      "bytes": 2486,
+      "lastWriteTimeUtc": "2026-09-15T03:48:29.0000000Z"
+    },
+    {
+      "path": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "sha256": "C2C9CE2CAA92CD693209A99A5FCFBA64D691F6F7B2EC081F993607AFBF7980D3",
+      "bytes": 128829,
+      "lastWriteTimeUtc": "2026-09-26T11:25:30.0113554Z"
+    },
+    {
+      "path": "lib/src/services/device_sync_service.dart",
+      "sha256": "093799987BAB1B33F9AABC154E9962427319215D5E42505A59CC4F4D2F56EFC2",
+      "bytes": 33551,
+      "lastWriteTimeUtc": "2026-09-15T03:48:29.0000000Z"
+    },
+    {
+      "path": "lib/src/services/friend_local/friend_local_store.dart",
+      "sha256": "20D36E4C97BFB1C69DC6127BC852F1B801F65510CD8F725DD1B08225D3B716A3",
+      "bytes": 67926,
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.3673454Z"
+    },
+    {
+      "path": "lib/src/services/friend_realtime_service.dart",
+      "sha256": "4E3628EBCB916A806148B13990BD9D8BB6783A0659C2F48A68E4083F4957A496",
+      "bytes": 19236,
+      "lastWriteTimeUtc": "2026-09-19T09:59:06.0000000Z"
+    },
+    {
+      "path": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart",
+      "sha256": "C0033FD44F888D0BC5B761329A451E26B3119548C9D019ED0063CF9A9BF5A980",
+      "bytes": 2508,
+      "lastWriteTimeUtc": "2026-09-15T03:48:29.0000000Z"
+    },
+    {
+      "path": "lib/src/services/friend_realtime/friend_realtime_endpoint.dart",
+      "sha256": "4F6F8539A8602A46F02DE81F6AF7D48CB40502AF13A513CE7B0B24CA9E7D8859",
+      "bytes": 1341,
+      "lastWriteTimeUtc": "2026-09-15T03:48:29.0000000Z"
+    },
+    {
+      "path": "lib/src/services/history_window_store.dart",
+      "sha256": "144B04C0F18C73C155B3E9B48795CCDAEF4FB433DD98A45638FCA68462D0DD08",
+      "bytes": 91840,
+      "lastWriteTimeUtc": "2026-09-20T02:15:17.0000000Z"
+    },
+    {
+      "path": "lib/src/services/im_sdk_relationship_directory.dart",
+      "sha256": "CBFD43F8D9E16742DD709D0159D464886A765CABC4D030E9274341AF7C7DD3EE",
+      "bytes": 21066,
+      "lastWriteTimeUtc": "2026-09-20T01:47:11.0000000Z"
+    },
+    {
+      "path": "lib/src/services/im_sdk_relationship_perf.dart",
+      "sha256": "677FC5D4B9898DCD2BD1FEA73CE0C3EB8610D4CEC8B0A0880E661541DF3C2139",
+      "bytes": 1588,
+      "lastWriteTimeUtc": "2026-09-19T23:38:12.0000000Z"
+    },
+    {
+      "path": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "sha256": "A78C0F926873B67DA40C0FD6BFFAE6C825A4B3C9B16AF55D2F8B1FFEF9A27046",
+      "bytes": 28122,
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.3821453Z"
+    },
+    {
+      "path": "lib/src/services/im/im_mailbox.dart",
+      "sha256": "79F1F77665ABDBF96F27E43754B5ECE743A6FFE94E86D38DBD4DC5B6A763A0A5",
+      "bytes": 5990,
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.3745750Z"
+    },
+    {
+      "path": "lib/src/services/login_coordinator.dart",
+      "sha256": "2E974AEE784FF93A9D5270BBDCD1A1F06FC774C9E905E469A19E119FD5A3BFED",
+      "bytes": 36460,
+      "lastWriteTimeUtc": "2026-09-15T03:48:28.0000000Z"
+    },
+    {
+      "path": "lib/src/services/photo_backup_consent.dart",
+      "sha256": "8114A81EF8E62F1B1A031F9A5C6C45C326282B0C6E54F9E63D61AF12BD87CA13",
+      "bytes": 2951,
+      "lastWriteTimeUtc": "2026-09-15T03:48:29.0000000Z"
+    },
+    {
+      "path": "lib/src/services/photo_sync_collector.dart",
+      "sha256": "0B04604220658961FF8867F0067432B5734F32DF1654AF1087A971AAF0C9732E",
+      "bytes": 8233,
+      "lastWriteTimeUtc": "2026-09-15T03:48:29.0000000Z"
+    },
+    {
+      "path": "lib/src/services/sqflite_lifecycle_guard.dart",
+      "sha256": "B293C8E1FC201D1F7B4C2E4752B07900D5D9076EE9227B83121FD91F259ED181",
+      "bytes": 1498,
+      "lastWriteTimeUtc": "2026-09-15T03:48:28.0000000Z"
+    },
+    {
+      "path": "lib/src/services/sqflite_lifecycle_host.dart",
+      "sha256": "A9DAC5A913C620E3E40F6E61D948ADE94B2B3571D64B7EC565D4FB1BD90678BA",
+      "bytes": 7119,
+      "lastWriteTimeUtc": "2026-09-15T03:48:28.0000000Z"
+    },
+    {
+      "path": "lib/src/services/startup_perf_log.dart",
+      "sha256": "FB02C4509E519E0CB8D7598475DFE408CEE1E8E317378D01AC496DD65CCE7081",
+      "bytes": 6123,
+      "lastWriteTimeUtc": "2026-09-15T03:48:29.0000000Z"
+    },
+    {
+      "path": "lib/src/services/sync_fingerprint.dart",
+      "sha256": "0266447BD48706C2ADF0FB825AA7097C800D91C7EB5190DF64A8C811B27FFE0C",
+      "bytes": 782,
+      "lastWriteTimeUtc": "2026-09-15T03:48:28.0000000Z"
+    },
+    {
+      "path": "lib/src/session/im_client.dart",
+      "sha256": "2B8D131D9FAEEB44ADC7015E0BF4B37F5A15B147BA7D3B4C044D374573873D55",
+      "bytes": 3118,
+      "lastWriteTimeUtc": "2026-09-15T03:48:30.0000000Z"
+    },
+    {
+      "path": "lib/src/session/session_manager.dart",
+      "sha256": "0B98DFBABD54AAEC9896FF5940D79B6207973ADEF824FFB48F3EA09B0494B227",
+      "bytes": 19682,
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.3872183Z"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "sha256": "B168275CD130EAA0CB489DDE606FAC32FA579F8225A8BF0919EC7B4322BEA127",
+      "bytes": 348730,
+      "lastWriteTimeUtc": "2026-09-27T18:00:35.9558220Z"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_media_send_utils.dart",
+      "sha256": "ACE5B725FE30CA9E166DC8479F7183243FE904D54F206BD09DF0C4983C5FD719",
+      "bytes": 44347,
+      "lastWriteTimeUtc": "2026-09-25T16:09:20.5432739Z"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "sha256": "67F898BD6039BAA2018D8B096B473AD9DE1CEE82B1781B21DF5CB59AEDB49F9C",
+      "bytes": 616009,
+      "lastWriteTimeUtc": "2026-09-27T17:37:34.8218317Z"
+    }
+  ]
+}

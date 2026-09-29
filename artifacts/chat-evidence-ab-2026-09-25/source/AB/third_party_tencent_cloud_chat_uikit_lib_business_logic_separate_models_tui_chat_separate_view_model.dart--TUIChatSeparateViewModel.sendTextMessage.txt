@@ -1,0 +1,40 @@
+Future<V2TimValueCallback<V2TimMessage>?> sendTextMessage({
+    required String text,
+    required String convID,
+    required ConvType convType,
+  }) async {
+    if (text.isEmpty) {
+      return null;
+    }
+    final optimisticId = _prependOptimisticTextPlaceholder(text: text);
+    final textMessageInfo = await _messageService.createTextMessage(text: text);
+    final messageInfo = textMessageInfo?.messageInfo;
+    if (textMessageInfo == null || messageInfo == null) {
+      _markOutgoingMediaSendFailed(
+        convID: conversationID,
+        clientId: optimisticId,
+      );
+      _notifyCreateMessageFailed(TIM_t('消息创建失败，请重试'));
+      return null;
+    }
+    final messageInfoWithSender = tools.setUserInfoForMessage(
+      messageInfo,
+      textMessageInfo.id!,
+    );
+    messageInfoWithSender.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+    _adoptOptimisticOutgoingTextMessage(
+      optimisticId: optimisticId,
+      newMessage: messageInfoWithSender,
+    );
+    return _sendMessage(
+      convID: convID,
+      id: textMessageInfo.id as String,
+      convType: convType,
+      messageInfo: messageInfoWithSender,
+      offlinePushInfo: tools.buildMessagePushInfo(
+        textMessageInfo.messageInfo!,
+        convID,
+        convType,
+      ),
+    );
+  }

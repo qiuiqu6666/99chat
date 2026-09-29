@@ -1,0 +1,48 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/chat.dart:_ChatState._clearChatLocalDraftAfterSend#1",
+    "name": "_clearChatLocalDraftAfterSend",
+    "kind": "Method",
+    "filePath": "lib/src/chat.dart",
+    "startLine": 1446,
+    "endLine": 1446
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/chat.dart:_ChatState",
+        "name": "_ChatState",
+        "filePath": "lib/src/chat.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/chat.dart:_ChatState.initState#0",
+        "name": "initState",
+        "filePath": "lib/src/chat.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/chat.dart:_ChatState._getConvType#0",
+        "name": "_getConvType",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.markSendCompleted#0",
+        "name": "markSendCompleted",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftWriteQueue.enqueue#2",
+        "name": "enqueue",
+        "filePath": "lib/src/chat_page/chat_draft_controller.dart"
+      }
+    ]
+  },
+  "processes": []
+}

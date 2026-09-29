@@ -137,7 +137,12 @@ class WalletPendingStore {
         return _timeOf(b).compareTo(_timeOf(a));
       });
 
-    final keep = values.take(_maxItems).map((e) => e.clientOrderId).toSet();
+    // This is a recovery journal, not a cache. Capacity must never discard an
+    // unresolved payment or card. Only settled records may be evicted.
+    final keep = values.take(_maxItems).map((e) => e.clientOrderId).toSet()
+      ..addAll(values.where((item) => item.needsOrderStatusQuery ||
+          (item.needsChatCard && !item.cardSent && !item.cardIgnored))
+          .map((item) => item.clientOrderId));
     _items.removeWhere(
       (_, item) => item.ownerUserId == owner && !keep.contains(item.clientOrderId),
     );

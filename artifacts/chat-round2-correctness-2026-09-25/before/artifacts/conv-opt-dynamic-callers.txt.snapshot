@@ -1,0 +1,338 @@
+lib\src\chat.dart:1674:    ChatSessionController.instance.flushDeferredListUiBeforeChatLeave(
+lib\src\conversation.dart:2397:        await store.restoreNewerPrefixForViewport(convType: convType);
+lib\src\conversation.dart:2402:          await store.restoreNewerPrefixForViewport(
+lib\src\conversation.dart:4912:            .rowViewListenable(conversation.conversationID),
+test\archive_main_list_sync_test.dart:237:      expect(ConversationTabStore.instance.itemsForType(1), isEmpty);
+lib\src\chat_session\chat_session_window_state.dart:81:    return ConversationTabStore.instance.atTypeIndex(convType, index);
+lib\src\chat_session\chat_session_window_controller.dart:310:    ConversationTabStore.instance.purgeArchived();
+lib\src\chat_session\chat_session_window_controller.dart:487:      while (tabStore.atTypeIndex(convType, centerIndex) == null &&
+lib\src\chat_session\chat_session_controller.dart:165:      ConversationTabStore.instance.rowViewListenable(id).addListener(onRowView);
+lib\src\chat_session\chat_session_controller.dart:186:      ConversationTabStore.instance.rowViewListenable(id).removeListener(bridge);
+lib\src\chat_session\chat_session_controller.dart:458:            in ConversationTabStore.instance.itemsForType(type)) {
+lib\src\chat_session\chat_session_controller.dart:595:        tabStore.purgeArchived();
+lib\src\chat_session\chat_session_controller.dart:702:      store.setItemsForTest(
+lib\src\chat_session\chat_session_controller.dart:770:      ConversationTabStore.instance.applyCommittedViewBatch(
+lib\src\chat_session\chat_session_controller.dart:804:  void applyPendingRealtimeProjection(
+lib\src\chat_session\chat_session_controller.dart:1112:      ConversationTabStore.instance.removeListener(_onTabStoreChanged);
+lib\src\chat_session\chat_session_controller.dart:1145:    zeroUnreadLocallyMany(<String>[conversationID]);
+lib\src\chat_session\chat_session_controller.dart:1148:  void zeroUnreadLocallyMany(
+lib\src\chat_session\chat_session_controller.dart:1167:      ConversationTabStore.instance.zeroUnreadLocallyMany(ids);
+lib\src\chat_session\chat_session_controller.dart:1272:    ConversationTabStore.instance.flushDeferredCommittedProjection(
+lib\src\chat_session\chat_session_controller.dart:1423:  void flushDeferredListUiBeforeChatLeave({
+lib\src\chat_session\chat_session_controller.dart:1432:      tabStore.flushDeferredCommittedProjection(reason: reason);
+lib\src\chat_session\chat_session_controller.dart:1434:    // 投影 flush 可能经 _onTabStoreChanged 再次置 pending，需在其后读取。
+lib\src\chat_session\chat_session_controller.dart:1555:      final rows = ConversationTabStore.instance.itemsForType(type).where(
+lib\src\chat_session\chat_session_controller.dart:1954:    ConversationTabStore.instance.addListener(_onTabStoreChanged);
+lib\src\chat_session\chat_session_controller.dart:1957:  void _onTabStoreChanged() {
+lib\src\widgets\conversation_feed\conversation_feed_body.dart:253:    ConversationTabStore.instance.setSortFrozenByScroll(isScrolling);
+lib\src\widgets\conversation_feed\conversation_feed_body.dart:323:    ConversationTabStore.instance.setSortFrozenByScroll(false);
+test\chat_session_window_sdk_state_test.dart:34:    store.setItemsForTest(convType: 1, items: [first], finished: false);
+test\chat_session_window_sdk_state_test.dart:35:    store.setItemsForTest(convType: 2, items: [group], finished: true);
+test\chat_session_window_sdk_state_test.dart:47:    store.setItemsForTest(
+test\chat_session_window_sdk_state_test.dart:67:    store.setItemsForTest(convType: 1, items: [_row('only')], finished: true);
+test\chat_session_business_projection_test.dart:74:    ConversationTabStore.instance.setItemsForTest(
+test\chat_pop_started_list_flush_test.dart:66:      controller.flushDeferredListUiBeforeChatLeave(conversationId: 'c2c_open');
+test\chat_pop_started_list_flush_test.dart:97:      controller.flushDeferredListUiBeforeChatLeave(conversationId: 'c2c_open');
+test\chat_pop_started_list_flush_test.dart:112:    expect(chat, contains('flushDeferredListUiBeforeChatLeave('));
+test\conversation_group_row_partial_update_test.dart:69:    tab.setItemsForTest(convType: 2, items: const []);
+test\conversation_group_row_partial_update_test.dart:78:    tab.setItemsForTest(
+test\conversation_group_row_partial_update_test.dart:89:    final other = tab.rowViewListenable('group_b');
+test\conversation_group_row_partial_update_test.dart:107:    expect(tab.rowViewOf('group_a')?.avatarKey, 'https://cdn/a.png');
+test\conversation_group_row_partial_update_test.dart:109:      tab.structureIdsForType(2),
+test\conversation_group_row_partial_update_test.dart:115:    tab.setItemsForTest(
+test\conversation_group_row_partial_update_test.dart:137:    expect(tab.structureIdsForType(2), ['group_c', 'group_a', 'group_b']);
+test\conversation_group_row_partial_update_test.dart:138:    expect(tab.rowViewOf('group_c')?.lastMessagePreview, 'newer');
+test\conversation_group_row_partial_update_test.dart:139:    expect(tab.rowViewOf('group_a')?.lastMessagePreview, 'hi');
+test\conversation_group_row_partial_update_test.dart:144:    tab.setItemsForTest(
+test\conversation_group_row_partial_update_test.dart:158:    expect(tab.rowViewOf('group_a')?.unreadCount, 0);
+test\conversation_group_row_partial_update_test.dart:159:    expect(tab.structureIdsForType(2), ['group_a']);
+test\conversation_group_row_partial_update_test.dart:168:    tab.setItemsForTest(
+test\conversation_group_row_partial_update_test.dart:181:    expect(tab.structureIdsForType(2), ['group_b']);
+test\conversation_group_row_partial_update_test.dart:184:    expect(tab.rowViewOf('group_a'), isNull);
+test\conversation_group_row_partial_update_test.dart:189:    tab.setItemsForTest(convType: 2, items: [row]);
+test\conversation_group_row_partial_update_test.dart:193:    final listen = tab.rowViewListenable('group_a');
+test\conversation_group_row_partial_update_test.dart:206:    tab.setItemsForTest(
+test\conversation_group_row_partial_update_test.dart:233:    expect(tab.structureIdsForType(2).first, 'group_b');
+test\conversation_group_row_partial_update_test.dart:234:    expect(tab.rowViewOf('group_c')?.lastMessagePreview, 'hi');
+test\conversation_group_row_partial_update_test.dart:238:    tab.setItemsForTest(
+test\conversation_group_row_partial_update_test.dart:262:    expect(tab.rowViewOf('group_visible')?.displayName, 'visible');
+test\conversation_group_row_partial_update_test.dart:266:    tab.setItemsForTest(
+test\conversation_group_row_partial_update_test.dart:287:    final ids = tab.structureIdsForType(2);
+test\conversation_group_row_partial_update_test.dart:296:    tab.setItemsForTest(
+test\conversation_group_row_partial_update_test.dart:302:    tab.setItemsForTest(
+test\conversation_group_row_partial_update_test.dart:313:    expect(tab.structureIdsForType(2), ['group_new']);
+test\conversation_group_row_partial_update_test.dart:314:    expect(tab.rowViewOf('group_old'), isNull);
+test\conversation_group_row_partial_update_test.dart:315:    expect(tab.rowViewOf('group_new')?.displayName, 'new');
+test\conversation_feed_hidden_work_test.dart:36:    store.setItemsForTest(convType: 1, items: [row('first')]);
+test\conversation_feed_hidden_work_test.dart:118:    store.setItemsForTest(convType: 1, items: [row('other account')]);
+test\conversation_feed_settle_jump_contract_test.dart:15:    store.setItemsForTest(convType: 1, items: [row('a', 20), row('b', 10)]);
+test\conversation_feed_settle_jump_contract_test.dart:17:    store.setSortFrozenByScroll(true);
+test\conversation_feed_settle_jump_contract_test.dart:25:      store.setSortFrozenByScroll(false);
+test\conversation_feed_settle_jump_contract_test.dart:30:      store.setSortFrozenByScroll(false);
+test\conversation_folder_loading_test.dart:71:    store.setItemsForTest(
+test\conversation_local_clear_notification_test.dart:74:      store.setItemsForTest(
+test\conversation_local_clear_notification_test.dart:114:    store.setItemsForTest(
+test\conversation_local_clear_notification_test.dart:125:      store.purgeArchived(notify: false);
+test\conversation_preview_monotonic_projection_test.dart:303:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_preview_monotonic_projection_test.dart:316:      ConversationTabStore.instance.itemsForType(1).single.lastMessage?.msgID,
+test\conversation_projection_coalescing_test.dart:62:    store.setItemsForTest(convType: 1, items: [_row(1)]);
+test\conversation_projection_coalescing_test.dart:66:      session.applyPendingRealtimeProjection([_row(1, unread: i)],
+test\conversation_projection_coalescing_test.dart:79:    store.setItemsForTest(convType: 1, items: [_row(1, order: 10)]);
+test\conversation_projection_coalescing_test.dart:88:        store.applyCommittedViewBatch(
+test\conversation_projection_coalescing_test.dart:108:    store.setItemsForTest(convType: 1, items: [_row(1)]);
+test\conversation_projection_coalescing_test.dart:122:    store.setItemsForTest(convType: 1, items: [_row(1, order: 1700000000200)]);
+test\conversation_projection_coalescing_test.dart:123:    store.setItemsForTest(
+test\conversation_projection_coalescing_test.dart:126:    store.setSortFrozenByScroll(true);
+test\conversation_projection_coalescing_test.dart:131:    store.setSortFrozenByScroll(false);
+test\conversation_projection_coalescing_test.dart:138:    store.setItemsForTest(convType: 1, items: [_row(1), _row(2)]);
+test\conversation_projection_coalescing_test.dart:156:    store.setItemsForTest(convType: 1, items: [shared]);
+test\conversation_projection_coalescing_test.dart:176:    store.setItemsForTest(convType: 1, items: [first, second]);
+test\conversation_projection_coalescing_test.dart:177:    store.setSortFrozenByScroll(true);
+test\conversation_projection_coalescing_test.dart:181:    store.setSortFrozenByScroll(false);
+test\conversation_projection_coalescing_test.dart:203:      store.setItemsForTest(convType: type, items: [original]);
+test\conversation_projection_coalescing_test.dart:204:      store.zeroUnreadLocallyMany([id]);
+test\conversation_projection_coalescing_test.dart:205:      expect(store.itemsForType(type).single.unreadCount, 0);
+test\conversation_projection_coalescing_test.dart:209:      expect(store.itemsForType(type).single.unreadCount, 3);
+test\conversation_projection_coalescing_test.dart:222:    store.setItemsForTest(convType: 1, items: [shared]);
+test\conversation_projection_coalescing_test.dart:223:    store.zeroUnreadLocallyMany([shared.conversationID]);
+test\conversation_projection_coalescing_test.dart:237:    store.setItemsForTest(convType: 1, items: [shared]);
+test\conversation_projection_coalescing_test.dart:242:    expect(store.itemsForType(1).single.unreadCount, 3);
+test\conversation_realtime_batch_test.dart:37:  void receive(V2TimConversation value) => session.applyPendingRealtimeProjection(
+test\conversation_realtime_batch_test.dart:61:    store.setItemsForTest(convType: 1, items: [row(1), row(2)]);
+test\conversation_realtime_batch_test.dart:70:    expect(store.itemsForType(1).first.conversationID, 'c2c_batch2');
+test\conversation_realtime_batch_test.dart:71:    expect(store.itemsForType(1).first.unreadCount, 100);
+test\conversation_realtime_batch_test.dart:76:    store.setItemsForTest(convType: 1, items: [row(1)]);
+test\conversation_realtime_batch_test.dart:79:    expect(store.rowViewOf('c2c_batch1')!.lastMessagePreview, 'new text');
+test\conversation_realtime_batch_test.dart:82:    expect(store.atTypeIndex(1, 0)!.conversationID, 'c2c_batch2');
+test\conversation_realtime_batch_test.dart:88:    store.setItemsForTest(convType: 1, items: [row(1), row(2)]);
+test\conversation_realtime_batch_test.dart:90:    store.zeroUnreadLocallyMany(['c2c_batch1']);
+test\conversation_realtime_batch_test.dart:104:    store.setItemsForTest(convType: 1, items: [row(1)]);
+test\conversation_realtime_batch_test.dart:141:    store.setItemsForTest(convType: 1, items: [row(1)]);
+test\conversation_realtime_batch_test.dart:143:    final listenable = store.rowViewListenable('c2c_batch1');
+test\conversation_realtime_batch_test.dart:159:    store.setItemsForTest(convType: 1, items: [row(1)]);
+test\conversation_realtime_batch_test.dart:163:    session.flushDeferredListUiBeforeChatLeave(conversationId: 'c2c_batch1');
+test\conversation_sdk_primary_phase3_test.dart:70:          .itemsForType(1)
+test\conversation_sdk_primary_phase3_test.dart:77:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_sdk_primary_phase3_test.dart:89:          .itemsForType(1)
+test\conversation_sdk_primary_phase3_test.dart:95:  test('Phase3: purgeArchived + sdk-primary archive sync', () async {
+test\conversation_sdk_primary_phase3_test.dart:97:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_sdk_primary_phase3_test.dart:117:          .itemsForType(1)
+test\conversation_sdk_primary_phase3_test.dart:167:    final rows = tabs.itemsForType(1);
+test\conversation_sdk_primary_phase3_test.dart:192:    expect(tabs.itemsForType(1).single.draftText, 'keep draft');
+test\conversation_sdk_primary_phase3_test.dart:193:    expect(tabs.itemsForType(1).single.isPinned, isTrue);
+test\conversation_sdk_primary_phase3_test.dart:198:    tabs.setItemsForTest(convType: 1, items: [_c2c('c2c_zero', unread: 8)]);
+test\conversation_sdk_primary_phase3_test.dart:202:    expect(tabs.itemsForType(1).single.unreadCount, 0);
+test\conversation_sdk_primary_phase3_test.dart:208:    tabs.setItemsForTest(convType: 1, items: [_c2c('c2c_loaded', unread: 8)]);
+test\conversation_sdk_primary_phase3_test.dart:215:    tabs.zeroUnreadLocallyMany(['c2c_loaded', 'c2c_absent', 'c2c_deleted']);
+test\conversation_sdk_primary_phase3_test.dart:225:    expect(tabs.itemsForType(1).map((row) => row.conversationID),
+test\conversation_sdk_primary_phase3_test.dart:227:    expect(tabs.itemsForType(1).map((row) => row.unreadCount), everyElement(0));
+test\conversation_sdk_primary_phase2_test.dart:94:          .itemsForType(1)
+test\conversation_sdk_live_feed_test.dart:73:        store.setItemsForTest(
+test\conversation_sdk_live_feed_test.dart:86:    store.setItemsForTest(convType: 1, items: [row(1, 0), row(1, 1)]);
+test\conversation_sdk_live_feed_test.dart:100:    store.setItemsForTest(convType: 1, items: [row(1, 0)]);
+test\conversation_sdk_live_feed_test.dart:138:    store.setItemsForTest(convType: 2, items: [row(2, 0), row(2, 1)]);
+test\conversation_sdk_live_feed_test.dart:161:    store.setItemsForTest(convType: 1, items: [row(1, 0)]);
+test\conversation_sdk_window_contiguous_restore_test.dart:33:    tab.setItemsForTest(
+test\conversation_sdk_window_contiguous_restore_test.dart:53:      final visible = tab.itemsForType(1).map((r) => r.conversationID).toList();
+test\conversation_sdk_window_contiguous_restore_test.dart:65:        await tab.restoreNewerPrefixForViewport(convType: 1, count: 100), 100);
+test\conversation_sdk_window_contiguous_restore_test.dart:67:    expect(tab.itemsForType(1).first.conversationID, 'c2c_0');
+test\conversation_sdk_window_contiguous_restore_test.dart:71:    expect(tab.itemsForType(1).last.conversationID, 'c2c_699');
+test\conversation_sdk_window_contiguous_restore_test.dart:77:    tab.setItemsForTest(
+test\conversation_sdk_window_contiguous_restore_test.dart:80:    expect(tab.itemsForType(1), hasLength(600));
+test\conversation_sdk_window_contiguous_restore_test.dart:81:    expect(tab.itemsForType(1).first.conversationID, 'c2c_-1');
+test\conversation_sdk_window_contiguous_restore_test.dart:91:    tab.setItemsForTest(
+test\conversation_sdk_window_contiguous_restore_test.dart:118:    final ids = tab.itemsForType(1).map((row) => row.conversationID).toList();
+test\conversation_sdk_window_contiguous_restore_test.dart:129:    tab.setItemsForTest(
+test\conversation_sdk_window_contiguous_restore_test.dart:156:    final ids = tab.itemsForType(1).map((row) => row.conversationID).toSet();
+test\conversation_sdk_window_contiguous_restore_test.dart:163:    tab.setItemsForTest(
+test\conversation_sdk_viewport_paging_test.dart:90:    store.setItemsForTest(convType: 2, items: [row('head')], nextSeq: '10');
+test\conversation_sdk_viewport_paging_test.dart:103:    expect(store.itemsForType(2).map((e) => e.groupID), contains('@TGS#tail'));
+test\conversation_sdk_viewport_paging_test.dart:113:    store.setItemsForTest(convType: 2, items: [row('head')], nextSeq: '10');
+test\conversation_sdk_viewport_paging_test.dart:130:    store.setItemsForTest(convType: 2, items: [row('head')], nextSeq: '10');
+test\conversation_sdk_viewport_paging_test.dart:144:    store.setItemsForTest(convType: 2, items: [row('head')], nextSeq: '10');
+test\conversation_sdk_viewport_paging_test.dart:176:    store.setItemsForTest(
+test\conversation_sdk_viewport_paging_test.dart:200:      store.itemsForType(2).map((e) => e.groupID).toList(),
+test\conversation_sdk_viewport_paging_test.dart:209:    store.setItemsForTest(
+test\conversation_sdk_viewport_paging_test.dart:219:      store.itemsForType(2).map((e) => e.groupID).toList(),
+test\conversation_sdk_viewport_paging_test.dart:227:    store.setItemsForTest(
+test\conversation_sdk_viewport_paging_test.dart:237:      store.itemsForType(2).map((e) => e.groupID).toList(),
+test\conversation_sdk_viewport_paging_test.dart:243:      store.itemsForType(2).map((e) => e.groupID).toList(),
+test\conversation_sdk_primary_phase4_test.dart:91:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_sdk_primary_phase4_test.dart:114:          .itemsForType(1)
+test\conversation_sdk_primary_phase4_test.dart:172:    tabStore.setItemsForTest(
+test\conversation_sdk_primary_phase4_test.dart:178:    tabStore.setItemsForTest(
+test\conversation_sdk_primary_phase4_test.dart:195:      tabStore.itemsForType(2).map((row) => row.conversationID),
+test\conversation_sdk_primary_phase4_test.dart:231:      ConversationTabStore.instance.itemsForType(1).single.conversationID,
+test\conversation_sdk_primary_phase4_test.dart:235:      ConversationTabStore.instance.itemsForType(2).single.conversationID,
+test\conversation_sdk_primary_phase4_test.dart:303:          .itemsForType(2)
+test\conversation_sdk_primary_phase4_test.dart:307:    expect(ConversationTabStore.instance.itemsForType(1), isEmpty);
+test\conversation_sdk_primary_phase4_test.dart:369:    expect(ConversationTabStore.instance.itemsForType(2).single.conversationID,
+test\conversation_sdk_primary_phase4_test.dart:380:    expect(ConversationTabStore.instance.itemsForType(1).single.conversationID,
+lib\src\services\conversation_local\conversation_tab_store.dart:511:  ConversationRowView? rowViewOf(String conversationID) {
+lib\src\services\conversation_local\conversation_tab_store.dart:518:  ValueListenable<ConversationRowView?> rowViewListenable(
+lib\src\services\conversation_local\conversation_tab_store.dart:539:  List<String> structureIdsForType(int convType) {
+lib\src\services\conversation_local\conversation_tab_store.dart:603:  void setSortFrozenByScroll(bool frozen) {
+lib\src\services\conversation_local\conversation_tab_store.dart:784:  List<V2TimConversation> itemsForType(int convType) {
+lib\src\services\conversation_local\conversation_tab_store.dart:820:  /// （与 [flushDeferredCommittedProjection] 的空判定一致）。
+lib\src\services\conversation_local\conversation_tab_store.dart:865:  V2TimConversation? atTypeIndex(int convType, int index) {
+lib\src\services\conversation_local\conversation_tab_store.dart:1018:  Future<int> restoreNewerPrefixForViewport({
+lib\src\services\conversation_local\conversation_tab_store.dart:1398:      // 解冻时由 setSortFrozenByScroll(false) 触发重排。
+lib\src\services\conversation_local\conversation_tab_store.dart:1774:  void applyCommittedViewBatch(
+lib\src\services\conversation_local\conversation_tab_store.dart:1801:      _applyCommittedViewBatchNow(
+lib\src\services\conversation_local\conversation_tab_store.dart:1880:      _applyCommittedViewBatchNow(
+lib\src\services\conversation_local\conversation_tab_store.dart:2046:  void flushDeferredCommittedProjection({String reason = 'chat_leave'}) {
+lib\src\services\conversation_local\conversation_tab_store.dart:2073:    _applyCommittedViewBatchNow(
+lib\src\services\conversation_local\conversation_tab_store.dart:2121:  void _applyCommittedViewBatchNow(
+lib\src\services\conversation_local\conversation_tab_store.dart:2259:  void zeroUnreadLocallyMany(Iterable<String> conversationIds) {
+lib\src\services\conversation_local\conversation_tab_store.dart:2397:  void purgeArchived({bool notify = true}) {
+lib\src\services\conversation_local\conversation_tab_store.dart:2505:  void setItemsForTest({
+lib\src\services\conversation_local\conversation_sync_service.dart:759:          ChatSessionController.instance.applyPendingRealtimeProjection(
+lib\src\services\conversation_local\conversation_sync_service.dart:781:          ChatSessionController.instance.applyPendingRealtimeProjection(
+lib\src\services\conversation_local\conversation_sync_service.dart:1662:          ChatSessionController.instance.applyPendingRealtimeProjection(
+lib\src\services\conversation_local\conversation_sync_service.dart:5137:        for (final row in ConversationTabStore.instance.itemsForType(type)) {
+test\conversation_tab_structure_index_test.dart:102:        store.setItemsForTest(
+test\conversation_tab_structure_index_test.dart:123:          expect(store.atTypeIndex(type, target)!.unreadCount, i + 1);
+test\conversation_tab_structure_index_test.dart:136:    store.setItemsForTest(
+test\conversation_tab_structure_index_test.dart:141:    store.setItemsForTest(convType: 2, items: groups);
+test\conversation_tab_structure_index_test.dart:164:    store.setItemsForTest(convType: 1, items: [_row('c2c_same', unread: 2)]);
+test\conversation_tab_structure_index_test.dart:165:    store.setItemsForTest(
+test\conversation_tab_structure_index_test.dart:204:      store.setItemsForTest(convType: 2, items: [_row(existingId, type: 2)]);
+test\conversation_tab_structure_index_test.dart:219:    store.setItemsForTest(
+test\conversation_tab_structure_index_test.dart:224:    expect(store.atTypeIndex(1, 0)!.unreadCount, 0);
+test\conversation_tab_structure_index_test.dart:225:    expect(store.atTypeIndex(1, 1)!.unreadCount, 8);
+test\conversation_tab_structure_index_test.dart:231:    store.setItemsForTest(convType: 1, items: [_row('c2c_a'), _row('c2c_b')]);
+test\conversation_tab_structure_index_test.dart:241:    expect(store.atTypeIndex(1, 1)!.unreadCount, 7);
+test\conversation_tab_structure_index_test.dart:242:    expect(store.atTypeIndex(1, 0)!.unreadCount, 0);
+test\conversation_tab_structure_index_test.dart:248:    store.setItemsForTest(convType: 1, items: [
+test\conversation_tab_structure_index_test.dart:252:    store.setSortFrozenByScroll(true);
+test\conversation_tab_structure_index_test.dart:257:    store.setSortFrozenByScroll(false);
+test\conversation_tab_structure_index_test.dart:265:    store.setItemsForTest(
+test\conversation_tab_structure_index_test.dart:268:        .applyCommittedViewBatch(ConversationUiSnapshotBatch<V2TimConversation>(
+test\conversation_tab_structure_index_test.dart:287:    expect(store.atTypeIndex(1, 1)!.unreadCount, 4);
+test\conversation_tab_structure_index_test.dart:292:    store.setItemsForTest(
+test\conversation_tab_structure_index_test.dart:295:    store.purgeArchived(notify: false);
+test\conversation_tab_structure_index_test.dart:302:    expect(store.atTypeIndex(1, 0)!.unreadCount, 9);
+test\conversation_tab_structure_index_test.dart:308:    store.setItemsForTest(convType: 1, items: [shared]);
+test\conversation_tab_structure_index_test.dart:309:    store.zeroUnreadLocallyMany(['c2c_before']);
+test\conversation_tab_structure_index_test.dart:312:    expect(store.atTypeIndex(1, 0)!.unreadCount, 3);
+test\conversation_tab_structure_index_test.dart:313:    final current = store.atTypeIndex(1, 0)!;
+test\conversation_tab_structure_index_test.dart:322:    expect(store.atTypeIndex(1, 0)!.unreadCount, 5);
+test\conversation_tab_structure_index_test.dart:325:    store.atTypeIndex(1, 0)!.conversationID = 'c2c_final';
+test\conversation_tab_structure_index_test.dart:329:    expect(store.atTypeIndex(1, 0)!.unreadCount, 7);
+test\conversation_tab_structure_index_test.dart:352:    store.setItemsForTest(convType: 1, items: [_row('c2c_new_account')]);
+test\conversation_tab_structure_index_test.dart:388:    expect(store.atTypeIndex(1, 2)!.unreadCount, 5);
+test\conversation_tab_store_test.dart:90:    tab.setItemsForTest(convType: 1, items: [_c2c('c2c_b'), _c2c('c2c_a')]);
+test\conversation_tab_store_test.dart:95:      tab.setSortFrozenByScroll(true);
+test\conversation_tab_store_test.dart:96:      tab.setSortFrozenByScroll(false);
+test\conversation_tab_store_test.dart:99:          tab.itemsForType(1).map((c) => c.conversationID), ['c2c_b', 'c2c_a']);
+test\conversation_tab_store_test.dart:108:    tab.setItemsForTest(convType: 1, items: [_c2c('c2c_a'), _c2c('c2c_b')]);
+test\conversation_tab_store_test.dart:109:    tab.setSortFrozenByScroll(true);
+test\conversation_tab_store_test.dart:117:      tab.setSortFrozenByScroll(false);
+test\conversation_tab_store_test.dart:120:          tab.itemsForType(1).first.faceUrl, 'https://example.com/updated.png');
+test\conversation_tab_store_test.dart:128:    tab.setItemsForTest(convType: 1, items: [_c2c('c2c_z'), _c2c('c2c_a')]);
+test\conversation_tab_store_test.dart:129:    tab.setItemsForTest(convType: 2, items: [_group('a'), _group('b')]);
+test\conversation_tab_store_test.dart:130:    tab.setSortFrozenByScroll(true);
+test\conversation_tab_store_test.dart:132:    expect(tab.itemsForType(2).first.conversationID, 'group_a');
+test\conversation_tab_store_test.dart:137:      tab.setSortFrozenByScroll(false);
+test\conversation_tab_store_test.dart:138:      expect(tab.itemsForType(2).first.conversationID, 'group_b');
+test\conversation_tab_store_test.dart:139:      expect(tab.itemsForType(1).first.conversationID, 'c2c_z');
+test\conversation_tab_store_test.dart:141:      tab.setSortFrozenByScroll(true);
+test\conversation_tab_store_test.dart:142:      tab.setSortFrozenByScroll(false);
+test\conversation_tab_store_test.dart:155:      tab.applyCommittedViewBatch(
+test\conversation_tab_store_test.dart:182:            .itemsForType(1)
+test\conversation_tab_store_test.dart:218:    tab.setItemsForTest(
+test\conversation_tab_store_test.dart:259:      for (final row in tab.itemsForType(1)) row.conversationID: row,
+test\conversation_tab_store_test.dart:275:    tab.setItemsForTest(convType: 1, items: [_c2c('c2c_a')]);
+test\conversation_tab_store_test.dart:291:    tab.setItemsForTest(convType: 1, items: [_c2c('c2c_a')..orderkey = 100]);
+test\conversation_tab_store_test.dart:292:    tab.setItemsForTest(convType: 2, items: [_group('b')..orderkey = 90]);
+test\conversation_tab_store_test.dart:301:    tab.setItemsForTest(convType: 1, items: [_c2c('c2c_a'), _c2c('c2c_b')]);
+test\conversation_tab_store_test.dart:304:    tab.setSortFrozenByScroll(true);
+test\conversation_tab_store_test.dart:306:    tab.setSortFrozenByScroll(false);
+test\conversation_tab_store_test.dart:307:    expect(tab.itemsForType(1).first.conversationID, 'c2c_a');
+test\conversation_tab_store_test.dart:318:    tab.setItemsForTest(convType: 1, items: [
+test\conversation_tab_store_test.dart:582:          .itemsForType(1)
+test\conversation_tab_store_test.dart:603:    expect(ConversationTabStore.instance.atTypeIndex(1, 0)?.conversationID,
+test\conversation_tab_store_test.dart:628:    expect(ConversationTabStore.instance.atTypeIndex(1, 0)?.conversationID,
+test\conversation_tab_store_test.dart:654:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_tab_store_test.dart:669:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_tab_store_test.dart:699:        .itemsForType(1)
+test\conversation_tab_store_test.dart:707:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_tab_store_test.dart:721:          .itemsForType(1)
+test\conversation_tab_store_test.dart:735:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_tab_store_test.dart:758:  test('zeroUnreadLocallyMany clears rows in sdk primary store', () {
+test\conversation_tab_store_test.dart:760:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_tab_store_test.dart:769:    ChatSessionController.instance.zeroUnreadLocallyMany(['c2c_peer']);
+test\conversation_tab_store_test.dart:771:    final rows = ConversationTabStore.instance.itemsForType(1);
+test\conversation_tab_store_test.dart:781:      ConversationTabStore.instance.rowViewOf('c2c_peer')?.unreadCount,
+test\conversation_tab_store_test.dart:788:  test('zeroUnreadLocallyMany clears group delta without touching c2c', () {
+test\conversation_tab_store_test.dart:790:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_tab_store_test.dart:796:    ChatSessionController.instance.zeroUnreadLocallyMany(['group_room']);
+test\conversation_tab_store_test.dart:805:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_tab_store_test.dart:834:        .itemsForType(1)
+test\conversation_tab_store_test.dart:841:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_tab_store_test.dart:853:          .itemsForType(1)
+test\conversation_tab_store_test.dart:860:          .itemsForType(1)
+test\conversation_tab_store_test.dart:868:    ConversationTabStore.instance.setItemsForTest(
+test\conversation_tab_store_test.dart:883:          .itemsForType(1)
+test\conversation_tab_store_test.dart:923:    ConversationTabStore.instance.applyCommittedViewBatch(
+test\conversation_tab_store_test.dart:945:          .itemsForType(1)
+test\conversation_tab_store_test.dart:951:          .itemsForType(1)
+test\conversation_tab_store_test.dart:959:    ConversationTabStore.instance.flushDeferredCommittedProjection();
+test\conversation_tab_store_test.dart:963:          .itemsForType(1)
+test\conversation_tab_store_test.dart:979:    ConversationTabStore.instance.applyCommittedViewBatch(
+test\conversation_tab_store_test.dart:993:      ConversationTabStore.instance.itemsForType(1).single.draftText,
+test\conversation_tab_store_test.dart:998:    ConversationTabStore.instance.applyCommittedViewBatch(
+test\conversation_tab_store_test.dart:1012:      ConversationTabStore.instance.itemsForType(1).single.draftText,
+test\conversation_tab_store_test.dart:1031:      ConversationTabStore.instance.itemsForType(1).single.draftText,
+test\conversation_tab_store_test.dart:1047:    ConversationTabStore.instance.applyCommittedViewBatch(
+test\conversation_tab_store_test.dart:1063:          .itemsForType(1)
+test\conversation_tab_store_test.dart:1070:    ConversationTabStore.instance.applyCommittedViewBatch(
+test\conversation_tab_store_test.dart:1086:    ConversationTabStore.instance.flushDeferredCommittedProjection();
+test\conversation_tab_store_test.dart:1088:    final row = ConversationTabStore.instance.itemsForType(1).firstWhere(
+test\conversation_tab_store_test.dart:1103:    ConversationTabStore.instance.applyCommittedViewBatch(
+test\conversation_tab_store_test.dart:1119:    ConversationTabStore.instance.applyCommittedViewBatch(
+test\conversation_tab_store_test.dart:1135:    ConversationTabStore.instance.flushDeferredCommittedProjection();
+test\conversation_tab_store_test.dart:1137:    final row = ConversationTabStore.instance.itemsForType(1).firstWhere(
+test\conversation_tab_store_test.dart:1162:    ConversationTabStore.instance.applyCommittedViewBatch(
+test\conversation_tab_store_test.dart:1176:      ConversationTabStore.instance.itemsForType(1).single.lastMessage?.msgID,
+test\conversation_tab_store_test.dart:1180:    ConversationTabStore.instance.applyCommittedViewBatch(
+test\conversation_tab_store_test.dart:1194:      ConversationTabStore.instance.itemsForType(1).single.lastMessage,
+test\conversation_tab_store_test.dart:1222:      ConversationTabStore.instance.itemsForType(1).single.lastMessage?.msgID,
+test\conversation_tab_store_test.dart:1253:      ConversationTabStore.instance.itemsForType(1).single.lastMessage?.msgID,
+test\conversation_tab_store_test.dart:1260:    ConversationTabStore.instance.applyCommittedViewBatch(
+test\conversation_tab_store_test.dart:1273:    ConversationTabStore.instance.flushDeferredCommittedProjection();
+test\conversation_tab_store_test.dart:1319:      ConversationTabStore.instance.itemsForType(1).single.draftText,
+test\conversation_tab_store_test.dart:1361:      ConversationTabStore.instance.itemsForType(1).single.lastMessage?.msgID,
+lib\src\services\conversation_unread_clear_service.dart:379:    ChatSessionController.instance.zeroUnreadLocallyMany(
+lib\src\services\conversation_unread_clear_service.dart:920:    ChatSessionController.instance.zeroUnreadLocallyMany(
+test\friend_accept_c2c_list_row_test.dart:75:            .itemsForType(1)
+test\friend_accept_c2c_list_row_test.dart:92:      expect(ConversationTabStore.instance.itemsForType(1), isEmpty);
+test\friend_accept_c2c_list_row_test.dart:93:      expect(ConversationTabStore.instance.itemsForType(2), isEmpty);
+test\friend_accept_c2c_list_row_test.dart:100:      ConversationTabStore.instance.setItemsForTest(
+test\friend_accept_c2c_list_row_test.dart:114:            .itemsForType(1)
+test\friend_accept_c2c_list_row_test.dart:129:      ConversationTabStore.instance.setItemsForTest(
+test\friend_accept_c2c_list_row_test.dart:143:            .itemsForType(1)
+test\group_feed_membership_cache_ready_test.dart:101:        .setItemsForTest(convType: 2, items: [known, unknown]);
+test\home_tab_body_lifecycle_test.dart:157:    tabs.setItemsForTest(convType: 1, items: List.generate(100, (i) => row(i)));
+test\sdk_tab_unread_source_test.dart:86:    ChatSessionController.instance.applyPendingRealtimeProjection(rows,
+test\sdk_tab_unread_source_test.dart:93:    ChatSessionController.instance.applyPendingRealtimeProjection(
+test\sdk_tab_unread_source_test.dart:136:    controller.applyPendingRealtimeProjection([group('@TGS#local', 4)],
+test\sdk_tab_unread_source_test.dart:144:    ConversationTabStore.instance.zeroUnreadLocallyMany(['group_@TGS#local']);
+test\sdk_tab_unread_source_test.dart:146:    controller.applyPendingRealtimeProjection([group('@TGS#local', 1)],
+test\sdk_tab_unread_source_test.dart:162:    controller.applyPendingRealtimeProjection([row], reason: 'sdk_realtime');
+test\sdk_tab_unread_source_test.dart:163:    expect(ConversationTabStore.instance.itemsForType(2), hasLength(1));
+test\sdk_tab_unread_source_test.dart:165:    expect(ConversationTabStore.instance.itemsForType(2), isEmpty);
+test\sdk_tab_unread_source_test.dart:167:    controller.applyPendingRealtimeProjection([row], reason: 'sdk_realtime');
+test\sdk_tab_unread_source_test.dart:168:    expect(ConversationTabStore.instance.itemsForType(2), isEmpty);
+test\sdk_tab_unread_source_test.dart:179:    expect(ConversationTabStore.instance.itemsForType(2), isEmpty);
+test\sdk_tab_unread_source_test.dart:183:    controller.applyPendingRealtimeProjection([row], reason: 'sdk_realtime');
+test\sdk_tab_unread_source_test.dart:184:    expect(ConversationTabStore.instance.itemsForType(2), hasLength(1));
+test\sdk_tab_unread_source_test.dart:219:    ConversationTabStore.instance.zeroUnreadLocallyMany(['group_@TGS#outside']);
+test\sdk_tab_unread_source_test.dart:252:    expect(tab.itemsForType(2).map((row) => row.conversationID),
+test\sdk_tab_unread_source_test.dart:254:    expect(tab.itemsForType(2).single.unreadCount, 0);
+test\sdk_tab_unread_source_test.dart:277:    expect(tab.itemsForType(2).single.unreadCount, 2);
+test\sdk_tab_unread_source_test.dart:295:    tab.zeroUnreadLocallyMany(['group_read_during_load']);
+test\sdk_tab_unread_source_test.dart:298:    expect(tab.itemsForType(2).single.unreadCount, 0);
+test\sdk_tab_unread_source_test.dart:319:    expect(tab.itemsForType(2).single.draftText, 'keep draft');
+test\sdk_tab_unread_source_test.dart:320:    expect(tab.itemsForType(2).single.faceUrl, 'updated');
+test\sdk_tab_unread_source_test.dart:341:    expect(tab.itemsForType(2).single.conversationID, 'group_peer');

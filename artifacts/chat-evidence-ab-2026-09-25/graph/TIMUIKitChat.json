@@ -1,0 +1,200 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat",
+    "name": "TIMUIKitChat",
+    "kind": "Class",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart",
+    "startLine": 79,
+    "endLine": 304
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "calls": [
+      {
+        "uid": "Function:test/local_only_unread_history_request_test.dart:main",
+        "name": "main",
+        "filePath": "test/local_only_unread_history_request_test.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat.dart:_ChatState.build#1",
+        "name": "build",
+        "filePath": "lib/src/chat.dart"
+      }
+    ],
+    "imports": [
+      {
+        "uid": "File:test/local_only_unread_history_request_test.dart",
+        "name": "local_only_unread_history_request_test.dart",
+        "filePath": "test/local_only_unread_history_request_test.dart"
+      },
+      {
+        "uid": "File:test/search_jump_reentry_test.dart",
+        "name": "search_jump_reentry_test.dart",
+        "filePath": "test/search_jump_reentry_test.dart"
+      },
+      {
+        "uid": "File:third_party/tencent_cloud_chat_uikit/lib/tencent_cloud_chat_uikit.dart",
+        "name": "tencent_cloud_chat_uikit.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/tencent_cloud_chat_uikit.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.TIMUIKitChat#44",
+        "name": "TIMUIKitChat",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.createState#0",
+        "name": "createState",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.appBarConfig",
+        "name": "appBarConfig",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.config",
+        "name": "config",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.controller",
+        "name": "controller",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.conversation",
+        "name": "conversation",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.conversationID",
+        "name": "conversationID",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.conversationShowName",
+        "name": "conversationShowName",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.conversationType",
+        "name": "conversationType",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.customAppBar",
+        "name": "customAppBar",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.customEmojiStickerList",
+        "name": "customEmojiStickerList",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.customStickerPanel",
+        "name": "customStickerPanel",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.draftText",
+        "name": "draftText",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.entryUnreadCount",
+        "name": "entryUnreadCount",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.groupAtInfoList",
+        "name": "groupAtInfoList",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.groupID",
+        "name": "groupID",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.groupMemberList",
+        "name": "groupMemberList",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.initFindingMsg",
+        "name": "initFindingMsg",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.inputTopBuilder",
+        "name": "inputTopBuilder",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.lifeCycle",
+        "name": "lifeCycle",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.localOnlyInitialOpen",
+        "name": "localOnlyInitialOpen",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.mainHistoryListConfig",
+        "name": "mainHistoryListConfig",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.messageItemBuilder",
+        "name": "messageItemBuilder",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.messageListProjectionListenable",
+        "name": "messageListProjectionListenable",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.morePanelConfig",
+        "name": "morePanelConfig",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.onDealWithGroupApplication",
+        "name": "onDealWithGroupApplication",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.onTextChanged",
+        "name": "onTextChanged",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.searchJumpAnchor",
+        "name": "searchJumpAnchor",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.showNickName",
+        "name": "showNickName",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChat.showTotalUnReadCount",
+        "name": "showTotalUnReadCount",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      }
+    ]
+  },
+  "processes": []
+}

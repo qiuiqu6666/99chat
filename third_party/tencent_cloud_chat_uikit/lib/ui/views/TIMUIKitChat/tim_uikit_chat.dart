@@ -431,7 +431,7 @@ class _TUIChatState extends TIMUIKitState<TIMUIKitChat>
     // ModalRoute registers a dependency and notifies when another route covers
     // this chat, even though the chat State remains mounted in the stack.
     if (ModalRoute.of(context)?.isCurrent == false) {
-      model.stopVoiceAutoPlay();
+      model.onChatRouteCovered();
     }
     _flutterView = View.maybeOf(context);
     final view = _flutterView;
@@ -2370,7 +2370,14 @@ class TIMUIKitChatProviderScope extends StatelessWidget {
           }
         }
       } catch (error) {
-        if (!isSearchJump) rethrow;
+        if (!isSearchJump) {
+          // Keep bootstrap unconfirmed and let the list's recovery affordance
+          // retry. An unhandled async error used to leave only a blank shell.
+          ChatHistoryTrace.log('initial_history_failed',
+              conversationID: conversationID,
+              extras: {'errorType': error.runtimeType});
+          return;
+        }
         if (!isCurrentSearch()) return;
         // This also invalidates late around-window completions in the model.
         globalModel.setSearchJumpStatus(conversationID, SearchJumpStatus.failed,

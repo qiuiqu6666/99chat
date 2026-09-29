@@ -97,6 +97,62 @@ class AiAssistantPage extends StatefulWidget {
   State<AiAssistantPage> createState() => _AiAssistantPageState();
 }
 
+// One turn owns both its rows and every scheduled publication.
+class _AiReplyTurn {
+  _AiReplyTurn(
+      {required this.token,
+      required this.identity,
+      required this.user,
+      required this.assistant})
+      : visible = ValueNotifier<AiAssistantMessage>(assistant);
+  final CancelToken token;
+  final SessionIdentity identity;
+  AiAssistantMessage user;
+  AiAssistantMessage assistant;
+  final ValueNotifier<AiAssistantMessage> visible;
+  final StringBuffer text = StringBuffer();
+  Timer? timer;
+  int? frameCallback;
+  bool terminal = false;
+  bool pending = false;
+  void cancelPublication() {
+    timer?.cancel();
+    timer = null;
+    final id = frameCallback;
+    frameCallback = null;
+    if (id != null) WidgetsBinding.instance.cancelFrameCallbackWithId(id);
+  }
+
+  void dispose() {
+    cancelPublication();
+    visible.dispose();
+  }
+}
+
+AiAssistantMessage _copyAiMessage(
+  AiAssistantMessage old, {
+  String? text,
+  String? time,
+  String? status,
+  String? serverId,
+  List<AiAssistantFileRef>? files,
+}) =>
+    AiAssistantMessage(
+        role: old.role,
+        time: time ?? old.time,
+        text: text ?? old.text,
+        files: files ?? old.files,
+        cards: old.cards,
+        outputKind: old.outputKind,
+        summary: old.summary,
+        analysis: old.analysis,
+        code: old.code,
+        serverId: serverId ?? old.serverId,
+        capability: old.capability,
+        status: status ?? old.status,
+        imageUrl: old.imageUrl,
+        failed: old.failed);
+
 class _AiAssistantPageState extends State<AiAssistantPage> {
   final TextEditingController _inputController = TextEditingController();
   final FocusNode _inputFocus = FocusNode();
@@ -121,6 +177,10 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
   bool _hasMore = false;
   String? _nextCursor;
   CancelToken? _streamCancel;
+  _AiReplyTurn? _replyTurn;
+  bool _followsBottom = true;
+  bool _scrollScheduled = false;
+  int _scrollGeneration = 0;
   late final _fileLoader = BoundedFileLoader(AiAssistantApi.instance.downloadFile);
   Map<String, Uint8List> get _fileCache => _fileLoader.cache;
   final Set<String> _visibleFileAttempts = {};
@@ -135,6 +195,7 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
       ContactSocialCacheStore.safeLoginUserId(),
     );
     _itemPositions.itemPositions.addListener(_onHistoryScroll);
+    SessionManager.instance.addListener(_onSessionChanged);
     _loadWelcome();
     unawaited(_loadSelfAvatar());
   }
@@ -222,7 +283,10 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
 
   @override
   void dispose() {
+    SessionManager.instance.removeListener(_onSessionChanged);
     _streamCancel?.cancel('dispose');
+    _replyTurn?.dispose();
+    _scrollGeneration++;
     _itemPositions.itemPositions.removeListener(_onHistoryScroll);
     _fileLoader.dispose();
     _inputController.dispose();
@@ -231,6 +295,36 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
     _searchFocus.dispose();
 
     super.dispose();
+  }
+
+  void _onSessionChanged() {
+    final turn = _replyTurn;
+    if (!mounted || turn == null) return;
+    final current = SessionIdentityService.instance
+        .capture(ownerUserId: _selfProfileOwnerId());
+    if (turn.identity == current) return;
+    // The navigator may retain this route during account teardown. The old
+    // turn no longer passes _isActiveToken, so terminate its resources directly.
+    turn.terminal = true;
+    turn.cancelPublication();
+    turn.token.cancel('session_boundary');
+    _replyTurn = null;
+    _streamCancel = null;
+    _scrollGeneration++;
+    _scrollScheduled = false;
+    setState(() {
+      _replying = false;
+      _messages.clear();
+      _drafts.clear();
+      _inputController.clear();
+      _historyLoading = false;
+      _historyLoaded = true;
+      _hasMore = false;
+      _nextCursor = null;
+      _syncKeys();
+      if (_searching) _applyMatches();
+    });
+    turn.dispose();
   }
 
   Future<void> _loadWelcome() async {
@@ -246,6 +340,11 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
   }
 
   void _onHistoryScroll() {
+    if (!_searching) {
+      final positions = _itemPositions.itemPositions.value;
+      _followsBottom = positions.any((p) =>
+          p.index == 0 && p.itemTrailingEdge > 0 && p.itemTrailingEdge <= 1.05);
+    }
     _prefetchHistoryImages();
     if (!_hasMore || _historyLoading || _messages.isEmpty) return;
     final atOldest = _itemPositions.itemPositions.value.any((p) =>
@@ -254,12 +353,21 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
   }
 
   Future<void> _loadHistory() async {
+    final identity = SessionIdentityService.instance
+        .capture(ownerUserId: _selfProfileOwnerId());
+    final turnAtStart = _replyTurn;
+    bool current() =>
+        mounted &&
+        identity ==
+            SessionIdentityService.instance
+                .capture(ownerUserId: _selfProfileOwnerId()) &&
+        identical(turnAtStart, _replyTurn);
     setState(() {
       _historyLoading = true;
     });
     try {
       final page = await AiAssistantApi.instance.history(limit: 100);
-      if (!mounted) {
+      if (!current()) {
         return;
       }
       setState(() {
@@ -268,9 +376,13 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
         _nextCursor = page.nextCursor;
         _historyLoading = false;
         _historyLoaded = true;
-        if (_hasStreamingHistory(_messages)) {
-          _replying = true;
-        }
+        // Remote history does not own a live local turn. A retry may still
+        // receive the server's genuine CHAT_BUSY, which is handled below.
+        _messages = _messages
+            .map((m) => m.status == 'streaming'
+                ? _copyAiMessage(m, status: 'interrupted')
+                : m)
+            .toList();
         _syncKeys();
         if (_searching) {
           _applyMatches();
@@ -280,7 +392,7 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
       _prefetchHistoryImages();
       unawaited(_hydrateHistoryCards());
     } on AiAssistantException catch (error) {
-      if (!mounted) {
+      if (!current()) {
         return;
       }
       setState(() {
@@ -291,7 +403,7 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
       });
       _toastApiError(error);
     } catch (_) {
-      if (!mounted) {
+      if (!current()) {
         return;
       }
       setState(() {
@@ -303,10 +415,29 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
       _toastApiError(
         const AiAssistantException('MAIN_UNAVAILABLE', ''),
       );
+    } finally {
+      // A send may supersede initial history without disposing this route.
+      if (mounted &&
+          !identical(turnAtStart, _replyTurn) &&
+          identity ==
+              SessionIdentityService.instance
+                  .capture(ownerUserId: _selfProfileOwnerId())) {
+        setState(() {
+          _historyLoading = false;
+          _historyLoaded = true;
+        });
+      }
     }
   }
 
   Future<void> _loadOlderHistory() async {
+    final identity = SessionIdentityService.instance
+        .capture(ownerUserId: _selfProfileOwnerId());
+    bool current() =>
+        mounted &&
+        identity ==
+            SessionIdentityService.instance
+                .capture(ownerUserId: _selfProfileOwnerId());
     final cursor = _nextCursor;
     if (cursor == null || cursor.isEmpty || _historyLoading) {
       return;
@@ -319,7 +450,7 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
         limit: 50,
         cursor: cursor,
       );
-      if (!mounted) {
+      if (!current()) {
         return;
       }
       setState(() {
@@ -338,18 +469,13 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
       _prefetchHistoryImages();
       unawaited(_hydrateHistoryCards());
     } catch (_) {
-      if (!mounted) {
+      if (!current()) {
         return;
       }
       setState(() {
         _historyLoading = false;
       });
     }
-  }
-
-  bool _hasStreamingHistory([List<AiAssistantMessage>? source]) {
-    final items = source ?? _messages;
-    return items.any((item) => item.status == 'streaming');
   }
 
   void _toastApiError(AiAssistantException error) {
@@ -1131,6 +1257,7 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
   }
 
   void _openSearch() {
+    _followsBottom = false;
     setState(() {
       _searching = true;
     });
@@ -1369,7 +1496,7 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
   }
 
   Future<void> _pickImages() async {
-    final media = await SystemMediaPicker.pickMultiple(allowVideo: false);
+    final media = await SystemMediaPicker.pickMultiple(allowVideo: false, recoveryEntry: 'ai.attachments');
     if (!mounted || media.isEmpty) {
       return;
     }
@@ -1447,117 +1574,90 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
     return '$hour:$minute';
   }
 
-  void _scrollToEnd() {
+  void _scrollToEnd({bool force = false}) {
+    if (force) _followsBottom = true;
+    if (_scrollScheduled || (!force && (!_followsBottom || _searching))) return;
+    _scrollScheduled = true;
+    final generation = _scrollGeneration;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _listController.isAttached && _messages.isNotEmpty) {
+      _scrollScheduled = false;
+      if (!mounted ||
+          generation != _scrollGeneration ||
+          (!force && (!_followsBottom || _searching))) return;
+      if (_listController.isAttached && _messages.isNotEmpty) {
         _listController.jumpTo(index: 0);
       }
     });
   }
 
-  void _replaceLastMessage(AiAssistantMessage message) {
-    if (_messages.isEmpty) {
-      _messages.add(message);
-    } else {
-      _messages[_messages.length - 1] = message;
-    }
-    _syncKeys();
-    if (_searching) {
-      _applyMatches();
-    }
+  bool _isActiveToken(CancelToken token) {
+    final turn = _replyTurn;
+    return mounted &&
+        turn != null &&
+        !turn.terminal && identical(_streamCancel, token) && !token.isCancelled &&
+        turn.identity ==
+            SessionIdentityService.instance
+                .capture(ownerUserId: _selfProfileOwnerId());
   }
 
-  bool _isActiveToken(CancelToken token) {
-    return mounted && identical(_streamCancel, token) && !token.isCancelled;
+  void _replaceLastMessage(AiAssistantMessage message) {
+    final turn = _replyTurn;
+    if (turn == null || !_isActiveToken(turn.token)) return;
+    final index = _messages.indexWhere((m) => identical(m, turn.assistant));
+    if (index < 0) return;
+    _messages[index] = message;
+    turn.assistant = message;
+    turn.visible.value = message;
+    // Row count/keys do not change for a delta. Search is recomputed only once
+    // per publication, rather than for every transport chunk.
+    if (_searching) _applyMatches();
   }
 
   void _replaceLastUserFiles(List<AiAssistantFileRef> files) {
-    for (var i = _messages.length - 1; i >= 0; i--) {
-      if (_messages[i].role != AiAssistantRole.user) {
-        continue;
-      }
-      final old = _messages[i];
-      _messages[i] = AiAssistantMessage(
-        role: old.role,
-        time: old.time,
-        text: old.text,
-        files: files,
-        cards: old.cards,
-        serverId: old.serverId,
-        capability: old.capability,
-        status: old.status,
-      );
-      return;
-    }
+    final turn = _replyTurn;
+    if (turn == null || !_isActiveToken(turn.token)) return;
+    final index = _messages.indexWhere((m) => identical(m, turn.user));
+    if (index < 0) return;
+    turn.user = _copyAiMessage(turn.user,
+        files: files);
+    _messages[index] = turn.user;
   }
 
   void _bindServerIds({String? userMessageId, String? assistantMessageId}) {
+    final turn = _replyTurn;
+    if (turn == null || !_isActiveToken(turn.token)) return;
     final userId = (userMessageId ?? '').trim();
     final assistantId = (assistantMessageId ?? '').trim();
     if (userId.isNotEmpty) {
-      for (var i = _messages.length - 1; i >= 0; i--) {
-        if (_messages[i].role != AiAssistantRole.user) {
-          continue;
-        }
-        final old = _messages[i];
-        _messages[i] = AiAssistantMessage(
-          role: old.role,
-          time: old.time,
-          text: old.text,
-          files: old.files,
-          cards: old.cards,
-          serverId: userId,
-          capability: old.capability,
-          status: old.status,
-        );
-        break;
+      final index = _messages.indexWhere((m) => identical(m, turn.user));
+      if (index >= 0) {
+        turn.user = _copyAiMessage(turn.user,
+          serverId: userId);
+        _messages[index] = turn.user;
       }
     }
-    if (assistantId.isEmpty || _messages.isEmpty) {
-      return;
+    if (assistantId.isNotEmpty) {
+      _replaceLastMessage(
+          _copyAiMessage(turn.assistant,
+      serverId: assistantId));
     }
-    final last = _messages.last;
-    if (last.role != AiAssistantRole.assistant) {
-      return;
-    }
-    _messages[_messages.length - 1] = AiAssistantMessage(
-      role: last.role,
-      time: last.time,
-      text: last.text,
-      files: last.files,
-      cards: last.cards,
-      outputKind: last.outputKind,
-      summary: last.summary,
-      analysis: last.analysis,
-      code: last.code,
-      serverId: assistantId,
-      capability: last.capability,
-      status: last.status,
-      imageUrl: last.imageUrl,
-      failed: last.failed,
-    );
   }
 
   void _rollbackOptimisticTurn() {
-    if (_messages.isNotEmpty &&
-        _messages.last.role == AiAssistantRole.assistant &&
-        _messages.last.outputKind == AiAssistantOutputKind.thinking) {
-      _messages.removeLast();
-    }
-    if (_messages.isNotEmpty &&
-        _messages.last.role == AiAssistantRole.user &&
-        (_messages.last.serverId == null || _messages.last.serverId!.isEmpty)) {
-      _messages.removeLast();
-    }
+    final turn = _replyTurn;
+    if (turn == null || !_isActiveToken(turn.token)) return;
+    _messages.removeWhere((m) =>
+        identical(m, turn.assistant) &&
+            m.outputKind == AiAssistantOutputKind.thinking ||
+        identical(m, turn.user) &&
+        (m.serverId ?? '').isEmpty);
     _syncKeys();
-    if (_searching) {
-      _applyMatches();
-    }
+    if (_searching) _applyMatches();
   }
 
   void _failLastAssistant(AiAssistantException error) {
-    final last = _messages.isEmpty ? null : _messages.last;
-    final fromAssistant = last?.role == AiAssistantRole.assistant;
+    final turn = _replyTurn;
+    if (turn == null || !_isActiveToken(turn.token)) return;
     _replaceLastMessage(
       AiAssistantMessage(
         role: AiAssistantRole.assistant,
@@ -1566,25 +1666,55 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
         text: AiAssistantErrorText.localize(
           AppI18n.of(context),
           code: error.code,
-          fallback: error.message,
-        ),
-        serverId: fromAssistant ? last?.serverId : null,
-        capability: fromAssistant ? last?.capability : null,
+          fallback: error.message),
+        serverId: turn.assistant.serverId,
+        capability: turn.assistant.capability,
         status: 'failed',
         failed: true,
-      ),
-    );
+      ));
   }
 
-  void _finishInterruptedStream() {
-    _streamCancel?.cancel('interrupt');
+  void _publishReplyText(_AiReplyTurn turn) {
+    turn.cancelPublication();
+    if (!turn.pending || !_isActiveToken(turn.token)) return;
+    turn.pending = false;
+    _replaceLastMessage(AiAssistantMessage(
+      role: AiAssistantRole.assistant,
+      time: '',
+      outputKind: AiAssistantOutputKind.text,
+      text: turn.text.toString(),
+      serverId: turn.assistant.serverId,
+      capability: turn.assistant.capability,
+      status: 'streaming',
+    ));
+    _scrollToEnd();
+  }
+
+  void _queueReplyText(_AiReplyTurn turn, String delta) {
+    turn.text.write(delta);
+    turn.pending = true;
+    if (turn.frameCallback != null || turn.timer != null) return;
+    turn.frameCallback = WidgetsBinding.instance.scheduleFrameCallback((_) {
+      turn.frameCallback = null;
+      _publishReplyText(turn);
+    });
+    // Frames stop in background; completion must never depend on another frame.
+    turn.timer =
+        Timer(const Duration(milliseconds: 50), () => _publishReplyText(turn));
+  }
+
+  void _finishTurn(_AiReplyTurn turn) {
+    if (!_isActiveToken(turn.token)) return;
+    turn.cancelPublication();
+    turn.terminal = true;
+    _replying = false;
+    turn.token.cancel('terminal');
   }
 
   Future<void> _beginAssistantReply(AiAssistantSendPlan plan) async {
-    final token = _streamCancel;
-    if (token == null) {
-      return;
-    }
+    final turn = _replyTurn;
+    if (turn == null) return;
+    final token = turn.token;
     final attachFiles = plan.capability == AiAssistantSendPlanner.chat ||
         plan.capability == AiAssistantSendPlanner.file ||
         plan.capability == AiAssistantSendPlanner.image;
@@ -1593,11 +1723,8 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
       if (attachFiles && plan.files.isNotEmpty) {
         final next = <AiAssistantFileRef>[];
         for (final file in plan.files) {
-          if (!_isActiveToken(token)) {
-            return;
-          }
-          final existing = (file.fileId ?? '').trim();
-          if (existing.isNotEmpty) {
+          if (!_isActiveToken(token)) return;
+          if ((file.fileId ?? '').trim().isNotEmpty) {
             next.add(file);
             continue;
           }
@@ -1606,7 +1733,9 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
             path: file.localPath,
             bytes: file.bytes,
             mimeType: file.mimeType,
+            cancelToken: token,
           );
+          if (!_isActiveToken(token)) return;
           next.add(
             AiAssistantFileRef(
               name: saved.fileName.isNotEmpty ? saved.fileName : file.name,
@@ -1619,24 +1748,16 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
                   ? saved.contentType
                   : file.mimeType,
               sizeBytes: saved.sizeBytes > 0 ? saved.sizeBytes : file.sizeBytes,
-            ),
-          );
+            ));
         }
         uploaded = next;
-        if (!_isActiveToken(token)) {
-          return;
-        }
-        setState(() {
-          _replaceLastUserFiles(uploaded);
-        });
+        if (!_isActiveToken(token)) return;
+        setState(() => _replaceLastUserFiles(uploaded));
       }
-      final fileIds = attachFiles
-          ? uploaded
-              .map((file) => (file.fileId ?? '').trim())
+      final fileIds = uploaded
+              .map((f) => (f.fileId ?? '').trim())
               .where((id) => id.isNotEmpty)
-              .toList()
-          : const <String>[];
-      var assembled = '';
+              .toList();
       await for (final event in AiAssistantApi.instance.stream(
         capability: plan.capability == AiAssistantSendPlanner.chat
             ? null
@@ -1646,41 +1767,20 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
         fileIds: fileIds.isEmpty ? null : fileIds,
         cancelToken: token,
       )) {
-        if (!_isActiveToken(token)) {
-          return;
-        }
+        if (!_isActiveToken(token)) return;
         switch (event.kind) {
           case AiAssistantStreamKind.meta:
-            setState(() {
-              _bindServerIds(
+            setState(() => _bindServerIds(
                 userMessageId: event.userMessageId,
-                assistantMessageId: event.assistantMessageId,
-              );
-            });
+                assistantMessageId: event.assistantMessageId));
             break;
           case AiAssistantStreamKind.delta:
-            assembled += event.text;
-            setState(() {
-              final last = _messages.isEmpty ? null : _messages.last;
-              _replaceLastMessage(
-                AiAssistantMessage(
-                  role: AiAssistantRole.assistant,
-                  time: '',
-                  outputKind: AiAssistantOutputKind.text,
-                  text: assembled,
-                  serverId: last?.serverId,
-                  capability: last?.capability ?? plan.capability,
-                  status: 'streaming',
-                ),
-              );
-            });
-            _scrollToEnd();
+            _queueReplyText(turn, event.text);
             break;
           case AiAssistantStreamKind.done:
+            _publishReplyText(turn);
             final imageUrl = event.imageUrl.trim();
             setState(() {
-              final last = _messages.isEmpty ? null : _messages.last;
-              _replying = false;
               _replaceLastMessage(
                 AiAssistantMessage(
                   role: AiAssistantRole.assistant,
@@ -1688,112 +1788,86 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
                   outputKind: imageUrl.isEmpty
                       ? AiAssistantOutputKind.text
                       : AiAssistantOutputKind.image,
-                  text: assembled.isEmpty ? last?.text : assembled,
-                  serverId: event.assistantMessageId ?? last?.serverId,
-                  capability: last?.capability ?? plan.capability,
+                  text: turn.text.isEmpty ? turn.assistant.text : turn.text.toString(),
+                  serverId: event.assistantMessageId ?? turn.assistant.serverId,
+                  capability: turn.assistant.capability,
                   status: 'complete',
-                  imageUrl: imageUrl.isEmpty ? last?.imageUrl : imageUrl,
-                ),
-              );
+                  imageUrl: imageUrl.isEmpty ? turn.assistant.imageUrl : imageUrl,
+                ));
+              _finishTurn(turn);
             });
             _scrollToEnd();
             if (imageUrl.isNotEmpty) {
               final id = AiAssistantApi.fileIdFromUrl(imageUrl);
-              if (id != null) {
-                unawaited(_ensureFileBytes(id, silent: true));
+              if (id != null) unawaited(_ensureFileBytes(id, silent: true));
               }
-            }
-            break;
+            return;
           case AiAssistantStreamKind.error:
-            final error = AiAssistantException(event.code, event.message);
-            setState(() {
-              _replying = false;
-              _failLastAssistant(error);
-            });
-            _toastApiError(error);
-            _scrollToEnd();
-            break;
+            throw AiAssistantException(event.code, event.message);
         }
       }
-      if (_isActiveToken(token) && _replying) {
-        setState(() {
-          _replying = false;
-          if (_messages.isNotEmpty &&
-              _messages.last.outputKind == AiAssistantOutputKind.thinking) {
-            _failLastAssistant(
-              const AiAssistantException('MAIN_UNAVAILABLE', ''),
-            );
-          }
-        });
-      }
-    } on AiAssistantException catch (error) {
-      if (!_isActiveToken(token) && error.cancelled) {
-        return;
-      }
-      if (!mounted) {
-        return;
-      }
+      if (!_isActiveToken(token)) return;
+      _publishReplyText(turn);
       setState(() {
-        _replying = false;
+        if (turn.assistant.outputKind == AiAssistantOutputKind.thinking) {
+            _failLastAssistant(
+              const AiAssistantException('MAIN_UNAVAILABLE', ''));
+          } else {
+          _replaceLastMessage(_copyAiMessage(turn.assistant,
+              time: _nowTime(), status: 'interrupted'));
+        }
+        _finishTurn(turn);
+      });
+    } on AiAssistantException catch (error) {
+      // Every stale completion is rejected, not just CANCELLED errors.
+      if (!_isActiveToken(token)) return;
+      _publishReplyText(turn);
+      setState(() {
         if (error.code == 'CHAT_BUSY') {
           _rollbackOptimisticTurn();
-        } else if (!error.cancelled) {
+        } else if (error.cancelled) {
+          _replaceLastMessage(_copyAiMessage(turn.assistant,
+              time: _nowTime(), status: 'stopped'));
+        } else {
           _failLastAssistant(error);
         }
+        _finishTurn(turn);
       });
       _toastApiError(error);
     } catch (_) {
-      if (!_isActiveToken(token)) {
-        return;
-      }
+      if (!_isActiveToken(token)) return;
       setState(() {
-        _replying = false;
         _failLastAssistant(const AiAssistantException('MAIN_UNAVAILABLE', ''));
+        _finishTurn(turn);
       });
       _toastApiError(const AiAssistantException('MAIN_UNAVAILABLE', ''));
+    } finally {
+      // Only this turn owns this timer/queued callback. Never clear a new turn.
+      turn.cancelPublication();
     }
   }
 
   void _stopAssistantReply() {
-    _streamCancel?.cancel('stop');
+    final turn = _replyTurn;
+    if (turn == null || !_isActiveToken(turn.token)) return;
+    _publishReplyText(turn);
     setState(() {
-      _replying = false;
-      if (_messages.isEmpty) {
-        return;
-      }
-      final last = _messages.last;
-      if (last.outputKind == AiAssistantOutputKind.thinking) {
-        _messages.removeLast();
+      if (turn.assistant.outputKind == AiAssistantOutputKind.thinking) {
+        _messages.removeWhere((m) => identical(m, turn.assistant));
         _syncKeys();
-        if (_searching) {
-          _applyMatches();
-        }
-        return;
+        if (_searching) _applyMatches();
+        } else {
+        _replaceLastMessage(_copyAiMessage(turn.assistant,
+            time: _nowTime(), status: 'stopped'));
       }
-      if (last.outputKind == AiAssistantOutputKind.text && last.time.isEmpty) {
-        _replaceLastMessage(
-          AiAssistantMessage(
-            role: AiAssistantRole.assistant,
-            time: _nowTime(),
-            outputKind: AiAssistantOutputKind.text,
-            text: last.text,
-            serverId: last.serverId,
-            capability: last.capability,
-            status: last.status,
-            imageUrl: last.imageUrl,
-          ),
-        );
-      }
+      _finishTurn(turn);
+      _scrollGeneration++;
     });
+    turn.token.cancel('stop');
   }
 
   void _sendComposer() {
-    if (_replying || _hasStreamingHistory()) {
-      if (_hasStreamingHistory()) {
-        _toastApiError(const AiAssistantException('CHAT_BUSY', ''));
-      }
-      return;
-    }
+    if (_replying) return;
     final text = _inputController.text.trim();
     final cards = _drafts
         .where((item) => item.card != null)
@@ -1816,6 +1890,10 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
     final plan = planned as AiAssistantSendPlan;
     _streamCancel?.cancel('replace');
     _streamCancel = CancelToken();
+    _replyTurn?.dispose();
+    _scrollGeneration++;
+    _scrollScheduled = false;
+    _followsBottom = true;
     final userMessage = AiAssistantMessage(
       role: AiAssistantRole.user,
       time: _nowTime(),
@@ -1831,14 +1909,19 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
       } else {
         _messages.add(userMessage);
       }
-      _messages.add(
-        AiAssistantMessage(
+      final assistant = AiAssistantMessage(
           role: AiAssistantRole.assistant,
           time: '',
           outputKind: AiAssistantOutputKind.thinking,
           capability: plan.capability,
-        ),
-      );
+        );
+      _messages.add(assistant);
+      _replyTurn = _AiReplyTurn(
+          token: _streamCancel!,
+          identity: SessionIdentityService.instance
+              .capture(ownerUserId: _selfProfileOwnerId()),
+          user: userMessage,
+          assistant: assistant);
       _drafts.clear();
       _inputController.clear();
       _selectedTool = null;
@@ -1848,8 +1931,55 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
         _applyMatches();
       }
     });
-    _scrollToEnd();
+    _scrollToEnd(force: true);
     unawaited(_beginAssistantReply(plan));
+  }
+
+  Widget _buildAssistantReplyBubble(
+      {required bool dark,
+      required AppI18n i18n,
+      required AiAssistantMessage message,
+      required String query}) {
+    Widget bubble(AiAssistantMessage message) => _AssistantBubble(
+          dark: dark,
+          i18n: i18n,
+          message: message,
+          imageBytes: _fileCache[AiAssistantApi.fileIdFromUrl(
+                message.imageUrl,
+              ) ??
+              ''],
+          fileCache: _fileCache,
+          onNeedFile: (id) => unawaited(
+            _ensureFileBytes(id, silent: true),
+          ),
+          onComingSoon: _showComingSoon,
+          onImageTap: () => unawaited(
+            _previewAiImage(
+              bytes: _fileCache[AiAssistantApi.fileIdFromUrl(
+                    message.imageUrl,
+                  ) ??
+                  ''],
+              imageUrl: message.imageUrl,
+            ),
+          ),
+          onMarkdownImage: (raw) => unawaited(
+            _previewAiImage(
+              bytes: _fileCache[AiAssistantApi.fileIdFromUrl(
+                    raw,
+                  ) ??
+                  ''],
+              imageUrl: raw,
+            ),
+          ),
+          query: query,
+          onLongPress: () => unawaited(_copyMessage(message)),
+        );
+    final turn = _replyTurn;
+    if (turn == null || !identical(message, turn.assistant))
+      return bubble(message);
+    return ValueListenableBuilder<AiAssistantMessage>(
+        valueListenable: turn.visible,
+        builder: (_, current, __) => bubble(current));
   }
 
   @override
@@ -2151,44 +2281,11 @@ class _AiAssistantPageState extends State<AiAssistantPage> {
                                     onLongPress: () =>
                                         unawaited(_copyMessage(message)),
                                   )
-                                : _AssistantBubble(
+                                : _buildAssistantReplyBubble(
                                     dark: dark,
                                     i18n: i18n,
                                     message: message,
-                                    imageBytes: _fileCache[
-                                        AiAssistantApi.fileIdFromUrl(
-                                              message.imageUrl,
-                                            ) ??
-                                            ''],
-                                    fileCache: _fileCache,
-                                    onNeedFile: (id) => unawaited(
-                                      _ensureFileBytes(id, silent: true),
-                                    ),
-                                    onComingSoon: _showComingSoon,
-                                    onImageTap: () => unawaited(
-                                      _previewAiImage(
-                                        bytes: _fileCache[
-                                            AiAssistantApi.fileIdFromUrl(
-                                                  message.imageUrl,
-                                                ) ??
-                                                ''],
-                                        imageUrl: message.imageUrl,
-                                      ),
-                                    ),
-                                    onMarkdownImage: (raw) => unawaited(
-                                      _previewAiImage(
-                                        bytes: _fileCache[
-                                            AiAssistantApi.fileIdFromUrl(
-                                                  raw,
-                                                ) ??
-                                                ''],
-                                        imageUrl: raw,
-                                      ),
-                                    ),
-                                    query: query,
-                                    onLongPress: () =>
-                                        unawaited(_copyMessage(message)),
-                                  ),
+                                              query: query),
                           ),
                         );
                     },

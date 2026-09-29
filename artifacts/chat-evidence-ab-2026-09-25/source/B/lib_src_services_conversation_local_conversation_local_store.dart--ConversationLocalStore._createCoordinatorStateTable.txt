@@ -1,0 +1,16 @@
+Future<void> _createCoordinatorStateTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $_coordinatorStateTable (
+        owner_user_id TEXT NOT NULL,
+        canonical_conversation_id TEXT NOT NULL,
+        generation INTEGER NOT NULL DEFAULT 0,
+        tombstone_generation INTEGER,
+        idempotency_keys_json TEXT NOT NULL DEFAULT '[]',
+        removed_at INTEGER NOT NULL DEFAULT 0,
+        reason TEXT NOT NULL DEFAULT '',
+        expires_at INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (owner_user_id, canonical_conversation_id)
+      )
+    ''');
+  }

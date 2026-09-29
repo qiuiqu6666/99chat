@@ -1,0 +1,96 @@
+[
+  {
+    "target": {
+      "id": "Function:lib/src/services/im/im05_contracts.dart:imOutboxFromStorageMap",
+      "name": "imOutboxFromStorageMap",
+      "type": "Function",
+      "filePath": "lib/src/services/im/im05_contracts.dart"
+    },
+    "direction": "upstream",
+    "impactedCount": 6,
+    "risk": "LOW",
+    "riskSharedAxes": "LOW",
+    "riskScale": {
+      "comparableAcrossKinds": true,
+      "unusedAxes": []
+    },
+    "epistemic": "exact",
+    "summary": {
+      "direct": 4,
+      "processes_affected": 0,
+      "modules_affected": 1
+    },
+    "byDepthCounts": {
+      "1": 4,
+      "2": 2
+    },
+    "affected_processes": [],
+    "affected_modules": [
+      {
+        "name": "Im",
+        "hits": 3,
+        "impact": "direct"
+      }
+    ],
+    "byDepth": {
+      "1": [
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im_ingress_store.dart:_SqliteImIngressTransaction.findOutbox#2",
+          "name": "findOutbox",
+          "filePath": "lib/src/services/im/im_ingress_store.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im_ingress_store.dart:_SqliteImIngressTransaction.findOutboxBySdkLocalId#3",
+          "name": "findOutboxBySdkLocalId",
+          "filePath": "lib/src/services/im/im_ingress_store.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:_WebImIngressTransaction.findOutbox#2",
+          "name": "findOutbox",
+          "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:_WebImIngressTransaction.listOutboxesForRecovery#3",
+          "name": "listOutboxesForRecovery",
+          "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ],
+      "2": [
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:_WebImIngressTransaction.findOutboxBySdkLocalId#3",
+          "name": "findOutboxBySdkLocalId",
+          "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:_WebImIngressTransaction.updateOutboxIfCurrent#5",
+          "name": "updateOutboxIfCurrent",
+          "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,40 @@
+onSubmitted() async {
+    conversationModel.clearWebDraft(conversationID: widget.conversationID);
+    lastText = "";
+    final text = textEditingController.text.trim();
+    final convType = widget.conversationType;
+    if (text.isNotEmpty && text != zeroWidthSpace) {
+      final mentionOccurrences = _mentionOccurrencesForSend(text);
+      if (widget.model.repliedMessage != null) {
+        MessageUtils.handleMessageError(
+            widget.model.sendReplyMessage(
+                text: text,
+                convID: widget.conversationID,
+                convType: convType,
+                atUserIDList: getUserIdFromMemberInfoMap(),
+                mentionOccurrences: mentionOccurrences),
+            context);
+      } else if (mentionedMembersMap.isNotEmpty) {
+        widget.model.sendTextAtMessage(
+            text: text,
+            convType: widget.conversationType,
+            convID: widget.conversationID,
+            atUserList: getUserIdFromMemberInfoMap(),
+            mentionOccurrences: mentionOccurrences);
+      } else {
+        MessageUtils.handleMessageError(
+            widget.model.sendTextMessage(
+                text: text, convID: widget.conversationID, convType: convType),
+            context);
+      }
+      textEditingController.clear();
+      widget.onChanged?.call("");
+      currentCursor = null;
+      lastText = "";
+      _clearMentionState();
+
+      widget.controller?.markOutgoingMessageSend();
+      goDownBottom(fromOutgoingSend: true);
+      _handleSendEditStatus("", false);
+    }
+  }

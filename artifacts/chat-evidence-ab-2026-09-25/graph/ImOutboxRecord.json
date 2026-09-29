@@ -1,0 +1,255 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/im/im05_contracts.dart:ImOutboxRecord",
+    "name": "ImOutboxRecord",
+    "kind": "Class",
+    "filePath": "lib/src/services/im/im05_contracts.dart",
+    "startLine": 179,
+    "endLine": 283
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "calls": [
+      {
+        "uid": "Function:lib/src/services/im/im05_contracts.dart:imOutboxFromStorageMap",
+        "name": "imOutboxFromStorageMap",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Function:test/im05_persistence_test.dart:main",
+        "name": "main",
+        "filePath": "test/im05_persistence_test.dart"
+      },
+      {
+        "uid": "Function:test/im08_outgoing_send_coordinator_test.dart:_mainPrepared",
+        "name": "_mainPrepared",
+        "filePath": "test/im08_outgoing_send_coordinator_test.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.copyWith#13",
+        "name": "copyWith",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.send#21",
+        "name": "send",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      }
+    ],
+    "imports": [
+      {
+        "uid": "File:lib/src/services/chat_external_message_sender.dart",
+        "name": "chat_external_message_sender.dart",
+        "filePath": "lib/src/services/chat_external_message_sender.dart"
+      },
+      {
+        "uid": "File:lib/src/services/chat_failed_message_retry_service.dart",
+        "name": "chat_failed_message_retry_service.dart",
+        "filePath": "lib/src/services/chat_failed_message_retry_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im.dart",
+        "name": "im.dart",
+        "filePath": "lib/src/services/im/im.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im05_persistence.dart",
+        "name": "im05_persistence.dart",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im_ingress_store.dart",
+        "name": "im_ingress_store.dart",
+        "filePath": "lib/src/services/im/im_ingress_store.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im_ingress_store_platform_web.dart",
+        "name": "im_ingress_store_platform_web.dart",
+        "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/outgoing_outbox_recovery_service.dart",
+        "name": "outgoing_outbox_recovery_service.dart",
+        "filePath": "lib/src/services/im/outgoing_outbox_recovery_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/outgoing_send_coordinator.dart",
+        "name": "outgoing_send_coordinator.dart",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "File:test/im05_persistence_test.dart",
+        "name": "im05_persistence_test.dart",
+        "filePath": "test/im05_persistence_test.dart"
+      },
+      {
+        "uid": "File:test/im08_outgoing_send_coordinator_test.dart",
+        "name": "im08_outgoing_send_coordinator_test.dart",
+        "filePath": "test/im08_outgoing_send_coordinator_test.dart"
+      }
+    ],
+    "accesses": [
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.recordDispatchIntent#6",
+        "name": "recordDispatchIntent",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Method:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.copyWith#13",
+        "name": "copyWith",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.cipherAlgorithm",
+        "name": "cipherAlgorithm",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.clientCorrelationId",
+        "name": "clientCorrelationId",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.contentChecksum",
+        "name": "contentChecksum",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.conversationId",
+        "name": "conversationId",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.createdAtMs",
+        "name": "createdAtMs",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.dispatchAttemptId",
+        "name": "dispatchAttemptId",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.dispatchIntentAtMs",
+        "name": "dispatchIntentAtMs",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.encryptionVersion",
+        "name": "encryptionVersion",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.fencingToken",
+        "name": "fencingToken",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.keyId",
+        "name": "keyId",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.leaseOwnerId",
+        "name": "leaseOwnerId",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.mediaLocalRef",
+        "name": "mediaLocalRef",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.messageType",
+        "name": "messageType",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.nextRetryAtMs",
+        "name": "nextRetryAtMs",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.nonce",
+        "name": "nonce",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.operationId",
+        "name": "operationId",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.ownerUserId",
+        "name": "ownerUserId",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.payloadHash",
+        "name": "payloadHash",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.payloadReference",
+        "name": "payloadReference",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.recoveryConflict",
+        "name": "recoveryConflict",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.recoveryLag",
+        "name": "recoveryLag",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.resultCode",
+        "name": "resultCode",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.retryCount",
+        "name": "retryCount",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.sdkMessageId",
+        "name": "sdkMessageId",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.serverMsgId",
+        "name": "serverMsgId",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.state",
+        "name": "state",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.updatedAtMs",
+        "name": "updatedAtMs",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      }
+    ]
+  },
+  "typed_properties": [
+    {
+      "uid": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxDispatchAssessment.main",
+      "name": "main",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "declaredType": "ImOutboxRecord"
+    }
+  ],
+  "processes": []
+}

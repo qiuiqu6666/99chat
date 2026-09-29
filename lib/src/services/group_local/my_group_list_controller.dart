@@ -234,7 +234,7 @@ class MyGroupListController extends ChangeNotifier {
 
   /// 进页：revision/owner/keyword 未变且已有骨架则跳过读库。
   Future<void> ensureLoaded({bool force = false}) async {
-    if (!GroupLocalPerfFlags.myGroupListAzOptimizeEnabled) {
+    if (!force && !GroupLocalPerfFlags.myGroupListAzOptimizeEnabled) {
       return;
     }
     final owner = _store.currentOwnerUserId();

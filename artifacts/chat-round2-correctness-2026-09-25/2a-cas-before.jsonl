@@ -1,0 +1,12 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":74268,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":1,"time":2,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":3252}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":3253}
+{"test":{"id":3,"name":"a zero-row recovery update rolls back the main outcome transition","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":164,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":3254}
+{"testID":3,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=30 created=true","type":"print","time":3328}
+{"testID":3,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=8.1 deltaMs=8.1 prev=message_core_db_open durationMs=38","type":"print","time":3332}
+{"testID":3,"error":"Expected: throws <Instance of 'StateError'>\n  Actual: <Instance of 'Future<bool>'>\n   Which: emitted <false>\n","stackTrace":"package:matcher                                    expectLater\npackage:flutter_test/src/widget_tester.dart 507:8  expectLater\ntest\\round2_outbox_boundaries_test.dart 176:13     main.<fn>\n===== asynchronous gap ===========================\ndart:async                                         _CustomZone.registerUnaryCallback\ntest\\round2_outbox_boundaries_test.dart 166:22     main.<fn>\n","isFailure":true,"type":"error","time":3372}
+{"testID":3,"result":"failure","skipped":false,"hidden":false,"type":"testDone","time":3372}
+{"success":false,"type":"done","time":3407}

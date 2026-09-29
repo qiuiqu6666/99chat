@@ -1,0 +1,57 @@
+{
+  "implementation": {
+    "productionFiles": 5,
+    "addedLines": 398,
+    "removedLines": 604,
+    "netLines": -206,
+    "newBehaviorCases": 18
+  },
+  "integration": {
+    "files": 20,
+    "passed": 184,
+    "failed": 0,
+    "exitCode": 0,
+    "log": "integration-final.log"
+  },
+  "previousBugReproductions": {
+    "passed": 9,
+    "failed": 0,
+    "includedInIntegration": true
+  },
+  "legacy": {
+    "before": {
+      "passed": 22,
+      "failed": 39
+    },
+    "final": {
+      "passed": 23,
+      "failed": 38,
+      "exitCode": 1
+    },
+    "newFailureNames": 0,
+    "unchangedFirstAssertions": 35,
+    "otherFirstAssertionsMatchedPriorFixLogs": 3,
+    "log": "legacy-unread-final.log"
+  },
+  "analysis": {
+    "testFiles": 6,
+    "exitCode": 0,
+    "log": "final-test-analyze-post-probe.log",
+    "fullProjectCleanClaim": false
+  },
+  "graph": {
+    "reindexExit": 0,
+    "indexedAt": "2026-09-21T20:34:03.440Z",
+    "changedSymbols": 188,
+    "listedSymbols": 188,
+    "changedFiles": 42,
+    "affectedProcesses": 2,
+    "risk": "medium",
+    "partial": false,
+    "truncated": false,
+    "scope": "all working tree changes, including unrelated user work",
+    "log": "detect-changes-post-probe.json"
+  },
+  "deviceLongLockTestPerformed": false,
+  "gitCommitCreated": false
+}

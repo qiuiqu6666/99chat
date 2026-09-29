@@ -1,0 +1,343 @@
+{
+  "capturedAt": "2026-09-27T20:22:21.885Z",
+  "head": "0e7aa83bc5b096a99ff8bb424842404a3c901cb7",
+  "branch": "codex/w0-w7-stability-repair",
+  "sourceManifest": {
+    "paths": 211,
+    "sha256": "03c6de10b3c1c15e4158eeb99ea627f8f5e2ff0f218c8e2d402515ebd24c1391",
+    "drift": []
+  },
+  "planSha256": "43493599907ef2d759deee209e9e3d941b6dbb8c01752e721d2707b6e8d6443a",
+  "graph": {
+    "statusAtGate": "up-to-date",
+    "runnerIdentityStatus": "current",
+    "incompleteReasons": [],
+    "contextRunnerMatchesStatus": true,
+    "contextCommit": "0e7aa83bc5b096a99ff8bb424842404a3c901cb7",
+    "summary": {
+      "changed_count": 428,
+      "affected_count": 8,
+      "changed_files": 88,
+      "risk_level": "high"
+    },
+    "partial": false,
+    "truncated": false,
+    "listedSymbols": 428,
+    "fts": "disabled-by-flag",
+    "coverageNote": "Process enumeration/call inference have analyzer coverage caps. detect_changes(all) uses git diff HEAD and does not include untracked paths. New paths are accounted for by the source manifest, graph indexing and direct tests; no full repository or release all-clear is claimed."
+  },
+  "untrackedOwnedPaths": [
+    "lib/src/bootstrap/recoverable_startup.dart",
+    "lib/src/bootstrap/startup_entry_preferences.dart",
+    "lib/src/pages/wallet/record/wallet_record_updates.dart",
+    "lib/src/services/contact_sync_plan.dart",
+    "lib/src/services/photo_backup_progress_store.dart",
+    "lib/src/services/picker_recovery_service.dart",
+    "lib/src/widgets/contact_projection_merge.dart",
+    "lib/src/widgets/picker_recovery_notice.dart",
+    "test/ai_assistant_turn_lifecycle_test.dart",
+    "test/chat_scroll_ack_dedup_test.dart",
+    "test/conversation_tab_read_deadline_test.dart",
+    "test/history_mutation_close_recovery_test.dart",
+    "test/im_recovery_bounded_admission_test.dart",
+    "test/media_decode_safety_test.dart",
+    "test/picker_recovery_coordinator_test.dart",
+    "test/recoverable_startup_test.dart",
+    "test/search_filter_request_scope_test.dart",
+    "test/session_teardown_serialization_test.dart",
+    "test/sqflite_bounded_lifecycle_test.dart",
+    "test/sqflite_late_open_fence_test.dart",
+    "test/sqflite_late_secondary_open_fence_test.dart",
+    "test/sqflite_native_close_contract_test.dart",
+    "test/stability_contact_projection_test.dart",
+    "test/stability_data_capabilities_test.dart",
+    "test/stability_device_sync_test.dart",
+    "test/stability_entry_service_ownership_test.dart",
+    "test/stability_relationship_ownership_test.dart",
+    "test/stability_session_store_serialization_test.dart",
+    "test/stability_wallet_background_commit_test.dart",
+    "test/stability_wallet_ownership_test.dart",
+    "test/stability_wallet_visibility_test.dart",
+    "test/startup_entry_preferences_test.dart",
+    "test/support/controlled_database.dart",
+    "test/w0_w2_network_session_repair_test.dart",
+    "third_party/image_picker_android/AUTHORS",
+    "third_party/image_picker_android/CHANGELOG.md",
+    "third_party/image_picker_android/LICENSE",
+    "third_party/image_picker_android/README.md",
+    "third_party/image_picker_android/android/build.gradle.kts",
+    "third_party/image_picker_android/android/gradle.properties",
+    "third_party/image_picker_android/android/settings.gradle.kts",
+    "third_party/image_picker_android/android/src/main/AndroidManifest.xml",
+    "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ExifDataCopier.java",
+    "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/FileUtils.java",
+    "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ImagePickerCache.java",
+    "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ImagePickerDelegate.java",
+    "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ImagePickerFileProvider.java",
+    "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ImagePickerPlugin.java",
+    "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ImagePickerUtils.java",
+    "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ImageResizer.java",
+    "third_party/image_picker_android/android/src/main/kotlin/io/flutter/plugins/imagepicker/Messages.kt",
+    "third_party/image_picker_android/android/src/main/kotlin/io/flutter/plugins/imagepicker/ResultUtils.kt",
+    "third_party/image_picker_android/android/src/main/res/xml/flutter_image_picker_file_paths.xml",
+    "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/ExifDataCopierTest.java",
+    "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/FileUtilTest.java",
+    "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/ImagePickerCacheTest.java",
+    "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/ImagePickerDelegateTest.java",
+    "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/ImagePickerPluginTest.java",
+    "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/ImageResizerTest.java",
+    "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/PickerRecoveryCacheTest.java",
+    "third_party/image_picker_android/android/src/test/kotlin/io/flutter/plugins/imagepicker/TestResultUtils.kt",
+    "third_party/image_picker_android/android/src/test/resources/flutter_image.svg",
+    "third_party/image_picker_android/android/src/test/resources/jpgImageTall.jpg",
+    "third_party/image_picker_android/android/src/test/resources/jpgImageWide.jpg",
+    "third_party/image_picker_android/android/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+    "third_party/image_picker_android/android/src/test/resources/pngImage.png",
+    "third_party/image_picker_android/lib/image_picker_android.dart",
+    "third_party/image_picker_android/lib/src/messages.g.dart",
+    "third_party/image_picker_android/pigeons/copyright.txt",
+    "third_party/image_picker_android/pigeons/messages.dart",
+    "third_party/image_picker_android/pubspec.yaml",
+    "third_party/image_picker_android/test/image_picker_android_test.dart",
+    "third_party/image_picker_ios/AUTHORS",
+    "third_party/image_picker_ios/CHANGELOG.md",
+    "third_party/image_picker_ios/LICENSE",
+    "third_party/image_picker_ios/README.md",
+    "third_party/image_picker_ios/ios/image_picker_ios.podspec",
+    "third_party/image_picker_ios/ios/image_picker_ios/Package.swift",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/FIPViewProvider.m",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/FLTImagePickerImageUtil.m",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/FLTImagePickerMetaDataUtil.m",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/FLTImagePickerPhotoAssetUtil.m",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/FLTImagePickerPlugin.m",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/FLTPHPickerSaveImageToPathOperation.m",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/Resources/PrivacyInfo.xcprivacy",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/ImagePickerPlugin.modulemap",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios-umbrella.h",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FIPViewProvider.h",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FLTImagePickerImageUtil.h",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FLTImagePickerMetaDataUtil.h",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FLTImagePickerPhotoAssetUtil.h",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FLTImagePickerPlugin.h",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FLTImagePickerPlugin_Test.h",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FLTPHPickerSaveImageToPathOperation.h",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/messages.g.h",
+    "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/messages.g.m",
+    "third_party/image_picker_ios/lib/image_picker_ios.dart",
+    "third_party/image_picker_ios/lib/src/messages.g.dart",
+    "third_party/image_picker_ios/pigeons/copyright.txt",
+    "third_party/image_picker_ios/pigeons/messages.dart",
+    "third_party/image_picker_ios/pubspec.yaml",
+    "third_party/image_picker_ios/test/image_picker_ios_test.dart",
+    "third_party/sqflite_common/99CHAT_PATCH.md",
+    "third_party/sqflite_common/CHANGELOG.md",
+    "third_party/sqflite_common/LICENSE",
+    "third_party/sqflite_common/README.md",
+    "third_party/sqflite_common/lib/sqflite.dart",
+    "third_party/sqflite_common/lib/sqflite_dev.dart",
+    "third_party/sqflite_common/lib/sqflite_logger.dart",
+    "third_party/sqflite_common/lib/sql.dart",
+    "third_party/sqflite_common/lib/sqlite_api.dart",
+    "third_party/sqflite_common/lib/src/arg_utils.dart",
+    "third_party/sqflite_common/lib/src/batch.dart",
+    "third_party/sqflite_common/lib/src/collection_utils.dart",
+    "third_party/sqflite_common/lib/src/compat.dart",
+    "third_party/sqflite_common/lib/src/constant.dart",
+    "third_party/sqflite_common/lib/src/cursor.dart",
+    "third_party/sqflite_common/lib/src/database.dart",
+    "third_party/sqflite_common/lib/src/database_executor_iterate_ext.dart",
+    "third_party/sqflite_common/lib/src/database_ext.dart",
+    "third_party/sqflite_common/lib/src/database_file_system.dart",
+    "third_party/sqflite_common/lib/src/database_file_system_io.dart",
+    "third_party/sqflite_common/lib/src/database_mixin.dart",
+    "third_party/sqflite_common/lib/src/dev_utils.dart",
+    "third_party/sqflite_common/lib/src/env_utils.dart",
+    "third_party/sqflite_common/lib/src/exception.dart",
+    "third_party/sqflite_common/lib/src/factory.dart",
+    "third_party/sqflite_common/lib/src/factory_mixin.dart",
+    "third_party/sqflite_common/lib/src/internals.dart",
+    "third_party/sqflite_common/lib/src/log_level.dart",
+    "third_party/sqflite_common/lib/src/logger/sqflite_logger.dart",
+    "third_party/sqflite_common/lib/src/method_call.dart",
+    "third_party/sqflite_common/lib/src/mixin.dart",
+    "third_party/sqflite_common/lib/src/mixin/constant.dart",
+    "third_party/sqflite_common/lib/src/mixin/dev_utils.dart",
+    "third_party/sqflite_common/lib/src/mixin/factory.dart",
+    "third_party/sqflite_common/lib/src/mixin/import_mixin.dart",
+    "third_party/sqflite_common/lib/src/mixin/platform.dart",
+    "third_party/sqflite_common/lib/src/open_options.dart",
+    "third_party/sqflite_common/lib/src/path_utils.dart",
+    "third_party/sqflite_common/lib/src/platform/platform.dart",
+    "third_party/sqflite_common/lib/src/platform/platform_io.dart",
+    "third_party/sqflite_common/lib/src/platform/platform_web.dart",
+    "third_party/sqflite_common/lib/src/sqflite_database_factory.dart",
+    "third_party/sqflite_common/lib/src/sqflite_debug.dart",
+    "third_party/sqflite_common/lib/src/sqflite_import.dart",
+    "third_party/sqflite_common/lib/src/sql_builder.dart",
+    "third_party/sqflite_common/lib/src/sql_command.dart",
+    "third_party/sqflite_common/lib/src/sql_command_executor_ext.dart",
+    "third_party/sqflite_common/lib/src/transaction.dart",
+    "third_party/sqflite_common/lib/src/utils.dart",
+    "third_party/sqflite_common/lib/src/value_utils.dart",
+    "third_party/sqflite_common/lib/utils/utils.dart",
+    "third_party/sqflite_common/pubspec.yaml",
+    "third_party/tencent_cloud_chat_uikit/lib/ui/utils/picker_recovery_coordinator.dart"
+  ],
+  "externalChangedSymbolPaths": [
+    {
+      "path": "lib/src/api/me_group_api.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "lib/src/group_profile.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "lib/src/pages/profile_nickname_edit_page.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "lib/src/pages/settings/settings_page.dart",
+      "alreadyDirtyAtStart": true,
+      "classification": "preexisting-shared-work"
+    },
+    {
+      "path": "lib/src/services/conversation_history_sync_coordinator.dart",
+      "alreadyDirtyAtStart": true,
+      "classification": "preexisting-shared-work"
+    },
+    {
+      "path": "lib/src/services/conversation_local/conversation_sync_service.dart",
+      "alreadyDirtyAtStart": true,
+      "classification": "preexisting-shared-work"
+    },
+    {
+      "path": "lib/src/services/friend_local/contacts_protocol_sync_service.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "lib/src/services/friend_local/friend_local_store.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "lib/src/services/group_local/group_membership_sync_service.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "lib/src/services/history_window_store.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "lib/src/services/im/message_persist_coordinator.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "lib/src/services/im/tencent_advanced_message_adapter.dart",
+      "alreadyDirtyAtStart": true,
+      "classification": "preexisting-shared-work"
+    },
+    {
+      "path": "lib/src/services/livekit_call_session.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "lib/src/services/peer_profile_refresh_bus.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "lib/utils/group_name_card_policy.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "test/chat_open_remark_regression_test.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "test/return_to_latest_rendered_proof_test.dart",
+      "alreadyDirtyAtStart": true,
+      "classification": "preexisting-shared-work"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/controllers/history_pagination_controller.dart",
+      "alreadyDirtyAtStart": true,
+      "classification": "preexisting-shared-work"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_live_window.dart",
+      "alreadyDirtyAtStart": true,
+      "classification": "preexisting-shared-work"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+      "alreadyDirtyAtStart": true,
+      "classification": "preexisting-shared-work"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_group_profile_model.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart",
+      "alreadyDirtyAtStart": true,
+      "classification": "preexisting-shared-work"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_message_tooltip.dart",
+      "alreadyDirtyAtStart": true,
+      "classification": "preexisting-shared-work"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart",
+      "alreadyDirtyAtStart": true,
+      "classification": "preexisting-shared-work"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_name_card.dart",
+      "alreadyDirtyAtStart": false,
+      "classification": "concurrent-work-outside-task-manifest"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_history_window_transition.dart",
+      "alreadyDirtyAtStart": true,
+      "classification": "preexisting-shared-work"
+    }
+  ],
+  "passedNewFlutterScenarios": {
+    "core": 27,
+    "chatFirstWave": 21,
+    "chatW7": 10,
+    "data": 32,
+    "mediaAi": 21,
+    "total": 111
+  },
+  "nativeAndroidTestsPassed": 4,
+  "unresolvedBaselineTests": [
+    "history_visible_deferred_progress_test.dart:350",
+    "history_visible_deferred_progress_test.dart:415",
+    "history_visible_deferred_progress_test.dart:468",
+    "home_tab_body_lifecycle_test.dart:340",
+    "sangong_my_config_test.dart:35"
+  ],
+  "releaseGates": [
+    "Android device profile comparison",
+    "iOS build and device tests",
+    "SDK all-event persistence/replay contract before bounded ingress",
+    "backend device isolation/idempotent complete before A11 delta",
+    "W8 explicit consent before A12 progress store activation",
+    "package rollout and rollback validation"
+  ],
+  "noStageCommitOrRelease": true
+}

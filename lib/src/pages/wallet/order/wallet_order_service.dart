@@ -10,6 +10,7 @@ class WalletOrderService {
   final WalletPendingStore pendingStore;
   bool _busy = false;
   String _lockedClientId = '';
+  bool _unresolvedSubmission = false;
 
   WalletOrderService({WalletPendingStore? store})
       : pendingStore = store ?? WalletPendingStore();
@@ -44,12 +45,23 @@ class WalletOrderService {
         results.add(ret);
 
         final updated = querying.copyWith(
-          serverOrderId: ret.orderId.isNotEmpty ? ret.orderId : querying.serverOrderId,
-          orderState: ret.state.name,
+          serverOrderId:
+              ret.orderId.isNotEmpty ? ret.orderId : querying.serverOrderId,
+          orderState: querying.serverManagedCard &&
+                  querying.orderState == WalletOrderState.success.name &&
+                  (ret.state == WalletOrderState.unknown ||
+                      ret.state == WalletOrderState.pending ||
+                      !ret.ok)
+              ? querying.orderState
+              : ret.state.name,
           updatedAt: DateTime.now().toIso8601String(),
         );
 
         await _saveAfterResult(updated, ret);
+        if (_lockedClientId == draft.clientOrderId && updated.isDoneOrder) {
+          _unresolvedSubmission = false;
+          _lockedClientId = '';
+        }
       } catch (_) {
         await pendingStore.put(draft.copyWith(
           retryCount: draft.retryCount + 1,
@@ -70,11 +82,11 @@ class WalletOrderService {
   }
 
   void cancel() {
-    if (!_busy) _lockedClientId = '';
+    if (!_busy && !_unresolvedSubmission) _lockedClientId = '';
   }
 
   void release() {
-    if (!_busy) _lockedClientId = '';
+    if (!_busy && !_unresolvedSubmission) _lockedClientId = '';
   }
 
   Future<WalletOrderResult> run(
@@ -97,6 +109,7 @@ class WalletOrderService {
     }
 
     _busy = true;
+    var submissionStarted = false;
     final now = DateTime.now().toIso8601String();
     final pendingDraft = draft.copyWith(
       updatedAt: now,
@@ -108,25 +121,34 @@ class WalletOrderService {
       if (!SessionIdentityService.instance.isCurrent(identity)) {
         return _sessionChangedResult(draft.clientOrderId);
       }
+      submissionStarted = true;
       final ret = await job(draft.clientOrderId);
       if (!SessionIdentityService.instance.isCurrent(identity)) {
         return _sessionChangedResult(draft.clientOrderId);
       }
       final savedDraft = pendingDraft.copyWith(
-        serverOrderId: ret.orderId.isNotEmpty ? ret.orderId : pendingDraft.serverOrderId,
+        serverOrderId:
+            ret.orderId.isNotEmpty ? ret.orderId : pendingDraft.serverOrderId,
         orderState: ret.state.name,
         updatedAt: DateTime.now().toIso8601String(),
       );
 
-      await _saveAfterResult(savedDraft, ret);
-
-      _lockedClientId = '';
+      // Once the backend answered, a local storage error cannot undo that fact.
+      // The pre-submit journal still contains the same ID and can query it again.
+      try {
+        await _saveAfterResult(savedDraft, ret);
+      } catch (_) {}
+      _unresolvedSubmission = ret.state == WalletOrderState.unknown ||
+          ret.state == WalletOrderState.pending ||
+          ret.state == WalletOrderState.accepted;
+      _lockedClientId = _unresolvedSubmission ? clientId : '';
       return ret;
     } on WalletSubmitException catch (e) {
       if (!SessionIdentityService.instance.isCurrent(identity)) {
         return _sessionChangedResult(draft.clientOrderId);
       }
-      _lockedClientId = '';
+      _unresolvedSubmission = e.requestSent;
+      _lockedClientId = e.requestSent ? clientId : '';
       if (!e.requestSent) {
         await pendingStore.remove(draft.clientOrderId);
         return WalletOrderResult(
@@ -134,16 +156,20 @@ class WalletOrderService {
           state: WalletOrderState.failed,
           err: WalletOrderErr.networkError,
           clientOrderId: draft.clientOrderId,
-          msg: e.message.isNotEmpty ? e.message : WalletOrderErr.networkError.text,
+          msg: e.message.isNotEmpty
+              ? e.message
+              : WalletOrderErr.networkError.text,
         );
       }
 
-      await pendingStore.put(pendingDraft.copyWith(
-        retryCount: pendingDraft.retryCount + 1,
-        lastQueryAt: DateTime.now().toIso8601String(),
-        updatedAt: DateTime.now().toIso8601String(),
-        orderState: WalletOrderState.unknown.name,
-      ));
+      try {
+        await pendingStore.put(pendingDraft.copyWith(
+          retryCount: pendingDraft.retryCount + 1,
+          lastQueryAt: DateTime.now().toIso8601String(),
+          updatedAt: DateTime.now().toIso8601String(),
+          orderState: WalletOrderState.unknown.name,
+        ));
+      } catch (_) {}
       return WalletOrderResult(
         ok: true,
         state: WalletOrderState.unknown,
@@ -163,7 +189,18 @@ class WalletOrderService {
       if (!SessionIdentityService.instance.isCurrent(identity)) {
         return _sessionChangedResult(draft.clientOrderId);
       }
-      await pendingStore.remove(draft.clientOrderId);
+      if (submissionStarted) {
+        _unresolvedSubmission = true;
+        _lockedClientId = clientId;
+        return WalletOrderResult(
+            ok: true,
+            state: WalletOrderState.unknown,
+            err: WalletOrderErr.networkError,
+            clientOrderId: clientId);
+      }
+      try {
+        await pendingStore.remove(draft.clientOrderId);
+      } catch (_) {}
       _lockedClientId = '';
       return WalletOrderResult(
         ok: false,
@@ -202,11 +239,25 @@ class WalletOrderService {
     );
   }
 
-
   Future<void> _saveAfterResult(
     WalletOrderDraft draft,
     WalletOrderResult ret,
   ) async {
+    if (draft.serverManagedCard &&
+        draft.orderState == WalletOrderState.success.name) {
+      final delivered =
+          ret.data['cardDeliveryState'] == 'SENT' || draft.cardSent;
+      if (delivered) {
+        await pendingStore.remove(draft.clientOrderId);
+      } else {
+        await pendingStore.put(draft.copyWith(
+          cardSendStatus:
+              ret.data['cardDeliveryState']?.toString().toLowerCase() ??
+                  draft.cardSendStatus,
+        ));
+      }
+      return;
+    }
     if (!ret.ok || _isFailedDone(ret.state)) {
       await pendingStore.remove(draft.clientOrderId);
       return;

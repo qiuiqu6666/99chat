@@ -1,0 +1,8 @@
+{
+  "lib/src/services/group_name_card_profile_source.dart": "63d78599e76f5c0cc09015949c59ede4ca3a4dbf4cf61b652f90f5170f881fc3",
+  "lib/src/group_profile.dart": "74e9050ac2f954a5d5c3b4e2653fbc4ad785b66993f0e9dcafe35813dc0ba5bf",
+  "lib/src/pages/profile_nickname_edit_page.dart": "fb72c359976d835f226c3c12523335588ff985bdbca452b6681197504f426c40",
+  "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_group_profile_model.dart": "8370a94ef1b6f7e0248a7214a9c77674944f25ff13aa963dd159977e7f5f11a6",
+  "test/group_name_card_profile_hydration_test.dart": "d2ad0d16f31cbd60c210355f0d4a34c7203386f506b8c4e1384d3f9718df1cee",
+  "test/group_name_card_recovery_test.dart": "e2579ee728b8ceb83da169390aefdb165042402a796206873c30388b9fa892c6"
+}

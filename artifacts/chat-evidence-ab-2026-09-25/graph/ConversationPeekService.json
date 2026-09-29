@@ -1,0 +1,163 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/conversation_peek_service.dart:ConversationPeekService",
+    "name": "ConversationPeekService",
+    "kind": "Class",
+    "filePath": "lib/src/services/conversation_peek_service.dart",
+    "startLine": 105,
+    "endLine": 392
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "imports": [
+      {
+        "uid": "File:lib/src/chat.dart",
+        "name": "chat.dart",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "File:lib/src/conversation.dart",
+        "name": "conversation.dart",
+        "filePath": "lib/src/conversation.dart"
+      },
+      {
+        "uid": "File:lib/src/services/chat_history_peek_bootstrap.dart",
+        "name": "chat_history_peek_bootstrap.dart",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "File:lib/src/services/chat_latest_window_reset_service.dart",
+        "name": "chat_latest_window_reset_service.dart",
+        "filePath": "lib/src/services/chat_latest_window_reset_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/chat_viewport/open_viewport_cache.dart",
+        "name": "open_viewport_cache.dart",
+        "filePath": "lib/src/services/chat_viewport/open_viewport_cache.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_history_warm_scheduler.dart",
+        "name": "conversation_history_warm_scheduler.dart",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im_recovery_service.dart",
+        "name": "im_recovery_service.dart",
+        "filePath": "lib/src/services/im_recovery_service.dart"
+      },
+      {
+        "uid": "File:lib/src/utils/contact_conversation_peek.dart",
+        "name": "contact_conversation_peek.dart",
+        "filePath": "lib/src/utils/contact_conversation_peek.dart"
+      },
+      {
+        "uid": "File:lib/src/widgets/conversation_peek/conversation_peek_overlay.dart",
+        "name": "conversation_peek_overlay.dart",
+        "filePath": "lib/src/widgets/conversation_peek/conversation_peek_overlay.dart"
+      },
+      {
+        "uid": "File:lib/src/widgets/in_app_message_notification_banner.dart",
+        "name": "in_app_message_notification_banner.dart",
+        "filePath": "lib/src/widgets/in_app_message_notification_banner.dart"
+      },
+      {
+        "uid": "File:lib/utils/chat_image_message_prefetch.dart",
+        "name": "chat_image_message_prefetch.dart",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "File:test/chat_latest_window_reset_service_test.dart",
+        "name": "chat_latest_window_reset_service_test.dart",
+        "filePath": "test/chat_latest_window_reset_service_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/conversation_peek_service.dart:ConversationPeekService.ConversationPeekService#0",
+        "name": "ConversationPeekService",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Constructor:lib/src/services/conversation_peek_service.dart:ConversationPeekService._",
+        "name": "_",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService._dedupeMessages#1",
+        "name": "_dedupeMessages",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService._dropMessagesAtOrBeforeHistoryClear#2",
+        "name": "_dropMessagesAtOrBeforeHistoryClear",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService._hydrateLocalMessageMetadata#1",
+        "name": "_hydrateLocalMessageMetadata",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService._isGroup#1",
+        "name": "_isGroup",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService._loadCloudOnlyForChatEntry#1",
+        "name": "_loadCloudOnlyForChatEntry",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService._loadOlder#3",
+        "name": "_loadOlder",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService._sortChronologically#1",
+        "name": "_sortChronologically",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService.canPeek#1",
+        "name": "canPeek",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService.loadForChatEntry#1",
+        "name": "loadForChatEntry",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService.loadInitial#1",
+        "name": "loadInitial",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService.loadLocalForChatEntry#1",
+        "name": "loadLocalForChatEntry",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService.loadOlder#2",
+        "name": "loadOlder",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/services/conversation_peek_service.dart:ConversationPeekService._messageService",
+        "name": "_messageService",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/conversation_peek_service.dart:ConversationPeekService.peekMessageCount",
+        "name": "peekMessageCount",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      }
+    ]
+  },
+  "processes": []
+}

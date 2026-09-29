@@ -1,0 +1,74 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 516568280 Realtime: 516568280
+
+** MEMINFO in pid 11297 [chat.chat99.chatpro] **
+                   Pss  Private  Private  SwapPss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------
+  Native Heap   600146   600068        0        0   647168   595011    52156
+  Dalvik Heap     2942     2888        0        0     4157     3134     1023
+ Dalvik Other     2568     2568        0        0                           
+        Stack      112      112        0        0                           
+       Ashmem        2        0        0        0                           
+    Other dev       18        0       16        0                           
+     .so mmap    13248     1236    11200        0                           
+    .apk mmap        4        0        0        0                           
+    .ttf mmap        2        0        0        0                           
+    .dex mmap    10178        4     9624        0                           
+    .oat mmap     1047        0       48        0                           
+    .art mmap     2384     1588       12        0                           
+   Other mmap      583        4      560        0                           
+      Unknown    76092    76092        0        0                           
+        TOTAL   709326   684560    21460        0   651325   598145    53179
+ 
+ App Summary
+                       Pss(KB)
+                        ------
+           Java Heap:     4488
+         Native Heap:   600068
+                Code:    22112
+               Stack:      112
+            Graphics:        0
+       Private Other:    79240
+              System:     3306
+ 
+               TOTAL:   709326       TOTAL SWAP PSS:        0
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        5           Activities:        1
+              Assets:        3        AssetManagers:        0
+       Local Binders:       46        Proxy Binders:       34
+       Parcel memory:       22         Parcel count:       90
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:     8109
+  PAGECACHE_OVERFLOW:     4338          MALLOC_SIZE:      117
+ 
+ DATABASES
+      pgsz     dbsz   Lookaside(b)          cache  Dbname
+                                   18479/37271/25  /data/user/0/chat.chat99.chatpro/files//1600155864_7271776d386f6e77336a/msg_0.db
+         4       40             68         1/18/2  /data/user/0/chat.chat99.chatpro/databases/agent_rebate_entry_v1.db
+         4       20             27         3/16/2  /data/user/0/chat.chat99.chatpro/databases/sangong_my_config_v1.db
+         4       20             34         6/17/3  /data/user/0/chat.chat99.chatpro/databases/privileged_game_user_v1.db
+         4      592             90       423/78/6  /data/user/0/chat.chat99.chatpro/databases/group_member_local_v1.db
+         4    53892             74    3865/3552/4  /data/user/0/chat.chat99.chatpro/databases/message_media_metadata_v1.db
+                                   39418/38254/25  /data/user/0/chat.chat99.chatpro/files//1600155864_7271776d386f6e77336a/im.db
+         4    18720            107 34891/17832/25  /data/user/0/chat.chat99.chatpro/databases/message_core.db
+         4      196             99      256/25/11  /data/user/0/chat.chat99.chatpro/files/libCachedImageData.db
+         4     1632             72      201/216/4  /data/user/0/chat.chat99.chatpro/databases/group_local_v1.db
+         4     2276            109    3129/906/14  /data/user/0/chat.chat99.chatpro/databases/conversation_index.db
+         4      104             94     928/561/25  /data/user/0/chat.chat99.chatpro/no_backup/androidx.work.workdb
+         4        8                         0/0/0    (attached) temp
+         4      104             31       123/14/2  /data/user/0/chat.chat99.chatpro/no_backup/androidx.work.workdb (3)
+         4      456             79       981/18/4  /data/user/0/chat.chat99.chatpro/databases/user_profile_local_v1.db
+         4      728            109    9600/173/17  /data/user/0/chat.chat99.chatpro/databases/message_history_coverage_v1.db
+         4    38272            109     716/125/25  /data/user/0/chat.chat99.chatpro/databases/history_window_v1.db
+         4      348            109      3723/39/8  /data/user/0/chat.chat99.chatpro/databases/contacts.db
+         4       24             26         1/18/2  /data/user/0/chat.chat99.chatpro/databases/push_token_upload_local_v1.db
+         4       20             35         4/19/3  /data/user/0/chat.chat99.chatpro/databases/wallet_snapshot_v1.db
+ 
+ Asset Allocations
+    : 51K

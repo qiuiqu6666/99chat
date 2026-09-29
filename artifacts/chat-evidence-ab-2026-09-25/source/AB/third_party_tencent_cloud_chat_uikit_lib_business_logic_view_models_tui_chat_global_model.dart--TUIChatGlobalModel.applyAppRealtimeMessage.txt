@@ -1,0 +1,18 @@
+/// Application-layer compatibility bridge for the single IM ingress.
+  ///
+  /// The SDK listener is owned by the app MessageCore. These methods preserve
+  /// the existing UIKit projection behavior without registering another SDK
+  /// listener inside the view model.
+  Future<void> applyAppRealtimeMessage(
+    V2TimMessage message, {
+    String? ingressEventID,
+    int? ingressSequence,
+    bool projectMessageList = true,
+  }) async {
+    await _onReceiveNewMsg(
+      message,
+      ingressEventID: ingressEventID,
+      ingressSequence: ingressSequence,
+      projectMessageList: projectMessageList,
+    );
+  }

@@ -1,0 +1,38 @@
+[
+  {
+    "path": "lib/main.dart",
+    "unchanged": true
+  },
+  {
+    "path": "lib/src/api/api_client.dart",
+    "unchanged": true
+  },
+  {
+    "path": "lib/src/services/startup_perf_log.dart",
+    "unchanged": true
+  },
+  {
+    "path": "lib/src/services/conversation_local/conversation_tab_store.dart",
+    "unchanged": true
+  },
+  {
+    "path": "lib/src/services/im/im_mailbox.dart",
+    "unchanged": true
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_media_send_utils.dart",
+    "unchanged": true
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+    "unchanged": true
+  },
+  {
+    "path": "lib/src/pages/wallet/wallet_store.dart",
+    "unchanged": true
+  },
+  {
+    "path": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+    "unchanged": true
+  }
+]

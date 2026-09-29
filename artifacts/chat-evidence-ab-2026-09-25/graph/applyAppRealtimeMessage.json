@@ -1,0 +1,53 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.applyAppRealtimeMessage#4",
+    "name": "applyAppRealtimeMessage",
+    "kind": "Method",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+    "startLine": 10239,
+    "endLine": 10244
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel",
+        "name": "TUIChatGlobalModel",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Function:test/chat_preview_bootstrap_efficiency_test.dart:main",
+        "name": "main",
+        "filePath": "test/chat_preview_bootstrap_efficiency_test.dart"
+      },
+      {
+        "uid": "Function:test/inactive_conversation_notify_test.dart:main",
+        "name": "main",
+        "filePath": "test/inactive_conversation_notify_test.dart"
+      },
+      {
+        "uid": "Function:test/inactive_conversation_notify_test.dart:main",
+        "name": "main",
+        "filePath": "test/inactive_conversation_notify_test.dart"
+      },
+      {
+        "uid": "Function:test/voice_auto_play_player_integration_test.dart:main",
+        "name": "main",
+        "filePath": "test/voice_auto_play_player_integration_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel._onReceiveNewMsg#4",
+        "name": "_onReceiveNewMsg",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      }
+    ]
+  },
+  "processes": []
+}

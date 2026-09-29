@@ -1,0 +1,12 @@
+bool _isChatOpenGenerationCurrent(int generation, String conversationID) {
+    return mounted &&
+        generation == _chatOpenGeneration &&
+        ChatPageScope.instance.allowsProjection(
+          token: _pageScope,
+          conversationId: conversationID,
+        ) &&
+        MessageConversationId.sameConversation(
+          _resolvedConversationID(),
+          conversationID,
+        );
+  }

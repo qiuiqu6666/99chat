@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_demo/src/pages/wallet/order/wallet_payment_presentation.dart';
 import 'package:tencent_cloud_chat_demo/src/ui/utils/adaptive_modal.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -336,29 +337,25 @@ class _RedPacketScreenState extends State<RedPacketScreen> {
             ctl.state == WalletOrderState.accepted ||
             ctl.state == WalletOrderState.pending ||
             ctl.state == WalletOrderState.unknown) {
+          final presentation =
+              WalletPaymentPresentation(ctl.state, ctl.lastResult);
           await PaySuccessOverlay.showFor(
             context,
-            title: AppI18n.of(context).t(
-              zhHans: '支付成功',
-              zhHant: '支付成功',
-              en: 'Payment successful',
-              ja: '支払いが完了しました',
-              ko: '결제가 완료되었습니다',
-            ),
-            message: AppI18n.of(context).t(
-              zhHans: '红包已发出',
-              zhHant: '紅包已發出',
-              en: 'Red packet sent',
-              ja: '紅包を送信しました',
-              ko: '홍바오를 보냈습니다',
-            ),
+            title: presentation.title(AppI18n.of(context)),
+            message: presentation.message(AppI18n.of(context), redPacket: true),
+            duration:
+                presentation.deliveryPending || !presentation.paymentCommitted
+                    ? const Duration(seconds: 4)
+                    : null,
           );
           if (!mounted) return;
-          await BiometricPayEnablePrompt.maybeShowAfterPaySuccess(
-            context,
-            authMethod: auth.method ?? PayAuthMethod.manual,
-            verifiedPayPin: auth.verifiedPayPin,
-          );
+          if (presentation.paymentCommitted) {
+            await BiometricPayEnablePrompt.maybeShowAfterPaySuccess(
+              context,
+              authMethod: auth.method ?? PayAuthMethod.manual,
+              verifiedPayPin: auth.verifiedPayPin,
+            );
+          }
           if (!mounted) return;
           Navigator.of(context).pop(true);
           return;

@@ -1,0 +1,76 @@
+{
+  "target": {
+    "id": "Method:lib/src/services/chat_failed_message_retry_service.dart:ChatFailedMessageRetryService.recordOutboxFailureForStuckMessage#4",
+    "name": "recordOutboxFailureForStuckMessage",
+    "type": "Method",
+    "filePath": "lib/src/services/chat_failed_message_retry_service.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 4,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 1,
+    "processes_affected": 0,
+    "modules_affected": 1
+  },
+  "byDepthCounts": {
+    "1": 1,
+    "2": 3
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Im",
+      "hits": 1,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_failed_message_retry_service.dart:ChatFailedMessageRetryService.settleStuckSendingAsFailed#3",
+        "name": "settleStuckSendingAsFailed",
+        "filePath": "lib/src/services/chat_failed_message_retry_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_failed_message_retry_service.dart:ChatFailedMessageRetryService.retryConversationFromSdk#4",
+        "name": "retryConversationFromSdk",
+        "filePath": "lib/src/services/chat_failed_message_retry_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_failed_message_retry_service.dart:ChatFailedMessageRetryService.retryLoadedFailedMessages#3",
+        "name": "retryLoadedFailedMessages",
+        "filePath": "lib/src/services/chat_failed_message_retry_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_failed_message_retry_service.dart:ChatFailedMessageRetryService.retryRecentConversationsFromSdk#3",
+        "name": "retryRecentConversationsFromSdk",
+        "filePath": "lib/src/services/chat_failed_message_retry_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}

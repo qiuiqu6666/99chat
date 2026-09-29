@@ -1,0 +1,18 @@
+int messageStatusInConversation(
+    String conversationID, {
+    String? clientId,
+    String? msgID,
+    int? fallback,
+    int? elemType,
+  }) {
+    final list = rawMessageList(conversationID);
+    if (list == null || list.isEmpty) {
+      return OutgoingSendStatus.normalize(status: fallback);
+    }
+    final current = _messageInConversation(conversationID,
+        clientId: clientId, msgID: msgID);
+    if (current != null) {
+      return _normalizedOutgoingStatus(current, fallback);
+    }
+    return OutgoingSendStatus.normalize(status: fallback);
+  }

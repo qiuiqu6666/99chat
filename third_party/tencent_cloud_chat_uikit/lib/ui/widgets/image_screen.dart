@@ -236,7 +236,10 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
     );
   }
 
-  Future<void> _precachePreviewImage(ImageProvider provider) async {
+  final Map<int, double?> _originalDownloadProgress = {};
+
+  Future<void> _precachePreviewImage(ImageProvider provider, {required int index}) async {
+    _originalDownloadProgress[index] = null;
     final config = createLocalImageConfiguration(context);
     final stream = provider.resolve(config);
     final completer = Completer<void>();
@@ -248,6 +251,15 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
         if (!completer.isCompleted) {
           completer.complete();
         }
+      },
+      onChunk: (event) {
+        if (!mounted) return;
+        final progress = imagePreviewDownloadProgress(event);
+        if (_originalDownloadProgress[index] == progress) return;
+        setState(() {
+          _originalDownloadProgress[index] = progress;
+          _invalidateSlideBodyCache();
+        });
       },
       onError: (error, stackTrace) {
         stream.removeListener(listener);
@@ -262,11 +274,12 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
 
   /// HTTP 原图预解码失败时再 downloadMessage(ORIGINAL)，成功则返回可展示的 provider。
   Future<ImageProvider?> _precacheOriginalOrDownload({
+    required int index,
     required V2TimMessage message,
     required ImageProvider originalProvider,
   }) async {
     try {
-      await _precachePreviewImage(originalProvider);
+      await _precachePreviewImage(originalProvider, index: index);
       return originalProvider;
     } catch (_) {}
     if (!mounted || _isClosing || _isSlideDismissActive) {
@@ -284,7 +297,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
       return null;
     }
     try {
-      await _precachePreviewImage(downloaded);
+      await _precachePreviewImage(downloaded, index: index);
       return downloaded;
     } catch (_) {
       return null;
@@ -311,7 +324,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
     ImageProvider? decoded;
     if (message == null) {
       try {
-        await _precachePreviewImage(originalProvider);
+        await _precachePreviewImage(originalProvider, index: index);
         decoded = originalProvider;
       } catch (_) {
         if (mounted && !_isClosing && !_isSlideDismissActive) {
@@ -321,6 +334,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
       }
     } else {
       decoded = await _precacheOriginalOrDownload(
+        index: index,
         message: message,
         originalProvider: originalProvider,
       );
@@ -1458,7 +1472,12 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
     if (messageId != null && messageId.isNotEmpty) {
       final edited = ImagePreviewEditStore.instance.peek(messageId);
       if (edited != null && edited.existsSync()) {
-        return FileImage(edited);
+        // Edits can change geometry, so original message metadata is stale.
+        return ChatMessagePreviewImageResolver.wrapPreviewDecode(
+            context: context,
+            message: null,
+            provider: FileImage(edited),
+            preferFullResolution: preferFullResolution);
       }
     }
     if (!_previewImageReady) {
@@ -1499,7 +1518,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
     return ChatMessagePreviewImageResolver.resolvePlaceholder(message);
   }
 
-  Widget _buildLoadingPlaceholder(ImageGalleryItem item, int index, {bool? showSpinner, bool interactive = false}) {
+  Widget _buildLoadingPlaceholder(ImageGalleryItem item, int index, {bool? showSpinner, bool interactive = false, double? progress}) {
     final placeholder = _placeholderForItem(item);
     final screenSize = MediaQuery.sizeOf(context);
     final display = _loadedDisplayByIndex[index] ??
@@ -1516,6 +1535,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
         fitTallImagesToScreenWidth: widget.fitTallImagesToScreenWidth,
       ),
       alignment: display.alignment,
+      progress: progress,
       showSpinner: showSpinner ?? true,
       interactive: interactive,
     );
@@ -1528,9 +1548,9 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
         child,
         if (_lowResolutionRefreshInFlight.contains(index) &&
             !_originalUpgradeCompleted.contains(index))
-          const IgnorePointer(
+          IgnorePointer(
             child: Center(
-              child: ImagePreviewCenterLoadingIndicator(),
+              child: ImagePreviewCenterLoadingIndicator(progress: _originalDownloadProgress[index]),
             ),
           ),
       ],
@@ -1687,6 +1707,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
             return;
           }
           final decoded = await _precacheOriginalOrDownload(
+            index: index,
             message: message,
             originalProvider: originalProvider,
           );
@@ -1843,6 +1864,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
           ? FilterQuality.medium
           : FilterQuality.low,
       enableLoadState: true,
+      handleLoadingProgress: true,
       extendedImageGestureKey: gestureKey,
       enableSlideOutPage: true,
       initGestureConfigHandler: (state) {
@@ -1873,7 +1895,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
       loadStateChanged: (ExtendedImageState state) {
         switch (state.extendedImageLoadState) {
           case LoadState.loading:
-            return _buildLoadingPlaceholder(item, index);
+            return _buildLoadingPlaceholder(item, index, progress: imagePreviewDownloadProgress(state.loadingProgress));
           case LoadState.completed:
             final screenHeight = MediaQuery.of(context).size.height;
             final screenWidth = MediaQuery.of(context).size.width;

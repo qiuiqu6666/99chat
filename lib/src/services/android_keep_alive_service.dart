@@ -14,9 +14,16 @@ class AndroidKeepAliveService {
 
   bool _started = false;
   Future<void>? _runningTask;
+  int _commandGeneration = 0;
+  bool? _debugAndroidOverride;
+
+  bool get _isAndroid => _debugAndroidOverride ?? Platform.isAndroid;
+
+  @visibleForTesting
+  void debugSetAndroidOverride(bool? value) => _debugAndroidOverride = value;
 
   Future<void> applyFromSettings(LocalSetting settings) async {
-    if (!IMDemoConfig.androidKeepAliveEnabled || !Platform.isAndroid) {
+    if (!IMDemoConfig.androidKeepAliveEnabled || !_isAndroid) {
       await stop(reason: 'disabled');
       return;
     }
@@ -35,17 +42,19 @@ class AndroidKeepAliveService {
     final running = _runningTask;
     if (running != null) return running;
 
-    final task = _start(reason: reason);
-    _runningTask = task.whenComplete(() {
+    final generation = ++_commandGeneration;
+    late final Future<void> task;
+    task = _start(reason: reason, generation: generation).whenComplete(() {
       if (identical(_runningTask, task)) {
         _runningTask = null;
       }
     });
+    _runningTask = task;
     return _runningTask!;
   }
 
   Future<void> ensureRunning({String reason = 'ensure'}) async {
-    if (!Platform.isAndroid || !IMDemoConfig.androidKeepAliveEnabled) {
+    if (!_isAndroid || !IMDemoConfig.androidKeepAliveEnabled) {
       return;
     }
     if (!_started) {
@@ -60,7 +69,7 @@ class AndroidKeepAliveService {
   }
 
   Future<bool> isRunning() async {
-    if (!Platform.isAndroid) {
+    if (!_isAndroid) {
       return false;
     }
     try {
@@ -71,27 +80,32 @@ class AndroidKeepAliveService {
     }
   }
 
-  Future<void> _start({required String reason}) async {
-    if (!Platform.isAndroid || _started) {
+  Future<void> _start({
+    required String reason,
+    required int generation,
+  }) async {
+    if (!_isAndroid || _started) {
       return;
     }
     try {
       final ok = await _channel.invokeMethod<bool>('start', <String, dynamic>{
         'reason': reason,
       });
-      _started = ok ?? false;
+      if (generation == _commandGeneration) _started = ok ?? false;
     } catch (e) {
       if (kDebugMode) {
         debugPrint('AndroidKeepAlive: start failed ($e)');
       }
-      _started = false;
+      if (generation == _commandGeneration) _started = false;
     }
   }
 
   Future<void> stop({String reason = 'manual'}) async {
-    if (!Platform.isAndroid) {
+    if (!_isAndroid) {
       return;
     }
+    final generation = ++_commandGeneration;
+    _runningTask = null;
     try {
       await _channel.invokeMethod<bool>('stop', <String, dynamic>{
         'reason': reason,
@@ -101,7 +115,7 @@ class AndroidKeepAliveService {
         debugPrint('AndroidKeepAlive: stop failed ($e)');
       }
     } finally {
-      _started = false;
+      if (generation == _commandGeneration) _started = false;
     }
   }
 }

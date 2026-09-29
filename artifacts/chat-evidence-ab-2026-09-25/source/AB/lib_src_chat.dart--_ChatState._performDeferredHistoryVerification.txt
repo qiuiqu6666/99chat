@@ -1,0 +1,118 @@
+Future<void> _performDeferredHistoryVerification({
+    required int generation,
+    required String conversationKey,
+    required Duration delay,
+    required ChatOpenTraceContext logTrace,
+  }) async {
+    if (delay > Duration.zero) {
+      await Future<void>.delayed(delay);
+    }
+    if (!mounted ||
+        generation != _chatOpenPhaseGeneration ||
+        !_isCurrentConversation(_resolvedConversationID())) {
+      return;
+    }
+    // P1-1: 软 TTL — 同会话 N 秒内已 verify 过 → 直接 outcome=verified 跳过。
+    // 不影响切到其它会话再切回来的场景（TTL 过期后重新 verify）。
+    // 使用开区间：now - lastAt ≤ ttlMs 时跳过。
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final lastAt = _lastCloudVerifyAtMs[conversationKey] ?? 0;
+    final previewAhead = await _conversationPreviewAheadOfHistory();
+    if (!mounted || generation != _chatOpenPhaseGeneration) return;
+    final resetService = ChatLatestWindowResetService.instance;
+    if (resetService.needsLatestWindowReset(conversationKey) ||
+        resetService.isResetInFlight(conversationKey)) {
+      // A real reconnect invalidated this conversation's latest window. The
+      // reset service owns the cloud request; neither the stale verify TTL
+      // nor an ordinary verify pass may run alongside it.
+      ChatHistoryTrace.log(
+        'chat_open_cloud_verify_deferred_done',
+        conversationID: conversationKey,
+        extras: <String, Object?>{'outcome': 'latest_window_reset_owner'},
+      );
+      return;
+    }
+    if (!previewAhead && lastAt > 0 && now - lastAt <= _cloudVerifySoftTtlMs) {
+      ChatHistoryTrace.log(
+        'chat_open_cloud_verify_soft_skip',
+        conversationID: conversationKey,
+        extras: <String, Object?>{
+          'ageMs': now - lastAt,
+          'ttlMs': _cloudVerifySoftTtlMs,
+        },
+      );
+      ChatHistoryTrace.log(
+        'chat_open_cloud_verify_deferred_done',
+        conversationID: conversationKey,
+        extras: <String, Object?>{'outcome': 'soft_ttl_skip'},
+      );
+      return;
+    }
+    final globalModel = serviceLocator<TUIChatGlobalModel>();
+    while (globalModel.isChatListUserScrolling ||
+        globalModel.getMessageListPosition(_resolvedConversationID()) !=
+            HistoryMessagePosition.bottom) {
+      ChatHistoryTrace.log(
+        'chat_open_cloud_verify_requeued_by_user_state',
+        conversationID: conversationKey,
+      );
+      // Keep exactly one bounded retry alive while this route is current.
+      // Returning to the newest edge will eventually run verification; if the
+      // user keeps reading older history, explicit pagination remains enabled.
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      if (!mounted ||
+          generation != _chatOpenPhaseGeneration ||
+          !_isCurrentConversation(_resolvedConversationID())) return;
+    }
+    ChatOpenPerfLog.mark(
+      'chat_open_cloud_verify_deferred_start',
+      conversationID: conversationKey,
+      extras: <String, Object?>{
+        'rawCount': globalModel.rawMessageCount(conversationKey),
+        'mayHaveOlder': globalModel.mayHaveOlderHistory(conversationKey),
+      },
+      trace: logTrace,
+    );
+    final verificationIdentity = SessionIdentityService.instance.capture();
+    final latestPreview = await _fetchConversationPreviewLastMessage();
+    if (!mounted ||
+        generation != _chatOpenPhaseGeneration ||
+        !SessionIdentityService.instance.isCurrent(verificationIdentity)) return;
+    final verificationConversation =
+        V2TimConversation.fromJson(_conversation.toJson())
+          ..lastMessage = latestPreview;
+    final outcome =
+        await ConversationHistorySyncCoordinator.instance.verifyAfterFirstFrame(
+      conversation: verificationConversation,
+      reason: 'chat_open',
+      delay: Duration.zero,
+      logTrace: logTrace,
+      boundOpenGeneration: _viewportOpenGeneration,
+    );
+    // P1-1: 验证完成 → 记 lastAt，下一次进入走软 TTL。
+    // 只有 server sync 已完成且传输在线时，这次 verified 才有资格写 TTL；
+    // 握手/漫游同步期间的 CLOUD 结果可能是本地降级，不能补发认证。
+    if (mounted &&
+        generation == _chatOpenPhaseGeneration &&
+        outcome == ConversationHistorySyncOutcome.verified &&
+        ChatHistoryVerificationGate.canMarkCloudVerifiedNow()) {
+      _lastCloudVerifyAtMs[conversationKey] =
+          DateTime.now().millisecondsSinceEpoch;
+    }
+    // DIAG: 校验出口 — 记录 outcome / SDK commit 后是否真的写入了 messageList。
+    ChatHistoryTrace.log(
+      'diag_verify_outcome',
+      conversationID: conversationKey,
+      extras: <String, Object?>{
+        'outcome': outcome.name,
+        'rawCountAfter': globalModel.rawMessageCount(conversationKey),
+        'mayHaveOlderAfter': globalModel.mayHaveOlderHistory(conversationKey),
+        'haveMoreData': _chatController.model?.haveMoreData ?? false,
+      },
+    );
+    ChatHistoryTrace.log(
+      'chat_open_cloud_verify_deferred_done',
+      conversationID: conversationKey,
+      extras: <String, Object?>{'outcome': outcome.name},
+    );
+  }

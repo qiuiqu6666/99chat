@@ -1,0 +1,236 @@
+[
+  {
+    "path": "lib/src/services/im/conversation_read_policy.dart",
+    "before": null,
+    "after": "82d8aa6650e24db0ba0128150d262c3fee128b176b94066f4a2e22f8f1350916",
+    "baselineSnapshot": null
+  },
+  {
+    "path": "lib/src/services/im/outbox_draft_submission.dart",
+    "before": null,
+    "after": "d19f9ca7be4f8ba2de6452085700e60343c349adbb38ddfbe2f4d3e336aa2fb4",
+    "baselineSnapshot": null
+  },
+  {
+    "path": "lib/src/services/im/outbox_state_version_schema.dart",
+    "before": null,
+    "after": "2533d5bbe02d9acd988ad6e6d1befbc5a10962f3172ac9fb48916e62102e3058",
+    "baselineSnapshot": null
+  },
+  {
+    "path": "test/media_preview_image_save_animation_test.dart",
+    "before": null,
+    "after": "784024a9e966989254ea183956450517f136227d0c903d505f51f82d0d8f6a6a",
+    "baselineSnapshot": null
+  },
+  {
+    "path": "test/round2_crash_worker_test.dart",
+    "before": null,
+    "after": "64e16cb48013b2648e4a2f0df5e8f4bbf6a7fb3c65e96e0f09f79973265fc9f4",
+    "baselineSnapshot": null
+  },
+  {
+    "path": "test/round2_dispatch_and_draft_test.dart",
+    "before": null,
+    "after": "fd4fc2c3b542df62148d3882167c08d50e2ff9ad041f8d16279daff93dbfc5ea",
+    "baselineSnapshot": null
+  },
+  {
+    "path": "test/round2_live_result_widget_test.dart",
+    "before": null,
+    "after": "df0531b3e1806d24d2508d12548c2bea1da65d53572b1d51ee4f2b744179684b",
+    "baselineSnapshot": null
+  },
+  {
+    "path": "test/round2_outbox_boundaries_test.dart",
+    "before": null,
+    "after": "6e00e7befec635a8f37bdd54c0ff68fff07e48cbdd4442d3fe17b81842e4853d",
+    "baselineSnapshot": null
+  },
+  {
+    "path": "test/round2_route_read_boundaries_test.dart",
+    "before": null,
+    "after": "3f406c497549af8cc28894b35ed71bdc792e25e8fc78a46f7bc8f49ebd07f42f",
+    "baselineSnapshot": null
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/app_hud_indicator.dart",
+    "before": null,
+    "after": "696e345792533d5cfb89d08988b2a83850c55ac8a6106743cd9d477e9818d878",
+    "baselineSnapshot": null
+  },
+  {
+    "path": ".gitnexusignore",
+    "before": "c7462fa58bf34b7d241fc64940c1987683d7fb7ea4a5191c21c7805296f97435",
+    "after": "142087df9ce4d6a1140104faf24b6cd38a91a122c2e780442001a6ef6c6f5126",
+    "baselineSnapshot": "before/.gitnexusignore.snapshot"
+  },
+  {
+    "path": "lib/src/chat.dart",
+    "before": "2695c903f47d8cfe5e30e826f88f0319d9258a350fe7d874df5d3a1e88cb1689",
+    "after": "0e58e7644c5888efefa22af161921b9b930074c55ca9528a7b8c86ead7ea6df6",
+    "baselineSnapshot": "before/lib/src/chat.dart.snapshot"
+  },
+  {
+    "path": "lib/src/chat_page/chat_draft_controller.dart",
+    "before": "567330932284faac5178bb502bb1d7dd076ca762827b59071916afad2c8f5cbc",
+    "after": "128c4b3a5fa5f37c2eb0bbe4c1250cc4851cbbdbf17b4e1c9a0612e99cd40b35",
+    "baselineSnapshot": "before/lib/src/chat_page/chat_draft_controller.dart.snapshot"
+  },
+  {
+    "path": "lib/src/create_group.dart",
+    "before": "3212ce35c63d9addb88e2fed6dbd174ca7b98a14c5dc4b64bca46866653763c2",
+    "after": "58a42235f06db2e4507326588bfa94e8cd2c6261e878066a28302fec0226ddaf",
+    "baselineSnapshot": "before/lib/src/create_group.dart.snapshot"
+  },
+  {
+    "path": "lib/src/navigation/app_chat_route.dart",
+    "before": "5e95c642542cbdc113061865cd658b5a1f08973a44ec6775f001b438b5eb7804",
+    "after": "103c713d5d8ed4fe1b4e3af93f8856c59d46da544b86a4e68dc819568e42cca4",
+    "baselineSnapshot": "before/lib/src/navigation/app_chat_route.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/chat_failed_message_retry_service.dart",
+    "before": "a807eb7364a3adcdbe869fb92c988420074f05428d811a93ad92c74d25ec967b",
+    "after": "312bbe13793713056215a23dfc641a50ce703eb521ce4ca4bf82aaf0ae31927c",
+    "baselineSnapshot": "before/lib/src/services/chat_failed_message_retry_service.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/conversation_local/conversation_draft_service.dart",
+    "before": "91acee492f8e33bd8e61b8a482b03545d71d79d99f14d8014b3580dd4e524c41",
+    "after": "9bb77b8a239554f7fcfe34051eaff4f1c118f8aadce138541b2a73eb70ae0b7c",
+    "baselineSnapshot": "before/lib/src/services/conversation_local/conversation_draft_service.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/conversation_unread_clear_service.dart",
+    "before": "19584ec03754e96d430cbdf48fc973875307869c695b34783c6d021f8a3660ce",
+    "after": "5468558bd7b2bf2a9264fb7516b51d79832c0b02103f1e35d6e2a059616db381",
+    "baselineSnapshot": "before/lib/src/services/conversation_unread_clear_service.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/im/im05_contracts.dart",
+    "before": "fc09618fec5e03c7c3a54f40175c0b123ba7c91fdd79a3506a3be3537eb2db39",
+    "after": "ccd38d8ce5377b8d77a7adbef970001604fd1b2111d922acb0eb6270ee00b0dc",
+    "baselineSnapshot": "before/lib/src/services/im/im05_contracts.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/im/im05_persistence.dart",
+    "before": "ec73d90eb6bb717a54b620970399930e303b7e57403fc79db4f442e0a6e5fb38",
+    "after": "0fa52f8fa91f5d12522bef83a0eee5934e292177ebaff7b04245479a9845dbad",
+    "baselineSnapshot": "before/lib/src/services/im/im05_persistence.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/im/im_ingress_store.dart",
+    "before": "24a039a8f834ce5ae7c3298f745de3593908c065fcb5fff2b2fa66aab09b59a1",
+    "after": "440b3400cfa57e015ad5d12f2b5557c55c89e06409b493dba26e96040afda00b",
+    "baselineSnapshot": "before/lib/src/services/im/im_ingress_store.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/im/im_ingress_store_platform_web.dart",
+    "before": "e7dce47646224e58c70cbf5de945b65c5444ca67c2f22cb2e5efdaa4496865f3",
+    "after": "52fdcd1352d42f5c900645993ae031198d533cdc9fecb20eba9578412c46386d",
+    "baselineSnapshot": "before/lib/src/services/im/im_ingress_store_platform_web.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/im/message_core_store.dart",
+    "before": "29a54340614b98d92a369faa409c9756807b158abd06d8f69602788f8878928d",
+    "after": "d20bc180ac02cc26b8356756618718ffa1bef919861459cdf5535c944b0b9310",
+    "baselineSnapshot": "before/lib/src/services/im/message_core_store.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/im/outgoing_send_coordinator.dart",
+    "before": "6d607d320b90d4e389cc9e2b0f5973b2aab73e935fef980a8d8b4cd1098b16dd",
+    "after": "74f72be50860fb2ac82df48eb4614986f6fd4158109a360826048c8b5f9168ed",
+    "baselineSnapshot": "before/lib/src/services/im/outgoing_send_coordinator.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/im/read_outbox_store.dart",
+    "before": "18ec591c4380e9ac37e1bc628134c1b2c56aa9347781172937d8c1f6a7751054",
+    "after": "71b18e297bb7cad3c1ca3e45dfd1d794a313cc05d8b6df886e3d3f29a704a2cd",
+    "baselineSnapshot": "before/lib/src/services/im/read_outbox_store.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/im/tencent_conversation_read_service.dart",
+    "before": "6631e5b1f40270c3116ea8411f1accd5f11915d9f54de3173755cc58ae44fa50",
+    "after": "6e9febd94bd9616b3433d9b3a4ec847a0ba352e6aca3d68c5580e55911441878",
+    "baselineSnapshot": "before/lib/src/services/im/tencent_conversation_read_service.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/im_connect_status_service.dart",
+    "before": "1648a846d9ac2e1e75bb7c344752a09277a0ec612fd49c51e9d89f52af89c414",
+    "after": "0a867d4b12b2eb749f26d353452da2c8f6953a40a36caaa26c4609b10aaf4c6a",
+    "baselineSnapshot": "before/lib/src/services/im_connect_status_service.dart.snapshot"
+  },
+  {
+    "path": "lib/src/services/web_read_service.dart",
+    "before": "f1eedbfe03f65b7258da373b718d2148f24115cbc35ae0e01be5bc4160cc005d",
+    "after": "476ff8d81c9ad82601d9a48d4a724144cd6c6f359a105a12385f19eeda75da43",
+    "baselineSnapshot": "before/lib/src/services/web_read_service.dart.snapshot"
+  },
+  {
+    "path": "lib/src/widgets/app_hud.dart",
+    "before": "d5af1144da9060cc30b507bced1377df62559225dfd4ae8b6d876d96f84f0acd",
+    "after": "82b65561dd41460c2e6ffcb399169e7e5b6645e5d2a88061c46e8ff3e5170663",
+    "baselineSnapshot": "before/lib/src/widgets/app_hud.dart.snapshot"
+  },
+  {
+    "path": "test/im08_outcome_unknown_manual_closure_test.dart",
+    "before": "61cbdd3db6cfd48d64f6decfcc027aa124031a1088207338167ec170f4025880",
+    "after": "393be5870c0ddae2c5f81e0b8aa29571b4f2694e1e48efebf7365976c7427fa5",
+    "baselineSnapshot": "before/test/im08_outcome_unknown_manual_closure_test.dart.snapshot"
+  },
+  {
+    "path": "test/im09_read_authority_test.dart",
+    "before": "fc78fc0c4bb481933474d3a729ff8c075b7691d6d44c0c4a5e8eaf5f91516a29",
+    "after": "dc97fdaf2a5730f2d0d030b324073183d8cff357b2a6f7b575cfc498740443ac",
+    "baselineSnapshot": "before/test/im09_read_authority_test.dart.snapshot"
+  },
+  {
+    "path": "test/media_preview_video_chrome_test.dart",
+    "before": "051771ae18e13ef4cfe59429c31e1f2689393a239c46ffc2304c4923a0e3131a",
+    "after": "f7387a410be3ffa46bcc8af18a32e9b0b1045625cf257556c19ec296f75e80b3",
+    "baselineSnapshot": "before/test/media_preview_video_chrome_test.dart.snapshot"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+    "before": "5201c6a4104756a3f4747a7a39c00c3a4de55c7de6017d876a45a3d08957abdb",
+    "after": "577f61fd0a65c99c58078e6f43fe639aaf611eac164f9414c1f9e1d8174b8f2a",
+    "baselineSnapshot": "before/third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart.snapshot"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+    "before": "75555d406023b52475c492b565efc08ba6f69f039e4e9d3a12dd9b90802a1308",
+    "after": "050e33372ab846714c418c7ab0f3b061e6e089e5152752df3e66df7b8bc636ef",
+    "baselineSnapshot": "before/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart.snapshot"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+    "before": "07e92363275cbd399a0aba73dc7e73c3a85c061759b8cc81408c25c7b0513059",
+    "after": "fad0ce6ec3c84a7ec7a8d897fa13ee64c0866a88f6b1f1fecdaeb9b0a1de14cd",
+    "baselineSnapshot": "before/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart.snapshot"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_media_gallery_screen.dart",
+    "before": "963020e8d77fdf404259dc968e6b89b8d17ee74e8481da36410747ea0a5a04bc",
+    "after": "cd74d0ee19527ffb6b6747c889329568b04d65d7e7b9110d10ad2531924590c3",
+    "baselineSnapshot": "before/third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_media_gallery_screen.dart.snapshot"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart",
+    "before": "b7dcc1b944cbe92417e9bfd5e971ebdce400434f9c9bfb3235f24da99ae3497b",
+    "after": "ae2dd6bbb44d293d5ea94442130bea335b6e4c5d216de503984557b89ed58f60",
+    "baselineSnapshot": "before/third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart.snapshot"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_reference_button.dart",
+    "before": "89e20d3955338d251286e2d52bef2e623a4bf74f67bbb170f3fba59d7fad2bd0",
+    "after": "3b5606e8581da55ce33db166fa7903d36a49f227dc626fd168fbe8e8df61eb25",
+    "baselineSnapshot": "before/third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_reference_button.dart.snapshot"
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_video_chrome.dart",
+    "before": "cb83cb16027d4d3a9d658a3f7782fa4699fde5ce25b5de67424428ff53a149b6",
+    "after": "7c7251e9cb54b26734c8baf00b622f06dffd535c86f0f418bb5630a06cf4f9f7",
+    "baselineSnapshot": "before/third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_video_chrome.dart.snapshot"
+  }
+]

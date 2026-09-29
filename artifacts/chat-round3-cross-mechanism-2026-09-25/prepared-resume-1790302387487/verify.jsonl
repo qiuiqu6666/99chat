@@ -1,0 +1,12 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":66876,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_crash_worker_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_crash_worker_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":1,"time":2,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":13825}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":13827}
+{"test":{"id":3,"name":"isolated process prepared_resume verify","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":34,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_crash_worker_test.dart"},"type":"testStart","time":13827}
+{"testID":3,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=31 created=false","type":"print","time":13899}
+{"testID":3,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=6.8 deltaMs=6.8 prev=message_core_db_open durationMs=38","type":"print","time":13905}
+{"testID":3,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790302430920 conv=8cd90432dbeb draftLen=0 draftHash= empty=true","type":"print","time":13937}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":13993}
+{"success":true,"type":"done","time":14028}

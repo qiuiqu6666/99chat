@@ -1,0 +1,236 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog",
+    "name": "ChatOpenPerfLog",
+    "kind": "Class",
+    "filePath": "lib/src/services/chat_open_perf_log.dart",
+    "startLine": 10,
+    "endLine": 846
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "imports": [
+      {
+        "uid": "File:lib/src/chat.dart",
+        "name": "chat.dart",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "File:lib/src/conversation.dart",
+        "name": "conversation.dart",
+        "filePath": "lib/src/conversation.dart"
+      },
+      {
+        "uid": "File:lib/src/services/chat_history_peek_bootstrap.dart",
+        "name": "chat_history_peek_bootstrap.dart",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "File:lib/src/services/chat_open_viewport_coordinator.dart",
+        "name": "chat_open_viewport_coordinator.dart",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "File:lib/src/services/chat_viewport/chat_viewport_collection.dart",
+        "name": "chat_viewport_collection.dart",
+        "filePath": "lib/src/services/chat_viewport/chat_viewport_collection.dart"
+      },
+      {
+        "uid": "File:lib/src/services/chat_viewport/open_viewport_cache.dart",
+        "name": "open_viewport_cache.dart",
+        "filePath": "lib/src/services/chat_viewport/open_viewport_cache.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_history_sync_coordinator.dart",
+        "name": "conversation_history_sync_coordinator.dart",
+        "filePath": "lib/src/services/conversation_history_sync_coordinator.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_history_warm_scheduler.dart",
+        "name": "conversation_history_warm_scheduler.dart",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart"
+      },
+      {
+        "uid": "File:test/chat_open_perf_log_test.dart",
+        "name": "chat_open_perf_log_test.dart",
+        "filePath": "test/chat_open_perf_log_test.dart"
+      },
+      {
+        "uid": "File:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "name": "tui_chat_separate_view_model.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart"
+      },
+      {
+        "uid": "File:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+        "name": "tui_chat_global_model.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      },
+      {
+        "uid": "File:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "name": "tim_uikit_chat_history_message_list.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart"
+      },
+      {
+        "uid": "File:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart",
+        "name": "tim_uikit_chat.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.ChatOpenPerfLog#0",
+        "name": "ChatOpenPerfLog",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Constructor:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._",
+        "name": "_",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._findLedger#1",
+        "name": "_findLedger",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._formatExtra#2",
+        "name": "_formatExtra",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._hashId#1",
+        "name": "_hashId",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._isSensitiveContentKey#1",
+        "name": "_isSensitiveContentKey",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._isSensitiveIdentifierKey#1",
+        "name": "_isSensitiveIdentifierKey",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._ledgerFor#1",
+        "name": "_ledgerFor",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._ownedRequestId#2",
+        "name": "_ownedRequestId",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._print#3",
+        "name": "_print",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._printSummary#2",
+        "name": "_printSummary",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._pruneLedgers#1",
+        "name": "_pruneLedgers",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._scheduleSettleSummary#1",
+        "name": "_scheduleSettleSummary",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._singleLine#1",
+        "name": "_singleLine",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._tally#3",
+        "name": "_tally",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.beginOpen#3",
+        "name": "beginOpen",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.captureCurrent#2",
+        "name": "captureCurrent",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.emitOpenTraceSummary#2",
+        "name": "emitOpenTraceSummary",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.markHistoryListBuilt#5",
+        "name": "markHistoryListBuilt",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.markHydrateJoined#2",
+        "name": "markHydrateJoined",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.markHydrateOwner#2",
+        "name": "markHydrateOwner",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.markMessagesFirstVisible#4",
+        "name": "markMessagesFirstVisible",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.markOwnedCommit#1",
+        "name": "markOwnedCommit",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.markOwnedDbRead#1",
+        "name": "markOwnedDbRead",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.markOwnedSdkRead#1",
+        "name": "markOwnedSdkRead",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.recordPrepareStart#2",
+        "name": "recordPrepareStart",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.regionOf#1",
+        "name": "regionOf",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.resetForTest#0",
+        "name": "resetForTest",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.snapshotFor#1",
+        "name": "snapshotFor",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      }
+    ]
+  },
+  "processes": []
+}

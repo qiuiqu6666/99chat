@@ -1,0 +1,50 @@
+Future<void> _prepareOpenHistoryGate(
+    String convKey, {
+    bool cachedHistorySeeded = false,
+    bool coldOpen = false,
+  }) async {
+    if (convKey.isEmpty) {
+      return;
+    }
+    if (!cachedHistorySeeded) {
+      _seedCachedHistoryOnOpen(convKey);
+    }
+    final globalModel = serviceLocator<TUIChatGlobalModel>();
+    ChatOpenPerfLog.mark(
+      'prepare_gate_start',
+      conversationID: convKey,
+      extras: <String, Object?>{'coldOpen': coldOpen},
+    );
+    // Reuse the local-only snapshot started at tap time. Direct entry paths
+    // that do not pass through the conversation list start the same bounded
+    // local task here. Cloud verification remains outside this gate.
+    final loaded =
+        await ChatOpenViewportCoordinator.instance.ensureLocalSnapshotForOpen(
+      conversation: _conversation,
+      timeout: const Duration(milliseconds: 900),
+    );
+    if (!mounted) return;
+    if (loaded) {
+      _chatController.model?.syncHaveMoreDataFromCachedHistory(
+        mayHaveOlder: globalModel.mayHaveOlderHistory(convKey),
+      );
+      ChatOpenPerfLog.mark('prepare_gate_local_snapshot_reused',
+          conversationID: convKey);
+    }
+    ChatOpenPerfLog.mark(
+      'prepare_gate_bootstrap_done',
+      conversationID: convKey,
+      extras: <String, Object?>{
+        'loaded': loaded,
+        'rawCount': globalModel.rawMessageCount(convKey),
+      },
+    );
+    if (!mounted) {
+      return;
+    }
+    if (loaded) {
+      _clearMountedDisplayListCache();
+    }
+    _markChatOpenHistoryReady();
+    ChatOpenPerfLog.mark('prepare_gate_complete', conversationID: convKey);
+  }

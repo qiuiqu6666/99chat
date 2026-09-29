@@ -1,0 +1,50 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/session/session_manager.dart:SessionManager._reconnect#1",
+    "name": "_reconnect",
+    "kind": "Method",
+    "filePath": "lib/src/session/session_manager.dart",
+    "startLine": 355,
+    "endLine": 355
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/session/session_manager.dart:SessionManager",
+        "name": "SessionManager",
+        "filePath": "lib/src/session/session_manager.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/session/session_manager.dart:SessionManager.scheduleReconnect#1",
+        "name": "scheduleReconnect",
+        "filePath": "lib/src/session/session_manager.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/session/session_manager.dart:SessionManager._establish#2",
+        "name": "_establish",
+        "filePath": "lib/src/session/session_manager.dart"
+      }
+    ],
+    "accesses": [
+      {
+        "uid": "Property:lib/src/session/session_state.dart:SessionState.isLoggedOut",
+        "name": "isLoggedOut",
+        "filePath": "lib/src/session/session_state.dart"
+      },
+      {
+        "uid": "Property:lib/src/session/session_state.dart:SessionState.userId",
+        "name": "userId",
+        "filePath": "lib/src/session/session_state.dart"
+      }
+    ]
+  },
+  "processes": []
+}

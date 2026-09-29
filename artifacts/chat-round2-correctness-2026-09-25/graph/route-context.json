@@ -1,0 +1,146 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Function:lib/src/navigation/app_chat_route.dart:openOrReuseAppChat",
+    "name": "openOrReuseAppChat",
+    "kind": "Function",
+    "filePath": "lib/src/navigation/app_chat_route.dart",
+    "startLine": 256,
+    "endLine": 266
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "calls": [
+      {
+        "uid": "Constructor:lib/src/user_profile.dart:UserProfileState._itemClick#3",
+        "name": "_itemClick",
+        "filePath": "lib/src/user_profile.dart"
+      },
+      {
+        "uid": "Function:artifacts/chat-full-chain-audit-2026-09-25/audit_probes_test.dart:main",
+        "name": "main",
+        "filePath": "artifacts/chat-full-chain-audit-2026-09-25/audit_probes_test.dart"
+      },
+      {
+        "uid": "Function:lib/src/navigation/app_chat_route.dart:openChatWithAnchor",
+        "name": "openChatWithAnchor",
+        "filePath": "lib/src/navigation/app_chat_route.dart"
+      },
+      {
+        "uid": "Function:test/app_chat_route_session_reuse_test.dart:main",
+        "name": "main",
+        "filePath": "test/app_chat_route_session_reuse_test.dart"
+      },
+      {
+        "uid": "Method:lib/src/add_group.dart:AddGroup.build#1",
+        "name": "build",
+        "filePath": "lib/src/add_group.dart"
+      },
+      {
+        "uid": "Method:lib/src/all_group_application_list.dart:_AllGroupApplicationListPageState._openGroupChat#2",
+        "name": "_openGroupChat",
+        "filePath": "lib/src/all_group_application_list.dart"
+      },
+      {
+        "uid": "Method:lib/src/conversation.dart:_ConversationState._handleOnConvItemTaped#1",
+        "name": "_handleOnConvItemTaped",
+        "filePath": "lib/src/conversation.dart"
+      },
+      {
+        "uid": "Method:lib/src/group_list.dart:_GroupListState._jumpToChatPage#3",
+        "name": "_jumpToChatPage",
+        "filePath": "lib/src/group_list.dart"
+      },
+      {
+        "uid": "Method:lib/src/newContact.dart:_NewContactState._openFriendChat#2",
+        "name": "_openFriendChat",
+        "filePath": "lib/src/newContact.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/c2c_chat_settings_page.dart:_C2cChatSettingsPageState._openCreateGroup#0",
+        "name": "_openCreateGroup",
+        "filePath": "lib/src/pages/c2c_chat_settings_page.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/common_group_chats_page.dart:_CommonGroupChatsPageState._openGroupChat#1",
+        "name": "_openGroupChat",
+        "filePath": "lib/src/pages/common_group_chats_page.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/contact_friends_page.dart:_ContactFriendsPageState._openChat#1",
+        "name": "_openChat",
+        "filePath": "lib/src/pages/contact_friends_page.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/join_group_application_page.dart:_JoinGroupApplicationPageState._enterChat#0",
+        "name": "_enterChat",
+        "filePath": "lib/src/pages/join_group_application_page.dart"
+      },
+      {
+        "uid": "Method:lib/src/platform/route_handler.dart:RouteHandler.openChat#4",
+        "name": "openChat",
+        "filePath": "lib/src/platform/route_handler.dart"
+      },
+      {
+        "uid": "Method:lib/src/search.dart:_SearchState.build#1",
+        "name": "build",
+        "filePath": "lib/src/search.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Function:lib/src/navigation/app_chat_route.dart:appChatRoute",
+        "name": "appChatRoute",
+        "filePath": "lib/src/navigation/app_chat_route.dart"
+      },
+      {
+        "uid": "Function:lib/src/navigation/app_chat_route.dart:appChatSessionKey",
+        "name": "appChatSessionKey",
+        "filePath": "lib/src/navigation/app_chat_route.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.beginOpen#3",
+        "name": "beginOpen",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.captureCurrent#2",
+        "name": "captureCurrent",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.measure#5",
+        "name": "measure",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_pipeline_clock.dart:ChatPipelineClock.normalizeKey#3",
+        "name": "normalizeKey",
+        "filePath": "lib/src/services/chat_pipeline_clock.dart"
+      }
+    ]
+  },
+  "processes": []
+}

@@ -1,0 +1,25 @@
+Future<void> _handleSdkRealtimeMessage(
+      EventEnvelope<dynamic> event, SessionIdentity identity) async {
+    final message = event.payload;
+    final conversationID = event.scope?.canonicalConversationId;
+    if (message is! V2TimMessage || conversationID == null) return;
+    final model = serviceLocator<TUIChatGlobalModel>();
+    if (!_isCurrentRealtimeIdentity(identity) ||
+        model.messageDeltaClearEpochFor(conversationID) != event.clearEpoch)
+      return;
+    // The adapter sequence is process-local mailbox order, not an Inbox fence.
+    // SDK history supplies recovery; reading-away delivery keeps its existing
+    // stable message identity and durable UI watermark without a formal sequence.
+    await model.applyAppRealtimeMessage(
+      message,
+      ingressEventID: event.eventId,
+      projectMessageList:
+          ActiveChatRegistry.instance.matchesOpenConversation(conversationID),
+    );
+    if (!_isCurrentRealtimeIdentity(identity) ||
+        model.messageDeltaClearEpochFor(conversationID) != event.clearEpoch)
+      return;
+    // Notification work must not hold the next message behind an app database
+    // or platform call. SDK conversation callbacks own preview and unread state.
+    unawaited(_publishSdkRealtimeSideEffects(message, identity));
+  }

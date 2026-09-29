@@ -1,0 +1,459 @@
+[
+  {
+    "target": {
+      "id": "Method:lib/src/services/im/im_ingress_store.dart:ImIngressStore.transaction#2",
+      "name": "transaction",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store.dart"
+    },
+    "direction": "upstream",
+    "impactedCount": 37,
+    "risk": "HIGH",
+    "riskSharedAxes": "HIGH",
+    "riskScale": {
+      "comparableAcrossKinds": true,
+      "unusedAxes": []
+    },
+    "epistemic": "exact",
+    "summary": {
+      "direct": 19,
+      "processes_affected": 0,
+      "modules_affected": 2
+    },
+    "byDepthCounts": {
+      "1": 19,
+      "2": 10,
+      "3": 8
+    },
+    "affected_processes": [],
+    "affected_modules": [
+      {
+        "name": "Im",
+        "hits": 30,
+        "impact": "direct"
+      },
+      {
+        "name": "Conversation_local",
+        "hits": 6,
+        "impact": "indirect"
+      }
+    ],
+    "byDepth": {
+      "1": [
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/durable_ingress_gateway.dart:DurableIngressGateway.append#2",
+          "name": "append",
+          "filePath": "lib/src/services/im/durable_ingress_gateway.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/durable_ingress_gateway.dart:DurableIngressGateway.claimForWriter#5",
+          "name": "claimForWriter",
+          "filePath": "lib/src/services/im/durable_ingress_gateway.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/durable_ingress_gateway.dart:DurableIngressGateway.listForRecovery#7",
+          "name": "listForRecovery",
+          "filePath": "lib/src/services/im/durable_ingress_gateway.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.commitMetadata#4",
+          "name": "commitMetadata",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.completeJournal#6",
+          "name": "completeJournal",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.ensureEffect#4",
+          "name": "ensureEffect",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.findOutboxBySdkLocalId#3",
+          "name": "findOutboxBySdkLocalId",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.finishEffect#7",
+          "name": "finishEffect",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.listOutboxesForRecovery#3",
+          "name": "listOutboxesForRecovery",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.prepareJournal#4",
+          "name": "prepareJournal",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.publishProjection#5",
+          "name": "publishProjection",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.startEffect#5",
+          "name": "startEffect",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.transitionOutbox#5",
+          "name": "transitionOutbox",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.transitionOutboxRecoveryCopy#5",
+          "name": "transitionOutboxRecoveryCopy",
+          "filePath": "lib/src/services/im/im05_persistence.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore.transaction#2",
+          "name": "transaction",
+          "filePath": "lib/src/services/im/im_ingress_store.dart",
+          "relationType": "METHOD_IMPLEMENTS",
+          "confidence": 1,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im_ingress_store.dart:InMemoryImIngressStore.transaction#2",
+          "name": "transaction",
+          "filePath": "lib/src/services/im/im_ingress_store.dart",
+          "relationType": "METHOD_IMPLEMENTS",
+          "confidence": 1,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:WebImIngressStore.transaction#2",
+          "name": "transaction",
+          "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+          "relationType": "METHOD_IMPLEMENTS",
+          "confidence": 1,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/writer_lease.dart:ImWriterLeaseService.acquire#5",
+          "name": "acquire",
+          "filePath": "lib/src/services/im/writer_lease.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/writer_lease.dart:ImWriterLeaseService.renew#3",
+          "name": "renew",
+          "filePath": "lib/src/services/im/writer_lease.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ],
+      "2": [
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/chat_failed_message_retry_service.dart:ChatFailedMessageRetryService.recordOutboxFailureForStuckMessage#4",
+          "name": "recordOutboxFailureForStuckMessage",
+          "filePath": "lib/src/services/chat_failed_message_retry_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._acquireMessageCoreLease#1",
+          "name": "_acquireMessageCoreLease",
+          "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._handleMessageIngress#1",
+          "name": "_handleMessageIngress",
+          "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._renewMessageCoreLease#1",
+          "name": "_renewMessageCoreLease",
+          "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:WebImIngressStore._run#1",
+          "name": "_run",
+          "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+          "relationType": "CALLS",
+          "confidence": 0.7,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/im/im_recovery_worker.dart:ImRecoveryWorker.run#6",
+          "name": "run",
+          "filePath": "lib/src/services/im/im_recovery_worker.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/im/outgoing_outbox_recovery_service.dart:OutgoingOutboxRecoveryService._recover#0",
+          "name": "_recover",
+          "filePath": "lib/src/services/im/outgoing_outbox_recovery_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.abandonOutcomeUnknown#3",
+          "name": "abandonOutcomeUnknown",
+          "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.send#21",
+          "name": "send",
+          "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/im/tencent_advanced_message_adapter.dart:TencentAdvancedMessageAdapter._attemptSubmit#2",
+          "name": "_attemptSubmit",
+          "filePath": "lib/src/services/im/tencent_advanced_message_adapter.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ],
+      "3": [
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/chat_failed_message_retry_service.dart:ChatFailedMessageRetryService.settleStuckSendingAsFailed#3",
+          "name": "settleStuckSendingAsFailed",
+          "filePath": "lib/src/services/chat_failed_message_retry_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._acquireMessageCoreLeaseSingleFlight#1",
+          "name": "_acquireMessageCoreLeaseSingleFlight",
+          "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._executeInboxRecovery#2",
+          "name": "_executeInboxRecovery",
+          "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/conversation_local/conversation_sync_service.dart:ConversationSyncService._startMessageCoreHeartbeat#1",
+          "name": "_startMessageCoreHeartbeat",
+          "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/im/outgoing_outbox_recovery_service.dart:OutgoingOutboxRecoveryService.recoverPending#0",
+          "name": "recoverPending",
+          "filePath": "lib/src/services/im/outgoing_outbox_recovery_service.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/im/tencent_advanced_message_adapter.dart:TencentAdvancedMessageAdapter._drainFailedIngress#0",
+          "name": "_drainFailedIngress",
+          "filePath": "lib/src/services/im/tencent_advanced_message_adapter.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/im/tencent_advanced_message_adapter.dart:TencentAdvancedMessageAdapter._submit#1",
+          "name": "_submit",
+          "filePath": "lib/src/services/im/tencent_advanced_message_adapter.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/im/tencent_advanced_message_adapter.dart:TencentAdvancedMessageAdapter._submitReceipts#2",
+          "name": "_submitReceipts",
+          "filePath": "lib/src/services/im/tencent_advanced_message_adapter.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ]
+    }
+  },
+  {
+    "target": {
+      "id": "Method:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore.transaction#2",
+      "name": "transaction",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store.dart"
+    },
+    "direction": "upstream",
+    "impactedCount": 0,
+    "risk": "UNKNOWN",
+    "riskSharedAxes": "UNKNOWN",
+    "riskScale": {
+      "comparableAcrossKinds": true,
+      "unusedAxes": []
+    },
+    "riskNote": "No callers resolved. Absence of edges is not evidence the symbol is unused: a caller reaching it through a reference class this index does not record — plain-object property access, a bare-identifier read of a module-scope const — produces no edge to find. Confirm with a text search before treating the change as safe.",
+    "epistemic": "lower-bound",
+    "boundaries": [
+      "transaction is an interface with 4 implementations and 31 interface-level consumers; callers that bind via the interface (e.g. a DI container or dynamic dispatch) are not traced to the concrete symbol — actual impact may be higher."
+    ],
+    "causes": {
+      "scopeExtractionFiles": 0,
+      "receiverTyping": 0,
+      "dispatchBoundary": 35,
+      "externalBoundary": 0,
+      "undecidedSatisfaction": 0,
+      "callableValueReferences": 0
+    },
+    "summary": {
+      "direct": 0,
+      "processes_affected": 0,
+      "modules_affected": 0
+    },
+    "byDepthCounts": {},
+    "affected_processes": [],
+    "affected_modules": [],
+    "byDepth": {}
+  },
+  {
+    "target": {
+      "id": "Method:lib/src/services/im/im_ingress_store.dart:InMemoryImIngressStore.transaction#2",
+      "name": "transaction",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store.dart"
+    },
+    "direction": "upstream",
+    "impactedCount": 0,
+    "risk": "UNKNOWN",
+    "riskSharedAxes": "UNKNOWN",
+    "riskScale": {
+      "comparableAcrossKinds": true,
+      "unusedAxes": []
+    },
+    "riskNote": "No callers resolved. Absence of edges is not evidence the symbol is unused: a caller reaching it through a reference class this index does not record — plain-object property access, a bare-identifier read of a module-scope const — produces no edge to find. Confirm with a text search before treating the change as safe.",
+    "epistemic": "lower-bound",
+    "boundaries": [
+      "transaction is an interface with 4 implementations and 31 interface-level consumers; callers that bind via the interface (e.g. a DI container or dynamic dispatch) are not traced to the concrete symbol — actual impact may be higher."
+    ],
+    "causes": {
+      "scopeExtractionFiles": 0,
+      "receiverTyping": 0,
+      "dispatchBoundary": 35,
+      "externalBoundary": 0,
+      "undecidedSatisfaction": 0,
+      "callableValueReferences": 0
+    },
+    "summary": {
+      "direct": 0,
+      "processes_affected": 0,
+      "modules_affected": 0
+    },
+    "byDepthCounts": {},
+    "affected_processes": [],
+    "affected_modules": [],
+    "byDepth": {}
+  }
+]

@@ -1,0 +1,30 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":72480,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/conversation_settings_reliability_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/conversation_settings_reliability_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":1,"time":2,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":3466}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":9,"line":null,"column":null,"url":null},"type":"group","time":3468}
+{"test":{"id":3,"name":"failed mute request automatically retries without another user action","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":14,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/conversation_settings_reliability_test.dart"},"type":"testStart","time":3468}
+{"testID":3,"messageType":"print","message":"ConversationNotifySync: queued retry: Bad state: temporary outage","type":"print","time":3482}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4489}
+{"test":{"id":4,"name":"new local mute wins over a delayed login snapshot","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":33,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/conversation_settings_reliability_test.dart"},"type":"testStart","time":4489}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4495}
+{"test":{"id":5,"name":"draft aliases serialize SDK saves and clear; stale save never commits","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":58,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/conversation_settings_reliability_test.dart"},"type":"testStart","time":4495}
+{"testID":5,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790275333854 conv=9086baec1111 draftLen=0 draftHash= empty=true","type":"print","time":4502}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4502}
+{"test":{"id":6,"name":"SDK draft error never commits and does not poison subsequent writes","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":89,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/conversation_settings_reliability_test.dart"},"type":"testStart","time":4502}
+{"testID":6,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_failed t=1790275333861 conv=bdfca985f733 draftLen=-1 draftHash= empty=false code=1","type":"print","time":4505}
+{"testID":6,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790275333861 conv=bdfca985f733 draftLen=4 draftHash=770e607624d6 empty=false","type":"print","time":4506}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4506}
+{"test":{"id":7,"name":"account switch invalidates pending draft work","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":108,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/conversation_settings_reliability_test.dart"},"type":"testStart","time":4506}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4507}
+{"test":{"id":8,"name":"mute failure survives service restart and drains for its owner","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":130,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/conversation_settings_reliability_test.dart"},"type":"testStart","time":4508}
+{"testID":8,"messageType":"print","message":"ConversationNotifySync: queued retry: Bad state: offline","type":"print","time":4510}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4510}
+{"test":{"id":9,"name":"mute last intent wins after in-flight request","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":154,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/conversation_settings_reliability_test.dart"},"type":"testStart","time":4510}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4512}
+{"test":{"id":10,"name":"mute sync visits every SDK page and cooldown belongs to account","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":178,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/conversation_settings_reliability_test.dart"},"type":"testStart","time":4512}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4515}
+{"test":{"id":11,"name":"old account page cannot enqueue writes for new account","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":205,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/conversation_settings_reliability_test.dart"},"type":"testStart","time":4515}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":4516}
+{"success":true,"type":"done","time":4551}

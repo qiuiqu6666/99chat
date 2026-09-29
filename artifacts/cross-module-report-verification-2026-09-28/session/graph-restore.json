@@ -1,0 +1,93 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/session/session_manager.dart:SessionManager._restoreInternal#0",
+    "name": "_restoreInternal",
+    "kind": "Method",
+    "filePath": "lib/src/session/session_manager.dart",
+    "startLine": 122,
+    "endLine": 122
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/session/session_manager.dart:SessionManager",
+        "name": "SessionManager",
+        "filePath": "lib/src/session/session_manager.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/session/session_manager.dart:SessionManager.restore#0",
+        "name": "restore",
+        "filePath": "lib/src/session/session_manager.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Class:lib/src/session/session_state.dart:SessionState",
+        "name": "SessionState",
+        "filePath": "lib/src/session/session_state.dart"
+      },
+      {
+        "uid": "Method:lib/src/api/api_client.dart:ApiClient.isJwtExpired#2",
+        "name": "isJwtExpired",
+        "filePath": "lib/src/api/api_client.dart"
+      },
+      {
+        "uid": "Method:lib/src/session/auth_repository.dart:AuthRepository.fetchMe#0",
+        "name": "fetchMe",
+        "filePath": "lib/src/session/auth_repository.dart"
+      },
+      {
+        "uid": "Method:lib/src/session/im_client.dart:ImClient.connect#2",
+        "name": "connect",
+        "filePath": "lib/src/session/im_client.dart"
+      },
+      {
+        "uid": "Method:lib/src/session/im_client.dart:ImClient.initialize#1",
+        "name": "initialize",
+        "filePath": "lib/src/session/im_client.dart"
+      },
+      {
+        "uid": "Method:lib/src/session/session_manager.dart:SessionManager._configureIm06ScopeAfterImLogin#2",
+        "name": "_configureIm06ScopeAfterImLogin",
+        "filePath": "lib/src/session/session_manager.dart"
+      },
+      {
+        "uid": "Method:lib/src/session/session_manager.dart:SessionManager._establish#2",
+        "name": "_establish",
+        "filePath": "lib/src/session/session_manager.dart"
+      },
+      {
+        "uid": "Method:lib/src/session/session_manager.dart:SessionManager._handleSessionInvalidated#1",
+        "name": "_handleSessionInvalidated",
+        "filePath": "lib/src/session/session_manager.dart"
+      },
+      {
+        "uid": "Method:lib/src/session/session_manager.dart:SessionManager._refreshCredential#1",
+        "name": "_refreshCredential",
+        "filePath": "lib/src/session/session_manager.dart"
+      },
+      {
+        "uid": "Method:lib/src/session/session_manager.dart:SessionManager._set#1",
+        "name": "_set",
+        "filePath": "lib/src/session/session_manager.dart"
+      },
+      {
+        "uid": "Method:lib/src/session/session_manager.dart:SessionManager._startAccountRealtime#1",
+        "name": "_startAccountRealtime",
+        "filePath": "lib/src/session/session_manager.dart"
+      },
+      {
+        "uid": "Method:lib/src/session/session_store.dart:SessionStore.readBusinessToken#0",
+        "name": "readBusinessToken",
+        "filePath": "lib/src/session/session_store.dart"
+      }
+    ]
+  },
+  "processes": []
+}

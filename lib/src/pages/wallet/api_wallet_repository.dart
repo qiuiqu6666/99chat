@@ -1,3 +1,4 @@
+import 'record/wallet_record_updates.dart';
 import 'package:dio/dio.dart';
 
 import 'package:tencent_cloud_chat_demo/src/api/wallet_amount.dart';
@@ -6,12 +7,24 @@ import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/utils/user_api_error_message.dart';
 
 import 'order/wallet_order.dart';
+import 'order/server_managed_wallet_cards.dart';
 import 'record/wallet_record_models.dart';
 import 'red_packet/red_packet_member.dart';
 import 'red_packet/red_packet_models.dart';
 import 'wallet_repository.dart';
 
-class ApiWalletRepository implements WalletRepository {
+class ApiWalletRepository
+    implements WalletRepository, WalletRecordLocalUpdates, ServerManagedWalletCards {
+  @override
+  Stream<WalletRecordCommit> get recordCommits =>
+      WalletApi.instance.recordCommits;
+  @override
+  String recordScopeKey(HistoryRecordFilter filter) =>
+      WalletApi.instance.historyScopeKey(filter);
+  @override
+  Future<List<WalletRecordDto>> readLocalRecords(HistoryRecordFilter filter) =>
+      WalletApi.instance.getHistoryRecordsByFilter(filter, localOnly: true);
+
   const ApiWalletRepository();
 
   @override
@@ -91,6 +104,19 @@ class ApiWalletRepository implements WalletRepository {
 
   @override
   Future<WalletOrderResult> queryOrderStatus(WalletOrderDraft draft) async {
+    if (draft.serverManagedCard) {
+      try {
+        return await WalletApi.instance.getServerCardOrder(draft.clientOrderId);
+      } on DioError {
+        // A missing/late response is not proof that the money transaction failed.
+        // Keep the original ID for read-only recovery; never re-submit the payment.
+        return WalletOrderResult(
+          ok: true,
+          state: WalletOrderState.unknown,
+          clientOrderId: draft.clientOrderId,
+        );
+      }
+    }
     final orderId = draft.serverOrderId.trim().isNotEmpty
         ? draft.serverOrderId
         : draft.clientOrderId;
@@ -301,7 +327,10 @@ class ApiWalletRepository implements WalletRepository {
   }
 
   void _throwPendingWhenNoResponse(DioError e) {
-    if (e.response != null) return;
+    // A proxy can return 502/504 after the wallet committed. An HTTP response
+    // alone is not evidence of a rejected payment.
+    final status = e.response?.statusCode;
+    if (e.response != null && status != null && status < 500 && status != 408) return;
     throw WalletSubmitException(
       requestSent: true,
       message: AppI18n.current.t(

@@ -118,8 +118,7 @@ class _TIMUIKitConversationMediaFilePageState
     final signature = _assetUiSignature();
     if (signature != _lastAssetUiSignature) {
       _lastAssetUiSignature = signature;
-      final fillingDone =
-          _currentTabHasEnoughData || !_model.conversationAssetHasMore;
+      final fillingDone = !_model.conversationAssetLoading;
       setState(() {
         if (fillingDone) {
           _isFillingCurrentTab = false;
@@ -139,6 +138,9 @@ class _TIMUIKitConversationMediaFilePageState
   }
 
   void _onScroll() {
+    if (_model.conversationAssetScanPaused ||
+        _model.conversationAssetScanError != null ||
+        !(ModalRoute.of(context)?.isCurrent ?? true)) return;
     if (_isRestoringGridScroll || !_scrollController.hasClients) {
       return;
     }
@@ -156,6 +158,9 @@ class _TIMUIKitConversationMediaFilePageState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _paginationLoadScheduled = false;
       if (!mounted ||
+          _model.conversationAssetScanPaused ||
+          _model.conversationAssetScanError != null ||
+          !(ModalRoute.of(context)?.isCurrent ?? true) ||
           _model.conversationAssetLoading ||
           !_model.conversationAssetHasMore) {
         return;
@@ -174,6 +179,7 @@ class _TIMUIKitConversationMediaFilePageState
       reset: reset,
       userID: conversation.userID,
       groupID: conversation.groupID,
+      isVisible: () => mounted && (ModalRoute.of(context)?.isCurrent ?? true),
     );
   }
 
@@ -208,17 +214,11 @@ class _TIMUIKitConversationMediaFilePageState
       if (!mounted) {
         return;
       }
-      if (_currentTabHasEnoughData || !_model.conversationAssetHasMore) {
-        if (_isFillingCurrentTab &&
-            (_currentTabHasEnoughData || !_model.conversationAssetHasMore)) {
-          setState(() => _isFillingCurrentTab = false);
-        }
-        return;
+      // A sparse history must stop at the model's scan budget. Another
+      // post-frame refill would silently turn that budget into a full scan.
+      if (_isFillingCurrentTab && !_model.conversationAssetLoading) {
+        setState(() => _isFillingCurrentTab = false);
       }
-      if (_model.conversationAssetLoading) {
-        return;
-      }
-      _load(reset: false);
     });
   }
 
@@ -228,8 +228,7 @@ class _TIMUIKitConversationMediaFilePageState
     }
     setState(() {
       _tab = tab;
-      _isFillingCurrentTab =
-          !_currentTabHasEnoughData && _model.conversationAssetHasMore;
+      _isFillingCurrentTab = _model.conversationAssetLoading;
     });
     if (_scrollController.hasClients) {
       _scrollController.jumpTo(0);
@@ -755,79 +754,81 @@ class _TIMUIKitConversationMediaFilePageState
         final width = constraints.maxWidth;
         final columns = width >= 480 ? 4 : 3;
         return GridView.builder(
-      controller: _scrollController,
-      cacheExtent: 640,
-      clipBehavior: Clip.hardEdge,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.all(2),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        crossAxisSpacing: 2,
-        mainAxisSpacing: 2,
-        childAspectRatio: 1,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final message = items[index];
-        final previewUrl = resolveConversationMediaPreviewUrl(message);
-        final isVideo =
-            message.elemType == MessageElemType.V2TIM_ELEM_TYPE_VIDEO;
-        final messageKey = message.msgID ?? message.id ?? 'media_$index';
-        return RepaintBoundary(
-          key: ValueKey(messageKey),
-          child: GestureDetector(
-            onTap: () => _onMediaItemTap(context, theme, message, items),
-            child: ClipRect(
-              child: Stack(
-              fit: StackFit.expand,
-              clipBehavior: Clip.hardEdge,
-              children: [
-                ColoredBox(
-                  color: theme.weakBackgroundColor ?? const Color(0xFFF3F3F4),
-                  child: previewUrl == null
-                      ? Icon(Icons.image_outlined, color: theme.weakTextColor)
-                      : LayoutBuilder(
-                          builder: (context, constraints) {
-                            final cacheSize = ImageMemCacheSize.forBox(
-                              constraints,
-                              context,
-                            );
-                            if (previewUrl.startsWith('http')) {
-                              return CachedNetworkImage(
-                                imageUrl: previewUrl,
-                                fit: BoxFit.cover,
-                                fadeInDuration: Duration.zero,
-                                fadeOutDuration: Duration.zero,
-                                memCacheWidth: cacheSize,
-                                memCacheHeight: cacheSize,
-                                maxWidthDiskCache: cacheSize,
-                                maxHeightDiskCache: cacheSize,
-                              );
-                            }
-                            return Image.file(
-                              File(previewUrl),
-                              fit: BoxFit.cover,
-                              cacheWidth: cacheSize,
-                              cacheHeight: cacheSize,
-                            );
-                          },
-                        ),
-                ),
-                if (isVideo)
-                  const Center(
-                    child: Icon(
-                      Icons.play_circle_fill,
-                      color: Colors.white70,
-                      size: 28,
-                    ),
-                  ),
-              ],
-            ),
-            ),
+          controller: _scrollController,
+          cacheExtent: 640,
+          clipBehavior: Clip.hardEdge,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.all(2),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: 2,
+            mainAxisSpacing: 2,
+            childAspectRatio: 1,
           ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final message = items[index];
+            final previewUrl = resolveConversationMediaPreviewUrl(message);
+            final isVideo =
+                message.elemType == MessageElemType.V2TIM_ELEM_TYPE_VIDEO;
+            final messageKey = message.msgID ?? message.id ?? 'media_$index';
+            return RepaintBoundary(
+              key: ValueKey(messageKey),
+              child: GestureDetector(
+                onTap: () => _onMediaItemTap(context, theme, message, items),
+                child: ClipRect(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      ColoredBox(
+                        color: theme.weakBackgroundColor ??
+                            const Color(0xFFF3F3F4),
+                        child: previewUrl == null
+                            ? Icon(Icons.image_outlined,
+                                color: theme.weakTextColor)
+                            : LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final cacheSize = ImageMemCacheSize.forBox(
+                                    constraints,
+                                    context,
+                                  );
+                                  if (previewUrl.startsWith('http')) {
+                                    return CachedNetworkImage(
+                                      imageUrl: previewUrl,
+                                      fit: BoxFit.cover,
+                                      fadeInDuration: Duration.zero,
+                                      fadeOutDuration: Duration.zero,
+                                      memCacheWidth: cacheSize,
+                                      memCacheHeight: cacheSize,
+                                      maxWidthDiskCache: cacheSize,
+                                      maxHeightDiskCache: cacheSize,
+                                    );
+                                  }
+                                  return Image.file(
+                                    File(previewUrl),
+                                    fit: BoxFit.cover,
+                                    cacheWidth: cacheSize,
+                                    cacheHeight: cacheSize,
+                                  );
+                                },
+                              ),
+                      ),
+                      if (isVideo)
+                        const Center(
+                          child: Icon(
+                            Icons.play_circle_fill,
+                            color: Colors.white70,
+                            size: 28,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
-      },
-    );
       },
     );
   }
@@ -924,7 +925,7 @@ class _TIMUIKitConversationMediaFilePageState
         (_model.conversationAssetLoading || _isFillingCurrentTab);
     final loadingMore = items.isNotEmpty && _model.conversationAssetLoading;
 
-    final content = loadingEmpty
+    final results = loadingEmpty
         ? Center(
             child: CircularProgressIndicator(
               color: theme.primaryColor,
@@ -934,7 +935,10 @@ class _TIMUIKitConversationMediaFilePageState
         : items.isEmpty
             ? Center(
                 child: Text(
-                  TIM_t('暂无数据'),
+                  _model.conversationAssetScanError ??
+                      (_model.conversationAssetHasMore
+                          ? '已查找部分记录，暂未找到匹配内容'
+                          : TIM_t('暂无数据')),
                   style: TextStyle(
                     fontSize: 15,
                     color: theme.weakTextColor,
@@ -952,6 +956,18 @@ class _TIMUIKitConversationMediaFilePageState
                   if (loadingMore) _buildPaginationSpinner(theme),
                 ],
               );
+
+    final content = Column(children: [
+      Expanded(child: results),
+      if (!loadingEmpty && !loadingMore && _model.conversationAssetHasMore)
+        SafeArea(
+          top: false,
+          child: TextButton(
+            onPressed: () => _load(reset: false),
+            child: const Text('继续查找'),
+          ),
+        ),
+    ]);
 
     if (widget.embedded) {
       return ColoredBox(

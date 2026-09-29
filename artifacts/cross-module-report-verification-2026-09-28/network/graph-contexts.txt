@@ -1,0 +1,187 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/api/api_client.dart:ApiClient._isNodeTransportFailure#1",
+    "name": "_isNodeTransportFailure",
+    "kind": "Method",
+    "filePath": "lib/src/api/api_client.dart",
+    "startLine": 283,
+    "endLine": 283
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/api/api_client.dart:ApiClient",
+        "name": "ApiClient",
+        "filePath": "lib/src/api/api_client.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/api/api_client.dart:ApiClient._build#0",
+        "name": "_build",
+        "filePath": "lib/src/api/api_client.dart"
+      }
+    ]
+  },
+  "outgoing": {},
+  "processes": []
+}
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/services/api_node_service.dart:ApiNodeService.probeNode#1",
+    "name": "probeNode",
+    "kind": "Method",
+    "filePath": "lib/src/services/api_node_service.dart",
+    "startLine": 264,
+    "endLine": 264
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/services/api_node_service.dart:ApiNodeService",
+        "name": "ApiNodeService",
+        "filePath": "lib/src/services/api_node_service.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/api_node_service.dart:ApiNodeService.probeAll#0",
+        "name": "probeAll",
+        "filePath": "lib/src/services/api_node_service.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Class:lib/src/services/api_node_service.dart:ApiNodeProbeResult",
+        "name": "ApiNodeProbeResult",
+        "filePath": "lib/src/services/api_node_service.dart"
+      },
+      {
+        "uid": "Function:lib/src/utils/dio_factory.dart:createAppDio",
+        "name": "createAppDio",
+        "filePath": "lib/src/utils/dio_factory.dart"
+      },
+      {
+        "uid": "Method:lib/src/api/api_client.dart:ApiClient.sanitizeBaseUrl#1",
+        "name": "sanitizeBaseUrl",
+        "filePath": "lib/src/api/api_client.dart"
+      }
+    ],
+    "accesses": [
+      {
+        "uid": "Property:lib/src/services/api_node_service.dart:ApiNodeDefinition.apiBaseUrl",
+        "name": "apiBaseUrl",
+        "filePath": "lib/src/services/api_node_service.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/api_node_service.dart:ApiNodeDefinition.apiBaseUrl",
+        "name": "apiBaseUrl",
+        "filePath": "lib/src/services/api_node_service.dart"
+      }
+    ]
+  },
+  "processes": [
+    {
+      "id": "proc_10_build",
+      "name": "Build → _looksLikeOpaqueToken",
+      "step_index": 3,
+      "step_count": 8
+    },
+    {
+      "id": "proc_11_build",
+      "name": "Build → FriendRealtimeEndpoint",
+      "step_index": 3,
+      "step_count": 8
+    },
+    {
+      "id": "proc_24_build",
+      "name": "Build → _emitReadyIfChanged",
+      "step_index": 3,
+      "step_count": 7
+    }
+  ]
+}
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/services/friend_realtime/friend_realtime_connection_io.dart:FriendRealtimeConnection._onChunk#1",
+    "name": "_onChunk",
+    "kind": "Method",
+    "filePath": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart",
+    "startLine": 51,
+    "endLine": 51
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/services/friend_realtime/friend_realtime_connection_io.dart:FriendRealtimeConnection",
+        "name": "FriendRealtimeConnection",
+        "filePath": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/friend_realtime/friend_realtime_connection_io.dart:FriendRealtimeConnection.connect#4",
+        "name": "connect",
+        "filePath": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart"
+      }
+    ]
+  },
+  "outgoing": {},
+  "processes": []
+}
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.revokeMsg#4",
+    "name": "revokeMsg",
+    "kind": "Method",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+    "startLine": 8151,
+    "endLine": 8156
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel",
+        "name": "TUIChatSeparateViewModel",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_message_tooltip.dart:TIMUIKitMessageTooltipState._executeRevoke#3",
+        "name": "_executeRevoke",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_message_tooltip.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/session_identity.dart:SessionIdentityService.isCurrent#2",
+        "name": "isCurrent",
+        "filePath": "lib/src/services/session_identity.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._commitRevokeToSdk#13",
+        "name": "_commitRevokeToSdk",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._findRevokeTarget#2",
+        "name": "_findRevokeTarget",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart"
+      }
+    ]
+  },
+  "processes": []
+}

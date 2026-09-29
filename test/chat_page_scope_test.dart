@@ -86,9 +86,20 @@ void main() {
     expect(trimmed.list.length, lessThan(400));
   });
 
-  test('window policy starting budget is 120-300 not thousands', () {
+  test('writer window is small and reading projection has a finite page budget', () {
     expect(ChatMessageWindowPolicy.targetSize, inInclusiveRange(120, 300));
     expect(ChatMessageWindowPolicy.softMax, inInclusiveRange(120, 320));
-    expect(ChatMessageWindowPolicy.historyReadSoftMax, lessThanOrEqualTo(320));
+    expect(ChatMessageWindowPolicy.historyReadSoftMax, inInclusiveRange(320, 3000));
+    expect(ChatMessageWindowPolicy.historyReadPaginationHighWater +
+        ChatMessageWindowPolicy.loadBatch, ChatMessageWindowPolicy.historyReadSoftMax);
+    final rows = List<V2TimMessage>.generate(
+        ChatMessageWindowPolicy.historyReadSoftMax + 100, (i) => _msg(i));
+    final result = ChatMessageWindow.trimToWindow(
+        list: rows, anchorMsgID: 'm400',
+        softMax: ChatMessageWindowPolicy.historyReadSoftMax,
+        targetSize: ChatMessageWindowPolicy.targetSize);
+    expect(result.didTrim, isTrue);
+    expect(result.list.length, lessThanOrEqualTo(ChatMessageWindowPolicy.targetSize));
+    expect(result.list.map((m) => m.msgID), contains('m400'));
   });
 }

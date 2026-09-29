@@ -193,7 +193,8 @@ class ImSdkRelationshipDirectory {
   int get groupCount => _groups.length;
   List<String> get friendOrderedIds =>
       List<String>.unmodifiable(_friendOrderedIds);
-  List<String> get groupOrderedIds => List<String>.unmodifiable(_groupOrderedIds);
+  List<String> get groupOrderedIds =>
+      List<String>.unmodifiable(_groupOrderedIds);
 
   RelationshipFriendEntry? friend(String userId) => _friends[userId];
   RelationshipGroupEntry? group(String groupId) => _groups[groupId];
@@ -214,10 +215,10 @@ class ImSdkRelationshipDirectory {
     _groupOrderedIds.clear();
     _friendCaptures.clear();
     _groupCaptures.clear();
-    _friendFetchGeneration = 0;
-    _groupFetchGeneration = 0;
-    _friendRevision = 0;
-    _groupRevision = 0;
+    // Capture IDs remain monotonic across account resets. Late drops must not
+    // remove a capture owned by the new session.
+    _friendRevision++;
+    _groupRevision++;
     _friendsComplete = false;
     _groupsComplete = false;
   }
@@ -452,16 +453,25 @@ class ImSdkRelationshipDirectory {
     List<RelationshipDelta> deltas, {
     required bool publish,
   }) {
-    final oldIds = publish ? Set<String>.from(_friends.keys) : null;
+    final affected = deltas.map((delta) => delta.id).toSet();
     final oldFriends = publish
-        ? Map<String, RelationshipFriendEntry>.from(_friends)
+        ? <String, RelationshipFriendEntry>{
+            for (final id in affected)
+              if (_friends[id] != null) id: _friends[id]!,
+          }
         : null;
     for (final delta in deltas) {
+      final previous = _friends[delta.id];
       _applyFriendDeltaToMap(_friends, delta);
-      _patchFriendOrder(delta);
+      final next = _friends[delta.id];
+      if ((previous == null) != (next == null) ||
+          previous?.sortKey != next?.sortKey) {
+        _patchFriendOrder(delta);
+      }
     }
-    if (publish && oldIds != null && oldFriends != null) {
-      _publishFriendDiff(oldIds, oldFriends, snapshotCompleted: false);
+    if (oldFriends != null) {
+      _publishFriendDiff(oldFriends.keys.toSet(), oldFriends,
+          snapshotCompleted: false, candidateIds: affected);
     }
   }
 
@@ -469,15 +479,25 @@ class ImSdkRelationshipDirectory {
     List<RelationshipDelta> deltas, {
     required bool publish,
   }) {
-    final oldIds = publish ? Set<String>.from(_groups.keys) : null;
-    final oldGroups =
-        publish ? Map<String, RelationshipGroupEntry>.from(_groups) : null;
+    final affected = deltas.map((delta) => delta.id).toSet();
+    final oldGroups = publish
+        ? <String, RelationshipGroupEntry>{
+            for (final id in affected)
+              if (_groups[id] != null) id: _groups[id]!,
+          }
+        : null;
     for (final delta in deltas) {
+      final previous = _groups[delta.id];
       _applyGroupDeltaToMap(_groups, delta);
-      _patchGroupOrder(delta);
+      final next = _groups[delta.id];
+      if ((previous == null) != (next == null) ||
+          previous?.sortKey != next?.sortKey) {
+        _patchGroupOrder(delta);
+      }
     }
-    if (publish && oldIds != null && oldGroups != null) {
-      _publishGroupDiff(oldIds, oldGroups, snapshotCompleted: false);
+    if (oldGroups != null) {
+      _publishGroupDiff(oldGroups.keys.toSet(), oldGroups,
+          snapshotCompleted: false, candidateIds: affected);
     }
   }
 
@@ -644,7 +664,8 @@ class ImSdkRelationshipDirectory {
     while (low < high) {
       final mid = (low + high) >> 1;
       final other = ids[mid];
-      final otherKey = _friends[other]?.sortKey ?? _groups[other]?.sortKey ?? '';
+      final otherKey =
+          _friends[other]?.sortKey ?? _groups[other]?.sortKey ?? '';
       final cmp = sortKey.compareTo(otherKey);
       if (cmp < 0 || (cmp == 0 && id.compareTo(other) < 0)) {
         high = mid;
@@ -659,18 +680,20 @@ class ImSdkRelationshipDirectory {
     Set<String> oldIds,
     Map<String, RelationshipFriendEntry> oldFriends, {
     required bool snapshotCompleted,
+    Iterable<String>? candidateIds,
   }) {
     final added = <String>[];
     final removed = <String>[];
     final metadata = <String>[];
     final sortKey = <String>[];
-    for (final id in _friends.keys) {
+    for (final id in candidateIds ?? _friends.keys) {
+      final next = _friends[id];
+      if (next == null) continue;
       if (!oldIds.contains(id)) {
         added.add(id);
         continue;
       }
       final prev = oldFriends[id];
-      final next = _friends[id]!;
       if (prev == null) {
         added.add(id);
         continue;
@@ -711,18 +734,20 @@ class ImSdkRelationshipDirectory {
     Set<String> oldIds,
     Map<String, RelationshipGroupEntry> oldGroups, {
     required bool snapshotCompleted,
+    Iterable<String>? candidateIds,
   }) {
     final added = <String>[];
     final removed = <String>[];
     final metadata = <String>[];
     final sortKey = <String>[];
-    for (final id in _groups.keys) {
+    for (final id in candidateIds ?? _groups.keys) {
+      final next = _groups[id];
+      if (next == null) continue;
       if (!oldIds.contains(id)) {
         added.add(id);
         continue;
       }
       final prev = oldGroups[id];
-      final next = _groups[id]!;
       if (prev == null) {
         added.add(id);
         continue;

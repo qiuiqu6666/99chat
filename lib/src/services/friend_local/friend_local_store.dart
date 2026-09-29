@@ -204,6 +204,10 @@ class FriendLocalStore {
         if (oldVersion < 7) {
           // Legacy optimistic/SDK writers could corrupt membership after the
           // saved watermark. Keep the visible cache, but require one full sync.
+          // Some legacy imports contain only friend rows. onOpen runs after
+          // migration, so create optional sync tables before clearing them.
+          await _createMetaTable(db);
+          await _createProtocolTables(db);
           await db.delete(_syncJobTable);
           await db.delete('contact_sync_staging');
           await db.delete('contact_sync_event');

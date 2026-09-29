@@ -1,0 +1,1 @@
+{"sender":"alice","isSelf":true,"status":2,"msgID":"server-confirmed","cloudCustomData":"{\"schema\":\"99chat.outgoing.v1\",\"operationId\":\"op-sdk_success_commit_failure\",\"clientCorrelationId\":\"corr-sdk_success_commit_failure\",\"messageKind\":\"text\",\"payloadFingerprint\":\"fixture-payload-fingerprint\",\"createdAtMs\":10}"}

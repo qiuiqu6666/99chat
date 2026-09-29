@@ -1,0 +1,31 @@
+Future<bool> loadChatRecord({
+    HistoryMsgGetTypeEnum? getType,
+    int lastMsgSeq = -1,
+    required int count,
+    String? lastMsgID,
+    V2TimMessage? lastMsg,
+    LoadDirection direction = LoadDirection.previous,
+
+    /// true：忽略「内存已有足够条数」短路，强制重拉最新一页（回底用）。
+    bool forceReloadNewest = false,
+  }) {
+    // A retained outgoing/live row is not the edge of this history segment.
+    if (direction == LoadDirection.latest &&
+        !forceReloadNewest &&
+        historyNewerPageCursor != null) {
+      lastMsg = historyNewerPageCursor;
+      lastMsgID = TencentUtils.checkString(lastMsg?.msgID);
+      lastMsgSeq = int.tryParse(lastMsg?.seq ?? '') ?? -1;
+    }
+    // Ensure runner is initialized (binds into _pagination) before delegating.
+    final runner = _historyLoadRunner;
+    return runner.pagination.loadChatRecord(
+      getType: getType,
+      lastMsgSeq: lastMsgSeq,
+      count: count,
+      lastMsgID: lastMsgID,
+      direction: direction,
+      lastMsg: lastMsg,
+      forceReloadNewest: forceReloadNewest,
+    );
+  }

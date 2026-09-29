@@ -1083,8 +1083,12 @@ class ConversationLocalStore {
     final opening = _dbOpenInFlight;
     if (opening != null) {
       try {
-        await opening.timeout(const Duration(milliseconds: 400));
-      } catch (_) {}
+        // The host budgets the UI wait, but must retain this real open/close
+        // operation. Releasing after 400ms could publish a late native handle.
+        await opening;
+      } on SqfliteClosedForBackground {
+        // _openDbOnce throws this only after its late handle closes safely.
+      }
     }
     final db = _db;
     _db = null;
@@ -1992,9 +1996,12 @@ class ConversationLocalStore {
   }) {
     if (_normalizeDraftText(localDraftText).isNotEmpty &&
         localDraftUpdatedAtMs > 0) {
-      return localDraftUpdatedAtMs >= 1000000000000
+      final draftMs = localDraftUpdatedAtMs >= 1000000000000
           ? localDraftUpdatedAtMs
           : localDraftUpdatedAtMs * 1000;
+      final last = conversation.lastMessage?.timestamp ?? 0;
+      final lastMs = last >= 1000000000000 ? last : last * 1000;
+      return math.max(draftMs, lastMs);
     }
     return activeTimeMs(conversation);
   }
@@ -3070,11 +3077,13 @@ class ConversationLocalStore {
   static int activeTimeMs(V2TimConversation conversation) {
     final draft = conversation.draftTimestamp ?? 0;
     final last = conversation.lastMessage?.timestamp ?? 0;
-    final raw = draft != 0 ? draft : last;
-    if (raw <= 0) {
+    final draftMs = draft >= 1000000000000 ? draft : draft * 1000;
+    final lastMs = last >= 1000000000000 ? last : last * 1000;
+    final active = math.max(draftMs, lastMs);
+    if (active <= 0) {
       return conversation.orderkey ?? 0;
     }
-    return raw >= 1000000000000 ? raw : raw * 1000;
+    return active;
   }
 
   /// 比较 SDK typed page 使用的复合游标顺序。数值越新越靠前。

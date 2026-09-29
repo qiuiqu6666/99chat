@@ -1,0 +1,52 @@
+static Future<void> warmWithBudget(
+    Iterable<V2TimMessage?> messages,
+    Duration budget,
+  ) async {
+    final jobs = <Future<void>>[];
+    final list = messages.whereType<V2TimMessage>().toList(growable: false);
+    for (var index = list.length - 1; index >= 0; index--) {
+      if (jobs.length >= 4) {
+        break;
+      }
+      final message = list[index];
+      if (message.videoElem != null) {
+        final cover = chatVideoCoverProvider(message.videoElem!);
+        if (ChatCoverDiag.enabled && ChatCoverDiag.canLog) {
+          ChatCoverDiag.log('warm_video', message.msgID ?? '-', 'provider=${cover?.runtimeType}');
+        }
+        if (cover != null) jobs.add(_warmProvider(cover));
+        continue;
+      }
+      if (message.elemType != MessageElemType.V2TIM_ELEM_TYPE_IMAGE &&
+          message.imageElem == null) {
+        continue;
+      }
+      final url = resolveBubbleThumbUrl(message);
+      final localPath = _resolveLocalBubblePath(message);
+      if (ChatCoverDiag.enabled && ChatCoverDiag.canLog) {
+        ChatCoverDiag.log('warm_image', message.msgID ?? '-', 'local=${localPath != null} url=${url != null}');
+      }
+      if (url == null && localPath == null) {
+        continue;
+      }
+      jobs.add(
+        localPath != null
+            ? _warmLocalImage(
+                localPath,
+                chatBubbleImageCacheKey(message.msgID, url: localPath),
+                decodeByWidth: _decodeBubbleImageByWidth(message),
+              )
+            : _warmNetworkImage(
+                url!,
+                chatBubbleImageCacheKey(message.msgID, url: url),
+                decodeByWidth: _decodeBubbleImageByWidth(message),
+              ),
+      );
+    }
+    if (jobs.isEmpty) {
+      return;
+    }
+    try {
+      await Future.wait(jobs).timeout(budget);
+    } catch (_) {}
+  }

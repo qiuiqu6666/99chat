@@ -1,0 +1,42 @@
+[
+  {
+    "path": "lib/src/chat.dart",
+    "changed": false
+  },
+  {
+    "path": "lib/src/chat_page/chat_draft_controller.dart",
+    "changed": false
+  },
+  {
+    "path": "lib/src/navigation/app_chat_route.dart",
+    "changed": false
+  },
+  {
+    "path": "lib/src/services/im/outgoing_send_coordinator.dart",
+    "changed": false
+  },
+  {
+    "path": "lib/src/services/im/read_outbox_store.dart",
+    "changed": false
+  },
+  {
+    "path": "lib/src/services/im/im_ingress_store.dart",
+    "changed": false
+  },
+  {
+    "path": "lib/src/services/im/im_ingress_store_platform_web.dart",
+    "changed": false
+  },
+  {
+    "path": "lib/src/services/conversation_local/conversation_sync_service.dart",
+    "changed": false
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+    "changed": false
+  },
+  {
+    "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+    "changed": false
+  }
+]

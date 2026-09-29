@@ -1,0 +1,75 @@
+{
+  "target": {
+    "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.applyOutgoingSendResult#6",
+    "name": "applyOutgoingSendResult",
+    "type": "Method",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 48,
+  "risk": "CRITICAL",
+  "riskSharedAxes": "MEDIUM",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 3,
+    "processes_affected": 0,
+    "modules_affected": 9
+  },
+  "byDepthCounts": {
+    "1": 3,
+    "2": 17,
+    "3": 28
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Separate_models",
+      "hits": 17,
+      "impact": "direct"
+    },
+    {
+      "name": "TIMUIKitTextField",
+      "hits": 6,
+      "impact": "indirect"
+    },
+    {
+      "name": "View_models",
+      "hits": 4,
+      "impact": "direct"
+    },
+    {
+      "name": "Cluster_2135",
+      "hits": 2,
+      "impact": "indirect"
+    },
+    {
+      "name": "Test",
+      "hits": 2,
+      "impact": "direct"
+    },
+    {
+      "name": "Image_edit",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Services",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Sticker",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "TIMUIKitMessageItem",
+      "hits": 1,
+      "impact": "indirect"
+    }
+  ]
+}

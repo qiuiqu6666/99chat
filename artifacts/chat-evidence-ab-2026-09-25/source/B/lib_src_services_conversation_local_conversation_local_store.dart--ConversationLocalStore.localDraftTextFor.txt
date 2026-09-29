@@ -1,0 +1,33 @@
+Future<String> localDraftTextFor({
+    required String conversationID,
+    String? ownerUserId,
+  }) async {
+    final id = conversationID.trim();
+    if (id.isEmpty) {
+      return '';
+    }
+    final owner = _resolveOwner(ownerUserId);
+    if (owner.isEmpty) {
+      return '';
+    }
+    if (_useMemoryOnly) {
+      for (final item in _memoryByOwner[owner] ?? const <V2TimConversation>[]) {
+        if (item.conversationID == id) {
+          return _normalizeDraftText(item.draftText ?? '');
+        }
+      }
+      return '';
+    }
+    final db = await _openDb();
+    final rows = await db.diagnosedQuery(
+      _table,
+      columns: ['local_draft_text'],
+      where: 'owner_user_id = ? AND conversation_id = ?',
+      whereArgs: [owner, id],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return '';
+    }
+    return _localDraftTextFromRow(rows.first);
+  }

@@ -1,0 +1,79 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService.ensureConnected#1",
+    "name": "ensureConnected",
+    "kind": "Method",
+    "filePath": "lib/src/services/friend_realtime_service.dart",
+    "startLine": 113,
+    "endLine": 113
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/services/friend_realtime_service.dart:FriendRealtimeService",
+        "name": "FriendRealtimeService",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService.onAppLifecycleChanged#1",
+        "name": "onAppLifecycleChanged",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService.start#0",
+        "name": "start",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._connect#0",
+        "name": "_connect",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/friend_realtime_service.dart:FriendRealtimeService._log#1",
+        "name": "_log",
+        "filePath": "lib/src/services/friend_realtime_service.dart"
+      }
+    ]
+  },
+  "processes": [
+    {
+      "id": "proc_10_build",
+      "name": "Build → _looksLikeOpaqueToken",
+      "step_index": 5,
+      "step_count": 8
+    },
+    {
+      "id": "proc_11_build",
+      "name": "Build → FriendRealtimeEndpoint",
+      "step_index": 5,
+      "step_count": 8
+    },
+    {
+      "id": "proc_24_build",
+      "name": "Build → _emitReadyIfChanged",
+      "step_index": 5,
+      "step_count": 7
+    },
+    {
+      "id": "proc_2_build",
+      "name": "Build → JwtExpiresAt",
+      "step_index": 5,
+      "step_count": 9
+    },
+    {
+      "id": "proc_41_build",
+      "name": "Build → _log",
+      "step_index": 5,
+      "step_count": 6
+    }
+  ]
+}

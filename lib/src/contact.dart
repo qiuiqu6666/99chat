@@ -378,7 +378,7 @@ class _ContactState extends State<Contact> {
           shape: BoxShape.circle,
         ),
         child: Icon(Icons.campaign_rounded,
-            color: Colors.white, size: size * 0.58),
+            color: Colors.white, size: size * 0.70),
       );
     } else if (id == 'groupNotice') {
       avatar = buildConversationSystemEntryAvatar(

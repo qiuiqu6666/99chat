@@ -1,0 +1,74 @@
+Future<V2TimConversation?> updateLocalDraft({
+    required String conversationID,
+    required String draftText,
+    String? ownerUserId,
+  }) async {
+    final id = conversationID.trim();
+    if (id.isEmpty) {
+      return null;
+    }
+    final normalized = _normalizeDraftText(draftText);
+    if (normalized.isEmpty) {
+      return clearLocalDraft(conversationID: id, ownerUserId: ownerUserId);
+    }
+    final owner = _resolveOwner(ownerUserId);
+    if (owner.isEmpty) {
+      return null;
+    }
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    if (_useMemoryOnly) {
+      final list = List<V2TimConversation>.from(
+        _memoryByOwner[owner] ?? const [],
+      );
+      final index = list.indexWhere((e) => e.conversationID == id);
+      final conversation =
+          index >= 0 ? list[index] : _minimalConversationForId(id);
+      applyLocalDraftToConversation(
+        conversation,
+        text: normalized,
+        updatedAtMs: nowMs,
+      );
+      if (index >= 0) {
+        list[index] = conversation;
+      } else {
+        list.add(conversation);
+      }
+      list.sort(_sortConversations);
+      _memoryByOwner[owner] = list;
+      _decorateConversation(conversation);
+      return conversation;
+    }
+    final db = await _openDb();
+    final rows = await db.diagnosedQuery(
+      _table,
+      where: 'owner_user_id = ? AND conversation_id = ?',
+      whereArgs: [owner, id],
+      limit: 1,
+    );
+    final conversation = rows.isNotEmpty
+        ? _conversationFromRow(rows.first)
+        : _minimalConversationForId(id);
+    if (conversation == null) {
+      return null;
+    }
+    applyLocalDraftToConversation(
+      conversation,
+      text: normalized,
+      updatedAtMs: nowMs,
+    );
+    await db.insert(
+      _table,
+      _rowFromConversation(
+        owner,
+        conversation,
+        nowMs,
+        readClearedAtMs:
+            rows.isNotEmpty ? rows.first['read_cleared_at'] as int? ?? 0 : 0,
+        localDraftText: normalized,
+        localDraftUpdatedAtMs: nowMs,
+      ),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    _decorateConversation(conversation);
+    return conversation;
+  }

@@ -1,0 +1,85 @@
+bool markOutgoingSendFailedByIdentity({
+    required String conversationID,
+    String? clientId,
+    String? msgID,
+    String? localCustomData,
+    int? sendFailCode,
+    String reason = 'send_failed',
+  }) {
+    final storageConvID = _resolveMessageListStorageKey(conversationID);
+    final cid = clientId?.trim() ?? '';
+    final mid = msgID?.trim() ?? '';
+    if (storageConvID.isEmpty || (cid.isEmpty && mid.isEmpty)) {
+      return false;
+    }
+    final list = _mergedAliasMessageList(storageConvID);
+    if (list.isEmpty) {
+      return false;
+    }
+    final index = list.indexWhere((item) {
+      final stable = readOutgoingStableId(item)?.trim() ?? '';
+      if (cid.isNotEmpty && (item.id == cid || stable == cid)) {
+        return true;
+      }
+      if (mid.isNotEmpty && (item.msgID == mid || stable == mid)) {
+        return true;
+      }
+      return false;
+    });
+    if (index < 0) {
+      return false;
+    }
+    final previous = list[index];
+    final failed = _cloneMessage(previous);
+    failed.status = MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL;
+    if (localCustomData != null) {
+      failed.localCustomData = localCustomData;
+    }
+    if (sendFailCode != null) {
+      ErrorMessageConverter.attachSendFailCode(failed, sendFailCode);
+    }
+    final stableIdentity = readOutgoingStableId(previous) ??
+        readOutgoingStableId(failed) ??
+        (cid.isNotEmpty ? cid : mid);
+    final safeReason = reason.trim().isEmpty
+        ? 'send_failed'
+        : reason.trim().replaceAll(':', '_');
+    final commit = commitMessageDelta(
+      MessageDelta<V2TimMessage>(
+        conversationKey: storageConvID,
+        eventID: 'send_fail:$storageConvID:$safeReason:$stableIdentity:$mid',
+        kind: MessageDeltaKind.optimisticAdoption,
+        source: MessageDeltaSource.sendPipeline,
+        generation: messageDeltaGenerationFor(storageConvID),
+        clearEpoch: messageDeltaClearEpochFor(storageConvID),
+        upserts: <MessageReconciliationRecord<V2TimMessage>>[
+          MessageReconciliationRecord<V2TimMessage>(
+            value: failed,
+            msgID: failed.msgID,
+            localID: failed.id,
+            outgoingStableID: stableIdentity,
+            seq: failed.seq,
+          ),
+        ],
+      ),
+    );
+    if (commit == null) {
+      return false;
+    }
+    final failedKey = ChatUiStateStore.messageKeyOf(failed);
+    for (final alias in <String>{cid, mid, stableIdentity}..remove('')) {
+      if (alias != failedKey) {
+        _chatUiStateStore.bindMessageAlias(storageConvID, alias, failedKey);
+      }
+    }
+    _markMessageRowChanged(
+      storageConvID,
+      failed,
+      extraKey: cid.isNotEmpty ? cid : mid,
+      mutationType: MessageMutationType.statusOrProgress,
+    );
+    if (_isSameConversationID(storageConvID, currentSelectedConv)) {
+      _markNeedsNotify();
+    }
+    return true;
+  }

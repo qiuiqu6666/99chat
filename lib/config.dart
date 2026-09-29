@@ -21,7 +21,7 @@ class IMDemoConfig {
   /// App/桌面默认主服务。Web：本地 run 默认用此地址；release 打包默认同源
   ///（见 [ApiClient.resolveBaseUrl]）。可用 `--dart-define=API_BASE_URL` 覆盖。
   /// 与 [ApiNodeService] 唯一启用节点（CN）保持一致。
-  static const String smsLoginHttpBase = 'http://119.28.179.146:8081';
+  static const String smsLoginHttpBase = 'https://119.28.179.146:8081';
 
   /// 三公 HTTP 覆盖地址（可选）。默认使用主服务 `${smsLoginHttpBase}/sangong`。
   /// 也可用 `--dart-define=SANGONG_HTTP_BASE=...` 覆盖。

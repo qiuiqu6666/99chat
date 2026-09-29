@@ -1,0 +1,48 @@
+/// 先权威历史（冷开 / 薄窗均可 soft-timeout），再合本地 tip，
+  /// 再等几何 ready。preparation 绝不能无限挂起，否则 AbsorbPointer 锁死滚动。
+  Future<void> _runOpenHistoryGateWithTipsMerge(
+    String convKey, {
+    required bool coldOpen,
+    required Future<void> preparation,
+  }) async {
+    if (convKey.isEmpty) {
+      return;
+    }
+    // 薄窗与真冷共用硬超时：薄窗原先无超时，云端慢时门永不关 → 能返回不能滑。
+    await preparation.timeout(
+      const Duration(milliseconds: 1200),
+      onTimeout: () {
+        ChatOpenPerfLog.mark(
+          coldOpen
+              ? 'history_gate_timeout_1_2s'
+              : 'history_gate_thin_timeout_1_2s',
+          conversationID: convKey,
+        );
+      },
+    );
+    if (!mounted) {
+      return;
+    }
+    try {
+      await _ensureGroupLocalTipsMergedOnOpen(
+        convKey,
+      ).timeout(const Duration(milliseconds: 400));
+    } on TimeoutException {
+      ChatOpenPerfLog.mark(
+        'history_gate_tips_merge_timeout',
+        conversationID: convKey,
+      );
+    } catch (_) {
+      // tip 合并失败不挡揭开门。
+    }
+    if (!mounted) {
+      return;
+    }
+    // 列表已经揭开并 signal 过：不要二次 begin 抬 epoch，否则会把已亮的历史闪没。
+    if (ChatHistoryOpenLayoutReady.isReady(convKey)) {
+      return;
+    }
+    // 作废 prepare/tip 期间可能发出的假 signal，再等几何 ready。
+    ChatHistoryOpenLayoutReady.begin(convKey);
+    await _waitOpenHistoryLayoutReady(convKey);
+  }

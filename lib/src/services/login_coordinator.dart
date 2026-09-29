@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print
 
 import 'dart:async';
+import 'package:tencent_cloud_chat_demo/utils/toast.dart';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -280,6 +281,7 @@ class LoginCoordinator extends ChangeNotifier {
     required String password,
     required String countryCode,
     required String countryIso,
+    Future<void> Function()? uploadAvatar,
   }) async {
     final strings = AuthLocalizations.of(context);
     markBusinessAuthenticating();
@@ -295,6 +297,14 @@ class LoginCoordinator extends ChangeNotifier {
       );
       await AuthSessionService.instance.applyTokenResult(tr);
       markBusinessAuthenticated(userId: tr.userId);
+      if (uploadAvatar != null) {
+        try {
+          await uploadAvatar();
+        } catch (_) {
+          // The account already exists: avatar failure must not retry registration.
+          ToastUtils.toast('账号已注册，头像上传失败，可稍后在个人资料中修改');
+        }
+      }
       await LoginCredentialStore.instance.saveSmsLogin(
         phone: phone,
         countryCode: countryCode,
@@ -421,6 +431,7 @@ class LoginCoordinator extends ChangeNotifier {
           );
         }
       }
+
       final results = await Future.wait<Object>([
         AuthApi.instance.fetchMe().timeout(const Duration(seconds: 4)),
         fetchUserSig(),

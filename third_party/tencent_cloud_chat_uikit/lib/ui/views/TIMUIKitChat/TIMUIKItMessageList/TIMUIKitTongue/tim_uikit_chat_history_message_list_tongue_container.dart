@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
@@ -126,6 +127,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
   ScrollPosition? _scrollEndListenerPosition;
   bool _showScrollToBottomCapsule = false;
   bool _scrollingToBottomInFlight = false;
+  bool _bottomReturnNeedsRetry = false;
   Completer<void>? _bottomReturnCancellation;
   static const _bottomReturnTimeout = Duration(seconds: 25);
   bool _userDraggedSinceLastSettle = false;
@@ -195,16 +197,25 @@ class TIMUIKitHistoryMessageListTongueContainerState
     return null;
   }
 
+  bool get _onlyPermanentlyHiddenHistory =>
+      _newestConfirmed(widget.messageList) == null &&
+      globalModel.hasOnlyPermanentlyHiddenConfirmedMessages(
+        widget.model.conversationID,
+      );
+
+  bool get _latestRenderedEdgeVisible =>
+      _onlyPermanentlyHiddenHistory ||
+      (widget.verifyLatestMessageVisible?.call() ?? true);
+
   bool get _latestRowMaterialized {
     final conv = widget.model.conversationID;
     final displayedNewest = _newestConfirmed(widget.messageList);
-    final rawNewest = _newestConfirmed(
-      globalModel.rawMessageList(conv) ?? const <V2TimMessage>[],
-    );
+    final rawNewest = globalModel.newestDisplayableConfirmedMessage(conv);
     final displayedId = _messageIdentity(displayedNewest);
     final rawId = _messageIdentity(rawNewest);
     final latestConfirmedIdentityInBuiltList =
-        displayedId.isNotEmpty && (rawId.isEmpty || displayedId == rawId);
+        _onlyPermanentlyHiddenHistory ||
+        (displayedId.isNotEmpty && (rawId.isEmpty || displayedId == rawId));
     return TrueLatestEnd.isLatestRowMaterialized(
       latestConfirmedIdentityInBuiltList: latestConfirmedIdentityInBuiltList,
     );
@@ -219,7 +230,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
     }
     // A temporary scroll extent can reach its minimum before the newest row
     // is actually painted. Do not dismiss unread at that older window edge.
-    if (widget.verifyLatestMessageVisible?.call() == false) {
+    if (!_latestRenderedEdgeVisible) {
       return false;
     }
     return TrueLatestEnd.atTrueLatestEnd(
@@ -354,6 +365,15 @@ class TIMUIKitHistoryMessageListTongueContainerState
       widget.model.commitFollowAfterVisibleLatestConfirm();
 
   Future<void> scrollToLatestAndDismissUnreadCapsule() async {
+    final operation = ChatRecoveryTrace.nextOperation('return_latest');
+    ChatRecoveryTrace.log('return_clicked',
+        conversationID: widget.model.conversationID,
+        operation: operation,
+        fields: {
+          'inFlight': _scrollingToBottomInFlight,
+          'loadingHistory': widget.model.isLoadingChatHistory,
+          'hasPosition': _singleScrollPositionOrNull() != null
+        });
     // While reading history, durable arrivals can live only in the repository.
     // They are not a history-page gap or an in-memory buffer, but an explicit
     // return must load them before choosing the bottom of the visible window.
@@ -402,8 +422,10 @@ class TIMUIKitHistoryMessageListTongueContainerState
         ownsUI() &&
         transactionToken == _bottomScrollTransactionToken &&
         !cancellation.isCompleted;
+    var timedOut = false;
     final deadline = Timer(_bottomReturnTimeout, () {
       if (!cancellation.isCompleted) {
+        timedOut = true;
         ChatJitterDiag.logFollowingLatest(
             action: 'return_to_latest_timeout', conv: conversationID);
         cancellation.complete();
@@ -414,18 +436,21 @@ class TIMUIKitHistoryMessageListTongueContainerState
     });
     var returnedSuccessfully = false;
     _scrollingToBottomInFlight = true;
+    _bottomReturnNeedsRetry = false;
     var transitionStarted = false;
     var transitionFinished = false;
     var newestTargetReached = false;
+    var returnStage = 'starting';
     bool latestRenderedEdgeVisible() =>
         isCurrent() &&
         _canConfirmVisibleReading() &&
         _latestRowMaterialized &&
         TrueLatestEnd.atListEndFromPosition(_singleScrollPositionOrNull()) &&
-        (widget.verifyLatestMessageVisible?.call() ?? true);
+        _latestRenderedEdgeVisible;
     final finishTransition = widget.finishWindowTransition;
     Future<void> performReturn() async {
       final replaceWindow = needsLatestWindow;
+      returnStage = replaceWindow ? 'loading_latest' : 'positioning';
 
       // A disjoint latest-window reload may retain the old viewport while the
       // network result is laid out. Ordinary long-distance returns stay live so
@@ -516,6 +541,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
       // this after the scroll uses the old list extent and can leave the newly
       // revealed rows below the viewport. A notification is required because
       // projection-only reveals do not otherwise rebuild the message list.
+      returnStage = 'positioning';
       globalModel.flushPendingIncomingMessagesForUserBottom(conversationID);
 
       await WidgetsBinding.instance.endOfFrame;
@@ -686,7 +712,38 @@ class TIMUIKitHistoryMessageListTongueContainerState
         return;
       }
 
-      if (newestTargetReached && latestRenderedEdgeVisible()) {
+      // A layout change, an old-row update or another viewport proof can make
+      // this snapshot stale after it was painted. That invalidates this proof,
+      // not the user's return intent. Recapture a bounded number of fresh
+      // frames without reloading the SDK or weakening the visibility fence.
+      returnStage = 'confirming_visible';
+      const maxVisibleProofAttempts = 8;
+      for (var proofAttempt = 0;
+          proofAttempt < maxVisibleProofAttempts;
+          proofAttempt++) {
+        // An existing page request is not a failed visibility attempt. Let it
+        // publish before capturing a proof, bounded by the return's deadline
+        // and cancellation fence rather than this short layout retry budget.
+        while (model.isLoadingChatHistory) {
+          await Future.any<void>([
+            Future<void>.delayed(const Duration(milliseconds: 80)),
+            cancellation.future,
+          ]);
+          if (!isCurrent()) return;
+        }
+        if (proofAttempt > 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 80));
+          if (!isCurrent()) return;
+          globalModel.flushPendingIncomingMessagesForUserBottom(conversationID);
+        }
+        await WidgetsBinding.instance.endOfFrame;
+        if (!isCurrent()) return;
+        if (_settleAtTrueLatestEnd()) {
+          returnedSuccessfully = true;
+          return;
+        }
+        if (_hasMissingNewer) break;
+        if (!latestRenderedEdgeVisible()) continue;
         final displayedRevision =
             globalModel.messageListRevisionFor(conversationID);
         final displayedVisit = globalModel.unreadVisitGenerationFor(conversationID);
@@ -718,7 +775,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
                         .toList(),
                   ) &&
                   TrueLatestEnd.atListEndFromPosition(position) &&
-                  (widget.verifyLatestMessageVisible?.call() ?? true);
+                  _latestRenderedEdgeVisible;
             },
           );
         } catch (_) {
@@ -726,6 +783,10 @@ class TIMUIKitHistoryMessageListTongueContainerState
           // ledger remains authoritative and the reminder stays retryable.
         }
         if (!isCurrent()) return;
+        if (_settleAtTrueLatestEnd()) {
+          returnedSuccessfully = true;
+          return;
+        }
       }
       if (_hasMissingNewer) {
         returnedSuccessfully = newestTargetReached;
@@ -753,7 +814,11 @@ class TIMUIKitHistoryMessageListTongueContainerState
 
     try {
       await Future.any<void>([performReturn(), cancellation.future]);
-    } catch (_) {
+    } catch (error) {
+      ChatRecoveryTrace.log('return_failed',
+          conversationID: conversationID,
+          operation: operation,
+          fields: {'errorType': error.runtimeType});
       if (ownsUI()) {
         final keepAfford = !_atTrueLatestEndNow();
         setState(() {
@@ -763,8 +828,29 @@ class TIMUIKitHistoryMessageListTongueContainerState
           }
         });
       }
-      rethrow;
     } finally {
+      ChatRecoveryTrace.log('return_finished',
+          conversationID: conversationID,
+          operation: operation,
+          fields: {
+            'success': returnedSuccessfully,
+            'targetReached': newestTargetReached,
+            'current': isCurrent(),
+            'stage': returnStage,
+            'rowMaterialized': _latestRowMaterialized,
+            'atLatestEdge': TrueLatestEnd.atListEndFromPosition(
+                _singleScrollPositionOrNull()),
+            'edgeVisible': _latestRenderedEdgeVisible,
+            'canConfirm': _canConfirmVisibleReading(),
+            'missingNewer': _hasMissingNewer,
+            'durableDeferred': globalModel.hasDurableHistoryDeferred(conversationID),
+            'remaining': globalModel.remainingLiveIncomingCountFor(conversationID)
+          });
+      // A user taking over the scroll is cancellation, not a failed return.
+      // Keep unread identities until the latest rendered window is proven.
+      final needsRetry = ownsUI() &&
+          !returnedSuccessfully &&
+          (timedOut || !cancellation.isCompleted);
       deadline.cancel();
       if (!cancellation.isCompleted) cancellation.complete();
       try {
@@ -773,6 +859,13 @@ class TIMUIKitHistoryMessageListTongueContainerState
               ?.call()
               .timeout(const Duration(seconds: 1), onTimeout: () {});
         }
+      } catch (error) {
+        // A failed presentation cleanup must not escape the tap callback or
+        // strand the transaction. The unread proof and retry state stay intact.
+        ChatRecoveryTrace.log('return_transition_cleanup_failed',
+            conversationID: conversationID,
+            operation: operation,
+            fields: {'errorType': error.runtimeType});
       } finally {
         if (identical(_bottomReturnCancellation, cancellation)) {
           _bottomReturnCancellation = null;
@@ -782,6 +875,8 @@ class TIMUIKitHistoryMessageListTongueContainerState
             final atEnd = _atTrueLatestEndNow();
             setState(() {
               _scrollingToBottomInFlight = false;
+              _bottomReturnNeedsRetry = needsRetry && !atEnd;
+              if (!ownsUI()) return;
               if (atEnd) {
                 _showScrollToBottomCapsule = false;
                 _userLeftBottomIntentionally = false;
@@ -1004,6 +1099,7 @@ class TIMUIKitHistoryMessageListTongueContainerState
       _detachScrollEndListener();
       oldWidget.scrollController.removeListener(_onScrollControllerChanged);
       _scrollingToBottomInFlight = false;
+      _bottomReturnNeedsRetry = false;
       _userDraggedSinceLastSettle = false;
       isClickShowPrevious = false;
       _jumpingToFirstUnread = false;
@@ -1020,6 +1116,16 @@ class TIMUIKitHistoryMessageListTongueContainerState
     }
     _syncPendingMentions();
     if (oldWidget.scrollController != widget.scrollController) {
+      // A pending return captures its controller. Replacing that controller
+      // transfers viewport ownership even when the conversation is unchanged.
+      _cancelBottomReturn(stopScroll: false);
+      if (_scrollingToBottomInFlight) {
+        _cancelScrollActivity(oldWidget.scrollController);
+      }
+      _bottomScrollTransactionToken++;
+      _scrollingToBottomInFlight = false;
+      _bottomReturnNeedsRetry = false;
+      globalModel.endUserScrollToBottom(widget.model.conversationID);
       oldWidget.scrollController.removeListener(_onScrollControllerChanged);
       _detachScrollEndListener();
       _attachScrollListeners();
@@ -1567,17 +1673,70 @@ class TIMUIKitHistoryMessageListTongueContainerState
                 key: const ValueKey('visible-bottom-capsule'),
                 top: false,
                 left: false,
-                child: _buildTongue(
-                  previousCount: displayUnreadCount,
-                  unreadCount: displayUnreadCount,
-                  onClick: () {
-                    onTap();
-                  },
-                  atNum: atNum,
-                  valueType: valueType,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (_scrollingToBottomInFlight || _bottomReturnNeedsRetry)
+                      _buildBottomReturnStatus(onTap),
+                    IgnorePointer(
+                      ignoring: _scrollingToBottomInFlight,
+                      child: _buildTongue(
+                        previousCount: displayUnreadCount,
+                        unreadCount: displayUnreadCount,
+                        onClick: () {
+                          onTap();
+                        },
+                        atNum: atNum,
+                        valueType: valueType,
+                      ),
+                    ),
+                  ],
                 ),
               )
             : const SizedBox.shrink(),
+      ),
+    );
+  }
+
+  Widget _buildBottomReturnStatus(Future<void> Function() onTap) {
+    final loading = _scrollingToBottomInFlight;
+    final label = loading ? '正在返回最新消息…' : '暂未到达最新消息，点击重试';
+    return Semantics(
+      liveRegion: true,
+      button: !loading,
+      child: GestureDetector(
+        onTap: loading ? null : () => onTap(),
+        child: Container(
+          key: ValueKey(loading ? 'return-latest-loading' : 'return-latest-retry'),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.8,
+          ),
+          margin: const EdgeInsets.only(right: 8, bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: CupertinoDynamicColor.resolve(
+              CupertinoColors.secondarySystemBackground, context),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (loading) ...[
+                const CupertinoActivityIndicator(radius: 7),
+                const SizedBox(width: 6),
+              ],
+              Flexible(
+                child: Text(label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: CupertinoDynamicColor.resolve(
+                        CupertinoColors.label, context),
+                    )),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1599,6 +1758,10 @@ class TIMUIKitHistoryMessageListTongueContainerState
 
   Widget _buildTongueSelector({HistoryMessagePosition? pagePosition}) {
     return Selector<TUIChatGlobalModel, _TongueUnreadSelectorData>(
+      // Discard outgoing capsule animations when the viewport owner changes;
+      // otherwise the previous conversation's loading label can linger here.
+      key: ValueKey('tongue-$_conversationWidgetGeneration-'
+          '${identityHashCode(widget.scrollController)}'),
       builder: (context, selectorData, child) {
         final unreadRemaining = selectorData.unreadRemaining;
         // One identity ledger drives both count and visibility. The legacy
@@ -1747,7 +1910,9 @@ class TIMUIKitHistoryMessageListTongueContainerState
                 right: 0,
                 bottom: 16,
                 child: _buildBottomCapsule(
-                  visible: showScrolledUpBottomCapsule,
+                  visible: showScrolledUpBottomCapsule ||
+                      _scrollingToBottomInFlight ||
+                      (_bottomReturnNeedsRetry && !atTrueLatestEnd),
                   valueType: scrolledUpBottomType,
                   displayUnreadCount: liveUnreadCount,
                   onTap: () => _onBottomCapsuleTap(

@@ -1,0 +1,64 @@
+Future<V2TimValueCallback<V2TimMessage>?> sendTextAtMessage({
+    required String text,
+    required String convID,
+    required ConvType convType,
+    required List<String> atUserList,
+    List<GroupMentionOccurrence> mentionOccurrences = const [],
+  }) async {
+    if (text.isEmpty) {
+      return null;
+    }
+    final typingBase = showC2cMessageEditStatus == true
+        ? json.encode({
+            "messageFeature": {"needTyping": 1, "version": 1},
+          })
+        : null;
+    final cloudCustomData = mentionOccurrences.isEmpty
+        ? null
+        : GroupMentionOccurrenceCodec.mergeIntoCloudCustomData(
+            typingBase,
+            mentionOccurrences,
+          );
+    final optimisticId = _prependOptimisticTextPlaceholder(
+      text: text,
+      cloudCustomData: cloudCustomData,
+      groupAtUserList: atUserList,
+    );
+    final textATMessageInfo = await _messageService.createTextAtMessage(
+      text: text,
+      atUserList: atUserList,
+    );
+    final messageInfo = textATMessageInfo?.messageInfo;
+    if (textATMessageInfo == null || messageInfo == null) {
+      _markOutgoingMediaSendFailed(
+        convID: conversationID,
+        clientId: optimisticId,
+      );
+      _notifyCreateMessageFailed(TIM_t('消息创建失败，请重试'));
+      return null;
+    }
+    final messageInfoWithSender = tools.setUserInfoForMessage(
+      messageInfo,
+      textATMessageInfo.id!,
+    );
+    messageInfoWithSender.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+    if (cloudCustomData != null) {
+      messageInfoWithSender.cloudCustomData = cloudCustomData;
+    }
+    _adoptOptimisticOutgoingTextMessage(
+      optimisticId: optimisticId,
+      newMessage: messageInfoWithSender,
+    );
+    return _sendMessage(
+      convID: convID,
+      id: textATMessageInfo.id as String,
+      convType: ConvType.group,
+      messageInfo: messageInfoWithSender,
+      cloudCustomData: cloudCustomData,
+      offlinePushInfo: tools.buildMessagePushInfo(
+        textATMessageInfo.messageInfo!,
+        convID,
+        convType,
+      ),
+    );
+  }

@@ -1,0 +1,187 @@
+[
+  {
+    "file": "tests.jsonl",
+    "suites": 58,
+    "passed": 453,
+    "failed": 5,
+    "skipped": 0,
+    "completion": {
+      "success": false,
+      "type": "done",
+      "time": 128445
+    },
+    "failures": [
+      {
+        "name": "window policy starting budget is 120-300 not thousands",
+        "result": "failure",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Expected: a value less than or equal to <320>\n  Actual: <3000>\n   Which: is not a value less than or equal to <320>\n",
+            "stack": "package:matcher                                     expect\npackage:flutter_test/src/widget_tester.dart 473:18  expect\ntest\\chat_page_scope_test.dart 92:5                 main.<fn>\n"
+          }
+        ]
+      },
+      {
+        "name": "chat page owns one generation gate for open switch and dispose",
+        "result": "failure",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Expected: contains '\\'call-history-refresh\\''\n  Actual: '// ignore_for_file: unused_field, unused_element, avoid_print, deprecated_member_use\\r\\n'\n            '\\r\\n'\n            'import \\'dart:async\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/widgets/lottery_chat_entry.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/models/chat_attachment.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/api/api_client.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/widgets/chat_attachment_upload_overlay.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/utils/chat_attachment_upload_projection.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/services/chat_attachment_service.dart\\';\\r\\n'\n            'import \\'dart:convert\\';\\r\\n'\n            '\\r\\n'\n            'import \\'package:bitsdojo_window/bitsdojo_window.dart\\';\\r\\n'\n            'import \\'package:flutter/cupertino.dart\\';\\r\\n'\n            'import \\'package:flutter/foundation.dart\\';\\r\\n'\n            'import \\'package:flutter/material.dart\\';\\r\\n'\n            'import \\'package:flutter/services.dart\\';\\r\\n'\n            'import \\'package:provider/provider.dart\\';\\r\\n'\n            'import \\'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/config.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/utils/chat_id_format.dart\\';\\r\\n",
+            "stack": "package:matcher                                         expect\npackage:flutter_test/src/widget_tester.dart 473:18      expect\ntest\\chat_lifecycle_generation_contract_test.dart 15:5  main.<fn>\n"
+          }
+        ]
+      },
+      {
+        "name": "tongue bottom transactions are scoped to the widget conversation",
+        "result": "failure",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Expected: contains 'model.markMessageAsRead(force: true);'\n  Actual: 'Future<void> scrollToLatestAndDismissUnreadCapsule() async {\\r\\n'\n            '    // While reading history, durable arrivals can live only in the repository.\\r\\n'\n            '    // They are not a history-page gap or an in-memory buffer, but an explicit\\r\\n'\n            '    // return must load them before choosing the bottom of the visible window.\\r\\n'\n            '    final needsLatestWindow = _hasMissingNewer ||\\r\\n'\n            '        globalModel.hasDurableHistoryDeferred(widget.model.conversationID);\\r\\n'\n            '    if (!needsLatestWindow && _atTrueLatestEndNow()) {\\r\\n'\n            '      _settleAtTrueLatestEnd();\\r\\n'\n            '      return;\\r\\n'\n            '    }\\r\\n'\n            '    if (_scrollingToBottomInFlight) {\\r\\n'\n            '      ChatJitterDiag.logFollowingLatest(\\r\\n'\n            '        action: \\'return_to_latest_skipped\\',\\r\\n'\n            '        conv: widget.model.conversationID,\\r\\n'\n            '        extras: <String, Object?>{\\r\\n'\n            '          \\'reason\\': \\'in_flight\\',\\r\\n'\n            '          ...globalModel.stickToLatestDiagSnapshot(widget.model.conversationID),\\r\\n'\n            '        },\\r\\n'\n            '      );\\r\\n'\n            '      return;\\r\\n'\n            '    }\\r\\n'\n            '    final model = widget.model;\\r\\n'\n            '    final conversationID = model.conversationID;\\r\\n'\n            '    ChatJitterDiag.logFollowingLatest(\\r\\n",
+            "stack": "package:matcher                                          expect\npackage:flutter_test/src/widget_tester.dart 473:18       expect\ntest\\chat_lifecycle_generation_contract_test.dart 144:5  main.<fn>\n"
+          }
+        ]
+      },
+      {
+        "name": "durable read queues use bounded retry and dead-letter retention",
+        "result": "failure",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Expected: contains 'maxRetryAttempts = 10'\n  Actual: 'import \\'package:flutter/foundation.dart\\';\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/services/im/message_core_store.dart\\';\\n'\n            '\\n'\n            'class ConversationReadOutboxRecord {\\n'\n            '  const ConversationReadOutboxRecord({\\n'\n            '    required this.ownerUserId,\\n'\n            '    required this.conversationId,\\n'\n            '    required this.lastReadMessageId,\\n'\n            '    required this.cleanTimestamp,\\n'\n            '    required this.cleanSequence,\\n'\n            '    required this.lastReadAtMs,\\n'\n            '    required this.attemptCount,\\n'\n            '    required this.nextRetryAtMs,\\n'\n            '  });\\n'\n            '\\n'\n            '  final String ownerUserId;\\n'\n            '  final String conversationId;\\n'\n            '  final String lastReadMessageId;\\n'\n            '  final int cleanTimestamp;\\n'\n            '  final int cleanSequence;\\n'\n            '  final int lastReadAtMs;\\n'\n            '  final int attemptCount;\\n'\n            '  final int nextRetryAtMs;\\n'\n            '}\\n'\n            '\\n'\n            '/// Durable conversation mark-read queue, scoped by account.\\n'\n            'class ConversationReadOutboxStore {\\n'\n            '  ConversationReadOutboxStore._();\\n'\n            '\\n'\n            '  static final ConversationReadOutboxStore instance =\\n'\n            '      ConversationReadOutboxStore._();\\n'\n            '  static const _",
+            "stack": "package:matcher                                     expect\npackage:flutter_test/src/widget_tester.dart 473:18  expect\ntest\\chat_reliability_regression_test.dart 99:7     main.<fn>\n"
+          }
+        ]
+      },
+      {
+        "name": "return latest success=true controls watermark ack and snapshot session renewal",
+        "result": "failure",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Expected: <1>\n  Actual: <2>\n",
+            "stack": "package:matcher                                             expect\npackage:flutter_test/src/widget_tester.dart 473:18          expect\ntest\\history_window_pagination_integration_test.dart 863:7  main.<fn>\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "file": "tests-2.jsonl",
+    "suites": 46,
+    "passed": 317,
+    "failed": 5,
+    "skipped": 0,
+    "completion": {
+      "success": false,
+      "type": "done",
+      "time": 40438
+    },
+    "failures": [
+      {
+        "name": "chat architecture closure app message-list code has no direct projection write",
+        "result": "failure",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Expected: <1>\n  Actual: <0>\nlib/src\\services\\chat_latest_window_reset_service.dart:801:        globalModel.setMessageList(\nlib/src\\services\\chat_viewport\\open_viewport_cache.dart:173:          globalModel.setMessageList(\r\n\n",
+            "stack": "package:matcher                                         expect\npackage:flutter_test/src/widget_tester.dart 473:18      expect\ntest\\chat_architecture_closure_contract_test.dart 18:7  main.<fn>.<fn>\n"
+          }
+        ]
+      },
+      {
+        "name": "all history and search SDK calls stay inside audited adapters",
+        "result": "failure",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Expected: empty\n  Actual: Set:[\n            'lib/src/chat.dart',\n            'lib/src/pages/c2c_chat_settings_page.dart',\n            'lib/src/pages/group_chat_settings_side_card.dart',\n            'lib/src/services/chat_coverage_repair_scheduler.dart',\n            'third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart'\n          ]\n",
+            "stack": "package:matcher                                     expect\npackage:flutter_test/src/widget_tester.dart 473:18  expect\ntest\\im06_history_production_wiring_test.dart 57:5  main.<fn>\n"
+          }
+        ]
+      },
+      {
+        "name": "post-frame history recovery releases remote paging before UI gates",
+        "result": "failure",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Expected: contains 'localWindowIsEmpty'\n  Actual: 'void _scheduleDeferredHistoryVerification(int generation) {\\r\\n'\n            '    WidgetsBinding.instance.addPostFrameCallback((_) {\\r\\n'\n            '      if (!mounted ||\\r\\n'\n            '          generation != _chatOpenPhaseGeneration ||\\r\\n'\n            '          !_isCurrentConversation(_resolvedConversationID())) {\\r\\n'\n            '        return;\\r\\n'\n            '      }\\r\\n'\n            '      // DIAG: 首帧稳定后 dump 当前会话元信息 + IM06 scope 状态。\\r\\n'\n            '      // 目的：让日志能精准关联到用户看到的会话（如\"无边心是岸\"）。\\r\\n'\n            '      try {\\r\\n'\n            '        final convID = _getConvID()?.trim() ?? \\'\\';\\r\\n'\n            '        final convType = _getConvType();\\r\\n'\n            '        final peerID = convType == ConvType.group\\r\\n'\n            '            ? (_conversation.groupID?.trim() ?? \\'\\')\\r\\n'\n            '            : (_conversation.userID?.trim() ?? \\'\\');\\r\\n'\n            '        final displayName = _conversation.showName?.trim() ??\\r\\n'\n            '            widget.selectedConversation.showName?.trim() ??\\r\\n'\n            '            \\'\\';\\r\\n'\n            '        final globalModel = serviceLocator<TUIChatGlobalModel>();\\r\\n'\n            '        ChatHistoryTrace.log(\\r\\n'\n            '          \\'diag_chat_open\\',\\r\\n'\n            '          conversationID: convID,\\r\\n'\n            '          extras: <String, Object?>{\\r\\n'\n            '            \\'convType\\': convType.name,\\r\\n'\n            '       ",
+            "stack": "package:matcher                                               expect\npackage:flutter_test/src/widget_tester.dart 473:18            expect\ntest\\chat_open_non_blocking_history_contract_test.dart 193:5  main.<fn>\n"
+          }
+        ]
+      },
+      {
+        "name": "reconnect and seq-gap catch-up use bounded writer transaction",
+        "result": "failure",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Expected: contains 'trackSeqGaps: isGroup'\n  Actual: 'import \\'package:tencent_cloud_chat_uikit/ui/utils/background_media_gate.dart\\';\\r\\n'\n            '// ignore_for_file: avoid_print, unnecessary_getters_setters, unused_element\\r\\n'\n            'import \\'dart:async\\';\\r\\n'\n            'import \\'dart:convert\\';\\r\\n'\n            'import \\'dart:collection\\';\\r\\n'\n            'import \\'dart:io\\';\\r\\n'\n            'import \\'dart:math\\';\\r\\n'\n            '\\r\\n'\n            'import \\'package:flutter/foundation.dart\\';\\r\\n'\n            'import \\'package:flutter/material.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/services/im/contracts/contracts.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/services/im/history_search_coordinator.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/services/im/outgoing_send_coordinator.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/services/im/tencent_conversation_read_service.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/services/session_identity.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/utils/custom_message/c2c_peer_rejected_tip_message.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/services/sqflite_lifecycle_guard.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_demo/src/services/sqflite_lifecycle_host.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_uikit/",
+            "stack": "package:matcher                                                expect\npackage:flutter_test/src/widget_tester.dart 473:18             expect\ntest\\message_reconciliation_production_wiring_test.dart 100:5  main.<fn>\n"
+          }
+        ]
+      },
+      {
+        "name": "list push and pin follow use the shared physical near-bottom gate",
+        "result": "failure",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Expected: contains 'globalModel.isActiveChatNearBottom(convId)'\n  Actual: 'import \\'package:tencent_cloud_chat_uikit/ui/widgets/chat_history_window_transition.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_uikit/ui/utils/entry_unread_locator.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_uikit/ui/utils/message_partition_prefix.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_uikit/data_services/message/message_history_around_loader.dart\\';\\r\\n'\n            'import \\'dart:async\\';\\r\\n'\n            'import \\'dart:math\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_sdk/enum/message_status.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_uikit/ui/controllers/chat_viewport_motion.dart\\';\\r\\n'\n            '\\r\\n'\n            'import \\'package:flutter/foundation.dart\\';\\r\\n'\n            'import \\'package:flutter/gestures.dart\\';\\r\\n'\n            'import \\'package:flutter/material.dart\\';\\r\\n'\n            'import \\'package:flutter/rendering.dart\\';\\r\\n'\n            'import \\'package:flutter/scheduler.dart\\';\\r\\n'\n            'import \\'package:provider/provider.dart\\';\\r\\n'\n            'import \\'package:scroll_to_index/scroll_to_index.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_uikit/ui/utils/search_jump_scroll.dart\\';\\r\\n'\n            'import \\'package:tencent_cloud_chat_uikit/ui/utils/search_history_layout.dart\\';\\r\\n'\n            'import \\'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart\\';",
+            "stack": "package:matcher                                                expect\npackage:flutter_test/src/widget_tester.dart 473:18             expect\ntest\\message_reconciliation_production_wiring_test.dart 146:5  main.<fn>\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "file": "probes-final.jsonl",
+    "suites": 1,
+    "passed": 1,
+    "failed": 3,
+    "skipped": 0,
+    "completion": {
+      "success": false,
+      "type": "done",
+      "time": 3848
+    },
+    "failures": [
+      {
+        "name": "AUDIT concurrent first opens create only one route",
+        "result": "error",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Test failed. See exception logs above.\nThe test description was: AUDIT concurrent first opens create only one route",
+            "stack": ""
+          }
+        ]
+      },
+      {
+        "name": "AUDIT provider-confirmed success survives a late explicit failure",
+        "result": "failure",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Expected: <2>\n  Actual: <3>\n",
+            "stack": "package:matcher                                                         expect\npackage:flutter_test/src/widget_tester.dart 473:18                      expect\nartifacts\\chat-full-chain-audit-2026-09-25\\audit_probes_test.dart 86:5  main.<fn>\n"
+          }
+        ]
+      },
+      {
+        "name": "AUDIT late send completion preserves text entered after submission",
+        "result": "failure",
+        "skipped": false,
+        "errors": [
+          {
+            "message": "Expected: 'next unsent draft'\n  Actual: <null>\n   Which: not an <Instance of 'String'>\n",
+            "stack": "package:matcher                                                          expect\npackage:flutter_test/src/widget_tester.dart 473:18                       expect\nartifacts\\chat-full-chain-audit-2026-09-25\\audit_probes_test.dart 127:5  main.<fn>\n"
+          }
+        ]
+      }
+    ]
+  }
+]

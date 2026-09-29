@@ -1,0 +1,8 @@
+fix: stabilize chat scrolling and cached profile updates
+
+- Reload deferred history before returning to the latest message and allow older-page loading during top overscroll.
+- Keep REST-confirmed group names authoritative across SDK, search, and local cache updates.
+- Preserve newer presence timestamps, reject stale hydration, and publish fresh SDK status snapshots.
+- Keep the top live banner title static and add regression coverage.
+
+Validation: 77 targeted chat tests passed. Group/presence checks passed after serial SQLite reruns; the existing inline live-banner source assertion still fails.

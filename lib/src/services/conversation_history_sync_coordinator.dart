@@ -83,7 +83,7 @@ class ConversationHistorySyncCoordinator {
       <String, _QueuedHistoryVerification>{};
   final Map<String, Timer> _retryTimers = <String, Timer>{};
   final Map<String, int> _retryAttempts = <String, int>{};
-  final Set<String> _userOlderPaginationKeys = <String>{};
+  final Map<String, Set<Object>> _userOlderPaginationKeys = {};
   final Map<String, Future<void>> _olderPaginationInFlight =
       <String, Future<void>>{};
   final Set<String> _cancelledConversations = <String>{};
@@ -107,23 +107,27 @@ class ConversationHistorySyncCoordinator {
 
   /// Marks a user-driven older-page request as higher priority than the
   /// background verification pass for the same conversation.
-  void beginUserOlderPagination(String conversationID) {
+  Object beginUserOlderPagination(String conversationID) {
     final key = _normalizeConversationKey(conversationID);
+    final owner = Object();
     if (key.isNotEmpty) {
-      _userOlderPaginationKeys.add(key);
+      (_userOlderPaginationKeys[key] ??= <Object>{}).add(owner);
     }
+    return owner;
   }
 
-  void endUserOlderPagination(String conversationID) {
+  void endUserOlderPagination(String conversationID, Object owner) {
     final key = _normalizeConversationKey(conversationID);
-    if (key.isNotEmpty) {
+    final owners = _userOlderPaginationKeys[key];
+    owners?.remove(owner);
+    if (owners != null && owners.isEmpty) {
       _userOlderPaginationKeys.remove(key);
     }
   }
 
   bool isUserOlderPaginationActive(String conversationID) {
     final key = _normalizeConversationKey(conversationID);
-    return key.isNotEmpty && _userOlderPaginationKeys.contains(key);
+    return key.isNotEmpty && _userOlderPaginationKeys.containsKey(key);
   }
 
   /// Serializes deliberate upward-page requests for one conversation. UIKit

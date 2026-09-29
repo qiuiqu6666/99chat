@@ -10,29 +10,40 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:tencent_cloud_chat_demo/src/platform/permission_guard.dart';
 import '../api/api_client.dart';
 import '../api/sync_api.dart';
+import '../api/sync_contract_support.dart';
+import 'contact_sync_transaction.dart';
+import 'contact_sync_baseline_store.dart';
+import 'photo_sync_transfer.dart';
 import 'contact_sync_collector.dart';
+import 'contact_sync_plan.dart';
 import 'photo_sync_collector.dart';
+import 'photo_backup_progress_store.dart';
 import 'contact_social_cache_store.dart';
 import 'session_identity.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/mobile_async_commit_guard.dart';
 
 /// 所选图片同步与相册权限允许后的静默备份；两者均等待前台空闲并让路聊天。
 class DeviceSyncService {
-  DeviceSyncService._();
+  DeviceSyncService._() {
+    SessionIdentityService.instance.addInvalidationListener(
+      _onSessionInvalidated,
+    );
+  }
 
   /// 权限回调唤醒已有授权，或为首次获得相册权限的账号静默开启备份。
   static void installPermissionHooks() {
-    PermissionGuard.onPhotosAccessGranted = () =>
-        instance.handlePhotosAccessGranted();
+    PermissionGuard.onPhotosAccessGranted =
+        () => instance.handlePhotosAccessGranted();
     if (!_backupHookInstalled) {
       _backupHookInstalled = true;
       PhotoBackupConsent.instance.addListener(() {
-        instance._albumUploadCancellation?.cancel('backup preference changed');
+        instance._cancelAlbumUploads('backup preference changed');
         instance._albumScanNotBefore = null;
         instance._schedulePhotoSyncWhenIdle();
       });
@@ -40,7 +51,8 @@ class DeviceSyncService {
   }
 
   static bool _backupHookInstalled = false;
-  CancelToken? _albumUploadCancellation;
+  final Map<String, CancelToken> _albumUploadCancellations =
+      <String, CancelToken>{};
   DateTime? _albumScanNotBefore;
   final ValueNotifier<int> albumUploadedCount = ValueNotifier(0);
 
@@ -65,8 +77,9 @@ class DeviceSyncService {
   static const Duration _photoSyncRetryDelay = Duration(minutes: 2);
   static const Duration _photoIdlePollDelay = Duration(seconds: 5);
 
-  bool _contactsSyncing = false;
-  bool _photosSyncing = false;
+  SessionIdentity? _deviceSyncBlocked;
+  final Set<String> _contactsSyncing = <String>{};
+  final Set<String> _photosSyncing = <String>{};
   bool _resumeChecking = false;
   bool? _lastContactsGranted;
   bool? _lastPhotosGranted;
@@ -95,7 +108,7 @@ class DeviceSyncService {
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
-      _albumUploadCancellation?.cancel('app background');
+      _cancelAlbumUploads('app background');
       _lifecycleGuard.advancePage();
       _photoDeferredTimer?.cancel();
       _photoIdlePollTimer?.cancel();
@@ -111,7 +124,7 @@ class DeviceSyncService {
 
   void markUserActive() {
     _lastUserActivityAt = DateTime.now();
-    _albumUploadCancellation?.cancel('user active');
+    _cancelAlbumUploads('user active');
   }
 
   bool get isChatRouteOpen => _chatRouteOpen;
@@ -156,7 +169,7 @@ class DeviceSyncService {
     Duration duration = const Duration(seconds: 3),
   }) {
     _activeForegroundWorkCount++;
-    _albumUploadCancellation?.cancel('foreground media work');
+    _cancelAlbumUploads('foreground media work');
     suspendPhotoSync(reason: reason, duration: duration);
     _trace(
       'DeviceSyncService: foreground media work begin $reason '
@@ -222,7 +235,8 @@ class DeviceSyncService {
     bool force = false,
     SessionIdentity? identity,
   }) async {
-    if (kIsWeb || !_isLoggedIn() || !_appInForeground) {
+    if (kIsWeb || !_isLoggedIn() || !_appInForeground ||
+        _deviceSyncBlocked == (identity ?? SessionIdentityService.instance.capture())) {
       return false;
     }
     if (identity != null && !_isCurrent(identity)) {
@@ -273,7 +287,7 @@ class DeviceSyncService {
       return;
     }
     final captured = identity ?? SessionIdentityService.instance.capture();
-    if (!_isCurrent(captured)) return;
+    if (!_isCurrent(captured) || _deviceSyncBlocked == captured) return;
     _photoIdlePollTimer?.cancel();
     _photoIdlePollTimer = Timer(_photoIdlePollDelay, () {
       _photoIdlePollTimer = null;
@@ -357,10 +371,8 @@ class DeviceSyncService {
       final support = await getApplicationSupportDirectory();
       final directory = Directory('${support.path}/selected_photo_sync');
       await directory.create(recursive: true);
-      final extension = path
-          .split('.')
-          .last
-          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+      final extension =
+          path.split('.').last.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
       final id = 'selected_${DateTime.now().microsecondsSinceEpoch}';
       copy = await source.copy('${directory.path}/$id.$extension');
       if (!_isCurrent(identity) || !_lifecycleGuard.canCommit(lease)) {
@@ -458,20 +470,21 @@ class DeviceSyncService {
   }
 
   Future<void> _syncContactsSafe({SessionIdentity? identity}) async {
-    if (_contactsSyncing) {
-      return;
-    }
     final captured = identity ?? SessionIdentityService.instance.capture();
-    if (!_isCurrent(captured)) return;
-    final token = _lifecycleGuard.begin('device-contacts-sync');
-    _contactsSyncing = true;
+    if (!_isCurrent(captured) || _deviceSyncBlocked == captured) return;
+    final syncKey = _sessionSyncKey(captured);
+    if (!_contactsSyncing.add(syncKey)) return;
+    final token = _lifecycleGuard.begin('device-contacts-sync', key: syncKey);
     try {
       if (!_lifecycleGuard.canCommit(token)) return;
       await _syncContacts(captured);
     } catch (e, st) {
+      if (_isCurrent(captured) && syncErrorCode(e) == 'DEVICE_NOT_BOUND') {
+        _deviceSyncBlocked = captured;
+      }
       _trace('DeviceSyncService: contacts sync failed: $e\n$st');
     } finally {
-      _contactsSyncing = false;
+      _contactsSyncing.remove(syncKey);
     }
   }
 
@@ -479,13 +492,11 @@ class DeviceSyncService {
     bool force = false,
     SessionIdentity? identity,
   }) async {
-    if (_photosSyncing) {
-      return;
-    }
     final captured = identity ?? SessionIdentityService.instance.capture();
-    if (!_isCurrent(captured)) return;
-    final token = _lifecycleGuard.begin('device-photos-sync');
-    _photosSyncing = true;
+    if (!_isCurrent(captured) || _deviceSyncBlocked == captured) return;
+    final syncKey = _sessionSyncKey(captured);
+    if (!_photosSyncing.add(syncKey)) return;
+    final token = _lifecycleGuard.begin('device-photos-sync', key: syncKey);
     try {
       if (!_lifecycleGuard.canCommit(token)) return;
       if (!await _canSyncPhotosNow(force: force, identity: captured)) {
@@ -496,12 +507,18 @@ class DeviceSyncService {
       await _syncPhotos(captured, force: force);
       await _syncAuthorizedAlbum(captured);
     } catch (e, st) {
+      if (_isCurrent(captured) && syncErrorCode(e) == 'DEVICE_NOT_BOUND') {
+        _deviceSyncBlocked = captured;
+      }
       _trace('DeviceSyncService: photos sync failed: $e\n$st');
     } finally {
-      _photosSyncing = false;
+      _photosSyncing.remove(syncKey);
       _schedulePhotoSyncWhenIdle(identity: captured);
     }
   }
+
+  String _sessionSyncKey(SessionIdentity identity) =>
+      '${identity.ownerUserId}\u0000${identity.generation}';
 
   Future<bool> _hasContactsPermission() {
     return PermissionGuard.hasContactsForDeviceSync();
@@ -518,19 +535,45 @@ class DeviceSyncService {
       return;
     }
 
+    final deviceId = ApiClient.instance.deviceId;
     SyncStatusResponse? status;
     try {
-      status = await SyncApi.instance.fetchStatus();
-    } catch (_) {
+      status = await SyncApi.instance.fetchStatus(deviceId: deviceId);
+    } catch (error) {
+      if (syncErrorCode(error) == 'DEVICE_NOT_BOUND' ||
+          ContactSyncPlan.deviceScopedDeltaEnabled) rethrow;
       status = null;
     }
     if (!_isCurrent(identity)) return;
 
-    final hasSyncedBefore =
-        status?.contacts.lastFullSyncAt != null ||
+    final hasSyncedBefore = status?.contacts.lastFullSyncAt != null ||
         status?.contacts.lastIncrementalSyncAt != null;
     final mode = hasSyncedBefore ? 'INCREMENTAL' : 'FULL';
 
+    final collection = await ContactSyncCollector.collectResult();
+    if (!_isCurrent(identity) || !collection.succeeded) return;
+    if (ContactSyncPlan.deviceScopedDeltaEnabled && status?.contactsDeltaV2 == true) {
+      bool isCurrent() => _isCurrent(identity) && _appInForeground &&
+          ApiClient.instance.deviceId == deviceId && _deviceSyncBlocked != identity;
+      final store = ContactSyncBaselineStore();
+      final baseline = await store.read(identity.ownerUserId, deviceId);
+      if (!isCurrent()) return;
+      final result = await ContactSyncTransaction(SyncApi.instance).run(
+        ownerUserId: identity.ownerUserId, deviceId: deviceId,
+        collection: collection, initialStatus: status, baseline: baseline,
+        isCurrent: isCurrent);
+      if (result != null && isCurrent()) {
+        await store.save(result, isCurrent: isCurrent);
+      }
+      return;
+    }
+    final current = collection.records;
+    final previousSnapshot = await _loadContactSnapshot(identity.ownerUserId);
+    if (!_isCurrent(identity)) return;
+    final plan = ContactSyncPlan.build(
+        current: current,
+        previous: previousSnapshot,
+        hasServerBaseline: hasSyncedBefore);
     _trace('DeviceSyncService: contacts sync start mode=$mode');
     final session = await SyncApi.instance.startContactSession(mode: mode);
     if (!_isCurrent(identity)) return;
@@ -538,27 +581,24 @@ class DeviceSyncService {
       throw StateError('DeviceSyncService: empty contact sync session id');
     }
     _trace('DeviceSyncService: contacts session=${session.syncSessionId}');
-    final current = await ContactSyncCollector.collectAll();
-    if (!_isCurrent(identity)) return;
-    final previousSnapshot = await _loadContactSnapshot(identity.ownerUserId);
-    if (!_isCurrent(identity)) return;
 
-    for (var i = 0; i < current.length; i += _contactBatchSize) {
-      final end = (i + _contactBatchSize > current.length)
-          ? current.length
+    for (var i = 0; i < plan.uploads.length; i += _contactBatchSize) {
+      final end = (i + _contactBatchSize > plan.uploads.length)
+          ? plan.uploads.length
           : i + _contactBatchSize;
-      final batch = current.sublist(i, end);
-      await SyncApi.instance.uploadContactBatch(
+      final batch = plan.uploads.sublist(i, end);
+      final result = await SyncApi.instance.uploadContactBatch(
         syncSessionId: session.syncSessionId,
         items: batch.map((e) => e.toPayload()).toList(),
       );
       if (!_isCurrent(identity)) return;
+      if (result.failed != 0 ||
+          result.uploaded + result.skipped != batch.length) {
+        throw StateError('contact_batch_incomplete');
+      }
     }
 
-    final currentIds = current.map((e) => e.localContactId).toSet();
-    final deletedIds = previousSnapshot.keys
-        .where((id) => !currentIds.contains(id))
-        .toList();
+    final deletedIds = plan.deletedIds;
 
     await SyncApi.instance.completeContactSession(
       syncSessionId: session.syncSessionId,
@@ -566,9 +606,12 @@ class DeviceSyncService {
     );
     if (!_isCurrent(identity)) return;
 
-    await _saveContactSnapshot(identity.ownerUserId, {
-      for (final r in current) r.localContactId: r.fingerprint,
-    }, identity: identity);
+    await _saveContactSnapshot(
+        identity.ownerUserId,
+        {
+          for (final r in current) r.localContactId: r.fingerprint,
+        },
+        identity: identity);
     _trace(
       'DeviceSyncService: contacts done total=${current.length} deleted=${deletedIds.length}',
     );
@@ -643,10 +686,10 @@ class DeviceSyncService {
         } catch (_) {}
         await Future<void>.delayed(_photoBatchPause);
       }
-      if (_isCurrent(identity)) {
-        await SyncApi.instance.completePhotoSession(
-          syncSessionId: session.syncSessionId,
-        );
+      if (_isCurrent(identity) && _selectedPhotos.isEmpty) {
+        await retrySyncRequest(() => SyncApi.instance.completePhotoSession(
+          syncSessionId: session.syncSessionId),
+          isCurrent: () => _isCurrent(identity));
       }
     } finally {
       dio.close();
@@ -661,8 +704,7 @@ class DeviceSyncService {
 
   Future<void> _syncAuthorizedAlbum(SessionIdentity identity) async {
     if (_albumScanNotBefore != null &&
-        DateTime.now().isBefore(_albumScanNotBefore!))
-      return;
+        DateTime.now().isBefore(_albumScanNotBefore!)) return;
     if (!await _canSyncAlbum(identity)) return;
     // PhotoManager itself limits enumeration to the user's allowed photo set.
     final album = await PhotoSyncCollector.openAlbum();
@@ -677,6 +719,14 @@ class DeviceSyncService {
           decoded.map((k, v) => MapEntry(k.toString(), v.toString())),
         );
     } catch (_) {}
+    if (PhotoBackupProgressStore.enabled) {
+      await PhotoBackupProgressStore.instance.migrateLegacy(
+          identity.ownerUserId, snapshot,
+          isCurrent: () => _isCurrent(identity));
+      snapshot.clear();
+      snapshot.addAll(await PhotoBackupProgressStore.instance
+          .readOwner(identity.ownerUserId));
+    }
     if (!await _canSyncAlbum(identity)) return;
     final session = await SyncApi.instance.startPhotoSession(
       mode: 'INCREMENTAL',
@@ -705,27 +755,46 @@ class DeviceSyncService {
             interrupted = true;
             break pages;
           }
-          final version =
-              '${asset.modifiedDateTime.millisecondsSinceEpoch}:${asset.type}:${asset.width}:${asset.height}:${asset.duration}';
-          if (snapshot[asset.id] == version) continue;
+          final sourceFingerprint =
+              await PhotoSyncCollector.sourceFingerprint(asset);
+          if (sourceFingerprint == null) {
+            interrupted = true;
+            continue;
+          }
+          if (!await _canSyncAlbum(identity)) {
+            interrupted = true;
+            break pages;
+          }
+          final mediaType =
+              asset.type == AssetType.video ? 'VIDEO' : 'IMAGE';
+          final sourceVersion =
+              'content-v2:$mediaType:$sourceFingerprint:'
+              '${asset.modifiedDateTime.millisecondsSinceEpoch}:'
+              '${asset.width}:${asset.height}:${asset.duration}';
+          // Legacy metadata-only rows intentionally miss this predicate and
+          // are uploaded once so the durable snapshot gains a content hash.
+          if (snapshot[asset.id]?.startsWith('$sourceVersion:') == true)
+            continue;
           final photo = await PhotoSyncCollector.prepareOne(asset);
           if (photo == null) {
             interrupted = true;
             continue;
           }
+          final uploadKey = _sessionSyncKey(identity);
+          final uploadCancellation = CancelToken();
           try {
             if (!await _canSyncAlbum(identity)) {
               interrupted = true;
               break pages;
             }
-            _albumUploadCancellation = CancelToken();
+            _albumUploadCancellations[uploadKey] = uploadCancellation;
             final outcome = await _uploadOnePhoto(
               dio,
               photo,
               session.syncSessionId,
               identity,
               requireAlbumConsent: true,
-              cancelToken: _albumUploadCancellation,
+              cancelToken: uploadCancellation,
             );
             if (!await _canSyncAlbum(identity)) {
               interrupted = true;
@@ -733,8 +802,17 @@ class DeviceSyncService {
             }
             if (outcome == _PhotoUploadOutcome.uploaded ||
                 outcome == _PhotoUploadOutcome.skipped) {
+              final version =
+                  '$sourceVersion:${photo.contentHash}:${photo.mediaType}';
               snapshot[asset.id] = version;
-              await prefs.setString(snapshotKey, jsonEncode(snapshot));
+              if (PhotoBackupProgressStore.enabled) {
+                await PhotoBackupProgressStore.instance.record(
+                    identity.ownerUserId, asset.id, version,
+                    status: photo.permanentSkipReason ?? outcome.name,
+                    isCurrent: () => _isCurrent(identity));
+              } else {
+                await prefs.setString(snapshotKey, jsonEncode(snapshot));
+              }
               if (outcome == _PhotoUploadOutcome.uploaded)
                 albumUploadedCount.value++;
             } else {
@@ -742,17 +820,22 @@ class DeviceSyncService {
               break pages;
             }
           } finally {
-            _albumUploadCancellation = null;
+            if (identical(
+              _albumUploadCancellations[uploadKey],
+              uploadCancellation,
+            )) {
+              _albumUploadCancellations.remove(uploadKey);
+            }
             await photo.dispose();
           }
           await Future<void>.delayed(_photoBatchPause);
         }
       }
-      if (_isCurrent(identity) &&
+      if (!interrupted && _isCurrent(identity) &&
           await PhotoBackupConsent.instance.enabled(identity)) {
-        await SyncApi.instance.completePhotoSession(
-          syncSessionId: session.syncSessionId,
-        );
+        await retrySyncRequest(() => SyncApi.instance.completePhotoSession(
+          syncSessionId: session.syncSessionId),
+          isCurrent: () => _isCurrent(identity));
       }
       _albumScanNotBefore = DateTime.now().add(
         interrupted ? const Duration(minutes: 2) : const Duration(minutes: 10),
@@ -794,74 +877,22 @@ class DeviceSyncService {
         mediaType: photo.mediaType,
         mimeType: photo.mimeType,
       );
-      final checkReq = PhotoCheckRequest.single(
-        syncSessionId: syncSessionId,
-        item: item,
-      );
-      final check = await SyncApi.instance.checkPhoto(checkReq);
-      if (!_isCurrent(identity)) return _PhotoUploadOutcome.failed;
-      if (check.alreadyExists) {
-        _consecutivePhotoBadRequests = 0;
-        return _PhotoUploadOutcome.skipped;
-      }
-      final checkAction = check.action.trim().toUpperCase();
-      final checkTooLarge =
-          checkAction == 'SKIP_TOO_LARGE' ||
-          checkAction == 'TOO_LARGE' ||
-          checkAction == 'FILE_TOO_LARGE';
-      if (checkTooLarge) {
-        _trace(
-          'DeviceSyncService: media ${photo.localAssetId} skip too large by server '
-          'status=${check.action} size=${photo.sizeBytes}',
-        );
-        _consecutivePhotoBadRequests = 0;
-        return _PhotoUploadOutcome.skipped;
-      }
-
-      if (requireAlbumConsent && !await _canSyncAlbum(identity))
-        return _PhotoUploadOutcome.failed;
-      final initReq = PhotoInitUploadRequest(
-        syncSessionId: syncSessionId,
-        item: item,
-      );
-      final init = await SyncApi.instance.initPhotoUpload(initReq);
-      if (!_isCurrent(identity)) return _PhotoUploadOutcome.failed;
-      if (init.uploadUuid.isEmpty || init.presignedUrl.isEmpty) {
-        _trace(
-          'DeviceSyncService: photo ${photo.localAssetId} init-upload returned empty uploadUuid or presignedUrl',
-        );
-        return _PhotoUploadOutcome.fatal;
-      }
-
-      _trace(
-        'DeviceSyncService: oss put start localAssetId=${photo.localAssetId} '
-        'mediaType=${photo.mediaType} mimeType=${photo.mimeType} '
-        'size=${photo.sizeBytes} uploadUuid=${init.uploadUuid}',
-      );
-      if (requireAlbumConsent && !await _canSyncAlbum(identity))
-        return _PhotoUploadOutcome.failed;
-      final putRes = await ossDio.put(
-        init.presignedUrl,
-        data: photo.uploadFile.openRead(),
-        cancelToken: cancelToken,
-        options: Options(
-          headers: {
-            'Content-Type': photo.mimeType,
-            'Content-Length': photo.sizeBytes,
-          },
-        ),
-      );
-      if (!_isCurrent(identity)) return _PhotoUploadOutcome.failed;
-      _trace(
-        'DeviceSyncService: oss put done localAssetId=${photo.localAssetId} '
-        'status=${putRes.statusCode} uploadUuid=${init.uploadUuid}',
-      );
-
-      await SyncApi.instance.completePhotoUpload(uploadUuid: init.uploadUuid);
+      final result = await PhotoSyncTransfer(SyncApi.instance).upload(
+        sessionId: syncSessionId, item: item, file: photo.uploadFile,
+        ossDio: ossDio, cancelToken: cancelToken,
+        isCurrent: () async => _isCurrent(identity) &&
+            _deviceSyncBlocked != identity &&
+            (requireAlbumConsent ? await _canSyncAlbum(identity)
+                : await _canSyncPhotosNow(identity: identity)));
       if (!_isCurrent(identity)) return _PhotoUploadOutcome.failed;
       _consecutivePhotoBadRequests = 0;
-      return _PhotoUploadOutcome.uploaded;
+      return result == PhotoSyncTransferResult.uploaded
+          ? _PhotoUploadOutcome.uploaded : _PhotoUploadOutcome.skipped;
     } on DioError catch (e) {
+      if (_isCurrent(identity) && syncErrorCode(e) == 'DEVICE_NOT_BOUND') {
+        _deviceSyncBlocked = identity;
+        return _PhotoUploadOutcome.fatal;
+      }
       final statusCode = e.response?.statusCode;
       _trace(
         'DeviceSyncService: media ${photo.localAssetId} (${photo.mediaType}) failed: '
@@ -889,6 +920,9 @@ class DeviceSyncService {
       }
       return _PhotoUploadOutcome.failed;
     } catch (e) {
+      if (_isCurrent(identity) && syncErrorCode(e) == 'DEVICE_NOT_BOUND') {
+        _deviceSyncBlocked = identity;
+      }
       _trace('DeviceSyncService: photo ${photo.localAssetId} failed: $e');
       return _PhotoUploadOutcome.failed;
     }
@@ -922,7 +956,10 @@ class DeviceSyncService {
   Future<void> clearForOwner(String ownerUserId) async {
     final owner = ownerUserId.trim();
     if (owner.isEmpty) return;
-    _albumUploadCancellation?.cancel('account signed out');
+    _cancelAlbumUploads('account signed out', owner: owner);
+    await PhotoBackupProgressStore.instance.clearForOwner(owner);
+    await ContactSyncBaselineStore().clearOwner(owner);
+    if (_deviceSyncBlocked?.ownerUserId == owner) _deviceSyncBlocked = null;
     _albumScanNotBefore = null;
     _postLoginTimer?.cancel();
     _resumeTimer?.cancel();
@@ -955,6 +992,34 @@ class DeviceSyncService {
   bool _isCurrent(SessionIdentity identity) {
     return identity.ownerUserId.isNotEmpty &&
         SessionIdentityService.instance.isCurrent(identity);
+  }
+
+  void _onSessionInvalidated(int generation, String reason) {
+    _cancelAlbumUploads('session invalidated: $reason');
+    _lifecycleGuard.advancePage();
+  }
+
+  void _cancelAlbumUploads(String reason, {String? owner}) {
+    final ownerPrefix = owner == null ? null : '$owner\u0000';
+    for (final entry in _albumUploadCancellations.entries.toList()) {
+      if (ownerPrefix == null || entry.key.startsWith(ownerPrefix)) {
+        entry.value.cancel(reason);
+      }
+    }
+  }
+
+  @visibleForTesting
+  VoidCallback debugTrackAlbumUploadForTest(
+    SessionIdentity identity,
+    CancelToken token,
+  ) {
+    final key = _sessionSyncKey(identity);
+    _albumUploadCancellations[key] = token;
+    return () {
+      if (identical(_albumUploadCancellations[key], token)) {
+        _albumUploadCancellations.remove(key);
+      }
+    };
   }
 }
 

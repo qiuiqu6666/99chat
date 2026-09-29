@@ -1,0 +1,26 @@
+[
+  {
+    "Path": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\third_party\\tencent_cloud_chat_uikit\\lib\\ui\\views\\TIMUIKitChat\\TIMUIKItMessageList\\tim_uikit_chat_history_message_list.dart",
+    "Hash": "67F898BD6039BAA2018D8B096B473AD9DE1CEE82B1781B21DF5CB59AEDB49F9C"
+  },
+  {
+    "Path": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\third_party\\tencent_cloud_chat_uikit\\lib\\business_logic\\view_models\\tui_chat_bounded_history.dart",
+    "Hash": "C595D7651CDB7D7ABFC8269448140B9A5647D81360482FE672E84EFA20033442"
+  },
+  {
+    "Path": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\lib\\src\\services\\history_window_store.dart",
+    "Hash": "144B04C0F18C73C155B3E9B48795CCDAEF4FB433DD98A45638FCA68462D0DD08"
+  },
+  {
+    "Path": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\lib\\src\\services\\conversation_local\\conversation_tab_store.dart",
+    "Hash": "C2C9CE2CAA92CD693209A99A5FCFBA64D691F6F7B2EC081F993607AFBF7980D3"
+  },
+  {
+    "Path": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\lib\\src\\services\\im\\im_mailbox.dart",
+    "Hash": "79F1F77665ABDBF96F27E43754B5ECE743A6FFE94E86D38DBD4DC5B6A763A0A5"
+  },
+  {
+    "Path": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\lib\\src\\services\\im\\tencent_advanced_message_adapter.dart",
+    "Hash": "1B85593C75F855DACED6F22A0D05211F12BDD24D7321FA8D77579E7B2151B2B5"
+  }
+]

@@ -1,0 +1,100 @@
+Future<void> _handleMessageIngress(EventEnvelope<dynamic> event) async {
+    final identity = _realtimeIdentity;
+    if (identity == null ||
+        !event.belongsToDomain(
+          ownerUserId: identity.ownerUserId,
+          accountGeneration: identity.generation,
+          domainGeneration: _messageDomainGeneration,
+        )) {
+      return;
+    }
+    if (event.eventNamespace ==
+        TencentAdvancedMessageAdapter.sdkRealtimeNamespace) {
+      await _handleSdkRealtimeMessage(event, identity);
+      return;
+    }
+    if (!await _hasCurrentMessageCoreLease(identity)) {
+      return;
+    }
+    final lease = _messageCoreLease;
+    if (lease == null) return;
+    final claimed = await _messageIngress.claimForWriter(
+      event: event,
+      lease: lease,
+      nowMs: DateTime.now().millisecondsSinceEpoch,
+      allowStaleProcessing: true,
+      processingTimeoutMs: _messageRecoveryInterval.inMilliseconds,
+    );
+    if (claimed == null || claimed.status == ImInboxStatus.completed) {
+      return;
+    }
+    try {
+      await const RuntimeIngressProcessor().run(
+        status: claimed.status,
+        // Heartbeats renew the lease object without replacing its ownership.
+        // Fence by owner/token so healthy renewals do not reject a valid turn.
+        isCurrent: () =>
+            _isCurrentRealtimeIdentity(identity) &&
+            event.domainGeneration == _messageDomainGeneration &&
+            _messageCoreLease?.leaseOwnerId == lease.leaseOwnerId &&
+            _messageCoreLease?.fencingToken == lease.fencingToken,
+        applyMetadata: () =>
+            _applyMessageIngressMetadata(event, identity: identity),
+        flushMetadata: () => _ingressPersistFlush.request(),
+        advance: (from, to) => _advanceMessageInboxStatus(
+          event: event,
+          identity: identity,
+          expectedStatus: from,
+          nextStatus: to,
+        ),
+        adoptOutgoing: () => _adoptProviderOutgoingMessage(
+          event, identity: identity, lease: lease),
+        publish: () =>
+            _publishMessageIngressProjection(event, identity: identity),
+        completeOutgoing: () async {
+          final outgoing = _providerOutgoingIdentity(event, identity: identity);
+          if (outgoing == null) return;
+          final completed = await Im05Persistence(store: _messageIngressStore)
+              .completeOutboxProjection(
+            ownerUserId: identity.ownerUserId,
+            operationId: outgoing.operationId,
+            leaseOwnerId: lease.leaseOwnerId,
+            fencingToken: lease.fencingToken,
+            nowMs: DateTime.now().millisecondsSinceEpoch,
+          );
+          if (!completed) {
+            throw StateError(
+              'provider Outbox projection completion was rejected',
+            );
+          }
+        },
+      );
+    } catch (error, stack) {
+      // Leave PROCESSING durable. Recovery must replay the event rather than
+      // treating a failed compatibility projection as completed.
+      debugPrint(
+        'CHAT_INGRESS_HANDLER_FAILURE kind=${event.kind.name} '
+        'eventId=${event.eventId} errorType=${error.runtimeType} '
+        'error=$error\n$stack',
+      );
+      if (claimed.status != ImInboxStatus.completed) {
+        try {
+          await _messageIngress.scheduleRetry(
+            record: claimed,
+            errorClass: InboxRecoveryPolicy.classify(error),
+            nowMs: DateTime.now().millisecondsSinceEpoch,
+          );
+        } catch (_) {}
+        InboxRecoveryCoordinator.instance.request(
+          trigger: InboxRecoveryTrigger.retryDue,
+          ownerUserId: identity.ownerUserId,
+          accountGeneration: identity.generation,
+          nextRetryAtMs: InboxRecoveryPolicy.nextRetryAtMs(
+            nowMs: DateTime.now().millisecondsSinceEpoch,
+            retryCount: claimed.retryCount,
+            jitterMs: 0,
+          ),
+        );
+      }
+    }
+  }

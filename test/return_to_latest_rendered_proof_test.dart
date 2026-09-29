@@ -23,6 +23,7 @@ import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/tim_uikit_chat_config.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 
 class _HistorySdk extends MessageService {
   int calls = 0;
@@ -73,6 +74,15 @@ class _ChatModel extends TUIChatSeparateViewModel {
 class _VisibilityProofStore extends HistoryWindowStore {
   _VisibilityProofStore({required super.debugDatabasePath});
   Future<void> Function()? beforeVisibleAcknowledgement;
+  Future<void> Function()? beforeDeferredRead;
+
+  @override
+  Future<HistoryWindowDeferredState> deferredState(HistoryWindowScope scope) async {
+    final before = beforeDeferredRead;
+    beforeDeferredRead = null;
+    await before?.call();
+    return super.deferredState(scope);
+  }
 
   @override
   Future<HistoryWindowVisibleReceipt> acknowledgeVisibleDeferred({
@@ -361,6 +371,302 @@ void main() {
     });
   }
 
+  uiTest('ordinary return waits for an existing older-page request to finish',
+      (tester) async {
+    await mount(tester);
+    await away(tester);
+    model.haveMoreData = true;
+    sdk.code = 500;
+    final release = Completer<void>();
+    sdk.duringRead = () => release.future;
+    final history = model.loadChatRecord(
+        count: 20, lastMsg: row(1), lastMsgID: row(1).msgID, lastMsgSeq: 1);
+    try {
+      for (var n = 0; n < 500 && sdk.calls == 0; n++) {
+        await frame(tester, 1);
+      }
+      expect(sdk.calls, 1);
+      expect(model.isLoadingChatHistory, isTrue);
+      final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+          find.byType(TIMUIKitHistoryMessageListTongueContainer));
+      var done = false;
+      final returning = state.scrollToLatestAndDismissUnreadCapsule()
+          .whenComplete(() => done = true);
+      for (var n = 0; n < 100; n++) {
+        await frame(tester, 16);
+      }
+      expect(done, isFalse,
+          reason: 'an already running page request is still pending, not failed');
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+      release.complete();
+      await settleReturn(tester);
+      await history;
+      await returning;
+      expect(global.isFollowingLatest(getConv()), isTrue);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+    } finally {
+      if (!release.isCompleted) release.complete();
+      await settleReturn(tester);
+      await history;
+    }
+  });
+
+  uiTest('ordinary return waits for the newest row to join the painted list',
+      (tester) async {
+    await mount(tester);
+    await away(tester);
+    projectionLimit.value = 99;
+    await frame(tester);
+    final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+        find.byType(TIMUIKitHistoryMessageListTongueContainer));
+    var done = false;
+    final returning = state.scrollToLatestAndDismissUnreadCapsule()
+        .whenComplete(() => done = true);
+    for (var n = 0; n < 60 && scroll.offset > 1; n++) {
+      await frame(tester, 16);
+    }
+    for (var n = 0; n < 20; n++) {
+      await frame(tester, 16);
+    }
+    expect(scroll.offset, closeTo(0, 1));
+    expect(done, isFalse,
+        reason: 'a temporary old projection must not end the return as failed');
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+    projectionLimit.value = null;
+    await settleReturn(tester);
+    await returning;
+    expect(find.text('row:100'), findsOneWidget);
+    expect(global.isFollowingLatest(getConv()), isTrue);
+    expect(model.readReports, greaterThan(0));
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+    expect(sdk.calls, 0, reason: 'a connected loaded window needs no SDK reload');
+  });
+
+  uiTest('one tap retries visible proof after unrelated history revision changes',
+      (tester) async {
+    await mount(tester);
+    await awayInHistoryGap(tester);
+    await receive(tester, 101, 7);
+    sdk.newest = List.generate(50, (i) => row(107 - i));
+    var changed = false;
+    store.beforeVisibleAcknowledgement = () async {
+      changed = true;
+      final current = global.rawMessageList(getConv())!;
+      global.setMessageList(getConv(), current.take(current.length - 1).toList(),
+          replace: true, applyMemoryWindow: false);
+    };
+    await tester.tap(find.text('showUnread:7'));
+    await settleReturn(tester);
+    expect(changed, isTrue);
+    expect(verifyLatestVisible(), isTrue);
+    expect(scroll.offset, closeTo(0, 1));
+    expect(global.remainingLiveIncomingCountFor(getConv()), 0,
+        reason: 'an unrelated old-row change must not require another user tap');
+    expect(global.hasDurableHistoryDeferred(getConv()), isFalse);
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+  });
+
+  uiTest('stale newest page exposes retry and preserves unread until successful',
+      (tester) async {
+    await mount(tester);
+    await awayInHistoryGap(tester);
+    await receive(tester, 101, 1);
+    sdk.newest = List.generate(50, (i) => row(100 - i));
+    final before = scroll.offset;
+    await tester.tap(find.text('showUnread:1'));
+    await frame(tester);
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+    await settleReturn(tester, frameMs: 1);
+    expect(scroll.offset, before);
+    expect(global.remainingLiveIncomingCountFor(getConv()), 1);
+    expect(model.readReports, 0);
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsOneWidget);
+    expect(find.text('showUnread:1'), findsOneWidget);
+    sdk.newest = List.generate(50, (i) => row(101 - i));
+    await tester.tap(find.byKey(const ValueKey('return-latest-retry')));
+    await settleReturn(tester);
+    expect(scroll.offset, closeTo(0, 1));
+    expect(global.remainingLiveIncomingCountFor(getConv()), 0);
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+  });
+
+  uiTest('return loading remains visible and duplicate actions share one request',
+      (tester) async {
+    await mount(tester);
+    await awayInHistoryGap(tester);
+    await receive(tester, 101, 1);
+    sdk.newest = List.generate(50, (i) => row(101 - i));
+    final release = Completer<void>();
+    sdk.duringRead = () => release.future;
+    try {
+      await tester.tap(find.text('showUnread:1'));
+      for (var n = 0; n < 500 && sdk.calls == 0; n++) await frame(tester);
+      expect(sdk.calls, 1);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+      final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+          find.byType(TIMUIKitHistoryMessageListTongueContainer));
+      await state.scrollToLatestAndDismissUnreadCapsule();
+      await frame(tester, 200);
+      expect(sdk.calls, 1);
+      expect(global.remainingLiveIncomingCountFor(getConv()), 1);
+      release.complete();
+      await settleReturn(tester);
+      expect(global.remainingLiveIncomingCountFor(getConv()), 0);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+    } finally {
+      if (!release.isCompleted) release.complete();
+    }
+  });
+
+  uiTest('drag takes over pending return without failure or late snap to bottom',
+      (tester) async {
+    await mount(tester);
+    await awayInHistoryGap(tester);
+    await receive(tester, 101, 1);
+    sdk.newest = List.generate(50, (i) => row(101 - i));
+    final release = Completer<void>();
+    sdk.duringRead = () => release.future;
+    try {
+      await tester.tap(find.text('showUnread:1'));
+      for (var n = 0; n < 500 && sdk.calls == 0; n++) await frame(tester);
+      expect(sdk.calls, 1);
+      final gesture = await tester.startGesture(
+          tester.getCenter(find.byKey(const Key('history'))));
+      await gesture.moveBy(const Offset(0, 180));
+      await frame(tester);
+      await gesture.cancel();
+      await frame(tester, 200);
+      final afterDrag = scroll.offset;
+      expect(afterDrag, greaterThan(1200));
+      expect(global.isUserScrollToBottomInProgress(getConv()), isFalse);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+      release.complete();
+      await settleReturn(tester);
+      expect(scroll.offset, closeTo(afterDrag, 1));
+      expect(global.remainingLiveIncomingCountFor(getConv()), 1);
+      expect(model.readReports, 0);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+    } finally {
+      if (!release.isCompleted) release.complete();
+    }
+  });
+
+  uiTest('replacing controller cancels return before a late page can move either list',
+      (tester) async {
+    await mount(tester);
+    await awayInHistoryGap(tester);
+    await receive(tester, 101, 1);
+    sdk.newest = List.generate(50, (i) => row(101 - i));
+    final release = Completer<void>();
+    sdk.duringRead = () => release.future;
+    final oldScroll = scroll;
+    var replaced = false;
+    try {
+      await tester.tap(find.text('showUnread:1'));
+      for (var n = 0; n < 500 && sdk.calls == 0; n++) await frame(tester);
+      expect(sdk.calls, 1);
+      scroll = AutoScrollController(initialScrollOffset: 1200);
+      replaced = true;
+      global.bindActiveChatScrollController(
+          conversationID: getConv(), scrollController: scroll);
+      await mount(tester);
+      await frame(tester, 200);
+      expect(global.isUserScrollToBottomInProgress(getConv()), isFalse);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+      final offset = scroll.offset;
+      release.complete();
+      await settleReturn(tester);
+      expect(scroll.offset, closeTo(offset, 1));
+      expect(global.rawMessageList(getConv())!.first.seq, '100');
+      expect(global.remainingLiveIncomingCountFor(getConv()), 1);
+      expect(model.readReports, 0);
+    } finally {
+      if (!release.isCompleted) release.complete();
+      if (replaced) oldScroll.dispose();
+    }
+  });
+
+  uiTest(
+      'hung visible proof releases UI while durable writer stays ordered and retries',
+      (tester) async {
+    await mount(tester);
+    await awayInHistoryGap(tester);
+    await receive(tester, 101, 1);
+    sdk.newest = List.generate(50, (i) => row(101 - i));
+    final release = Completer<void>();
+    var entered = false;
+    store.beforeVisibleAcknowledgement = () {
+      entered = true;
+      return release.future;
+    };
+    try {
+      await tester.tap(find.text('showUnread:1'));
+      for (var n = 0; n < 500 && !entered; n++) await frame(tester);
+      expect(entered, isTrue);
+      await frame(tester, 13000);
+      await settleReturn(tester);
+      expect(global.receivedNewMessageCountFor(getConv()), 1);
+      expect(ChatRecoveryTrace.recentEvents.any((e) => e.contains('latest_proof_timeout')), isTrue);
+      final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+          find.byType(TIMUIKitHistoryMessageListTongueContainer));
+      unawaited(state.scrollToLatestAndDismissUnreadCapsule());
+      await settleReturn(tester);
+      expect(global.receivedNewMessageCountFor(getConv()), 1,
+          reason: 'a pending durable writer cannot be bypassed on timeout');
+      release.complete();
+      for (var n = 0; n < 40; n++) await frame(tester);
+      expect(global.receivedNewMessageCountFor(getConv()), 1,
+          reason: 'late expired proof cannot consume the reminder');
+      unawaited(state.scrollToLatestAndDismissUnreadCapsule());
+      await settleReturn(tester);
+      expect(global.receivedNewMessageCountFor(getConv()), 0);
+    } finally {
+      if (!release.isCompleted) release.complete();
+      await frame(tester, 200);
+    }
+  });
+
+  uiTest('hung latest snapshot expires without publishing an obsolete window',
+      (tester) async {
+    await mount(tester);
+    await awayInHistoryGap(tester);
+    await receive(tester, 101, 1);
+    final release = Completer<void>();
+    var entered = false;
+    store.beforeDeferredRead = () {
+      entered = true;
+      return release.future;
+    };
+    bool? result;
+    final calls = sdk.calls;
+    try {
+      unawaited(model.reloadNewestMessageWindow(allowWhileReadingHistory: true)
+          .then((value) => result = value));
+      for (var n = 0; n < 500 && !entered; n++) await frame(tester);
+      expect(entered, isTrue);
+      await frame(tester, 21000);
+      expect(result, isFalse);
+      expect(global.receivedNewMessageCountFor(getConv()), 1);
+      release.complete();
+      for (var n = 0; n < 40; n++) await frame(tester);
+      expect(sdk.calls, calls, reason: 'expired preflight cannot invoke SDK');
+      sdk.newest = List.generate(50, (i) => row(101 - i));
+      final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+          find.byType(TIMUIKitHistoryMessageListTongueContainer));
+      unawaited(state.scrollToLatestAndDismissUnreadCapsule());
+      await settleReturn(tester);
+      expect(global.receivedNewMessageCountFor(getConv()), 0);
+    } finally {
+      if (!release.isCompleted) release.complete();
+      await frame(tester, 200);
+    }
+  });
+
   uiTest(
       'return does not acknowledge deferred rows outside the rendered projection',
       (tester) async {
@@ -434,6 +740,152 @@ void main() {
     expect(verifyLatestVisible(), isTrue);
     expect(global.receivedNewMessageCountFor(getConv()), 0);
     expect(model.readReports, greaterThanOrEqualTo(1));
+  });
+
+  uiTest('a real drag cancels ordinary return during visible proof retries',
+      (tester) async {
+    await mount(tester);
+    await away(tester);
+    projectionLimit.value = 99;
+    await frame(tester);
+    final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+        find.byType(TIMUIKitHistoryMessageListTongueContainer));
+    var done = false;
+    final returning = state.scrollToLatestAndDismissUnreadCapsule()
+        .whenComplete(() => done = true);
+    for (var n = 0; n < 60 && scroll.offset > 1; n++) {
+      await frame(tester, 16);
+    }
+    for (var n = 0; n < 8; n++) {
+      await frame(tester, 16);
+    }
+    expect(scroll.offset, closeTo(0, 1));
+    expect(done, isFalse,
+        reason: 'the ordinary return must still be resampling its old projection');
+    expect(sdk.calls, 0);
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+
+    final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(const Key('history'))));
+    await gesture.moveBy(const Offset(0, 180));
+    await frame(tester, 16);
+    await gesture.cancel();
+    await frame(tester, 240);
+    final afterDrag = scroll.offset;
+    expect(afterDrag, greaterThan(100));
+    expect(done, isTrue);
+    expect(global.isUserScrollToBottomInProgress(getConv()), isFalse);
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+
+    // The missing row becomes paintable after the user has taken over. The
+    // old retry continuation must neither move the list nor report it read.
+    projectionLimit.value = null;
+    for (var n = 0; n < 30; n++) {
+      await frame(tester, 40);
+    }
+    await returning;
+    expect(scroll.offset, closeTo(afterDrag, 1));
+    expect(global.isFollowingLatest(getConv()), isFalse);
+    expect(model.readReports, 0);
+    expect(sdk.calls, 0);
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+  });
+
+  uiTest('late retried visible ACK cannot unlock a new A return after A to B to A',
+      (tester) async {
+    final conversationA = getConv();
+    final oldModelA = model;
+    final oldProofRelease = Completer<void>();
+    final newSdkRelease = Completer<void>();
+    _ChatModel? middleModel;
+    var proofs = 0;
+    var oldDone = false;
+    try {
+      await mount(tester);
+      await awayInHistoryGap(tester);
+      await receive(tester, 101, 1);
+      sdk.newest = List.generate(50, (i) => row(101 - i));
+      store.beforeVisibleAcknowledgement = () async {
+        proofs++;
+        final current = global.rawMessageList(getConv())!;
+        global.setMessageList(getConv(), current.take(current.length - 1).toList(),
+            replace: true, applyMemoryWindow: false);
+        store.beforeVisibleAcknowledgement = () {
+          proofs++;
+          return oldProofRelease.future;
+        };
+      };
+      final oldState = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+          find.byType(TIMUIKitHistoryMessageListTongueContainer));
+      final oldReturning = oldState.scrollToLatestAndDismissUnreadCapsule()
+          .whenComplete(() => oldDone = true);
+      for (var n = 0; n < 1200 && proofs < 2; n++) {
+        await frame(tester, 1);
+      }
+      expect(proofs, 2,
+          reason: 'hold the second visible ACK, after a rejected first proof');
+      expect(oldDone, isFalse);
+      expect(sdk.calls, 1);
+
+      middleModel = makeModel('@TGS#proof_middle_$sequence');
+      model = middleModel;
+      global.setCurrentConversation(
+          CurrentConversation(getConv(), ConvType.group), notify: false);
+      global.setMessageList(getConv(), List.generate(100, (i) => row(100 - i)),
+          replace: true, applyMemoryWindow: false);
+      await mount(tester);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+      model = makeModel(conversationA);
+      global.setCurrentConversation(
+          CurrentConversation(getConv(), ConvType.group), notify: false);
+      global.bindActiveChatScrollController(
+          conversationID: getConv(), scrollController: scroll);
+      global.bindHistoryLiveWindowFreeze(
+          conversationID: getConv(),
+          freezeIfNeeded: model.freezeVisibleHistoryWindowIfNeeded);
+      await mount(tester);
+      await awayInHistoryGap(tester);
+      final remaining = global.receivedNewMessageCountFor(conversationA);
+      expect(remaining, greaterThan(0));
+      final newReadReports = model.readReports;
+      final newOffset = scroll.offset;
+      sdk.duringRead = () => newSdkRelease.future;
+      final newState = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
+          find.byType(TIMUIKitHistoryMessageListTongueContainer));
+      final newReturning = newState.scrollToLatestAndDismissUnreadCapsule();
+      await frame(tester, 40);
+      expect(global.isUserScrollToBottomInProgress(conversationA), isTrue);
+
+      oldProofRelease.complete();
+      for (var n = 0; n < 1200 && sdk.calls < 2; n++) {
+        await frame(tester, 1);
+      }
+      await oldReturning;
+      expect(sdk.calls, 2);
+      expect(oldDone, isTrue);
+      expect(global.receivedNewMessageCountFor(conversationA), remaining,
+          reason: 'the old visit proof must not acknowledge the new visit');
+      expect(model.readReports, newReadReports);
+      expect(scroll.offset, closeTo(newOffset, 1));
+      expect(global.isUserScrollToBottomInProgress(conversationA), isTrue,
+          reason: 'the old proof cannot release the new return transaction');
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
+
+      newSdkRelease.complete();
+      await settleReturn(tester);
+      await newReturning;
+      expect(global.receivedNewMessageCountFor(conversationA), 0);
+      expect(global.isUserScrollToBottomInProgress(conversationA), isFalse);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+    } finally {
+      if (!oldProofRelease.isCompleted) oldProofRelease.complete();
+      if (!newSdkRelease.isCompleted) newSdkRelease.complete();
+      await settleReturn(tester, frameMs: 1);
+      if (!identical(oldModelA, model)) oldModelA.dispose();
+      if (!identical(middleModel, model)) middleModel?.dispose();
+    }
   });
 
   for (final restoring in [false, true]) {

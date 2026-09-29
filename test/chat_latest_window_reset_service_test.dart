@@ -212,6 +212,54 @@ void main() {
     return ChatViewportCollection.instance.openGeneration;
   }
 
+  test('online official C2C shows SDK local history while cloud is pending', () async {
+    const peer = 'official-local-first';
+    const key = 'c2c_$peer';
+    final generation = attachPage(key);
+    final messages = [_msg(10, userID: peer), _msg(5, userID: peer)];
+    final pendingCloud = Completer<ConversationPeekLoadResult>();
+    localLoader = (_) async => _peek(messages, receivedCloudResponse: false);
+    cloudLoader = (_) => pendingCloud.future;
+    final visible = Completer<void>();
+    final task = ChatLatestWindowResetService.instance.runForOpen(
+      conversation: c2cConversation(userID: peer, lastMessage: messages.first),
+      globalModel: global,
+      openGeneration: generation,
+      onFirstWindowCommitted: () { if (!visible.isCompleted) visible.complete(); },
+    );
+    await visible.future.timeout(const Duration(seconds: 2));
+    expect(global.rawMessageCount(key), 2);
+    expect(ChatLatestWindowResetService.instance.isProvisional(key), isTrue);
+    pendingCloud.complete(_peek(messages));
+    await task.timeout(const Duration(seconds: 2));
+    expect(global.rawMessageCount(key), 2);
+  });
+
+  test('empty cloud response cannot erase readable official local history', () async {
+    const peer = 'official-cloud-empty';
+    const key = 'c2c_$peer';
+    final generation = attachPage(key);
+    final messages = [_msg(20, userID: peer), _msg(8, userID: peer)];
+    final laterCloud = Completer<ConversationPeekLoadResult>();
+    localLoader = (_) async => _peek(messages, receivedCloudResponse: false);
+    cloudLoader = (_) async => cloudCalls == 1
+        ? _peek([], hasMoreOlder: false) : await laterCloud.future;
+    final visible = Completer<void>();
+    final task = ChatLatestWindowResetService.instance.runForOpen(
+      conversation: c2cConversation(userID: peer, lastMessage: messages.first),
+      globalModel: global, openGeneration: generation,
+      onFirstWindowCommitted: () { if (!visible.isCompleted) visible.complete(); },
+    );
+    await visible.future.timeout(const Duration(seconds: 2));
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(cloudCalls, greaterThanOrEqualTo(2));
+    expect(global.rawMessageCount(key), 2);
+    expect(ChatLatestWindowResetService.instance.isProvisional(key), isTrue);
+    laterCloud.complete(_peek(messages));
+    await task.timeout(const Duration(seconds: 2));
+    expect(global.rawMessageCount(key), 2);
+  });
+
   group('recovery must release the opening placeholder', () {
     for (final inPage in <bool>[false, true]) {
       test('fresh SDK group page with deleted seq installs (inPage=$inPage)',

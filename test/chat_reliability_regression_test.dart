@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/conversation_read_policy.dart';
 
 void main() {
   test('silent group tips never schedule repeated full unread clears', () {
@@ -90,15 +91,16 @@ void main() {
     );
   });
 
-  test('durable read queues use bounded retry and dead-letter retention', () {
-    for (final path in <String>[
-      'lib/src/services/im/read_outbox_store.dart',
-      'lib/src/services/im/read_receipt_outbox_store.dart',
-    ]) {
-      final source = File(path).readAsStringSync();
-      expect(source, contains('maxRetryAttempts = 10'), reason: path);
-      expect(source, contains('_deadLetterRetryAtMs'), reason: path);
-    }
+  test('read failures distinguish retry, reconnect and explicit recovery', () {
+    // Persistence, cooldown and fresh-user-action recovery are exercised in
+    // read_outbox_store_test and read_outbox_user_retry_test against SQLite.
+    expect(ConversationReadPolicy.failureReason(-10113), startsWith('transient:'));
+    expect(ConversationReadPolicy.failureReason(6005), startsWith('blocked:storage_'));
+    expect(ConversationReadPolicy.failureReason(6017), startsWith('blocked:'));
+    expect(ConversationReadPolicy.failureReason(6014), startsWith('reconnect:'));
+    final receipts = File('lib/src/services/im/read_receipt_outbox_store.dart').readAsStringSync();
+    expect(receipts, contains('maxRetryAttempts = 10'));
+    expect(receipts, contains('_deadLetterRetryAtMs'));
   });
 
   // Provider/callback ordering is exercised against real persistence and UI

@@ -1,0 +1,4 @@
+/// 是否仍有进页 hydrate / 冷开并行 peek 在飞（别名感知）。
+  bool hasOpenHydrateInFlight(String conversationID) {
+    return _findOpenHydrateInFlight(conversationID) != null;
+  }

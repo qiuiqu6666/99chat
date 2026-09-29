@@ -1,0 +1,12 @@
+[
+ ["prepareOutbox","lib/src/services/im/im05_persistence.dart"],
+ ["send","lib/src/services/im/outgoing_send_coordinator.dart"],
+ ["_captureTextSubmission","lib/src/chat.dart"],
+ ["ChatDraftSubmission","lib/src/chat_page/chat_draft_controller.dart"],
+ ["ConversationDraftEdit","lib/src/services/conversation_local/conversation_draft_service.dart"],
+ ["_write","lib/src/services/conversation_local/conversation_draft_service.dart"],
+ ["loadDraftText","lib/src/services/conversation_local/conversation_draft_service.dart"],
+ ["_observeTextSubmission","third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart"],
+ ["_onEmojiSubmitted","third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart"],
+ ["onSubmitted","third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart"]
+]

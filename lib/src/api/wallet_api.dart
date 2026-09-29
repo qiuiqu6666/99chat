@@ -1,3 +1,4 @@
+import 'package:tencent_cloud_chat_demo/src/pages/wallet/record/wallet_record_updates.dart';
 import 'package:tencent_cloud_chat_demo/src/services/ledger_page_progress.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'dart:async';
@@ -49,6 +50,49 @@ class RedPacketClaimStateDto {
 }
 
 class WalletApi {
+  final StreamController<WalletRecordCommit> _recordCommits =
+      StreamController<WalletRecordCommit>.broadcast();
+  Stream<WalletRecordCommit> get recordCommits => _recordCommits.stream;
+
+  void _notifyLedgerCommit(
+      String owner, String scopeKey, bool Function() isCurrent) {
+    if (!isCurrent()) return;
+    _recordCommits.add(WalletRecordCommit(
+        SessionIdentityService.instance.capture(ownerUserId: owner), scopeKey));
+  }
+
+  static List<String> _historyTypes(HistoryRecordFilter filter) =>
+      switch (filter) {
+        HistoryRecordFilter.chainDeposit ||
+        HistoryRecordFilter.internalDeposit =>
+          const ['DEPOSIT'],
+        HistoryRecordFilter.chainWithdraw ||
+        HistoryRecordFilter.internalWithdraw =>
+          const ['WITHDRAW'],
+        HistoryRecordFilter.redPacket => const [
+            'RED_PACKET_SEND',
+            'RED_PACKET_RECEIVE'
+          ],
+        HistoryRecordFilter.redPacketRefund => const ['RED_PACKET_REFUND'],
+        HistoryRecordFilter.transfer => const ['TRANSFER_OUT', 'TRANSFER_IN'],
+        _ => const [],
+      };
+  static String? _historySource(HistoryRecordFilter filter) => switch (filter) {
+        HistoryRecordFilter.chainDeposit ||
+        HistoryRecordFilter.chainWithdraw =>
+          'CHAIN',
+        HistoryRecordFilter.internalDeposit ||
+        HistoryRecordFilter.internalWithdraw =>
+          'INTERNAL',
+        _ => null,
+      };
+  String historyScopeKey(HistoryRecordFilter filter) =>
+      filter == HistoryRecordFilter.transferRefund
+          ? 'unsupported-transfer-refund'
+          : _ledgerScopeKey(
+              ledgerTypes: _historyTypes(filter),
+              source: _historySource(filter));
+
   WalletApi._();
   static final WalletApi instance = WalletApi._();
   final Map<String, Future<void>> _ledgerBackgroundTasks = {};
@@ -155,7 +199,7 @@ class WalletApi {
     String clientOrderId = '',
     String? memo,
   }) async {
-    final res = await _dio.post('/wallet/transfer', data: {
+    final res = await _dio.post('/wallet/card-orders/transfer', data: {
       'toUserId': toUserId,
       'currency': currency.toUpperCase(),
       'amount': amount,
@@ -286,7 +330,7 @@ class WalletApi {
   }
 
   Future<WalletOrderResult> sendRedPacket(Map<String, dynamic> body) async {
-    const path = '/wallet/red-packet/send';
+    const path = '/wallet/card-orders/red-packet';
     try {
       final res = await _dio.post(path, data: body);
       _logRedPacketApi('POST $path', request: body, response: res.data);
@@ -311,6 +355,16 @@ class WalletApi {
       'payPin': payPin,
     });
     return _parseExchangeOrder(_asMap(unwrapApiPayload(res.data)));
+  }
+
+  Future<WalletOrderResult> getServerCardOrder(String clientOrderId) async {
+    final res = await _dio.get(
+      '/wallet/card-orders/${Uri.encodeComponent(clientOrderId.trim())}',
+    );
+    return _successOrderFromMap(
+      _asMap(unwrapApiPayload(res.data)),
+      fallbackType: 'wallet_red_packet',
+    );
   }
 
   Future<List<WalletExchangeOrderDto>> getExchangeOrders({
@@ -659,12 +713,14 @@ class WalletApi {
     int pageSize = 100,
     int maxPages = 20,
     bool awaitFirstPage = false,
+    bool localOnly = false,
   }) async {
     final store = WalletLedgerLocalStore.instance;
     final owner = store.currentOwnerUserId();
     final identity = SessionIdentityService.instance.capture();
     bool isCurrent() =>
-        SessionIdentityService.instance.isGenerationCurrent(identity.generation) &&
+        SessionIdentityService.instance
+            .isGenerationCurrent(identity.generation) &&
         store.currentOwnerUserId() == owner;
     final scopeKey = _ledgerScopeKey(
       ledgerTypes: ledgerTypes,
@@ -674,6 +730,7 @@ class WalletApi {
       endTime: endTime,
     );
     var cached = await store.read(scopeKey: scopeKey, ownerUserId: owner);
+    if (localOnly) return isCurrent() ? _sortRecords(cached) : const [];
     final complete =
         await store.isComplete(scopeKey: scopeKey, ownerUserId: owner);
     if (!isCurrent()) return const [];
@@ -687,6 +744,8 @@ class WalletApi {
     if (cached.isNotEmpty && !awaitFirstPage) {
       final knownIds = cached.map((item) => item.id).toSet();
       _scheduleLedgerBackgroundSync(
+        owner: owner,
+        generation: identity.generation,
         scopeKey: scopeKey,
         task: () => _refreshLedgerScope(
           owner: owner,
@@ -710,14 +769,14 @@ class WalletApi {
     }
 
     final firstPageRequest = getLedger(
-        page: 0,
-        size: pageSize,
-        ledgerTypes: ledgerTypes,
-        source: source,
-        currency: currency,
-        startTime: startTime,
-        endTime: endTime,
-      );
+      page: 0,
+      size: pageSize,
+      ledgerTypes: ledgerTypes,
+      source: source,
+      currency: currency,
+      startTime: startTime,
+      endTime: endTime,
+    );
     List<WalletRecordDto> firstPage;
     try {
       firstPage = cached.isEmpty
@@ -727,6 +786,8 @@ class WalletApi {
       if (!isCurrent()) return const [];
       if (cached.isEmpty) rethrow;
       _scheduleLedgerBackgroundSync(
+        owner: owner,
+        generation: identity.generation,
         scopeKey: scopeKey,
         task: () => _refreshLedgerScope(
           firstPageRequest: firstPageRequest,
@@ -771,6 +832,8 @@ class WalletApi {
 
       if (!complete && firstPage.length >= pageSize) {
         _scheduleLedgerBackgroundSync(
+          owner: owner,
+          generation: identity.generation,
           scopeKey: scopeKey,
           task: () => _syncLedgerSnapshotPages(
             head:
@@ -791,6 +854,8 @@ class WalletApi {
       } else if (complete && hasUnknown && firstPage.length >= pageSize) {
         knownIds.addAll(firstPage.map((e) => e.id));
         _scheduleLedgerBackgroundSync(
+          owner: owner,
+          generation: identity.generation,
           scopeKey: scopeKey,
           task: () => _syncLedgerIncrementalPages(
             owner: owner,
@@ -825,11 +890,14 @@ class WalletApi {
   }
 
   void _scheduleLedgerBackgroundSync({
+    required String owner,
+    required int generation,
     required String scopeKey,
     required Future<void> Function() task,
   }) {
-    final owner = WalletLedgerLocalStore.instance.currentOwnerUserId();
-    final taskKey = '$owner:$scopeKey';
+    if (!SessionIdentityService.instance.isGenerationCurrent(generation) ||
+        WalletLedgerLocalStore.instance.currentOwnerUserId() != owner) return;
+    final taskKey = '$owner:$generation:$scopeKey';
     if (_ledgerBackgroundTasks.containsKey(taskKey)) return;
     late final Future<void> running;
     // Yield one event-loop turn so the page can paint before refresh traffic
@@ -864,15 +932,16 @@ class WalletApi {
   }) async {
     if (!isCurrent()) return;
     final store = WalletLedgerLocalStore.instance;
-    final firstPage = await (firstPageRequest ?? getLedger(
-      page: 0,
-      size: pageSize,
-      ledgerTypes: ledgerTypes,
-      source: source,
-      currency: currency,
-      startTime: startTime,
-      endTime: endTime,
-    ));
+    final firstPage = await (firstPageRequest ??
+        getLedger(
+          page: 0,
+          size: pageSize,
+          ledgerTypes: ledgerTypes,
+          source: source,
+          currency: currency,
+          startTime: startTime,
+          endTime: endTime,
+        ));
     if (!isCurrent()) return;
     if (firstPage.isEmpty) {
       if (!complete) {
@@ -883,6 +952,7 @@ class WalletApi {
     final hasUnknown = firstPage.any((item) => !knownIds.contains(item.id));
     await store.upsert(
         scopeKey: scopeKey, ownerUserId: owner, records: firstPage);
+    _notifyLedgerCommit(owner, scopeKey, isCurrent);
     if (firstPage.length < pageSize) {
       await store.markComplete(scopeKey: scopeKey, ownerUserId: owner);
       return;
@@ -964,6 +1034,7 @@ class WalletApi {
       );
       await store.upsert(
           scopeKey: scopeKey, ownerUserId: owner, records: batch);
+      _notifyLedgerCommit(owner, scopeKey, isCurrent);
       if (!isCurrent()) return;
       await LedgerPageProgress.save(
           owner: owner,
@@ -1016,6 +1087,7 @@ class WalletApi {
       );
       await store.upsert(
           scopeKey: scopeKey, ownerUserId: owner, records: batch);
+      _notifyLedgerCommit(owner, scopeKey, isCurrent);
       knownIds.addAll(batch.map((e) => e.id));
       if (batch.length < pageSize || !hasUnknown) return;
     }
@@ -1087,69 +1159,20 @@ class WalletApi {
     HistoryRecordFilter filter, {
     int page = 0,
     int size = 20,
+    bool localOnly = false,
   }) async {
-    Future<List<WalletRecordDto>> loadLedger({
-      List<String> ledgerTypes = const [],
-      String? source,
-    }) {
-      final shouldLoadAll = page == 0 && size == 20;
-      if (shouldLoadAll) {
-        return getLedgerAll(
-          ledgerTypes: ledgerTypes,
+    if (filter == HistoryRecordFilter.transferRefund) return const [];
+    final types = _historyTypes(filter);
+    final source = _historySource(filter);
+    if (localOnly || (page == 0 && size == 20)) {
+      return getLedgerAll(
+          ledgerTypes: types,
           source: source,
-        );
-      }
-      return getLedger(
-        page: page,
-        size: size,
-        ledgerTypes: ledgerTypes,
-        source: source,
-      ).then(_sortRecords);
+          localOnly: localOnly,
+          awaitFirstPage: filter == HistoryRecordFilter.all);
     }
-
-    switch (filter) {
-      case HistoryRecordFilter.all:
-        return page == 0 && size == 20
-            ? getHistoryRecords()
-            : getLedger(
-                page: page,
-                size: size,
-              ).then(_sortRecords);
-      case HistoryRecordFilter.chainDeposit:
-        return loadLedger(
-          ledgerTypes: const ['DEPOSIT'],
-          source: 'CHAIN',
-        );
-      case HistoryRecordFilter.internalDeposit:
-        return loadLedger(
-          ledgerTypes: const ['DEPOSIT'],
-          source: 'INTERNAL',
-        );
-      case HistoryRecordFilter.chainWithdraw:
-        return loadLedger(
-          ledgerTypes: const ['WITHDRAW'],
-          source: 'CHAIN',
-        );
-      case HistoryRecordFilter.internalWithdraw:
-        return loadLedger(
-          ledgerTypes: const ['WITHDRAW'],
-          source: 'INTERNAL',
-        );
-      case HistoryRecordFilter.redPacket:
-        return loadLedger(
-          ledgerTypes: const ['RED_PACKET_SEND', 'RED_PACKET_RECEIVE'],
-        );
-      case HistoryRecordFilter.redPacketRefund:
-        return loadLedger(
-          ledgerTypes: const ['RED_PACKET_REFUND'],
-        );
-      case HistoryRecordFilter.transfer:
-        return loadLedger(
-          ledgerTypes: const ['TRANSFER_OUT', 'TRANSFER_IN'],
-        );
-      case HistoryRecordFilter.transferRefund:
-        return const [];
-    }
+    return getLedger(page: page, size: size, ledgerTypes: types, source: source)
+        .then(_sortRecords);
   }
 
   Future<List<WalletRecordDto>> getDeposits({

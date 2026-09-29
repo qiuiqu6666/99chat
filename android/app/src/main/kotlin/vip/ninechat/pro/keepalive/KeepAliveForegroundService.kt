@@ -39,6 +39,13 @@ class KeepAliveForegroundService : Service() {
             return START_NOT_STICKY
         }
 
+        if (!KeepAliveScheduler.isEnabled(applicationContext)) {
+            Log.d(TAG, "ignore start while user setting is disabled")
+            running = false
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         val reason = intent?.getStringExtra(EXTRA_REASON) ?: "unknown"
         startForeground(NOTIFICATION_ID, buildNotification())
         running = true
@@ -113,6 +120,7 @@ class KeepAliveForegroundService : Service() {
 
         fun start(context: Context, reason: String) {
             val appContext = context.applicationContext
+            KeepAliveScheduler.enable(appContext)
             val intent = Intent(appContext, KeepAliveForegroundService::class.java).apply {
                 action = appContext.packageName + ACTION_START_SUFFIX
                 putExtra(EXTRA_REASON, reason)
@@ -126,6 +134,8 @@ class KeepAliveForegroundService : Service() {
 
         fun stop(context: Context, reason: String) {
             val appContext = context.applicationContext
+            KeepAliveScheduler.disableAndCancel(appContext)
+            KeepAliveWatchdogWorker.cancel(appContext)
             val intent = Intent(appContext, KeepAliveForegroundService::class.java).apply {
                 action = appContext.packageName + ACTION_STOP_SUFFIX
                 putExtra(EXTRA_REASON, reason)

@@ -42,6 +42,9 @@ class GroupList extends StatefulWidget {
 }
 
 class _GroupListState extends State<GroupList> {
+  bool get _useLocalDirectory =>
+      widget.channelOnly || GroupLocalPerfFlags.myGroupListAzOptimizeEnabled;
+
   static const _footerMarker = '__group_count_footer__';
   static const _searchDebounce = Duration(milliseconds: 250);
 
@@ -49,6 +52,8 @@ class _GroupListState extends State<GroupList> {
   final MyGroupListController _controller = MyGroupListController.instance;
   final TextEditingController _searchController = TextEditingController();
 
+  bool _directoryLoading = true;
+  bool _directoryFailed = false;
   String _searchKeyword = '';
   Timer? _searchDebounceTimer;
   List<ISuspensionBeanImpl>? _effectiveListSource;
@@ -57,33 +62,45 @@ class _GroupListState extends State<GroupList> {
   @override
   void initState() {
     super.initState();
-    if (GroupLocalPerfFlags.myGroupListAzOptimizeEnabled) {
-      _searchKeyword = '';
-      _controller.addListener(_onControllerChanged);
-      // Start the local snapshot read immediately during route construction;
-      // waiting for the first post-frame callback made the list appear late.
-      unawaited(_loadGroupsImmediately());
-    }
+    _searchKeyword = '';
+    _controller.addListener(_onControllerChanged);
+    // Start the local snapshot read immediately during route construction;
+    // waiting for the first post-frame callback made the list appear late.
+    unawaited(_loadGroupsImmediately());
   }
 
   Future<void> _loadGroupsImmediately() async {
-    await _controller.clearSearch(reload: false);
-    if (!mounted) return;
-    await _controller.ensureLoaded();
-    if (!mounted) return;
-    GroupMembershipSyncService.instance.scheduleGroupListBackgroundSync();
+    setState(() {
+      _directoryLoading = true;
+      _directoryFailed = false;
+    });
+    try {
+      await _controller.clearSearch(reload: false);
+      if (!mounted) return;
+      await _controller.ensureLoaded(force: true);
+      if (!mounted) return;
+      await GroupMembershipSyncService.instance
+          .syncFull(reason: 'my_group_list_directory', refresh: true);
+      if (!mounted) return;
+      await _controller.ensureLoaded(force: true);
+      if (!_useLocalDirectory) {
+        await GroupMembershipSyncService.instance.refreshUIKitGroupList();
+      }
+    } catch (_) {
+      if (mounted) _directoryFailed = true;
+    } finally {
+      if (mounted) setState(() => _directoryLoading = false);
+    }
   }
 
   @override
   void dispose() {
     _searchDebounceTimer?.cancel();
     _searchController.dispose();
-    if (GroupLocalPerfFlags.myGroupListAzOptimizeEnabled) {
-      _controller.removeListener(_onControllerChanged);
-      _controller.setScrolling(false);
-      // 离页清 keyword，避免再进仍是过滤结果；不 reload。
-      unawaited(_controller.clearSearch(reload: false));
-    }
+    _controller.removeListener(_onControllerChanged);
+    _controller.setScrolling(false);
+    // 离页清 keyword，避免再进仍是过滤结果；不 reload。
+    unawaited(_controller.clearSearch(reload: false));
     super.dispose();
   }
 
@@ -229,7 +246,9 @@ class _GroupListState extends State<GroupList> {
                           children: [
                             buildGroupTitleWithOptionalFlame(
                               name: showName,
-                              groupType: skeleton.groupType,
+                              groupType: skeleton.isChannel
+                                  ? null
+                                  : skeleton.groupType,
                               flameSize: titleFontSize - 1,
                               style: TextStyle(
                                 color: conversationGroupTitleColor(
@@ -237,7 +256,9 @@ class _GroupListState extends State<GroupList> {
                                       theme.conversationItemTitleTextColor ??
                                           theme.darkTextColor ??
                                           Colors.black,
-                                  groupType: skeleton.groupType,
+                                  groupType: skeleton.isChannel
+                                      ? null
+                                      : skeleton.groupType,
                                 ),
                                 fontSize: titleFontSize,
                                 fontWeight: FontWeight.w500,
@@ -294,6 +315,21 @@ class _GroupListState extends State<GroupList> {
     final showList = _controller.azShowList
         .where((row) => row.memberInfo.isChannel == widget.channelOnly)
         .toList();
+    if (showList.isEmpty && _directoryLoading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    }
+    if (showList.isEmpty && _directoryFailed) {
+      return Center(
+          child: TextButton(
+        onPressed: _loadGroupsImmediately,
+        child: Text(i18n.t(
+            zhHans: '加载失败，点击重试',
+            zhHant: '載入失敗，點擊重試',
+            en: 'Loading failed. Tap to retry',
+            ja: '読み込み失敗・再試行',
+            ko: '불러오기 실패. 다시 시도')),
+      ));
+    }
     if (!_controller.isLoading && showList.isEmpty) {
       return AppEmptyState(
         message: i18n.t(
@@ -384,14 +420,17 @@ class _GroupListState extends State<GroupList> {
   }
 
   Widget _buildGroupList(AppI18n i18n) {
-    if (GroupLocalPerfFlags.myGroupListAzOptimizeEnabled) {
+    if (_useLocalDirectory) {
+      return _buildOptimizedGroupList(i18n);
+    }
+    if (_directoryLoading || _directoryFailed) {
       return _buildOptimizedGroupList(i18n);
     }
     return _buildLegacyGroupList(i18n);
   }
 
   void _onSearchChanged(String value) {
-    if (!GroupLocalPerfFlags.myGroupListAzOptimizeEnabled) {
+    if (!_useLocalDirectory) {
       setState(() {
         _searchKeyword = value;
       });

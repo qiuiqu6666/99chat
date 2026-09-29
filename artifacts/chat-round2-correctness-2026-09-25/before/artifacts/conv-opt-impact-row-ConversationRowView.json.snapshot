@@ -1,0 +1,778 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Class:lib/src/services/conversation_local/conversation_row_view.dart:ConversationRowView",
+    "name": "ConversationRowView",
+    "type": "Class",
+    "filePath": "lib/src/services/conversation_local/conversation_row_view.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 82,
+  "risk": "MEDIUM",
+  "riskSharedAxes": "MEDIUM",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 1,
+    "processes_affected": 0,
+    "modules_affected": 0
+  },
+  "byDepthCounts": {
+    "1": 1,
+    "2": 10,
+    "3": 71
+  },
+  "affected_processes": [],
+  "affected_modules": [],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "File:lib/src/services/conversation_local/conversation_tab_store.dart",
+        "name": "conversation_tab_store.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "File:lib/src/bootstrap/home_bootstrap.dart",
+        "name": "home_bootstrap.dart",
+        "filePath": "lib/src/bootstrap/home_bootstrap.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/chat_session/chat_session_controller.dart",
+        "name": "chat_session_controller.dart",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/chat_session/chat_session_window_controller.dart",
+        "name": "chat_session_window_controller.dart",
+        "filePath": "lib/src/chat_session/chat_session_window_controller.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/chat_session/chat_session_window_state.dart",
+        "name": "chat_session_window_state.dart",
+        "filePath": "lib/src/chat_session/chat_session_window_state.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/conversation.dart",
+        "name": "conversation.dart",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/services/auth_bootstrap_service.dart",
+        "name": "auth_bootstrap_service.dart",
+        "filePath": "lib/src/services/auth_bootstrap_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/services/conversation_local/conversation_sync_service.dart",
+        "name": "conversation_sync_service.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/services/group_local/group_membership_sync_service.dart",
+        "name": "group_membership_sync_service.dart",
+        "filePath": "lib/src/services/group_local/group_membership_sync_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/services/home_post_im_sync_service.dart",
+        "name": "home_post_im_sync_service.dart",
+        "filePath": "lib/src/services/home_post_im_sync_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "File:lib/src/widgets/conversation_feed/conversation_feed_body.dart",
+        "name": "conversation_feed_body.dart",
+        "filePath": "lib/src/widgets/conversation_feed/conversation_feed_body.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "File:lib/main.dart",
+        "name": "main.dart",
+        "filePath": "lib/main.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/all_group_application_list.dart",
+        "name": "all_group_application_list.dart",
+        "filePath": "lib/src/all_group_application_list.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/api/group_member_api.dart",
+        "name": "group_member_api.dart",
+        "filePath": "lib/src/api/group_member_api.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/api/wallet_api.dart",
+        "name": "wallet_api.dart",
+        "filePath": "lib/src/api/wallet_api.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/cancel_account.dart",
+        "name": "cancel_account.dart",
+        "filePath": "lib/src/cancel_account.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/chat.dart",
+        "name": "chat.dart",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/chat_session/conversation_sync_coordinator.dart",
+        "name": "conversation_sync_coordinator.dart",
+        "filePath": "lib/src/chat_session/conversation_sync_coordinator.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/create_group.dart",
+        "name": "create_group.dart",
+        "filePath": "lib/src/create_group.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/group_info_detail.dart",
+        "name": "group_info_detail.dart",
+        "filePath": "lib/src/group_info_detail.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/group_list.dart",
+        "name": "group_list.dart",
+        "filePath": "lib/src/group_list.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/group_profile.dart",
+        "name": "group_profile.dart",
+        "filePath": "lib/src/group_profile.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/multi_platform_widget/search_entry/search_entry.dart",
+        "name": "search_entry.dart",
+        "filePath": "lib/src/multi_platform_widget/search_entry/search_entry.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/multi_platform_widget/search_entry/search_entry_wide.dart",
+        "name": "search_entry_wide.dart",
+        "filePath": "lib/src/multi_platform_widget/search_entry/search_entry_wide.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/my_profile_detail.dart",
+        "name": "my_profile_detail.dart",
+        "filePath": "lib/src/my_profile_detail.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/pages/app.dart",
+        "name": "app.dart",
+        "filePath": "lib/src/pages/app.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/pages/c2c_chat_settings_page.dart",
+        "name": "c2c_chat_settings_page.dart",
+        "filePath": "lib/src/pages/c2c_chat_settings_page.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/pages/cross_platform/wide_screen/conversation_and_chat.dart",
+        "name": "conversation_and_chat.dart",
+        "filePath": "lib/src/pages/cross_platform/wide_screen/conversation_and_chat.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/pages/cross_platform/wide_screen/home_page.dart",
+        "name": "home_page.dart",
+        "filePath": "lib/src/pages/cross_platform/wide_screen/home_page.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/pages/cross_platform/wide_screen/left_bar.dart",
+        "name": "left_bar.dart",
+        "filePath": "lib/src/pages/cross_platform/wide_screen/left_bar.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/pages/cross_platform/wide_screen/settings.dart",
+        "name": "settings.dart",
+        "filePath": "lib/src/pages/cross_platform/wide_screen/settings.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/pages/forgot_password.dart",
+        "name": "forgot_password.dart",
+        "filePath": "lib/src/pages/forgot_password.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/pages/home_page.dart",
+        "name": "home_page.dart",
+        "filePath": "lib/src/pages/home_page.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/pages/login.dart",
+        "name": "login.dart",
+        "filePath": "lib/src/pages/login.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/pages/wallet/red_packet/paged_group_recipient_picker.dart",
+        "name": "paged_group_recipient_picker.dart",
+        "filePath": "lib/src/pages/wallet/red_packet/paged_group_recipient_picker.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/platform/listener_store.dart",
+        "name": "listener_store.dart",
+        "filePath": "lib/src/platform/listener_store.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/platform/uikit_conversation_local_bridge.dart",
+        "name": "uikit_conversation_local_bridge.dart",
+        "filePath": "lib/src/platform/uikit_conversation_local_bridge.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/platform/uikit_self_hosted_group_bridge.dart",
+        "name": "uikit_self_hosted_group_bridge.dart",
+        "filePath": "lib/src/platform/uikit_self_hosted_group_bridge.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/platform/web_im_realtime_watchdog_stub.dart",
+        "name": "web_im_realtime_watchdog_stub.dart",
+        "filePath": "lib/src/platform/web_im_realtime_watchdog_stub.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/platform/web_im_realtime_watchdog_web.dart",
+        "name": "web_im_realtime_watchdog_web.dart",
+        "filePath": "lib/src/platform/web_im_realtime_watchdog_web.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/account_session_service.dart",
+        "name": "account_session_service.dart",
+        "filePath": "lib/src/services/account_session_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/app_badge_sync_service.dart",
+        "name": "app_badge_sync_service.dart",
+        "filePath": "lib/src/services/app_badge_sync_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/archived_conversation_entry_visibility.dart",
+        "name": "archived_conversation_entry_visibility.dart",
+        "filePath": "lib/src/services/archived_conversation_entry_visibility.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/auth_session_service.dart",
+        "name": "auth_session_service.dart",
+        "filePath": "lib/src/services/auth_session_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/call_bubble_insert_service.dart",
+        "name": "call_bubble_insert_service.dart",
+        "filePath": "lib/src/services/call_bubble_insert_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/chat_external_message_sender.dart",
+        "name": "chat_external_message_sender.dart",
+        "filePath": "lib/src/services/chat_external_message_sender.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/chat_failed_message_retry_service.dart",
+        "name": "chat_failed_message_retry_service.dart",
+        "filePath": "lib/src/services/chat_failed_message_retry_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/conversation_history_clear_service.dart",
+        "name": "conversation_history_clear_service.dart",
+        "filePath": "lib/src/services/conversation_history_clear_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/conversation_history_warm_scheduler.dart",
+        "name": "conversation_history_warm_scheduler.dart",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/conversation_local/conversation_draft_service.dart",
+        "name": "conversation_draft_service.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/conversation_local/conversation_unread_aggregate.dart",
+        "name": "conversation_unread_aggregate.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_unread_aggregate.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/conversation_peer_read_sync_service.dart",
+        "name": "conversation_peer_read_sync_service.dart",
+        "filePath": "lib/src/services/conversation_peer_read_sync_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/conversation_pin_sync_service.dart",
+        "name": "conversation_pin_sync_service.dart",
+        "filePath": "lib/src/services/conversation_pin_sync_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/conversation_unread_clear_service.dart",
+        "name": "conversation_unread_clear_service.dart",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/friend_local/friend_sync_service.dart",
+        "name": "friend_sync_service.dart",
+        "filePath": "lib/src/services/friend_local/friend_sync_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/group_conversation_unread_helper.dart",
+        "name": "group_conversation_unread_helper.dart",
+        "filePath": "lib/src/services/group_conversation_unread_helper.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/group_join_application_service.dart",
+        "name": "group_join_application_service.dart",
+        "filePath": "lib/src/services/group_join_application_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/group_local/group_create_service.dart",
+        "name": "group_create_service.dart",
+        "filePath": "lib/src/services/group_local/group_create_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/group_local/group_member_incremental_sync_service.dart",
+        "name": "group_member_incremental_sync_service.dart",
+        "filePath": "lib/src/services/group_local/group_member_incremental_sync_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/group_local/group_metadata_refresh_coordinator.dart",
+        "name": "group_metadata_refresh_coordinator.dart",
+        "filePath": "lib/src/services/group_local/group_metadata_refresh_coordinator.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/group_local/group_sync_service.dart",
+        "name": "group_sync_service.dart",
+        "filePath": "lib/src/services/group_local/group_sync_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/home_realtime_connection_state_machine.dart",
+        "name": "home_realtime_connection_state_machine.dart",
+        "filePath": "lib/src/services/home_realtime_connection_state_machine.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/im/outgoing_outbox_recovery_service.dart",
+        "name": "outgoing_outbox_recovery_service.dart",
+        "filePath": "lib/src/services/im/outgoing_outbox_recovery_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/im/outgoing_send_coordinator.dart",
+        "name": "outgoing_send_coordinator.dart",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/im_recovery_service.dart",
+        "name": "im_recovery_service.dart",
+        "filePath": "lib/src/services/im_recovery_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/im_snapshot_bootstrap_service.dart",
+        "name": "im_snapshot_bootstrap_service.dart",
+        "filePath": "lib/src/services/im_snapshot_bootstrap_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/login_coordinator.dart",
+        "name": "login_coordinator.dart",
+        "filePath": "lib/src/services/login_coordinator.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/notification_settings_service.dart",
+        "name": "notification_settings_service.dart",
+        "filePath": "lib/src/services/notification_settings_service.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/services/restore_work_pacer.dart",
+        "name": "restore_work_pacer.dart",
+        "filePath": "lib/src/services/restore_work_pacer.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/session/session_manager.dart",
+        "name": "session_manager.dart",
+        "filePath": "lib/src/session/session_manager.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/user_profile.dart",
+        "name": "user_profile.dart",
+        "filePath": "lib/src/user_profile.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/utils/connect_status_ui.dart",
+        "name": "connect_status_ui.dart",
+        "filePath": "lib/src/utils/connect_status_ui.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/utils/contact_conversation_peek.dart",
+        "name": "contact_conversation_peek.dart",
+        "filePath": "lib/src/utils/contact_conversation_peek.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/utils/group_invite_member_page_meta.dart",
+        "name": "group_invite_member_page_meta.dart",
+        "filePath": "lib/src/utils/group_invite_member_page_meta.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/widgets/conversation_feed/conversation_feed_empty_state.dart",
+        "name": "conversation_feed_empty_state.dart",
+        "filePath": "lib/src/widgets/conversation_feed/conversation_feed_empty_state.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/widgets/conversation_feed/conversation_feed_sync_gate.dart",
+        "name": "conversation_feed_sync_gate.dart",
+        "filePath": "lib/src/widgets/conversation_feed/conversation_feed_sync_gate.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/widgets/conversation_scope_unread_badge.dart",
+        "name": "conversation_scope_unread_badge.dart",
+        "filePath": "lib/src/widgets/conversation_scope_unread_badge.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/src/widgets/forward_pick_pages.dart",
+        "name": "forward_pick_pages.dart",
+        "filePath": "lib/src/widgets/forward_pick_pages.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/utils/group_member_join_meta_loader.dart",
+        "name": "group_member_join_meta_loader.dart",
+        "filePath": "lib/utils/group_member_join_meta_loader.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/utils/init_step.dart",
+        "name": "init_step.dart",
+        "filePath": "lib/utils/init_step.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:lib/utils/toast.dart",
+        "name": "toast.dart",
+        "filePath": "lib/utils/toast.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "File:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "name": "tui_chat_separate_view_model.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "relationType": "IMPORTS",
+        "confidence": 1,
+        "processes": []
+      }
+    ]
+  }
+}
+

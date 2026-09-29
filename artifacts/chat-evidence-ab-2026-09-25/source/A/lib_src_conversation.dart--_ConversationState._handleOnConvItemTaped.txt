@@ -1,0 +1,241 @@
+void _handleOnConvItemTaped(V2TimConversation? selectedConv) async {
+    if (selectedConv == null) {
+      return;
+    }
+    _lockEntryUnreadIfNeeded(selectedConv);
+    final conversationID = selectedConv.conversationID;
+    if (conversationID.isEmpty) {
+      return;
+    }
+    // 移动端一次只允许一个 chat open 进入导航栈。旧实现只拦同一会话，
+    // 冷开 prepare 期间快速点另一行可能产生两条竞争的 Chat route。
+    if (_openingConversationID != null) {
+      return;
+    }
+    _openingConversationID = conversationID;
+    unawaited(
+      ConversationSyncService.instance.retainOpenedGroupConversation(
+        selectedConv,
+      ),
+    );
+
+    final pushChatRoute = widget.onConversationChanged == null;
+    ChatCoverageRepairScheduler.instance.pause(reason: 'conv_item_tap');
+    OpenViewportCache.instance.pause(reason: 'conv_item_tap');
+    if (pushChatRoute) {
+      ConversationSyncService.instance.beginChatTransition();
+    }
+
+    final entryUnreadCount = selectedConv.unreadCount ?? 0;
+    // Pipeline [1] - conv_item_tap：建立 t0 锚点（跨页面跨文件）
+    final pipelineKey = ChatPipelineClock.normalizeKey(
+      rawConversationId: selectedConv.conversationID,
+      userId: selectedConv.userID,
+      groupId: selectedConv.groupID,
+    );
+    ChatPipelineClock.instance
+      ..start(pipelineKey)
+      ..trace(pipelineKey, 'conv_item_tap',
+          elapsedMs: 0,
+          extras: <String, Object?>{
+            'entryUnread': entryUnreadCount,
+            'embedded': widget.onConversationChanged != null,
+          });
+    ConversationUnreadTrace.log(
+      'conv_item_tap',
+      conversationID: conversationID,
+      unreadBefore: entryUnreadCount,
+      extras: <String, Object?>{
+        'embedded': widget.onConversationChanged != null,
+      },
+    );
+    await ConversationUnreadClearService.clearLocalForOpenFast(
+      conversation: selectedConv,
+      markViewModelReadLocally: _controller.model.markConversationReadLocally,
+    );
+
+    final openCacheKey =
+        _chatCacheConversationKey(selectedConv) ?? conversationID;
+    ConversationHistoryWarmScheduler.instance.touchMemoryWarm(openCacheKey);
+    final isGroup = selectedConv.type == 2 ||
+        (selectedConv.groupID?.trim().isNotEmpty ?? false);
+    ChatOpenPerfLog.beginOpen(
+      conversationID: openCacheKey,
+      phase: 'conv_item_tap',
+      extras: <String, Object?>{
+        'rawConvID': conversationID,
+        'isGroup': isGroup,
+        'entryUnread': entryUnreadCount,
+        'pushRoute': pushChatRoute,
+        'warmReady': ConversationPreviewHistorySync.isWarmWindowReadyForOpen(
+          globalModel: serviceLocator<TUIChatGlobalModel>(),
+          conversationKey: openCacheKey,
+          preview: selectedConv.lastMessage,
+        ),
+        'rawCount': serviceLocator<TUIChatGlobalModel>().rawMessageCount(
+          openCacheKey,
+        ),
+        'initialLoaded': serviceLocator<TUIChatGlobalModel>()
+            .hasInitialHistoryLoaded(openCacheKey),
+      },
+    );
+    final openTrace = ChatOpenPerfLog.captureCurrent(
+      conversationKey: openCacheKey,
+    );
+
+    final embeddedChat = widget.onConversationChanged != null;
+    if (embeddedChat) {
+      final previous = _embeddedActiveConversationID;
+      if (previous != null &&
+          !MessageConversationId.sameConversation(previous, conversationID)) {
+        final previousUnread = _embeddedEntryUnreadById[previous] ?? 0;
+        unawaited(
+          _finalizeConversationLeave(
+            previous,
+            entryUnreadCount: previousUnread,
+          ),
+        );
+      }
+      _embeddedActiveConversationID = conversationID;
+      _embeddedEntryUnreadById[conversationID] = entryUnreadCount;
+    }
+    _controller.model.assignSelectedConversation(
+      selectedConv,
+      notify: embeddedChat,
+    );
+
+    if (!mounted) {
+      if (pushChatRoute) {
+        ConversationSyncService.instance.cancelChatTransition();
+      }
+      _openingConversationID = null;
+      return;
+    }
+    DeviceSyncService.instance.prepareForChatNavigation();
+    try {
+      if (mounted) {
+        unawaited(
+          AvatarImageWarm.warmSources(
+            <AvatarImageWarmSource>[
+              _conversationAvatarWarmSource(selectedConv),
+            ],
+            context: context,
+            logicalSize: 40,
+          ),
+        );
+      }
+      if (widget.onConversationChanged != null) {
+        ChatOpenPerfLog.mark('embedded_chat_switch');
+        widget.onConversationChanged!(selectedConv);
+      } else {
+        ChatOpenPerfLog.mark('open_prewarm_begin');
+        // Telegram-style open: start the local-only snapshot, but never make
+        // the route transition wait for a native SDK/database read. The Chat
+        // page reuses this flight after mounting and renders the result when
+        // it arrives.
+        unawaited(() async {
+          try {
+            final coordinator = ChatOpenViewportCoordinator.instance;
+            final prepareTask = coordinator.prepareOpenViewport(
+              conversation: selectedConv,
+              source: 'list',
+            );
+            final listRequestId = coordinator.currentRequestId;
+            final snap = await prepareTask;
+            if (!coordinator.isCurrent(
+              listRequestId,
+              snap.conversationKey,
+            )) {
+              final work = coordinator.snapshotFor(listRequestId);
+              ChatOpenPerfLog.mark(
+                'viewport_prepare_ignored',
+                extras: <String, Object?>{
+                  'key': snap.conversationKey,
+                  'coverage': snap.coverageState.name,
+                  'requestId': listRequestId,
+                  'prepareId': listRequestId,
+                  'currentRequestId': coordinator.currentRequestId,
+                  'source': 'list',
+                  'owned': work?.owned ?? false,
+                  'joined': work?.joined ?? false,
+                  'dbRead': work?.dbRead ?? false,
+                  'sdkRead': work?.sdkRead ?? false,
+                  'committed': work?.committed ?? false,
+                  'ignoredReason': 'requestIdMismatch',
+                },
+                trace: openTrace,
+              );
+              return;
+            }
+            ChatOpenPerfLog.mark(
+              'open_prewarm_end',
+              extras: <String, Object?>{
+                'complete': snap.isViewportReady,
+                'rawCount': snap.continuousCount,
+                'coverage': snap.coverageState.name,
+                'source': snap.source.name,
+                'requestId': listRequestId,
+                'localReadyBeforePush': false,
+                'background': false,
+              },
+              trace: openTrace,
+            );
+          } catch (error) {
+            ChatOpenPerfLog.mark(
+              'open_prewarm_error',
+              extras: <String, Object?>{'error': '$error'},
+              trace: openTrace,
+            );
+          }
+        }());
+        ChatOpenViewportCoordinator.instance.markTransitioning(
+          openCacheKey,
+        );
+        ChatOpenPerfLog.mark('navigator_push_begin', trace: openTrace);
+        await openOrReuseAppChat(
+          context,
+          selectedConv,
+          entryUnreadCount: entryUnreadCount,
+        );
+        ChatOpenPerfLog.mark('navigator_pop_back', trace: openTrace);
+        ConversationDraftLeaveTrace.stage(
+          'conversation_list_resume',
+          conversationId: conversationID,
+          draftText: ConversationTabStore.instance
+              .conversationForId(conversationID)
+              ?.draftText,
+        );
+        ChatOpenPerfLog.emitOpenTraceSummary(phase: 'pop', trace: openTrace);
+        if (!mounted) {
+          return;
+        }
+        // Chat.dispose 也会启动同一 finalize。这里必须等待它的 single-flight
+        // 本地提交完成后再强制 hydrate，否则会从 SQLite 读回旧 unread。
+        await _finalizeConversationLeave(
+          conversationID,
+          entryUnreadCount: entryUnreadCount,
+        );
+        if (!mounted) {
+          return;
+        }
+        // 从聊天返回：预热当前会话头像，降低列表行闪动。
+        unawaited(
+          AvatarImageWarm.warmSources(
+            <AvatarImageWarmSource>[
+              _conversationAvatarWarmSource(selectedConv),
+            ],
+            context: context,
+            logicalSize: 52,
+          ),
+        );
+      }
+    } finally {
+      if (_openingConversationID == conversationID) {
+        _openingConversationID = null;
+      }
+      if (pushChatRoute &&
+          ConversationSyncService.instance.hasActiveChatTransition) {
+        ConversationSyncService.instance.cancelChatTransition();
+      }
+    }
+  }

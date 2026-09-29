@@ -1,0 +1,55 @@
+@override
+  void initState() {
+    super.initState();
+    ChatJitterDiag.logWidgetLifecycle(
+      widget: 'TIMUIKitChat',
+      phase: 'initState',
+      stateHash: identityHashCode(this),
+      conv: _getConvID(),
+    );
+    final settingModel = serviceLocator<TUISettingModel>();
+    _keyboardCoordinator = KeyboardViewportTransitionCoordinator(
+      onBegin: _onKeyboardTransitionBegin,
+      onEnd: _onKeyboardTransitionEnd,
+      persistTrustedHeight: (height) {
+        settingModel.keyboardHeight = height;
+      },
+    );
+    _keyboardCoordinator.seedCachedHeight(settingModel.keyboardHeight);
+    KeyboardViewportTransitionCoordinator.active = _keyboardCoordinator;
+    _imeInsetsBridge.start(_keyboardCoordinator);
+    WidgetsBinding.instance.addObserver(this);
+    chatGlobalModel.setChatAppLifecycleState(
+      WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed,
+    );
+    TIMUIKitChatBackgroundRegistry.instance.addListener(
+      _onChatBackgroundRegistryChanged,
+    );
+    GroupMemberStore.instance.addListener(_onGroupMemberStoreChanged);
+    DisplayNameStore.instance.addListener(_onDisplayNameStoreChanged);
+    if (kProfileMode) {
+      Frame.init();
+    }
+    ChatMainThreadPerf.retainFrameTimingProbe();
+    _addGroupListener();
+    model.abstractMessageBuilder = widget.abstractMessageBuilder;
+    model.onTapAvatar = widget.onTapAvatar;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final view = _flutterView;
+      if (view != null) {
+        _keyboardCoordinator.applyFromView(view);
+      }
+    });
+    Future<void>.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) {
+        return;
+      }
+      _updateJoinInGroupCallWidget();
+    });
+    Future.delayed(const Duration(milliseconds: 500), () {
+      updateDraft();
+    });
+  }

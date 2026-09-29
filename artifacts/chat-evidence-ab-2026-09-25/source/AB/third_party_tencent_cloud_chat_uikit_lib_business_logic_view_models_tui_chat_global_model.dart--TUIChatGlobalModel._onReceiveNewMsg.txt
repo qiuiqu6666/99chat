@@ -1,0 +1,135 @@
+Future<void> _onReceiveNewMsg(
+    V2TimMessage msgComing, {
+    String? ingressEventID,
+    int? ingressSequence,
+    bool projectMessageList = true,
+  }) async {
+    final lifecycleGeneration = _messageHistoryCoverageSessionGeneration;
+    final writerScope = _messageReconciliationWriter.configuredScope;
+    final initialConvID = _messageConversationID(msgComing);
+    if (initialConvID == null || initialConvID.isEmpty) {
+      return;
+    }
+
+    final capturedClearEpoch = messageDeltaClearEpochFor(initialConvID);
+    V2TimMessage? mountedMessage = msgComing;
+    if (_lifeCycle?.newMessageWillMount != null) {
+      try {
+        mountedMessage = await _lifeCycle!.newMessageWillMount(msgComing);
+      } catch (e) {
+        outputLogger.i('newMessageWillMount error: $e');
+        mountedMessage = msgComing;
+      }
+    }
+    if (!_isMessageLifecycleCurrent(lifecycleGeneration) ||
+        _messageReconciliationWriter.configuredScope != writerScope ||
+        messageDeltaClearEpochFor(initialConvID) != capturedClearEpoch) {
+      ChatJitterDiag.log(
+        'message_inbound_drop_stale_lifecycle',
+        conv: initialConvID,
+        extras: <String, Object?>{
+          'generation': lifecycleGeneration,
+          'currentGeneration': _messageHistoryCoverageSessionGeneration,
+        },
+      );
+      return;
+    }
+    if (mountedMessage == null) {
+      return;
+    }
+    mountedMessage = _normalizeInboundC2cDirection(mountedMessage);
+
+    final rawConvID = _messageConversationID(mountedMessage) ?? initialConvID;
+    final convID = _resolveMessageListStorageKey(rawConvID);
+    _syncGroupMemberFromMessage(mountedMessage);
+    final senderId = TencentUtils.checkString(mountedMessage.sender) ??
+        TencentUtils.checkString(mountedMessage.userID);
+    if (mountedMessage.isSelf != true && senderId != null) {
+      unawaited(
+        UserProfileLocalBridge.upsertPublicProfileFromSnapshot(
+          userId: senderId,
+          nickName: mountedMessage.nickName,
+          faceUrl: mountedMessage.faceUrl,
+        ),
+      );
+    }
+
+    // Typing/status custom messages should update typing state only. They must not
+    // enter the visible message list, but they also must not stop normal message
+    // events in other conversations.
+    final bool isEditMessage = _editStatusCheck(mountedMessage);
+    if (isEditMessage) {
+      return;
+    }
+
+    if (!projectMessageList) {
+      if (HistoryWindowRepositoryProvider.repository != null) {
+        await _admitBoundedHistoryIncoming(
+          mountedMessage,
+          eventID: ingressEventID,
+          ingressSequence: ingressSequence,
+          allowLatestReveal: false,
+        );
+      }
+      return;
+    }
+
+    if (!_isSameConversationID(convID, currentSelectedConv) &&
+        !_messageListMap.containsKey(convID)) {
+      // Notifications and business signaling run outside this display model.
+      // Opening this conversation will read the SDK's persisted recent page.
+      return;
+    }
+
+    if (HistoryWindowRepositoryProvider.repository != null &&
+        await _admitBoundedHistoryIncoming(mountedMessage,
+            eventID: ingressEventID, ingressSequence: ingressSequence)) return;
+    if (!_isMessageLifecycleCurrent(lifecycleGeneration) ||
+        _messageReconciliationWriter.configuredScope != writerScope) return;
+
+    _checkFromUserisActive(mountedMessage);
+    final convType = TencentUtils.checkString(mountedMessage.groupID) != null
+        ? ConvType.group
+        : ConvType.c2c;
+    final isActiveConversation = _isSameConversationID(
+      convID,
+      currentSelectedConv,
+    );
+
+    if (isActiveConversation &&
+        chatConfig.isAutoReportRead &&
+        lockedEntryUnreadCountFor(convID) == 0) {
+      _scheduleActiveReadReport(convID: convID, convType: convType);
+    }
+
+    // Self-sent sync on the active chat must stay immediate for send UX.
+    if (isActiveConversation && mountedMessage.isSelf == true) {
+      _syncSelfSentMessage(convID, mountedMessage, forceSuccess: false);
+      _markNeedsNotify();
+      return;
+    }
+
+    // Group seq gap detection: if the reorder buffer is active for this
+    // conversation, route through it so out-of-order messages are buffered
+    // and missing messages trigger a cloud catch-up. C2C seq has no global
+    // continuity so the buffer is never active for C2C.
+    final buffer = _reorderBuffersByConv[convID];
+    if (buffer != null && buffer.isActivated && convType == ConvType.group) {
+      final result = buffer.accept(mountedMessage);
+      if (result == null) {
+        // Buffered: out-of-order or gap detected, will be flushed later.
+        return;
+      }
+      if (result.isEmpty) {
+        // Duplicate (seq <= expected), silently dropped.
+        return;
+      }
+      // Contiguous: upsert immediately (may include drained buffer messages).
+      for (final msg in result) {
+        _inboundBatchCoalescer.enqueue(convID, msg);
+      }
+      return;
+    }
+
+    _inboundBatchCoalescer.enqueue(convID, mountedMessage);
+  }

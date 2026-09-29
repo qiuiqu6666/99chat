@@ -1,0 +1,25 @@
+Changes: 51 files, 211 symbols
+Affected processes: 2
+Risk level: medium
+
+Changed symbols:
+  Class TUIKitDemoApp → lib/main.dart
+  Class AgentSessionInterceptor → lib/src/api/agent_session_guard.dart
+  Method onResponse → lib/src/api/agent_session_guard.dart
+  Method onError → lib/src/api/agent_session_guard.dart
+  Class ApiClient → lib/src/api/api_client.dart
+  Property _handlingAuthExpiredGeneration → lib/src/api/api_client.dart
+  Property _sessionRevision → lib/src/api/api_client.dart
+  Property sessionRevision → lib/src/api/api_client.dart
+  Method jwtExpiresAt → lib/src/api/api_client.dart
+  Method isJwtExpired → lib/src/api/api_client.dart
+  Method expireSessionIfNeeded → lib/src/api/api_client.dart
+  Method handleSessionExpiryError → lib/src/api/api_client.dart
+  Class CommunityCreatePrice → lib/src/api/group_create_limit_api.dart
+  Property currency → lib/src/api/group_create_limit_api.dart
+  Property amountMinor → lib/src/api/group_create_limit_api.dart
+... and 196 more
+
+Affected execution flows:
+  • Build → JwtExpiresAt (9 steps) — changed: isJwtExpired, jwtExpiresAt
+  • RestoreColdStartSession → JwtExpiresAt (4 steps) — changed: isJwtExpired, jwtExpiresAt

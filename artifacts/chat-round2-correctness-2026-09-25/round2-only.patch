@@ -1,0 +1,4524 @@
+diff --git a/.gitnexusignore b/.gitnexusignore
+index c0aa450f2cb7ac382131fbc192c2eab4d58ee0bc..2dc106c5c7c85f60cefff8ef2224fe7a3e56b646 100644
+--- a/.gitnexusignore
++++ b/.gitnexusignore
+@@ -13,3 +13,7 @@ third_party/tencent_cloud_chat_uikit/*
+ /web/trtc.js
+ /web/tim-js-friendship.js
+ /web/sdk/tencentcloud-chat.js
++
++# Audit evidence contains source snapshots and generated web bundles.
++# Index the live source tree rather than duplicate historical artifacts.
++/artifacts/
+diff --git a/lib/src/chat.dart b/lib/src/chat.dart
+index a91f84e63b254bf60cfebf4695e4ac73553735b0..4dab6499f3c02c716a23cd61a7c84bd7848ee3f8 100644
+--- a/lib/src/chat.dart
++++ b/lib/src/chat.dart
+@@ -387,7 +387,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+         _ensureDraftEdit(_resolvedConversationID(), userEdit: true), text);
+     if (edit == null) return null;
+     _draftEdit = edit;
+-    return _draft.captureSubmission(text, persistenceToken: edit);
++    return _draft.captureSubmission(text, persistenceToken: edit)
++      ..durableContext = service.submissionContext(edit);
+   }
+ 
+   void _clearSubmittedDraftInput(Object? value) {
+@@ -7375,6 +7376,9 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+       return;
+     }
+     _restoreActiveChatRegistry();
++    // A maintained route already owns its message anchors and relative offset.
++    // Ordinary returns must not reset its window or schedule a stale scroll.
++    if (_hasVisibleHistoryMessages()) return;
+     _clearMountedDisplayListCache();
+     final convKey = _getConvID()?.trim() ?? '';
+     if (convKey.isNotEmpty &&
+@@ -7385,24 +7389,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+     }
+     if (!_hasVisibleHistoryMessages()) {
+       await _reloadChatHistoryIfEmpty(reason: reason);
+-    } else {
+-      // 有缓存消息仍空白时：贴底 + 轻量刷新驱动列表重绘。
+-      try {
+-        final scroll = _chatController.scrollController;
+-        if (scroll != null && scroll.hasClients) {
+-          scroll.jumpTo(scroll.position.minScrollExtent);
+-        }
+-      } catch (_) {}
+-      ChatDiagLog.log(
+-        'ChatHistory',
+-        'overlay_return_refresh_ui',
+-        conversationID: _resolvedConversationID(),
+-        extras: <String, Object?>{
+-          'reason': reason,
+-          'rawCount':
+-              convKey.isEmpty ? 0 : globalModel.rawMessageCount(convKey),
+-        },
+-      );
+     }
+     if (mounted) {
+       setState(() {});
+diff --git a/lib/src/chat_page/chat_draft_controller.dart b/lib/src/chat_page/chat_draft_controller.dart
+index ebcef90d81c20738b656cb80304605dc4d05451b..0ee0a97ef9c4b56d5b34e73f7c97c47f2d64cd54 100644
+--- a/lib/src/chat_page/chat_draft_controller.dart
++++ b/lib/src/chat_page/chat_draft_controller.dart
+@@ -1,8 +1,11 @@
+ import 'dart:async';
++import 'package:tencent_cloud_chat_demo/src/services/im/outbox_draft_submission.dart';
+ 
+ /// Captured before the input is cleared. Identity is never reused by another
+ /// page/conversation, even when its local revision starts from zero.
+-class ChatDraftSubmission {
++class ChatDraftSubmission implements ImDurableTextSubmission {
++  @override
++  ImDraftSubmissionContext? durableContext;
+   ChatDraftSubmission._(
+       this.editorIdentity, this.revision, this.text, this.persistenceToken);
+   final Object editorIdentity;
+diff --git a/lib/src/navigation/app_chat_route.dart b/lib/src/navigation/app_chat_route.dart
+index 1ee318fc7c7807b74755cc1ebd104ed654ac829a..dafb15f8eec4f0f4c4ef5b74cb345c98ea8b59df 100644
+--- a/lib/src/navigation/app_chat_route.dart
++++ b/lib/src/navigation/app_chat_route.dart
+@@ -1,4 +1,5 @@
+ import 'dart:async';
++import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+ 
+ import 'package:tencent_cloud_chat_uikit/ui/utils/background_media_gate.dart';
+ 
+@@ -19,6 +20,17 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/message_anchor.dart';
+ /// active Chat route in the same Navigator. It does not share Chat State across
+ /// conversations; it only lets callers return to an existing conversation
+ /// route instead of stacking a duplicate instance.
++class _PendingChatOpen {
++  _PendingChatOpen(BuildContext context) : callers = [context];
++  final List<BuildContext> callers;
++  final Completer<Object?> result = Completer<Object?>();
++}
++
++String _accountRouteKey(String key) {
++  final session = SessionIdentityService.instance.capture();
++  return session.ownerUserId + '|' + session.generation.toString() + '|' + key;
++}
++
+ class AppChatRouteRegistry {
+   AppChatRouteRegistry._();
+ 
+@@ -27,12 +39,18 @@ class AppChatRouteRegistry {
+   final Map<NavigatorState, Map<String, List<Route<dynamic>>>> _routes =
+       <NavigatorState, Map<String, List<Route<dynamic>>>>{};
+ 
++  final Map<NavigatorState, Map<String, _PendingChatOpen>> _pending = {};
++  @visibleForTesting
++  Future<void> Function()? prepareForTest;
++  @visibleForTesting
++  Route<dynamic> Function()? routeForTest;
++
+   void register({
+     required NavigatorState navigator,
+     required String sessionKey,
+     required Route<dynamic> route,
+   }) {
+-    final key = sessionKey.trim();
++    final key = _accountRouteKey(sessionKey.trim());
+     if (key.isEmpty) {
+       return;
+     }
+@@ -45,31 +63,24 @@ class AppChatRouteRegistry {
+     routes.add(route);
+   }
+ 
+-  void unregister({
+-    required NavigatorState navigator,
+-    required String sessionKey,
+-    required Route<dynamic> route,
+-  }) {
++  void unregister(
++      {required NavigatorState navigator,
++      required String sessionKey,
++      required Route<dynamic> route}) {
+     final routes = _routes[navigator];
+-    if (routes == null) {
+-      return;
+-    }
+-    final key = sessionKey.trim();
+-    final sessionRoutes = routes[key];
+-    sessionRoutes?.removeWhere((candidate) => identical(candidate, route));
+-    if (sessionRoutes?.isEmpty ?? false) {
+-      routes.remove(key);
+-    }
+-    if (routes.isEmpty) {
+-      _routes.remove(navigator);
++    if (routes == null) return;
++    for (final list in routes.values) {
++      list.removeWhere((candidate) => identical(candidate, route));
+     }
++    routes.removeWhere((_, list) => list.isEmpty);
++    if (routes.isEmpty) _routes.remove(navigator);
+   }
+ 
+   Route<dynamic>? activeRoute(
+     NavigatorState navigator,
+     String sessionKey,
+   ) {
+-    final key = sessionKey.trim();
++    final key = _accountRouteKey(sessionKey.trim());
+     final navigatorRoutes = _routes[navigator];
+     final sessionRoutes = navigatorRoutes?[key];
+     if (sessionRoutes == null) {
+@@ -89,7 +100,12 @@ class AppChatRouteRegistry {
+   }
+ 
+   @visibleForTesting
+-  void reset() => _routes.clear();
++  void reset() {
++    _routes.clear();
++    _pending.clear();
++    prepareForTest = null;
++    routeForTest = null;
++  }
+ 
+   /// Defensive helper: returns true iff at least one active Chat route is
+   /// currently registered in any navigator. Used by callers that want to
+@@ -224,7 +240,8 @@ Route<T> appChatRoute<T>(
+               conversation,
+               initFindingMsg,
+             ));
+-  final sessionKey = appChatSessionKey(conversation);
++  final sessionKey = appChatSessionKey(conversation) +
++      (resolvedAnchor == null ? '' : '|anchor:' + resolvedAnchor.stableKey);
+   return AppMaterialPageRoute<T>(
+     settings: const RouteSettings(name: AppRoutes.chat),
+     // 聊天页禁止转场 snapshot：转场结束切回 live 树时会卸掉消息列表 State，
+@@ -314,49 +331,90 @@ Future<T?> openOrReuseAppChat<T>(
+       return value is T ? value : null;
+     });
+   }
+-  // 只等本地 fast classify。H0 由 prepareOpenViewport 并行启动，不阻塞 push。
+-  final waitStart = DateTime.now();
+-  try {
+-    final media = MediaQuery.maybeOf(context);
+-    final viewportHeight = (media?.size.height ?? 640) -
+-        (media?.padding.top ?? 0) -
+-        kToolbarHeight -
+-        56;
+-    await ChatOpenPerfLog.measure(
+-        'route_prepare',
+-        () => ChatOpenViewportCoordinator.instance.prepareOpenViewport(
+-              conversation: conversation,
+-              viewportHeight: viewportHeight,
+-              source: 'route',
+-            ),
+-        trace: openTrace,
+-        source: openSource);
+-  } catch (_) {
+-    // 预热失败不阻塞导航；chat.dart 端的 in-flight 仍会重试。
++  final registry = AppChatRouteRegistry.instance;
++  final identity = SessionIdentityService.instance.capture();
++  final anchor = searchJumpAnchor ??
++      (initFindingMsg == null
++          ? null
++          : MessageAnchor.fromConversationMessage(
++              conversation, initFindingMsg));
++  final reservationKey = _accountRouteKey(
++      sessionKey + (anchor == null ? '' : '|anchor:' + anchor.stableKey));
++  final reservations = registry._pending[navigator] ??= {};
++  final pending = reservations[reservationKey];
++  if (pending != null) {
++    pending.callers.add(context);
++    ChatOpenPerfLog.mark('route_open_shared', trace: openTrace);
++    final value = await pending.result.future;
++    return value is T ? value : null;
+   }
+-  // Pipeline [3] - push_after_wait：本地分类交接，不是 H0 grace。
+-  final waitElapsed = DateTime.now().difference(waitStart).inMilliseconds;
+-  ChatPipelineClock.instance.trace(pipelineKey, 'push_after_wait',
+-      elapsedMs: waitElapsed,
+-      extras: <String, Object?>{
+-        'timedOut': waitElapsed >=
+-            ChatOpenViewportCoordinator.localBudget.inMilliseconds,
+-      });
+-  if (!context.mounted) {
+-    ChatOpenPerfLog.mark('route_cancelled', trace: openTrace);
+-    return null;
++  final reservation = _PendingChatOpen(context);
++  reservations[reservationKey] = reservation;
++  Future<Object?> openReserved() async {
++    // 只等本地 fast classify。H0 由 prepareOpenViewport 并行启动，不阻塞 push。
++    final waitStart = DateTime.now();
++    try {
++      final media = MediaQuery.maybeOf(context);
++      final viewportHeight = (media?.size.height ?? 640) -
++          (media?.padding.top ?? 0) -
++          kToolbarHeight -
++          56;
++      await ChatOpenPerfLog.measure(
++              'route_prepare',
++              () =>
++                  registry.prepareForTest?.call() ??
++                  ChatOpenViewportCoordinator.instance.prepareOpenViewport(
++                    conversation: conversation,
++                    viewportHeight: viewportHeight,
++                    source: 'route',
++                  ),
++              trace: openTrace,
++              source: openSource)
++          .timeout(ChatOpenViewportCoordinator.localBudget);
++    } catch (_) {
++      // 预热失败不阻塞导航；chat.dart 端的 in-flight 仍会重试。
++    }
++    // Pipeline [3] - push_after_wait：本地分类交接，不是 H0 grace。
++    final waitElapsed = DateTime.now().difference(waitStart).inMilliseconds;
++    ChatPipelineClock.instance.trace(pipelineKey, 'push_after_wait',
++        elapsedMs: waitElapsed,
++        extras: <String, Object?>{
++          'timedOut': waitElapsed >=
++              ChatOpenViewportCoordinator.localBudget.inMilliseconds,
++        });
++    if (!navigator.mounted ||
++        !reservation.callers.any((caller) => caller.mounted) ||
++        SessionIdentityService.instance.capture() != identity) {
++      ChatOpenPerfLog.mark('route_cancelled', trace: openTrace);
++      return null;
++    }
++    ChatOpenPerfLog.mark('route_push', trace: openTrace);
++    return navigator.push<dynamic>(
++      registry.routeForTest?.call() ??
++          appChatRoute<dynamic>(
++            conversation,
++            entryUnreadCount: entryUnreadCount,
++            initFindingMsg: initFindingMsg,
++            searchJumpAnchor: searchJumpAnchor,
++            initialC2cCanMessage: initialC2cCanMessage,
++            c2cPermissionHintSource: c2cPermissionHintSource,
++          ),
++    );
+   }
+-  ChatOpenPerfLog.mark('route_push', trace: openTrace);
+-  return navigator.push<T>(
+-    appChatRoute<T>(
+-      conversation,
+-      entryUnreadCount: entryUnreadCount,
+-      initFindingMsg: initFindingMsg,
+-      searchJumpAnchor: searchJumpAnchor,
+-      initialC2cCanMessage: initialC2cCanMessage,
+-      c2cPermissionHintSource: c2cPermissionHintSource,
+-    ),
+-  );
++
++  // Reserve synchronously before the first await and retain until real pop.
++  unawaited(openReserved()
++      .then(reservation.result.complete,
++          onError: reservation.result.completeError)
++      .whenComplete(() {
++    if (identical(reservations[reservationKey], reservation))
++      reservations.remove(reservationKey);
++    if (reservations.isEmpty &&
++        identical(registry._pending[navigator], reservations))
++      registry._pending.remove(navigator);
++  }));
++  final value = await reservation.result.future;
++  return value is T ? value : null;
+ }
+ 
+ Future<T?> openChatWithAnchor<T>(
+diff --git a/lib/src/services/chat_failed_message_retry_service.dart b/lib/src/services/chat_failed_message_retry_service.dart
+index 2f10dd0e418c9c7944810cbadf7e330aeb501488..5ff8e08acde0fbbf946b5106337da9c988abea2d 100644
+--- a/lib/src/services/chat_failed_message_retry_service.dart
++++ b/lib/src/services/chat_failed_message_retry_service.dart
+@@ -35,8 +35,8 @@ class ChatFailedMessageRetryService {
+   }
+ 
+   /// A timer is not failure evidence. A known Outbox operation may expose a
+-  /// retry only when its current durable verdict allows one. Missing legacy
+-  /// operations retain the previous UI-only fallback.
++  /// retry only when its current durable verdict allows one. Missing identity
++  /// and unavailable storage do not prove that dispatch is safe.
+   @visibleForTesting
+   Future<bool> recordOutboxFailureForStuckMessage({
+     required String storageKey,
+@@ -45,9 +45,9 @@ class ChatFailedMessageRetryService {
+     String resultCode = '-1',
+   }) async {
+     final localId = sdkLocalId.trim();
+-    if (localId.isEmpty) return true;
++    if (localId.isEmpty) return false;
+     final type = detectConversationType(storageKey);
+-    if (type == null) return true;
++    if (type == null) return false;
+     final identity = SessionIdentityService.instance.capture();
+     if (identity.ownerUserId.isEmpty) return false;
+     final scope = AccountScopedConversationKey.tryParse(
+@@ -55,7 +55,7 @@ class ChatFailedMessageRetryService {
+       conversationType: type,
+       conversationId: storageKey,
+     );
+-    if (scope == null) return true;
++    if (scope == null) return false;
+     final leaseContext = await ConversationSyncService.instance
+         .messageCoreLeaseForOutgoingSend();
+     if (leaseContext == null ||
+@@ -75,8 +75,8 @@ class ChatFailedMessageRetryService {
+     final verdict = await persistence.readOutboxResult(
+         ownerUserId: identity.ownerUserId, operationId: operationId);
+     if (!SessionIdentityService.instance.isCurrent(identity)) return false;
+-    return verdict.decision == ImOutboxResultDecision.missing ||
+-        verdict.canRetry;
++    // Absence alone does not prove that this is a legacy, never-accepted send.
++    return verdict.canRetry;
+   }
+ 
+   /// 将卡住的「发送中」落成发送失败（红感叹号），不自动重发。
+diff --git a/lib/src/services/conversation_local/conversation_draft_service.dart b/lib/src/services/conversation_local/conversation_draft_service.dart
+index 63fb27fd6540017d62b842194b98d050bc6b654c..5f8497c172070590332869ab48df365a109d62ff 100644
+--- a/lib/src/services/conversation_local/conversation_draft_service.dart
++++ b/lib/src/services/conversation_local/conversation_draft_service.dart
+@@ -1,4 +1,14 @@
++import 'dart:async';
++
+ import 'package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/outbox_draft_submission.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/outbox_payload_cipher.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/contracts/outgoing_identity_contract.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store_platform_stub.dart'
++    if (dart.library.js_interop) 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store_platform_web.dart'
++    as platform;
++
+ import 'package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_draft_leave_trace.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
+@@ -12,11 +22,14 @@ import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_id_canonical.dart';
+ 
+-/// A process-local edit capability, scoped to the captured SDK login generation.
+-/// This is deliberately not a persisted version or a recoverable clear task.
++/// An edit capability scoped to the captured login generation. Its opaque
++/// draftId also identifies durable acceptance; equal text is a different edit.
+ class ConversationDraftEdit {
+-  const ConversationDraftEdit._(this.identity, this.conversationID,
+-      this.editorIdentity, this.revision, this.text);
++  ConversationDraftEdit._(this.identity, this.conversationID,
++      this.editorIdentity, this.revision, this.text,
++      [String? persistedId])
++      : draftId = persistedId ?? newOutgoingClientCorrelationId();
++  final String draftId;
+   final SessionIdentity identity;
+   final String conversationID;
+   final Object editorIdentity;
+@@ -33,7 +46,8 @@ class DraftMirrorWriteException implements Exception {
+   String toString() => 'SDK draft saved; local mirror needs repair: $cause';
+ }
+ 
+-/// 会话草稿：以 IMSDK 本地会话库为权威，SQLite 仅保留兼容镜像。
++/// App edits and send acceptance live in the encrypted draft ledger. SDK-only
++/// legacy drafts are imported on read; SDK and conversation mirrors are derived.
+ class ConversationDraftService {
+   ConversationDraftService._();
+ 
+@@ -41,7 +55,16 @@ class ConversationDraftService {
+       {required this.ownerForTest,
+       required this.writeForTest,
+       required this.readForTest,
+-      required this.commitForTest});
++      required this.commitForTest,
++      this.draftStoreForTest,
++      this.draftCipherForTest});
++  ImIngressStore? draftStoreForTest;
++  OutboxPayloadCipher? draftCipherForTest;
++  late final ImIngressStore _draftStore =
++      draftStoreForTest ?? platform.createPlatformImIngressStore();
++  bool get _durableDrafts => ownerForTest == null || draftStoreForTest != null;
++  OutboxPayloadCipher get _draftCipher =>
++      draftCipherForTest ?? OutboxPayloadCipher.instance;
+   String Function()? ownerForTest;
+   Future<int> Function(String, String?)? writeForTest;
+   Future<String?> Function(String)? readForTest;
+@@ -79,8 +102,8 @@ class ConversationDraftService {
+     final key = '${identity.ownerUserId}|${identity.generation}|$id';
+     final previous = _edits[key];
+     final pendingText = _pendingEdits.contains(key) ? previous?.text : null;
+-    final edit =
+-        ConversationDraftEdit._(identity, id, Object(), 0, pendingText);
++    final edit = ConversationDraftEdit._(identity, id, Object(), 0, pendingText,
++        pendingText == null ? null : previous?.draftId);
+     _edits.removeWhere((_, value) => !SessionIdentityService.instance
+         .isCurrent(value.identity, currentOwnerUserId: _owner));
+     _edits[key] = edit;
+@@ -112,6 +135,30 @@ class ConversationDraftService {
+     return edit;
+   }
+ 
++  Future<ImDraftAcceptance> _protectEdit(
++      ConversationDraftEdit edit, String text) async {
++    final protected = await _draftCipher.protect(
++        ownerUserId: edit.identity.ownerUserId, plaintext: text);
++    if (protected == null)
++      throw StateError('durable draft encryption unavailable');
++    return ImDraftAcceptance(
++        ownerUserId: edit.identity.ownerUserId,
++        conversationId: edit.conversationID,
++        draftId: edit.draftId,
++        protectedText: protected.value);
++  }
++
++  ImDraftSubmissionContext submissionContext(ConversationDraftEdit edit) =>
++      ImDraftSubmissionContext(
++          isCurrent: () => isCurrentEdit(edit),
++          prepare: () async {
++            final draft = await _protectEdit(edit, edit.text ?? '');
++            if (isCurrentEdit(edit))
++              await _draftStore.transaction(
++                  (tx) => (tx as ImDraftTransaction).saveDraftHead(draft));
++            return draft;
++          });
++
+   bool mirrorRepairPending(ConversationDraftEdit edit) =>
+       _mirrorRepairPending.contains(edit.key);
+ 
+@@ -135,6 +182,15 @@ class ConversationDraftService {
+             .isCurrent(identity, currentOwnerUserId: _owner);
+     final next = (_tails[key] ?? Future<void>.value()).then((_) async {
+       if (!current()) return;
++      if (_durableDrafts) {
++        final edit = expectedEdit ??
++            ConversationDraftEdit._(identity, id, Object(), 0, text);
++        final draft = await _protectEdit(edit, text ?? '');
++        if (!current()) return;
++        await _draftStore.transaction(
++            (tx) => (tx as ImDraftTransaction).saveDraftHead(draft));
++        if (!current()) return;
++      }
+       final int code;
+       if (writeForTest != null) {
+         code = await writeForTest!(id, text);
+@@ -222,6 +278,38 @@ class ConversationDraftService {
+     if (expectedEdit != null && !isCurrentEdit(expectedEdit)) return null;
+     if (expectedEdit != null && _pendingEdits.contains(expectedEdit.key)) {
+       return expectedEdit.text;
++    }
++    if (_durableDrafts) {
++      final head = await _draftStore.transaction((tx) =>
++          (tx as ImDraftTransaction).findDraftHead(identity.ownerUserId, id));
++      if (head != null) {
++        if ((expectedEdit != null && !isCurrentEdit(expectedEdit)) ||
++            !SessionIdentityService.instance
++                .isCurrent(identity, currentOwnerUserId: _owner)) return null;
++        if (head['accepted_operation_id'] != null) {
++          // The operation survived, but a crash may have left the SDK draft.
++          // Repair through the same account queue and current edit fence.
++          if (expectedEdit != null) {
++            unawaited(_write(id, null, expectedEdit: expectedEdit)
++                .catchError((Object error) {
++              ConversationDraftLeaveTrace.stage(
++                  'accepted_draft_cleanup_pending',
++                  conversationId: id,
++                  extras: {'errorType': error.runtimeType.toString()});
++            }));
++          }
++          return null;
++        }
++        final saved = await _draftCipher.reveal(
++            ownerUserId: identity.ownerUserId,
++            value: head['protected_text'] as String);
++        if ((expectedEdit != null && !isCurrentEdit(expectedEdit)) ||
++            !SessionIdentityService.instance
++                .isCurrent(identity, currentOwnerUserId: _owner)) return null;
++        if (saved == null)
++          throw StateError('durable draft cannot be decrypted');
++        return saved.isEmpty ? null : saved;
++      }
+     }
+     final String? text;
+     if (readForTest != null) {
+diff --git a/lib/src/services/conversation_unread_clear_service.dart b/lib/src/services/conversation_unread_clear_service.dart
+index dfd7854ec499fb0aa7e9d865b132eb72414f9f8d..1ffcf9f9aca3ed3b22390fe3d9eef9d81026a16a 100644
+--- a/lib/src/services/conversation_unread_clear_service.dart
++++ b/lib/src/services/conversation_unread_clear_service.dart
+@@ -1,4 +1,5 @@
+ import 'dart:async';
++import 'package:tencent_cloud_chat_demo/src/services/im/conversation_read_policy.dart';
+ 
+ import 'package:flutter/foundation.dart';
+ import 'package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart';
+@@ -196,8 +197,7 @@ class ConversationUnreadClearService {
+     }
+     final rawTimestamp = conversation.lastMessage?.timestamp ?? 0;
+     return _ConversationReadWatermark(
+-      timestamp:
+-          rawTimestamp > 9999999999 ? rawTimestamp ~/ 1000 : rawTimestamp,
++      timestamp: ConversationReadPolicy.conservativeTimestamp(rawTimestamp),
+       sequence: 0,
+     );
+   }
+@@ -1284,13 +1284,17 @@ class ConversationUnreadClearService {
+         ownerUserId: owner,
+         conversationId: conversationID,
+       );
+-      if (row == null || (row.cleanTimestamp <= 0 && row.cleanSequence <= 0)) {
++      if (row != null && row.nextRetryAtMs < 0) return;
++      if (row != null &&
++          row.lastReadMessageId.isNotEmpty &&
++          row.cleanTimestamp <= 0 &&
++          row.cleanSequence <= 0) {
+         var snapshot = await ConversationLocalStore.instance.conversationById(
+           conversationID,
+         );
+         var watermark = _watermarkFor(
+           snapshot,
+-          expectedLastMessageId: row?.lastReadMessageId,
++          expectedLastMessageId: row.lastReadMessageId,
+         );
+         if (!watermark.isValid && _isCurrentSession(sessionGeneration)) {
+           snapshot = await TencentConversationReadService.conversationSnapshot(
+@@ -1302,17 +1306,15 @@ class ConversationUnreadClearService {
+           );
+           watermark = _watermarkFor(
+             snapshot,
+-            expectedLastMessageId: row?.lastReadMessageId,
++            expectedLastMessageId: row.lastReadMessageId,
+           );
+         }
+-        final readAtMs =
+-            row?.lastReadAtMs ?? DateTime.now().millisecondsSinceEpoch;
++        final readAtMs = row.lastReadAtMs;
+         if (watermark.isValid) {
+           await ConversationReadOutboxStore.instance.enqueue(
+             ownerUserId: owner,
+             conversationId: conversationID,
+-            lastReadMessageId:
+-                row?.lastReadMessageId ?? snapshot?.lastMessage?.msgID ?? '',
++            lastReadMessageId: row.lastReadMessageId,
+             cleanTimestamp: watermark.timestamp,
+             cleanSequence: watermark.sequence,
+             lastReadAtMs: readAtMs,
+@@ -1325,14 +1327,15 @@ class ConversationUnreadClearService {
+       }
+       final useFullConversationFallback =
+           row == null || (row.cleanTimestamp <= 0 && row.cleanSequence <= 0);
+-      if (useFullConversationFallback && !allowFullConversationFallback) {
++      if (useFullConversationFallback) {
+         ConversationUnreadTrace.log(
+           'sdk_clean_deferred',
+           conversationID: conversationID,
+           extras: <String, Object?>{'reason': 'read_watermark_unavailable'},
+         );
+         if (row != null) {
+-          await ConversationReadOutboxStore.instance.markRetry(row);
++          await ConversationReadOutboxStore.instance
++              .markRetry(row, reason: 'blocked:watermark_unavailable');
+         }
+         _watermarkUnavailableUntil[conversationID] =
+             DateTime.now().add(const Duration(seconds: 30));
+@@ -1344,30 +1347,26 @@ class ConversationUnreadClearService {
+       if (!_isCurrentSession(sessionGeneration)) return;
+       final lastCode = await _cleanSdkWithRetry(
+         conversationID,
+-        // A zero watermark clears at Tencent's processing boundary. It is an
+-        // immediate open fallback only and is never replayed after a delay.
+-        delays: useFullConversationFallback
+-            ? const <Duration>[Duration.zero]
+-            : delays,
++        // Only replay the precise, persisted target captured above.
++        delays: delays,
+         breakOnSuccess: breakOnSuccess,
+         sessionGeneration: sessionGeneration,
+-        cleanTimestamp: row?.cleanTimestamp ?? 0,
+-        cleanSequence: row?.cleanSequence ?? 0,
+-        allowFullTypeClean: useFullConversationFallback,
++        cleanTimestamp: row.cleanTimestamp,
++        cleanSequence: row.cleanSequence,
++        allowFullTypeClean: false,
+       );
+       if (!_isCurrentSession(sessionGeneration)) return;
+       if (lastCode == 0) {
+         _watermarkUnavailableUntil.remove(conversationID);
+         _lastSuccessfulSdkClean[conversationID] = DateTime.now();
+-        if (row != null) {
+-          await ConversationReadOutboxStore.instance.acknowledge(
+-            ownerUserId: owner,
+-            conversationId: conversationID,
+-            lastReadAtMs: row.lastReadAtMs,
+-          );
+-        }
+-      } else if (row != null) {
+-        await ConversationReadOutboxStore.instance.markRetry(row);
++        await ConversationReadOutboxStore.instance.acknowledge(
++          ownerUserId: owner,
++          conversationId: conversationID,
++          lastReadAtMs: row.lastReadAtMs,
++        );
++      } else {
++        await ConversationReadOutboxStore.instance
++            .markRetry(row, sdkCode: lastCode);
+         await _armReadOutboxRetryTimer();
+       }
+       ConversationUnreadTrace.log(
+@@ -1375,9 +1374,9 @@ class ConversationUnreadClearService {
+         conversationID: conversationID,
+         extras: <String, Object?>{
+           'sdkCode': lastCode,
+-          'cleanTimestamp': row?.cleanTimestamp ?? 0,
+-          'cleanSequence': row?.cleanSequence ?? 0,
+-          'fullFallback': useFullConversationFallback,
++          'cleanTimestamp': row.cleanTimestamp,
++          'cleanSequence': row.cleanSequence,
++          'fullFallback': false,
+         },
+       );
+     } catch (e) {
+@@ -1390,11 +1389,17 @@ class ConversationUnreadClearService {
+   }
+ 
+   /// Replays durable mark-read rows after a real SDK socket connection.
+-  static Future<void> recoverPendingReadOutbox() {
++  static Future<void> recoverPendingReadOutbox({bool afterReconnect = false}) {
+     final running = _readOutboxRecoveryInFlight;
+     if (running != null) return running;
+     late final Future<void> task;
+-    task = _recoverPendingReadOutbox().whenComplete(() {
++    task = (() async {
++      if (afterReconnect)
++        await ConversationReadOutboxStore.instance.resumeAfterReconnect(
++            SessionIdentityService.instance.capture().ownerUserId);
++      await _recoverPendingReadOutbox();
++    })()
++        .whenComplete(() {
+       if (identical(_readOutboxRecoveryInFlight, task)) {
+         _readOutboxRecoveryInFlight = null;
+         unawaited(_armReadOutboxRetryTimer());
+@@ -1556,6 +1561,11 @@ class ConversationUnreadClearService {
+           });
+           break;
+         }
++        if (result.code != 0 &&
++            !ConversationReadPolicy.failureReason(result.code)
++                .startsWith('transient:')) {
++          break;
++        }
+         if (shouldStopSdkRetry(
+           breakOnSuccess: breakOnSuccess,
+           resultCode: result.code,
+diff --git a/lib/src/services/im/conversation_read_policy.dart b/lib/src/services/im/conversation_read_policy.dart
+new file mode 100644
+index 0000000000000000000000000000000000000000..2cd3ac73a4dc28a9674a5dceef8ed1031d60eebd
+--- /dev/null
++++ b/lib/src/services/im/conversation_read_policy.dart
+@@ -0,0 +1,32 @@
++/// SDK 8.9.7545 conversation-clean boundaries differ from per-message visibility.
++class ConversationReadPolicy {
++  static int conservativeTimestamp(int raw) {
++    final seconds = raw > 9999999999 ? raw ~/ 1000 : raw;
++    // Inclusive seconds cannot distinguish visible M1 from unseen M2 at T.
++    // Zero is an all-unread command, so callers must defer nonpositive values.
++    return seconds > 1 ? seconds - 1 : 0;
++  }
++
++  static bool validTarget(String id, int timestamp, int sequence,
++      {bool explicitTypeClear = false}) {
++    if (id == 'c2c' || id == 'group') return explicitTypeClear;
++    if (id.startsWith('c2c_') && id.substring(4).trim().isNotEmpty) {
++      return timestamp > 0 && sequence == 0;
++    }
++    if (id.startsWith('group_') && id.substring(6).trim().isNotEmpty) {
++      return sequence > 0 && timestamp == 0;
++    }
++    return false;
++  }
++
++  /// Reasons are persisted, without message contents or provider descriptions.
++  static String failureReason(int code) {
++    if ({6017, 6027, 7003, 7013, 7014, 10004, 10007, 10010}.contains(code)) {
++      return 'blocked:sdk_$code';
++    }
++    if ({6005, 6019, 6022}.contains(code)) return 'blocked:storage_$code';
++    if ({6012, 6015, 6200, 6201, 7008, 10002}.contains(code))
++      return 'transient:sdk_$code';
++    return 'reconnect:sdk_$code';
++  }
++}
+diff --git a/lib/src/services/im/im05_contracts.dart b/lib/src/services/im/im05_contracts.dart
+index 90b1109cf4865a16bcb8673902370579cb7708de..8e4ede0d64933964abe5bcb6dcf7817b1a8d155f 100644
+--- a/lib/src/services/im/im05_contracts.dart
++++ b/lib/src/services/im/im05_contracts.dart
+@@ -205,6 +205,9 @@ class ImOutboxRecord {
+     this.fencingToken = 0,
+     this.recoveryLag = false,
+     this.recoveryConflict = false,
++    this.stateVersion = 1,
++    this.retryOfOperationId,
++    this.retryOfStateVersion,
+   });
+ 
+   final String operationId;
+@@ -234,6 +237,9 @@ class ImOutboxRecord {
+   final int fencingToken;
+   final bool recoveryLag;
+   final bool recoveryConflict;
++  final int stateVersion;
++  final String? retryOfOperationId;
++  final int? retryOfStateVersion;
+ 
+   ImOutboxRecord copyWith({
+     ImOutboxState? state,
+@@ -249,6 +255,7 @@ class ImOutboxRecord {
+     int? fencingToken,
+     bool? recoveryLag,
+     bool? recoveryConflict,
++    int? stateVersion,
+   }) {
+     return ImOutboxRecord(
+       operationId: operationId,
+@@ -278,6 +285,9 @@ class ImOutboxRecord {
+       fencingToken: fencingToken ?? this.fencingToken,
+       recoveryLag: recoveryLag ?? this.recoveryLag,
+       recoveryConflict: recoveryConflict ?? this.recoveryConflict,
++      stateVersion: stateVersion ?? this.stateVersion,
++      retryOfOperationId: retryOfOperationId,
++      retryOfStateVersion: retryOfStateVersion,
+     );
+   }
+ }
+@@ -630,6 +640,9 @@ Map<String, Object?> imOutboxToStorageMap(ImOutboxRecord record) =>
+       'fencing_token': record.fencingToken,
+       'recovery_lag': record.recoveryLag ? 1 : 0,
+       'recovery_conflict': record.recoveryConflict ? 1 : 0,
++      'state_version': record.stateVersion,
++      'retry_of_operation_id': record.retryOfOperationId,
++      'retry_of_state_version': record.retryOfStateVersion,
+     };
+ 
+ ImOutboxRecord imOutboxFromStorageMap(Map<String, Object?> row) =>
+@@ -665,6 +678,9 @@ ImOutboxRecord imOutboxFromStorageMap(Map<String, Object?> row) =>
+       fencingToken: _int(row['fencing_token']),
+       recoveryLag: _int(row['recovery_lag']) != 0,
+       recoveryConflict: _int(row['recovery_conflict']) != 0,
++      stateVersion: _optionalInt(row['state_version']) ?? 1,
++      retryOfOperationId: _optionalString(row['retry_of_operation_id']),
++      retryOfStateVersion: _optionalInt(row['retry_of_state_version']),
+     );
+ 
+ Map<String, Object?> imOutboxRecoveryToStorageMap(
+diff --git a/lib/src/services/im/im05_persistence.dart b/lib/src/services/im/im05_persistence.dart
+index 541885820b9dde504e99e70417ef62fa2643bc5c..f700143779b16c5a33079c1a359fda0330606a9c 100644
+--- a/lib/src/services/im/im05_persistence.dart
++++ b/lib/src/services/im/im05_persistence.dart
+@@ -1,3 +1,5 @@
++import 'package:flutter/foundation.dart';
++import 'outbox_draft_submission.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store.dart';
+ 
+@@ -9,6 +11,7 @@ enum ImOutboxResultDecision {
+   deferred,
+   identityConflict,
+   missing,
++  unavailable,
+   fencingRejected,
+   current,
+ }
+@@ -48,19 +51,24 @@ class ImOutboxResultVerdict {
+   final String? eventAttemptId;
+   final String reason;
+   ImOutboxState? get currentState => main?.state;
+-  int get stateVersion => recoveryCopy?.recoveryRevision ?? 0;
++  int get stateVersion => main?.stateVersion ?? 0;
+   bool get hasTrustedSnapshot =>
+       main != null &&
+-      recoveryCopy != null &&
++      (recoveryCopy != null ||
++          main!.state == ImOutboxState.completed ||
++          main!.state == ImOutboxState.acknowledged) &&
+       decision != ImOutboxResultDecision.identityConflict &&
+       decision != ImOutboxResultDecision.fencingRejected &&
+-      decision != ImOutboxResultDecision.missing;
++      decision != ImOutboxResultDecision.missing &&
++      decision != ImOutboxResultDecision.unavailable;
+   bool get deliveryConfirmed =>
+       hasTrustedSnapshot &&
+       (currentState == ImOutboxState.acknowledged ||
+           currentState == ImOutboxState.completed);
+   bool get canRetry =>
+       hasTrustedSnapshot &&
++      recoveryCopy?.state == ImOutboxCopyState.resultRecorded &&
++      main?.dispatchAttemptId == recoveryCopy?.dispatchAttemptId &&
+       (currentState == ImOutboxState.failedTerminal ||
+           currentState == ImOutboxState.retryable);
+   bool get accepted =>
+@@ -69,10 +77,16 @@ class ImOutboxResultVerdict {
+ }
+ 
+ /// Only live consumers retain this view. Published values come from committed
+-/// transactions and are ordered by the durable recovery revision.
+-class ImOutboxResultView {
++/// transactions and are ordered by the main record's durable state version.
++class ImOutboxResultView extends ChangeNotifier {
+   ImOutboxResultVerdict? _current;
+   ImOutboxResultVerdict? get current => _current;
++  void _publish(ImOutboxResultVerdict value) {
++    if (_current != null && value.stateVersion <= _current!.stateVersion)
++      return;
++    _current = value;
++    notifyListeners();
++  }
+ }
+ 
+ /// First-round persistence coordinator for Commit Journal, Projection
+@@ -87,8 +101,12 @@ class Im05Persistence {
+   static final _resultViews =
+       Expando<Map<String, WeakReference<ImOutboxResultView>>>();
+ 
++  Object get _viewScope => _store is ImOutboxObservationScope
++      ? (_store as ImOutboxObservationScope).outboxObservationScope
++      : _store;
++
+   ImOutboxResultView watchOutboxResult(String ownerUserId, String operationId) {
+-    final views = _resultViews[_store] ??= {};
++    final views = _resultViews[_viewScope] ??= {};
+     views.removeWhere((_, reference) => reference.target == null);
+     final key = '$ownerUserId|$operationId';
+     final view = views[key]?.target ?? ImOutboxResultView();
+@@ -96,21 +114,26 @@ class Im05Persistence {
+     return view;
+   }
+ 
++  static void publishCommitted(
++      Object scope, ImOutboxRecord main, ImOutboxRecoveryRecord? copy) {
++    final trusted = copy == null
++        ? main.state == ImOutboxState.completed ||
++            main.state == ImOutboxState.acknowledged
++        : _sameOutboxIdentity(main, copy);
++    if (!trusted) return;
++    final views = _resultViews[scope];
++    views?.removeWhere((_, reference) => reference.target == null);
++    views?[main.ownerUserId + '|' + main.operationId]?.target?._publish(
++        ImOutboxResultVerdict(
++            decision: ImOutboxResultDecision.current,
++            main: main,
++            recoveryCopy: copy,
++            reason: 'committed_snapshot'));
++  }
++
+   ImOutboxResultVerdict _publishResult(ImOutboxResultVerdict result) {
+-    final main = result.main;
+-    if (main == null ||
+-        result.recoveryCopy == null ||
+-        result.decision == ImOutboxResultDecision.identityConflict ||
+-        result.decision == ImOutboxResultDecision.fencingRejected) {
+-      return result;
+-    }
+-    final view = _resultViews[_store]
+-            ?['${main.ownerUserId}|${main.operationId}']
+-        ?.target;
+-    if (view != null &&
+-        (view.current == null ||
+-            result.stateVersion >= view.current!.stateVersion)) {
+-      view._current = result;
++    if (result.hasTrustedSnapshot) {
++      publishCommitted(_viewScope, result.main!, result.recoveryCopy);
+     }
+     return result;
+   }
+@@ -119,24 +142,46 @@ class Im05Persistence {
+     required String ownerUserId,
+     required String operationId,
+   }) async {
+-    final result = await _store.transaction<ImOutboxResultVerdict>((tx) async {
+-      final main = await tx.findOutbox(
+-          ownerUserId: ownerUserId, operationId: operationId);
+-      final copy = await tx.findOutboxRecovery(
+-          ownerUserId: ownerUserId, operationId: operationId);
+-      if (main == null || copy == null) {
+-        return const ImOutboxResultVerdict(
+-            decision: ImOutboxResultDecision.missing, reason: 'outbox_missing');
+-      }
++    try {
++      final result =
++          await _store.transaction<ImOutboxResultVerdict>((tx) async {
++        final main = await tx.findOutbox(
++            ownerUserId: ownerUserId, operationId: operationId);
++        final copy = await tx.findOutboxRecovery(
++            ownerUserId: ownerUserId, operationId: operationId);
++        if (main == null) {
++          return ImOutboxResultVerdict(
++              decision: copy == null
++                  ? ImOutboxResultDecision.missing
++                  : ImOutboxResultDecision.deferred,
++              recoveryCopy: copy,
++              reason: copy == null
++                  ? 'no_durable_identity'
++                  : 'main_recovery_pending');
++        }
++        if (copy == null) {
++          return ImOutboxResultVerdict(
++              decision: main.state == ImOutboxState.completed ||
++                      main.state == ImOutboxState.acknowledged
++                  ? ImOutboxResultDecision.current
++                  : ImOutboxResultDecision.deferred,
++              main: main,
++              reason: 'recovery_material_absent');
++        }
++        return ImOutboxResultVerdict(
++            decision: _sameOutboxIdentity(main, copy)
++                ? ImOutboxResultDecision.current
++                : ImOutboxResultDecision.identityConflict,
++            main: main,
++            recoveryCopy: copy,
++            reason: 'durable_snapshot');
++      });
++      return _publishResult(result);
++    } catch (error) {
+       return ImOutboxResultVerdict(
+-          decision: _sameOutboxIdentity(main, copy)
+-              ? ImOutboxResultDecision.current
+-              : ImOutboxResultDecision.identityConflict,
+-          main: main,
+-          recoveryCopy: copy,
+-          reason: 'durable_snapshot');
+-    });
+-    return _publishResult(result);
++          decision: ImOutboxResultDecision.unavailable,
++          reason: 'storage_unavailable:' + error.runtimeType.toString());
++    }
+   }
+ 
+   Future<ImOutboxResultVerdict> adjudicateOutboxSdkResult({
+@@ -450,7 +495,10 @@ class Im05Persistence {
+         fencingToken: fencingToken,
+         nowMs: nowMs,
+       );
+-      return changed ? persisted : null;
++      return changed
++          ? await transaction.findOutbox(
++              ownerUserId: next.ownerUserId, operationId: next.operationId)
++          : null;
+     });
+   }
+ 
+@@ -650,6 +698,28 @@ class Im05Persistence {
+     });
+   }
+ 
++  Future<bool> _retryParentIsCurrent(
++      ImIngressTransaction tx, ImOutboxRecord child) async {
++    final operation = child.retryOfOperationId;
++    if (operation == null) return true;
++    final parent = await tx.findOutbox(
++        ownerUserId: child.ownerUserId, operationId: operation);
++    final copy = await tx.findOutboxRecovery(
++        ownerUserId: child.ownerUserId, operationId: operation);
++    if (parent == null ||
++        copy == null ||
++        !_sameOutboxIdentity(parent, copy) ||
++        parent.conversationId != child.conversationId ||
++        parent.payloadHash != child.payloadHash ||
++        parent.stateVersion != child.retryOfStateVersion) return false;
++    return ImOutboxResultVerdict(
++            decision: ImOutboxResultDecision.current,
++            main: parent,
++            recoveryCopy: copy,
++            reason: 'retry_parent')
++        .canRetry;
++  }
++
+   /// Persists both sides of the Prepared boundary before any SDK call.
+   Future<ImOutboxDispatchAssessment> prepareOutbox({
+     required ImOutboxRecord main,
+@@ -657,6 +727,7 @@ class Im05Persistence {
+     required String leaseOwnerId,
+     required int fencingToken,
+     required int nowMs,
++    ImDraftAcceptance? draftAcceptance,
+   }) {
+     if (main.state != ImOutboxState.prepared ||
+         recoveryCopy.state != ImOutboxCopyState.copyPrepared) {
+@@ -672,6 +743,9 @@ class Im05Persistence {
+       if (!_sameOutboxIdentity(main, recoveryCopy)) {
+         throw const Im05IdentityConflictException('outbox identity conflict');
+       }
++      if (!await _retryParentIsCurrent(transaction, main))
++        return const ImOutboxDispatchAssessment(
++            decision: ImOutboxDispatchDecision.recoveryConflict);
+       final currentMain = await transaction.findOutbox(
+         ownerUserId: main.ownerUserId,
+         operationId: main.operationId,
+@@ -695,7 +769,7 @@ class Im05Persistence {
+         throw const Im05IdentityConflictException(
+             'outbox recovery copy conflict');
+       }
+-      return _assess(
++      final assessment = _assess(
+         main: await transaction.findOutbox(
+           ownerUserId: main.ownerUserId,
+           operationId: main.operationId,
+@@ -706,6 +780,16 @@ class Im05Persistence {
+         ),
+         leaseValid: true,
+       );
++      if (draftAcceptance != null && assessment.canDispatch) {
++        if (draftAcceptance.ownerUserId != main.ownerUserId ||
++            main.conversationId !=
++                main.ownerUserId + '|' + draftAcceptance.conversationId ||
++            transaction is! ImDraftTransaction)
++          throw StateError('draft acceptance scope mismatch');
++        await (transaction as ImDraftTransaction)
++            .acceptDraft(draftAcceptance, main.operationId);
++      }
++      return assessment;
+     });
+   }
+ 
+@@ -727,7 +811,7 @@ class Im05Persistence {
+         fencingToken,
+         nowMs,
+       );
+-      return _assess(
++      final assessment = _assess(
+         main: await transaction.findOutbox(
+           ownerUserId: ownerUserId,
+           operationId: operationId,
+@@ -738,6 +822,15 @@ class Im05Persistence {
+         ),
+         leaseValid: leaseValid,
+       );
++      if (assessment.canDispatch &&
++          !await _retryParentIsCurrent(transaction, assessment.main!)) {
++        return ImOutboxDispatchAssessment(
++          decision: ImOutboxDispatchDecision.recoveryConflict,
++          main: assessment.main,
++          recoveryCopy: assessment.recoveryCopy,
++        );
++      }
++      return assessment;
+     });
+   }
+ 
+@@ -780,6 +873,11 @@ class Im05Persistence {
+         ),
+       );
+       if (!assessment.canDispatch) return assessment;
++      if (!await _retryParentIsCurrent(transaction, assessment.main!))
++        return ImOutboxDispatchAssessment(
++            decision: ImOutboxDispatchDecision.recoveryConflict,
++            main: assessment.main,
++            recoveryCopy: assessment.recoveryCopy);
+       final main = assessment.main!;
+       final copy = assessment.recoveryCopy!;
+       final intentMain = main.copyWith(
+@@ -823,13 +921,12 @@ class Im05Persistence {
+         nowMs: nowMs,
+       );
+       if (!mainChanged || !copyChanged) {
+-        return const ImOutboxDispatchAssessment(
+-          decision: ImOutboxDispatchDecision.recoveryConflict,
+-        );
++        throw StateError('Outbox dispatch CAS rejected');
+       }
+       return ImOutboxDispatchAssessment(
+         decision: ImOutboxDispatchDecision.ready,
+-        main: intentMain,
++        main: await transaction.findOutbox(
++            ownerUserId: ownerUserId, operationId: operationId),
+         recoveryCopy: intentCopy,
+       );
+     });
+@@ -922,7 +1019,9 @@ class Im05Persistence {
+               fencingToken: fencingToken,
+               nowMs: nowMs,
+             );
+-      return mainChanged && copyChanged;
++      if (!mainChanged || !copyChanged)
++        throw StateError('outcome transition lost conditional update');
++      return true;
+     });
+   }
+ 
+@@ -990,8 +1089,9 @@ class Im05Persistence {
+         fencingToken: fencingToken,
+         nowMs: nowMs,
+       );
+-      if (!copyChanged) return false;
+-      return transaction.updateOutboxIfCurrent(
++      if (!copyChanged)
++        throw StateError('recovery transition lost conditional update');
++      final mainChanged = await transaction.updateOutboxIfCurrent(
+         record: main.copyWith(
+           state: ImOutboxState.manualRequired,
+           resultCode: normalizedReason,
+@@ -1004,6 +1104,9 @@ class Im05Persistence {
+         fencingToken: fencingToken,
+         nowMs: nowMs,
+       );
++      if (!mainChanged)
++        throw StateError('main transition lost conditional update');
++      return true;
+     });
+   }
+ 
+@@ -1062,8 +1165,9 @@ class Im05Persistence {
+         fencingToken: fencingToken,
+         nowMs: nowMs,
+       );
+-      if (!copyChanged) return false;
+-      return transaction.updateOutboxIfCurrent(
++      if (!copyChanged)
++        throw StateError('recovery transition lost conditional update');
++      final mainChanged = await transaction.updateOutboxIfCurrent(
+         record: main.copyWith(
+           state: ImOutboxState.abandonedByUser,
+           resultCode: 'abandoned_by_user',
+@@ -1076,6 +1180,9 @@ class Im05Persistence {
+         fencingToken: fencingToken,
+         nowMs: nowMs,
+       );
++      if (!mainChanged)
++        throw StateError('main transition lost conditional update');
++      return true;
+     });
+   }
+ 
+@@ -1227,7 +1334,8 @@ class Im05Persistence {
+           fencingToken: fencingToken,
+           nowMs: nowMs,
+         );
+-        if (!copyChanged) return false;
++        if (!copyChanged)
++          throw StateError('recovery transition lost conditional update');
+       }
+       final completed = main.copyWith(
+         state: ImOutboxState.completed,
+@@ -1235,13 +1343,16 @@ class Im05Persistence {
+         leaseOwnerId: leaseOwnerId,
+         fencingToken: fencingToken,
+       );
+-      return transaction.updateOutboxIfCurrent(
++      final mainChanged = await transaction.updateOutboxIfCurrent(
+         record: completed,
+         expectedState: ImOutboxState.acknowledged,
+         leaseOwnerId: leaseOwnerId,
+         fencingToken: fencingToken,
+         nowMs: nowMs,
+       );
++      if (!mainChanged)
++        throw StateError('main transition lost conditional update');
++      return true;
+     });
+   }
+ 
+@@ -1387,7 +1498,8 @@ class Im05Persistence {
+       if (!changedMain) throw StateError('Outbox result main CAS rejected');
+       return ImOutboxResultVerdict(
+           decision: ImOutboxResultDecision.accepted,
+-          main: resultMain,
++          main: await transaction.findOutbox(
++              ownerUserId: ownerUserId, operationId: operationId),
+           recoveryCopy: resultCopy,
+           eventAttemptId: expectedAttemptId,
+           reason: providerEvidence ? 'provider_observed' : 'sdk_result');
+diff --git a/lib/src/services/im/im_ingress_store.dart b/lib/src/services/im/im_ingress_store.dart
+index e17c96658c4d9cdee4d28db6c93737a42beb1de9..29355880e3f200daba3f637c15ddb0f37338cdd9 100644
+--- a/lib/src/services/im/im_ingress_store.dart
++++ b/lib/src/services/im/im_ingress_store.dart
+@@ -4,6 +4,9 @@ import 'im_inbox_recovery_query.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/contracts/contracts.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
++import 'im05_persistence.dart';
++import 'outbox_state_version_schema.dart';
++import 'outbox_draft_submission.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/inbox_recovery_policy.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/message_core_store.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/message_persist_coordinator.dart';
+@@ -205,7 +208,29 @@ abstract interface class ImIngressTransaction implements Im05Transaction {
+ 
+ /// Adapter from the project's existing SQLite owner to the IM persistence
+ /// contract. It deliberately exposes only IM table operations.
+-class ConversationLocalImIngressStore implements ImIngressStore {
++abstract interface class ImOutboxObservationScope {
++  Object get outboxObservationScope;
++}
++
++mixin ImOutboxCommitTracking implements ImIngressTransaction {
++  final Set<(String, String)> observedOutboxes = {};
++  Future<List<(ImOutboxRecord, ImOutboxRecoveryRecord?)>>
++      committedOutboxes() async {
++    final result = <(ImOutboxRecord, ImOutboxRecoveryRecord?)>[];
++    for (final (owner, operation) in observedOutboxes.toList()) {
++      final main = await findOutbox(ownerUserId: owner, operationId: operation);
++      if (main != null)
++        result.add((
++          main,
++          await findOutboxRecovery(ownerUserId: owner, operationId: operation)
++        ));
++    }
++    return result;
++  }
++}
++
++class ConversationLocalImIngressStore
++    implements ImIngressStore, ImOutboxObservationScope {
+   ConversationLocalImIngressStore({
+     ConversationLocalStore? owner,
+     MessageCoreStore? core,
+@@ -216,34 +241,104 @@ class ConversationLocalImIngressStore implements ImIngressStore {
+   /// migration tooling. Production construction uses [MessageCoreStore].
+   final ConversationLocalStore? _legacyOwner;
+   final MessageCoreStore _core;
++  bool _outboxSchemaReady = false;
++  @override
++  Object get outboxObservationScope => _legacyOwner ?? _core;
+ 
+   @override
+   Future<T> transaction<T>(
+     Future<T> Function(ImIngressTransaction transaction) action, {
+     MessagePersistPriority persistPriority = MessagePersistPriority.realtime,
+-  }) {
+-    if (_legacyOwner != null) {
+-      return _legacyOwner!.runLegacyImIngressTransaction<T>(
+-        (transaction) => action(_SqliteImIngressTransaction(transaction)),
+-      );
++  }) async {
++    List<(ImOutboxRecord, ImOutboxRecoveryRecord?)> committed = [];
++    Future<T> run(DatabaseExecutor database) async {
++      if (!_outboxSchemaReady) await ensureOutboxStateVersionSchema(database);
++      final tx = _SqliteImIngressTransaction(database);
++      final result = await action(tx);
++      committed = await tx.committedOutboxes();
++      return result;
+     }
+-    return _core.runTransaction<T>(
+-      (transaction) => action(_SqliteImIngressTransaction(transaction)),
+-      persistPriority: persistPriority,
+-      persistSource: persistPriority == MessagePersistPriority.realtime
+-          ? MessagePersistSource.realtime
+-          : persistPriority == MessagePersistPriority.userHistory
+-              ? MessagePersistSource.userHistory
+-              : MessagePersistSource.backgroundRepair,
+-    );
++
++    final result = _legacyOwner != null
++        ? await _legacyOwner!.runLegacyImIngressTransaction<T>(run)
++        : await _core.runTransaction<T>(run,
++            persistPriority: persistPriority,
++            persistSource: persistPriority == MessagePersistPriority.realtime
++                ? MessagePersistSource.realtime
++                : persistPriority == MessagePersistPriority.userHistory
++                    ? MessagePersistSource.userHistory
++                    : MessagePersistSource.backgroundRepair);
++    _outboxSchemaReady = true;
++    // The database future includes COMMIT. No notifications escape rollback.
++    for (final (main, copy) in committed) {
++      Im05Persistence.publishCommitted(outboxObservationScope, main, copy);
++    }
++    return result;
+   }
+ }
+ 
+-class _SqliteImIngressTransaction implements ImIngressTransaction {
++class _SqliteImIngressTransaction
++    with ImOutboxCommitTracking
++    implements ImIngressTransaction, ImDraftTransaction {
+   _SqliteImIngressTransaction(this._db);
+ 
+   final DatabaseExecutor _db;
+ 
++  @override
++  Future<Map<String, Object?>?> findDraftHead(
++      String owner, String conversation) async {
++    final rows = await _db.query('message_draft_head',
++        where: 'owner_user_id = ? AND conversation_id = ?',
++        whereArgs: [owner, conversation]);
++    return rows.isEmpty ? null : rows.single;
++  }
++
++  @override
++  Future<void> saveDraftHead(ImDraftAcceptance draft) async {
++    final existing =
++        await findDraftHead(draft.ownerUserId, draft.conversationId);
++    final accepted = await _db.query('message_draft_acceptance',
++        where: 'owner_user_id = ? AND conversation_id = ? AND draft_id = ?',
++        whereArgs: [draft.ownerUserId, draft.conversationId, draft.draftId]);
++    final acceptedOperation =
++        accepted.isEmpty ? null : accepted.single['operation_id'];
++    if (acceptedOperation != null && existing != null) return;
++    await _db.insert(
++        'message_draft_head',
++        {
++          'owner_user_id': draft.ownerUserId,
++          'conversation_id': draft.conversationId,
++          'draft_id': draft.draftId,
++          'protected_text': draft.protectedText,
++          'accepted_operation_id': acceptedOperation
++        },
++        conflictAlgorithm: ConflictAlgorithm.replace);
++  }
++
++  @override
++  Future<void> acceptDraft(ImDraftAcceptance draft, String operationId) async {
++    final old = await _db.query('message_draft_acceptance',
++        where: 'owner_user_id = ? AND conversation_id = ? AND draft_id = ?',
++        whereArgs: [draft.ownerUserId, draft.conversationId, draft.draftId]);
++    if (old.isNotEmpty && old.single['operation_id'] != operationId)
++      throw StateError('draft already accepted by another operation');
++    await _db.insert(
++        'message_draft_acceptance',
++        {
++          'owner_user_id': draft.ownerUserId,
++          'conversation_id': draft.conversationId,
++          'draft_id': draft.draftId,
++          'operation_id': operationId
++        },
++        conflictAlgorithm: ConflictAlgorithm.ignore);
++    if (await findDraftHead(draft.ownerUserId, draft.conversationId) == null)
++      await saveDraftHead(draft);
++    await _db.update(
++        'message_draft_head', {'accepted_operation_id': operationId},
++        where: 'owner_user_id = ? AND conversation_id = ? AND draft_id = ?',
++        whereArgs: [draft.ownerUserId, draft.conversationId, draft.draftId]);
++  }
++
+   static const _inboxTable = 'message_event_inbox';
+   static const _leaseTable = 'message_writer_lease';
+   static const _counterTable = 'message_ingress_counter';
+@@ -822,6 +917,7 @@ class _SqliteImIngressTransaction implements ImIngressTransaction {
+     required String ownerUserId,
+     required String operationId,
+   }) async {
++    observedOutboxes.add((ownerUserId, operationId));
+     final rows = await _db.query(
+       _outboxTable,
+       where: 'owner_user_id = ? AND operation_id = ?',
+@@ -867,6 +963,7 @@ class _SqliteImIngressTransaction implements ImIngressTransaction {
+ 
+   @override
+   Future<bool> insertOutboxIfAbsent(ImOutboxRecord record) async {
++    observedOutboxes.add((record.ownerUserId, record.operationId));
+     final inserted = await _db.insert(
+       _outboxTable,
+       imOutboxToStorageMap(record),
+@@ -883,6 +980,7 @@ class _SqliteImIngressTransaction implements ImIngressTransaction {
+     required int fencingToken,
+     required int nowMs,
+   }) async {
++    observedOutboxes.add((record.ownerUserId, record.operationId));
+     if (!isValidImOutboxTransition(expectedState, record.state) ||
+         !await _hasCurrentLease(
+           record.ownerUserId,
+@@ -939,6 +1037,7 @@ class _SqliteImIngressTransaction implements ImIngressTransaction {
+     required int fencingToken,
+     required int nowMs,
+   }) async {
++    observedOutboxes.add((record.ownerUserId, record.operationId));
+     if (!isValidImOutboxRecoveryTransition(expectedState, record.state) ||
+         !await _hasCurrentLease(
+           record.ownerUserId,
+@@ -963,6 +1062,8 @@ class _SqliteImIngressTransaction implements ImIngressTransaction {
+ }
+ 
+ class InMemoryImIngressStore implements ImIngressStore {
++  final Map<String, Map<String, Object?>> draftHeads = {};
++  final Map<String, String> draftAcceptances = {};
+   final Map<String, ImInboxRecord> inbox = <String, ImInboxRecord>{};
+   final Map<String, int> counters = <String, int>{};
+   final Map<String, ImWriterLeaseRecord> leases =
+@@ -984,17 +1085,89 @@ class InMemoryImIngressStore implements ImIngressStore {
+     MessagePersistPriority persistPriority = MessagePersistPriority.realtime,
+   }) {
+     final next = _tail.then<T>(
+-      (_) => action(_MemoryImIngressTransaction(this)),
++      (_) async {
++        final rollbacks = <void Function()>[];
++        void capture<K, V>(Map<K, V> map) {
++          final snapshot = Map<K, V>.of(map);
++          rollbacks.add(() => map
++            ..clear()
++            ..addAll(snapshot));
++        }
++
++        capture(inbox);
++        capture(counters);
++        capture(leases);
++        capture(journals);
++        capture(checkpoints);
++        capture(effects);
++        capture(outboxes);
++        capture(outboxRecoveryCopies);
++        capture(draftHeads);
++        capture(draftAcceptances);
++        final tx = _MemoryImIngressTransaction(this);
++        try {
++          final result = await action(tx);
++          final committed = await tx.committedOutboxes();
++          for (final (main, copy) in committed) {
++            Im05Persistence.publishCommitted(this, main, copy);
++          }
++          return result;
++        } catch (_) {
++          for (final restore in rollbacks) {
++            restore();
++          }
++          rethrow;
++        }
++      },
+     );
+     _tail = next.then<void>((_) {}, onError: (_, __) {});
+     return next;
+   }
+ }
+ 
+-class _MemoryImIngressTransaction implements ImIngressTransaction {
++class _MemoryImIngressTransaction
++    with ImOutboxCommitTracking
++    implements ImIngressTransaction, ImDraftTransaction {
+   _MemoryImIngressTransaction(this._store);
+ 
+   final InMemoryImIngressStore _store;
++  @override
++  Future<Map<String, Object?>?> findDraftHead(
++          String owner, String conversation) async =>
++      _store.draftHeads[owner + '|' + conversation];
++  @override
++  Future<void> saveDraftHead(ImDraftAcceptance draft) async {
++    final existing =
++        await findDraftHead(draft.ownerUserId, draft.conversationId);
++    final acceptedOperation = _store.draftAcceptances[
++        draft.ownerUserId + '|' + draft.conversationId + '|' + draft.draftId];
++    if (acceptedOperation != null && existing != null) return;
++    _store.draftHeads[draft.ownerUserId + '|' + draft.conversationId] = {
++      'draft_id': draft.draftId,
++      'protected_text': draft.protectedText,
++      'accepted_operation_id': acceptedOperation
++    };
++  }
++
++  @override
++  Future<void> acceptDraft(ImDraftAcceptance draft, String operationId) async {
++    final key =
++        draft.ownerUserId + '|' + draft.conversationId + '|' + draft.draftId;
++    final old = _store.draftAcceptances[key];
++    if (old != null && old != operationId)
++      throw StateError('draft already accepted by another operation');
++    _store.draftAcceptances[key] = operationId;
++    var head = await findDraftHead(draft.ownerUserId, draft.conversationId);
++    if (head == null) {
++      await saveDraftHead(draft);
++      head = await findDraftHead(draft.ownerUserId, draft.conversationId);
++    }
++    if (head!['draft_id'] == draft.draftId)
++      _store.draftHeads[draft.ownerUserId + '|' + draft.conversationId] = {
++        ...head,
++        'accepted_operation_id': operationId
++      };
++  }
+ 
+   @override
+   Future<ImInboxRecord?> findInbox({
+@@ -1380,6 +1553,7 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
+     required String ownerUserId,
+     required String operationId,
+   }) async {
++    observedOutboxes.add((ownerUserId, operationId));
+     final record = _store.outboxes[operationId];
+     return record?.ownerUserId == ownerUserId ? record : null;
+   }
+@@ -1422,6 +1596,7 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
+ 
+   @override
+   Future<bool> insertOutboxIfAbsent(ImOutboxRecord record) async {
++    observedOutboxes.add((record.ownerUserId, record.operationId));
+     if (_store.outboxes.containsKey(record.operationId)) return false;
+     _store.outboxes[record.operationId] = record;
+     return true;
+@@ -1435,6 +1610,7 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
+     required int fencingToken,
+     required int nowMs,
+   }) async {
++    observedOutboxes.add((record.ownerUserId, record.operationId));
+     if (!isValidImOutboxTransition(expectedState, record.state) ||
+         !await _hasCurrentLease(
+           record.ownerUserId,
+@@ -1450,7 +1626,8 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
+         current.state != expectedState) {
+       return false;
+     }
+-    _store.outboxes[record.operationId] = record;
++    _store.outboxes[record.operationId] =
++        record.copyWith(stateVersion: current.stateVersion + 1);
+     return true;
+   }
+ 
+@@ -1471,6 +1648,12 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
+       return false;
+     }
+     _store.outboxRecoveryCopies[record.operationId] = record;
++    final main = _store.outboxes[record.operationId];
++    if (main != null) {
++      _store.outboxes[record.operationId] =
++          main.copyWith(stateVersion: main.stateVersion + 1);
++      observedOutboxes.add((main.ownerUserId, main.operationId));
++    }
+     return true;
+   }
+ 
+@@ -1482,6 +1665,7 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
+     required int fencingToken,
+     required int nowMs,
+   }) async {
++    observedOutboxes.add((record.ownerUserId, record.operationId));
+     if (!isValidImOutboxRecoveryTransition(expectedState, record.state) ||
+         !await _hasCurrentLease(
+           record.ownerUserId,
+@@ -1494,6 +1678,12 @@ class _MemoryImIngressTransaction implements ImIngressTransaction {
+     final current = _store.outboxRecoveryCopies[record.operationId];
+     if (current == null || current.state != expectedState) return false;
+     _store.outboxRecoveryCopies[record.operationId] = record;
++    final main = _store.outboxes[record.operationId];
++    if (main != null) {
++      _store.outboxes[record.operationId] =
++          main.copyWith(stateVersion: main.stateVersion + 1);
++      observedOutboxes.add((main.ownerUserId, main.operationId));
++    }
+     return true;
+   }
+ 
+diff --git a/lib/src/services/im/im_ingress_store_platform_web.dart b/lib/src/services/im/im_ingress_store_platform_web.dart
+index 762286eea7dcdbb145fe213fe2e6bc67e07fbd83..4025e2c3613331ea3c2c085a05aafd737914ea13 100644
+--- a/lib/src/services/im/im_ingress_store_platform_web.dart
++++ b/lib/src/services/im/im_ingress_store_platform_web.dart
+@@ -5,13 +5,18 @@ import 'dart:js_interop';
+ import 'package:web/web.dart';
+ 
+ import 'im05_contracts.dart';
++import 'im05_persistence.dart';
++import 'outbox_draft_submission.dart';
+ import 'im_ingress_store.dart';
+ import 'inbox_recovery_policy.dart';
+ import 'message_persist_coordinator.dart';
+ 
+ ImIngressStore createPlatformImIngressStore() => WebImIngressStore();
+ 
+-class WebImIngressStore implements ImIngressStore {
++class WebImIngressStore implements ImIngressStore, ImOutboxObservationScope {
++  static final Object _observationScope = Object();
++  @override
++  Object get outboxObservationScope => _observationScope;
+   static const _dbName = 'xj_chat_message_ingress_v1';
+   static const _storeName = 'state';
+   static const _dbVersion = 1;
+@@ -62,7 +67,11 @@ class WebImIngressStore implements ImIngressStore {
+     );
+     try {
+       final result = await action(transaction);
++      final snapshots = await transaction.committedOutboxes();
+       await completion;
++      for (final (main, copy) in snapshots) {
++        Im05Persistence.publishCommitted(outboxObservationScope, main, copy);
++      }
+       return result;
+     } catch (error) {
+       try {
+@@ -75,10 +84,56 @@ class WebImIngressStore implements ImIngressStore {
+   }
+ }
+ 
+-class _WebImIngressTransaction implements ImIngressTransaction {
++class _WebImIngressTransaction
++    with ImOutboxCommitTracking
++    implements ImIngressTransaction, ImDraftTransaction {
+   _WebImIngressTransaction(this._store);
+ 
+   final IDBObjectStore _store;
++  @override
++  Future<Map<String, Object?>?> findDraftHead(
++          String owner, String conversation) async =>
++      _decodeMap(await _get('draft|' + owner + '|' + conversation));
++  @override
++  Future<void> saveDraftHead(ImDraftAcceptance draft) async {
++    final old = await findDraftHead(draft.ownerUserId, draft.conversationId);
++    final acceptedOperation = await _get('draft-accepted|' +
++        draft.ownerUserId +
++        '|' +
++        draft.conversationId +
++        '|' +
++        draft.draftId);
++    if (acceptedOperation != null && old != null) return;
++    await _put(
++        'draft|' + draft.ownerUserId + '|' + draft.conversationId,
++        jsonEncode({
++          'draft_id': draft.draftId,
++          'protected_text': draft.protectedText,
++          'accepted_operation_id': acceptedOperation
++        }));
++  }
++
++  @override
++  Future<void> acceptDraft(ImDraftAcceptance draft, String operationId) async {
++    final key = 'draft-accepted|' +
++        draft.ownerUserId +
++        '|' +
++        draft.conversationId +
++        '|' +
++        draft.draftId;
++    final old = await _get(key);
++    if (old != null && old != operationId)
++      throw StateError('draft already accepted by another operation');
++    await _put(key, operationId);
++    var head = await findDraftHead(draft.ownerUserId, draft.conversationId);
++    if (head == null) {
++      await saveDraftHead(draft);
++      head = await findDraftHead(draft.ownerUserId, draft.conversationId);
++    }
++    if (head!['draft_id'] == draft.draftId)
++      await _put('draft|' + draft.ownerUserId + '|' + draft.conversationId,
++          jsonEncode({...head, 'accepted_operation_id': operationId}));
++  }
+ 
+   String _inboxKey(String owner, String namespace, String eventId) =>
+       'inbox|$owner|$namespace|$eventId';
+@@ -539,8 +594,10 @@ class _WebImIngressTransaction implements ImIngressTransaction {
+     required String ownerUserId,
+     required String operationId,
+   }) async {
++    observedOutboxes.add((ownerUserId, operationId));
+     final map = _decodeMap(await _get(_outboxKey(ownerUserId, operationId)));
+-    return map == null ? null : imOutboxFromStorageMap(map);
++    if (map == null || map['owner_user_id'] != ownerUserId) return null;
++    return imOutboxFromStorageMap(map);
+   }
+ 
+   @override
+@@ -620,7 +677,8 @@ class _WebImIngressTransaction implements ImIngressTransaction {
+     if (current == null || current.state != expectedState) return false;
+     await _put(
+       _outboxKey(record.ownerUserId, record.operationId),
+-      jsonEncode(imOutboxToStorageMap(record)),
++      jsonEncode(imOutboxToStorageMap(
++          record.copyWith(stateVersion: current.stateVersion + 1))),
+     );
+     return true;
+   }
+@@ -633,7 +691,9 @@ class _WebImIngressTransaction implements ImIngressTransaction {
+     final map = _decodeMap(
+       await _get(_outboxRecoveryKey(ownerUserId, operationId)),
+     );
+-    return map == null ? null : imOutboxRecoveryFromStorageMap(map);
++    return map == null || map['owner_user_id'] != ownerUserId
++        ? null
++        : imOutboxRecoveryFromStorageMap(map);
+   }
+ 
+   @override
+@@ -643,6 +703,7 @@ class _WebImIngressTransaction implements ImIngressTransaction {
+     final key = _outboxRecoveryKey(record.ownerUserId, record.operationId);
+     if (await _get(key) != null) return false;
+     await _put(key, jsonEncode(imOutboxRecoveryToStorageMap(record)));
++    await _bumpMainVersion(record);
+     return true;
+   }
+ 
+@@ -668,9 +729,20 @@ class _WebImIngressTransaction implements ImIngressTransaction {
+       _outboxRecoveryKey(record.ownerUserId, record.operationId),
+       jsonEncode(imOutboxRecoveryToStorageMap(record)),
+     );
++    await _bumpMainVersion(record);
+     return true;
+   }
+ 
++  Future<void> _bumpMainVersion(ImOutboxRecoveryRecord copy) async {
++    final main = await findOutbox(
++        ownerUserId: copy.ownerUserId, operationId: copy.operationId);
++    if (main != null)
++      await _put(
++          _outboxKey(main.ownerUserId, main.operationId),
++          jsonEncode(imOutboxToStorageMap(
++              main.copyWith(stateVersion: main.stateVersion + 1))));
++  }
++
+   Future<bool> _hasCurrentLease(
+     String ownerUserId,
+     String leaseOwnerId,
+diff --git a/lib/src/services/im/message_core_store.dart b/lib/src/services/im/message_core_store.dart
+index b11d4338fd9433f75b78c620035c7fdda20e0798..6dcfdd3da235b3a7d3498e9ed331b6d6cf9d094d 100644
+--- a/lib/src/services/im/message_core_store.dart
++++ b/lib/src/services/im/message_core_store.dart
+@@ -519,8 +519,7 @@ class MessageCoreStore {
+ 
+   Future<T> runTransaction<T>(
+     Future<T> Function(DatabaseExecutor transaction) action, {
+-    MessagePersistPriority persistPriority =
+-        MessagePersistPriority.userHistory,
++    MessagePersistPriority persistPriority = MessagePersistPriority.userHistory,
+     MessagePersistSource persistSource = MessagePersistSource.userHistory,
+     String conversationId = '',
+     int accountGeneration = 0,
+@@ -534,7 +533,23 @@ class MessageCoreStore {
+       itemCount: itemCount,
+       run: () async {
+         final db = await _openDb();
+-        return db.transaction<T>((transaction) => action(transaction));
++        var actionCompleted = false;
++        try {
++          return await db.transaction<T>((transaction) async {
++            final result = await action(transaction);
++            actionCompleted = true;
++            return result;
++          });
++        } catch (_) {
++          if (actionCompleted) {
++            // COMMIT itself failed. sqflite can leave the native transaction
++            // active; another queued transaction then waits indefinitely.
++            // close performs its forced rollback. Never replay the action.
++            if (identical(_db, db)) _db = null;
++            await SqfliteLifecycleGuard.closeDatabase(db);
++          }
++          rethrow;
++        }
+       },
+     );
+   }
+diff --git a/lib/src/services/im/outbox_draft_submission.dart b/lib/src/services/im/outbox_draft_submission.dart
+new file mode 100644
+index 0000000000000000000000000000000000000000..1398086eda4ccce8d69da71f5847a27fef3c0710
+--- /dev/null
++++ b/lib/src/services/im/outbox_draft_submission.dart
+@@ -0,0 +1,54 @@
++import 'dart:async';
++
++/// Opaque edit identity, independent of text equality and process-local counters.
++class ImDraftAcceptance {
++  const ImDraftAcceptance(
++      {required this.ownerUserId,
++      required this.conversationId,
++      required this.draftId,
++      required this.protectedText});
++  final String ownerUserId;
++  final String conversationId;
++  final String draftId;
++  final String protectedText;
++}
++
++abstract interface class ImDraftTransaction {
++  Future<Map<String, Object?>?> findDraftHead(
++      String owner, String conversation);
++  Future<void> saveDraftHead(ImDraftAcceptance draft);
++  Future<void> acceptDraft(ImDraftAcceptance draft, String operationId);
++}
++
++abstract interface class ImDurableTextSubmission {
++  ImDraftSubmissionContext? get durableContext;
++}
++
++/// Carries acceptance through existing async SDK-create/send calls without a
++/// second coordinator. No UI clear occurs until prepareOutbox has committed.
++class ImDraftSubmissionContext {
++  ImDraftSubmissionContext({required this.prepare, required this.isCurrent});
++  final Future<ImDraftAcceptance> Function() prepare;
++  final bool Function() isCurrent;
++  static final Object _zoneKey = Object();
++  static ImDraftSubmissionContext? get current =>
++      Zone.current[_zoneKey] as ImDraftSubmissionContext?;
++  String? acceptedOperationId;
++  void Function()? _onAccepted;
++  final List<void Function()> _acceptedListeners = [];
++  void onAccepted(void Function() listener) => _acceptedListeners.add(listener);
++  Future<T> run<T>(Future<T> Function() action, void Function() onAccepted) {
++    _onAccepted = onAccepted;
++    return runZoned(action, zoneValues: {_zoneKey: this});
++  }
++
++  void accepted(String operationId) {
++    if (acceptedOperationId != null) return;
++    acceptedOperationId = operationId;
++    for (final listener in _acceptedListeners) {
++      listener();
++    }
++    _acceptedListeners.clear();
++    _onAccepted?.call();
++  }
++}
+diff --git a/lib/src/services/im/outbox_state_version_schema.dart b/lib/src/services/im/outbox_state_version_schema.dart
+new file mode 100644
+index 0000000000000000000000000000000000000000..2d6959722e3c476d2cb0a77853cb7424817e7b01
+--- /dev/null
++++ b/lib/src/services/im/outbox_state_version_schema.dart
+@@ -0,0 +1,44 @@
++import 'package:sqflite_common_ffi/sqflite_ffi.dart';
++
++/// The main row is the durable version/terminal anchor. Recovery payloads may
++/// be collected or rebuilt without reusing an earlier state version.
++Future<void> ensureOutboxStateVersionSchema(DatabaseExecutor db) async {
++  await db.execute('''CREATE TABLE IF NOT EXISTS message_draft_head (
++    owner_user_id TEXT NOT NULL, conversation_id TEXT NOT NULL,
++    draft_id TEXT NOT NULL, protected_text TEXT NOT NULL,
++    accepted_operation_id TEXT,
++    PRIMARY KEY(owner_user_id, conversation_id))''');
++  await db.execute('''CREATE TABLE IF NOT EXISTS message_draft_acceptance (
++    owner_user_id TEXT NOT NULL, conversation_id TEXT NOT NULL,
++    draft_id TEXT NOT NULL, operation_id TEXT NOT NULL,
++    PRIMARY KEY(owner_user_id, conversation_id, draft_id))''');
++  final columns = await db.rawQuery('PRAGMA table_info(message_outbox)');
++  for (final column in {
++    'retry_of_operation_id': 'TEXT',
++    'retry_of_state_version': 'INTEGER'
++  }.entries) {
++    if (!columns.any((row) => row['name'] == column.key))
++      await db.execute(
++          'ALTER TABLE message_outbox ADD COLUMN ${column.key} ${column.value}');
++  }
++  if (!columns.any((row) => row['name'] == 'state_version')) {
++    await db.execute(
++        'ALTER TABLE message_outbox ADD COLUMN state_version INTEGER NOT NULL DEFAULT 1');
++    await db.execute('''UPDATE message_outbox SET state_version = MAX(1,
++      COALESCE((SELECT recovery_revision FROM message_outbox_recovery_copy r
++        WHERE r.operation_id = message_outbox.operation_id
++        AND r.owner_user_id = message_outbox.owner_user_id), 1))''');
++  }
++  await db.execute('''CREATE TRIGGER IF NOT EXISTS outbox_state_version_update
++    AFTER UPDATE ON message_outbox WHEN NEW.state_version <= OLD.state_version
++    BEGIN UPDATE message_outbox SET state_version = OLD.state_version + 1
++      WHERE operation_id = NEW.operation_id AND owner_user_id = NEW.owner_user_id; END''');
++  for (final event in ['INSERT', 'UPDATE', 'DELETE']) {
++    final row = event == 'DELETE' ? 'OLD' : 'NEW';
++    await db.execute(
++        '''CREATE TRIGGER IF NOT EXISTS outbox_copy_version_${event.toLowerCase()}
++      AFTER $event ON message_outbox_recovery_copy
++      BEGIN UPDATE message_outbox SET state_version = state_version + 1
++        WHERE operation_id = $row.operation_id AND owner_user_id = $row.owner_user_id; END''');
++  }
++}
+diff --git a/lib/src/services/im/outgoing_send_coordinator.dart b/lib/src/services/im/outgoing_send_coordinator.dart
+index 3352cd23dccddba0f6bfc925ece463fc563184d4..20aacb77a81ac20af66855ee064bd717fb685035 100644
+--- a/lib/src/services/im/outgoing_send_coordinator.dart
++++ b/lib/src/services/im/outgoing_send_coordinator.dart
+@@ -1,5 +1,7 @@
+ import 'dart:async';
+ import 'dart:convert';
++import 'outbox_draft_submission.dart';
++import 'writer_lease.dart';
+ 
+ import 'package:flutter/foundation.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+@@ -14,6 +16,7 @@ import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_media_staging.d
+ import 'package:tencent_cloud_chat_demo/src/services/im/tencent_message_adapter.dart';
+ import 'package:tencent_cloud_chat_demo/src/utils/message_conversation_id.dart';
+ import 'package:tencent_cloud_chat_sdk/enum/message_elem_type.dart';
++import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
+ import 'package:tencent_cloud_chat_sdk/enum/message_priority_enum.dart';
+ import 'package:tencent_cloud_chat_sdk/enum/offlinePushInfo.dart';
+ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
+@@ -48,6 +51,19 @@ class ImCoordinatedSendResult {
+   final ImOutboxResultView? resultView;
+   final bool localStatePending;
+ 
++  /// Capture once at a UI consumption boundary; every derived field then
++  /// reads the same committed verdict instead of a changing live view.
++  ImCoordinatedSendResult snapshot() => ImCoordinatedSendResult(
++      sdkResult: _sdkResult,
++      usedOutbox: usedOutbox,
++      identity: identity,
++      accountGeneration: accountGeneration,
++      domainGeneration: domainGeneration,
++      dispatchDecision: dispatchDecision,
++      outcomeUnknown: _outcomeUnknown,
++      outboxResult: currentOutboxResult,
++      localStatePending: localStatePending);
++
+   bool get isCurrentSession =>
+       identity == null ||
+       accountGeneration == null ||
+@@ -119,8 +135,19 @@ class ImCoordinatedSendResult {
+       sdkResult.code == 0;
+ }
+ 
++enum ImProviderEvidenceSource { sdkHistory, sdkRealtime, appProjection }
++
+ class ImOutgoingSendCoordinator {
+-  ImOutgoingSendCoordinator._();
++  ImOutgoingSendCoordinator._()
++      : _leaseContext =
++            ConversationSyncService.instance.messageCoreLeaseForOutgoingSend;
++
++  @visibleForTesting
++  ImOutgoingSendCoordinator.forTesting({
++    required Future<ImMessageCoreLeaseContext?> Function() leaseContext,
++  }) : _leaseContext = leaseContext;
++
++  final Future<ImMessageCoreLeaseContext?> Function() _leaseContext;
+ 
+   static final ImOutgoingSendCoordinator instance =
+       ImOutgoingSendCoordinator._();
+@@ -135,8 +162,7 @@ class ImOutgoingSendCoordinator {
+   }) async {
+     final localId = sdkLocalId.trim();
+     if (localId.isEmpty) return false;
+-    final context = await ConversationSyncService.instance
+-        .messageCoreLeaseForOutgoingSend();
++    final context = await _leaseContext();
+     if (context == null) return false;
+     final scope = AccountScopedConversationKey.tryParse(
+       ownerUserId: context.ownerUserId,
+@@ -196,6 +222,8 @@ class ImOutgoingSendCoordinator {
+     String? clientCorrelationIdOverride,
+     void Function(String syncMsgID)? onSyncMsgID,
+     SessionIdentity? expectedSessionIdentity,
++    String? retryOfSdkLocalId,
++    void Function()? onDispatchGranted,
+   }) async {
+     final localId = sdkLocalId.trim();
+     if (localId.isEmpty) {
+@@ -204,8 +232,7 @@ class ImOutgoingSendCoordinator {
+         desc: 'sdkLocalId is required',
+       );
+     }
+-    final context = await ConversationSyncService.instance
+-        .messageCoreLeaseForOutgoingSend();
++    final context = await _leaseContext();
+     if (expectedSessionIdentity != null &&
+         (!SessionIdentityService.instance.isCurrent(expectedSessionIdentity) ||
+             context?.ownerUserId != expectedSessionIdentity.ownerUserId ||
+@@ -253,13 +280,41 @@ class ImOutgoingSendCoordinator {
+     }
+     final nowMs = DateTime.now().millisecondsSinceEpoch;
+     final persistence = Im05Persistence(store: context.store);
++    ImOutboxRecord? retryParent;
++    if (retryOfSdkLocalId != null) {
++      retryParent = await persistence.findOutboxBySdkLocalId(
++          ownerUserId: context.ownerUserId,
++          conversationId: scope.storageKey,
++          sdkLocalId: retryOfSdkLocalId);
++      final verdict = retryParent == null
++          ? null
++          : await persistence.readOutboxResult(
++              ownerUserId: context.ownerUserId,
++              operationId: retryParent.operationId);
++      if (verdict?.canRetry != true || !persistOutbox)
++        return _blocked(
++            fallbackMessage: fallbackMessage,
++            outcomeUnknown: true,
++            desc: 'retry requires current durable failure');
++      retryParent = verdict!.main;
++    }
++    final retryKey = retryParent == null
++        ? null
++        : sha256
++            .convert(utf8.encode(
++                '${context.ownerUserId}|${retryParent.operationId}|${retryParent.stateVersion}'))
++            .toString();
+     final operationId = operationIdOverride?.trim().isNotEmpty == true
+         ? operationIdOverride!.trim()
+-        : newOutgoingOperationId();
++        : retryKey == null
++            ? newOutgoingOperationId()
++            : 'retry_$retryKey';
+     final clientCorrelationId =
+         clientCorrelationIdOverride?.trim().isNotEmpty == true
+             ? clientCorrelationIdOverride!.trim()
+-            : newOutgoingClientCorrelationId();
++            : retryKey == null
++                ? newOutgoingClientCorrelationId()
++                : 'retry_corr_$retryKey';
+     // The SDK-created local message is already the bubble adopted by the UI.
+     // Recreating it here produces a second local id: the SDK sends that second
+     // message while the visible bubble stays attached to the first one. This
+@@ -269,7 +324,7 @@ class ImOutgoingSendCoordinator {
+     final sendMessage = fallbackMessage;
+     var outboxMessage = fallbackMessage;
+     String? stagedMediaRoot;
+-    if (persistOutbox && !recoverPreparedOutbox) {
++    if (persistOutbox && !recoverPreparedOutbox && retryParent == null) {
+       // Staging rewrites local paths. Apply that mutation only to a detached
+       // Outbox copy so the live SDK/UI message continues to use its original
+       // path and identity. Recovery may recreate an SDK message later from
+@@ -321,7 +376,7 @@ class ImOutgoingSendCoordinator {
+     final messageKind = _messageKindFor(
+       (outboxMessage ?? sendMessage)?.elemType,
+     );
+-    final plaintextEnvelope = recoveredPrepared == null
++    final plaintextEnvelope = recoveredPrepared == null && retryParent == null
+         ? _encodeOutgoingEnvelope(
+             message: outboxMessage,
+             sdkLocalId: sendLocalId,
+@@ -346,6 +401,7 @@ class ImOutgoingSendCoordinator {
+               )
+             : null;
+     final payloadEnvelope = recoveredPrepared?.main?.payloadReference ??
++        retryParent?.payloadReference ??
+         (persistOutbox ? protectedPayload?.value : plaintextEnvelope);
+     if (persistOutbox && payloadEnvelope == null) {
+       await OutgoingMediaStager.instance.cleanup(stagedMediaRoot);
+@@ -358,6 +414,7 @@ class ImOutgoingSendCoordinator {
+     // Encryption intentionally uses a fresh nonce on every send, so a
+     // ciphertext hash would change even when the logical message is identical.
+     final payloadFingerprint = recoveredPrepared?.main?.payloadHash ??
++        retryParent?.payloadHash ??
+         sha256
+             .convert(
+                 utf8.encode(plaintextEnvelope ?? 'sdkLocalId:$sendLocalId'))
+@@ -388,27 +445,44 @@ class ImOutgoingSendCoordinator {
+             context.ownerUserId, identity.operationId)
+         : null;
+ 
++    final draftContext =
++        recoverPreparedOutbox ? null : ImDraftSubmissionContext.current;
++    final draftAcceptance = persistOutbox && draftContext != null
++        ? await draftContext.prepare()
++        : null;
+     if (persistOutbox) {
+       final main = ImOutboxRecord(
+         operationId: identity.operationId,
++        retryOfOperationId: recoveredPrepared?.main?.retryOfOperationId ??
++            retryParent?.operationId,
++        retryOfStateVersion: recoveredPrepared?.main?.retryOfStateVersion ??
++            retryParent?.stateVersion,
+         ownerUserId: context.ownerUserId,
+         conversationId: scope.storageKey,
+         clientCorrelationId: identity.clientCorrelationId,
+         messageType:
+             (outboxMessage ?? sendMessage)?.elemType ?? messageKind.index,
+         payloadReference: payloadEnvelope!,
+-        mediaLocalRef: stagedMediaRoot ??
++        mediaLocalRef: recoveredPrepared?.main?.mediaLocalRef ??
++            retryParent?.mediaLocalRef ??
++            stagedMediaRoot ??
+             _mediaLocalReference(outboxMessage ?? sendMessage),
+         encryptionVersion: recoveredPrepared?.main?.encryptionVersion ??
++            retryParent?.encryptionVersion ??
+             (protectedPayload == null
+                 ? null
+                 : ProtectedOutboxPayload.encryptionVersion),
+-        keyId: recoveredPrepared?.main?.keyId ?? protectedPayload?.keyId,
++        keyId: recoveredPrepared?.main?.keyId ??
++            retryParent?.keyId ??
++            protectedPayload?.keyId,
+         cipherAlgorithm: recoveredPrepared?.main?.cipherAlgorithm ??
++            retryParent?.cipherAlgorithm ??
+             (protectedPayload == null
+                 ? null
+                 : ProtectedOutboxPayload.cipherAlgorithm),
+-        nonce: recoveredPrepared?.main?.nonce ?? protectedPayload?.nonce,
++        nonce: recoveredPrepared?.main?.nonce ??
++            retryParent?.nonce ??
++            protectedPayload?.nonce,
+         payloadHash: identity.payloadFingerprint,
+         contentChecksum: identity.payloadFingerprint,
+         sdkMessageId: sendLocalId,
+@@ -434,6 +508,7 @@ class ImOutgoingSendCoordinator {
+           await persistence.prepareOutbox(
+             main: main,
+             recoveryCopy: recovery,
++            draftAcceptance: draftAcceptance,
+             leaseOwnerId: context.lease.leaseOwnerId,
+             fencingToken: context.lease.fencingToken,
+             nowMs: nowMs,
+@@ -452,6 +527,16 @@ class ImOutgoingSendCoordinator {
+           desc: 'outbox dispatch rejected: ${prepared.decision.name}',
+         );
+       }
++      // The two Outbox records and draft ownership are committed together.
++      // A UI failure cannot undo durable acceptance or trigger another send.
++      if (draftContext != null) {
++        try {
++          draftContext.accepted(identity.operationId);
++        } catch (error) {
++          debugPrint('draft acceptance projection failed: ' +
++              error.runtimeType.toString());
++        }
++      }
+       final dispatch = await persistence.recordDispatchIntent(
+         ownerUserId: context.ownerUserId,
+         operationId: identity.operationId,
+@@ -527,6 +612,11 @@ class ImOutgoingSendCoordinator {
+         }
+       },
+     );
++    try {
++      onDispatchGranted?.call();
++    } catch (error) {
++      debugPrint('outbox dispatch UI pending: ${error.runtimeType}');
++    }
+     final sdk = await adapter.send(
+       identity: identity,
+       sdkLocalId: sendLocalId,
+@@ -644,15 +734,17 @@ class ImOutgoingSendCoordinator {
+   /// Only self messages carrying the exact outgoing identity envelope can
+   /// advance an Outbox row.
+   Future<int> adoptProviderHistory(
+-    Iterable<V2TimMessage> messages,
+-  ) async {
+-    final context = await ConversationSyncService.instance
+-        .messageCoreLeaseForOutgoingSend();
++    Iterable<V2TimMessage> messages, {
++    required ImProviderEvidenceSource source,
++  }) async {
++    if (source == ImProviderEvidenceSource.appProjection) return 0;
++    final context = await _leaseContext();
+     if (context == null) return 0;
+     final persistence = Im05Persistence(store: context.store);
+     var adoptedCount = 0;
+     for (final message in messages) {
+-      if (message.isSelf != true) continue;
++      if (message.isSelf != true ||
++          message.status != MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC) continue;
+       final sender = message.sender?.trim() ?? '';
+       if (sender != context.ownerUserId ||
+           (message.msgID?.trim().isEmpty ?? true)) {
+diff --git a/lib/src/services/im/read_outbox_store.dart b/lib/src/services/im/read_outbox_store.dart
+index 5ecd559fe740918108cc1bbb7c72ee42db51e746..be6f9e8b7f470ac59ce2842a8bf9e067961c5270 100644
+--- a/lib/src/services/im/read_outbox_store.dart
++++ b/lib/src/services/im/read_outbox_store.dart
+@@ -1,4 +1,5 @@
+ import 'package:flutter/foundation.dart';
++import 'conversation_read_policy.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/message_core_store.dart';
+ 
+ class ConversationReadOutboxRecord {
+@@ -11,6 +12,9 @@ class ConversationReadOutboxRecord {
+     required this.lastReadAtMs,
+     required this.attemptCount,
+     required this.nextRetryAtMs,
++    this.retryReason = '',
++    this.createdAtMs = 0,
++    this.readEventAtMs = 0,
+   });
+ 
+   final String ownerUserId;
+@@ -21,6 +25,9 @@ class ConversationReadOutboxRecord {
+   final int lastReadAtMs;
+   final int attemptCount;
+   final int nextRetryAtMs;
++  final String retryReason;
++  final int createdAtMs;
++  final int readEventAtMs;
+ }
+ 
+ /// Durable conversation mark-read queue, scoped by account.
+@@ -57,6 +64,15 @@ class ConversationReadOutboxStore {
+       ''');
+       final columns = await db.rawQuery('PRAGMA table_info($_table)');
+       final names = columns.map((row) => row['name']?.toString()).toSet();
++      if (!names.contains('read_event_at')) {
++        await db.execute(
++            'ALTER TABLE $_table ADD COLUMN read_event_at INTEGER NOT NULL DEFAULT 0');
++        await db.execute('UPDATE $_table SET read_event_at = last_read_at');
++      }
++      if (!names.contains('retry_reason')) {
++        await db.execute(
++            "ALTER TABLE $_table ADD COLUMN retry_reason TEXT NOT NULL DEFAULT ''");
++      }
+       if (!names.contains('clean_timestamp')) {
+         await db.execute(
+           'ALTER TABLE $_table ADD COLUMN clean_timestamp INTEGER NOT NULL DEFAULT 0',
+@@ -93,67 +109,67 @@ class ConversationReadOutboxStore {
+     if (owner.isEmpty || conversation.isEmpty) return;
+     final now = DateTime.now().millisecondsSinceEpoch;
+     final requestedReadAt = lastReadAtMs ?? now;
+-    ConversationReadOutboxRecord buildRecord(int readAt) =>
+-        ConversationReadOutboxRecord(
++    ConversationReadOutboxRecord? merge(ConversationReadOutboxRecord? current) {
++      if (current != null && current.readEventAtMs > requestedReadAt)
++        return null;
++      final timestamp = cleanTimestamp > (current?.cleanTimestamp ?? 0)
++          ? cleanTimestamp
++          : current?.cleanTimestamp ?? 0;
++      final sequence = cleanSequence > (current?.cleanSequence ?? 0)
++          ? cleanSequence
++          : current?.cleanSequence ?? 0;
++      final messageId = lastReadMessageId.trim().isEmpty
++          ? current?.lastReadMessageId ?? ''
++          : lastReadMessageId.trim();
++      if (current != null &&
++          current.cleanTimestamp == timestamp &&
++          current.cleanSequence == sequence &&
++          current.lastReadMessageId == messageId) return null;
++      final revision =
++          current != null && current.lastReadAtMs >= requestedReadAt
++              ? current.lastReadAtMs + 1
++              : requestedReadAt;
++      return ConversationReadOutboxRecord(
+           ownerUserId: owner,
+           conversationId: conversation,
+-          lastReadMessageId: lastReadMessageId.trim(),
+-          cleanTimestamp: cleanTimestamp > 0 ? cleanTimestamp : 0,
+-          cleanSequence: cleanSequence > 0 ? cleanSequence : 0,
+-          lastReadAtMs: readAt,
++          lastReadMessageId: messageId,
++          cleanTimestamp: timestamp,
++          cleanSequence: sequence,
++          lastReadAtMs: revision,
++          readEventAtMs: requestedReadAt,
+           attemptCount: 0,
+           nextRetryAtMs: 0,
+-        );
++          createdAtMs: now);
++    }
++
+     if (kIsWeb) {
+       final key = '$owner|$conversation';
+-      final current = _webRows[key];
+-      if (current != null && current.lastReadAtMs > requestedReadAt) return;
+-      final effectiveReadAt = lastReadAtMs == null &&
+-              current != null &&
+-              current.lastReadAtMs >= requestedReadAt
+-          ? current.lastReadAtMs + 1
+-          : requestedReadAt;
+-      _webRows[key] = buildRecord(effectiveReadAt);
++      final record = merge(_webRows[key]);
++      if (record != null) _webRows[key] = record;
+       return;
+     }
+     await _ensureSchema();
+     await MessageCoreStore.instance.runTransaction<void>((db) async {
+-      final current = await db.query(
+-        _table,
+-        columns: <String>['last_read_at', 'created_at'],
+-        where: 'owner_user_id = ? AND conversation_id = ?',
+-        whereArgs: <Object?>[owner, conversation],
+-        limit: 1,
+-      );
+-      final currentReadAt =
+-          current.isEmpty ? -1 : (current.first['last_read_at'] as int? ?? -1);
+-      if (currentReadAt > requestedReadAt) return;
+-      final effectiveReadAt =
+-          lastReadAtMs == null && currentReadAt >= requestedReadAt
+-              ? currentReadAt + 1
+-              : requestedReadAt;
+-      final record = buildRecord(effectiveReadAt);
+-      final createdAt =
+-          current.isEmpty ? now : (current.first['created_at'] as int? ?? now);
+-      await db.rawInsert(
+-        '''
+-          INSERT OR REPLACE INTO $_table (
+-            owner_user_id, conversation_id, last_read_message_id,
+-            clean_timestamp, clean_sequence, last_read_at, attempt_count,
+-            next_retry_at, created_at, updated_at
+-          ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
+-        ''',
+-        <Object?>[
+-          owner,
+-          conversation,
+-          record.lastReadMessageId,
+-          record.cleanTimestamp,
+-          record.cleanSequence,
+-          effectiveReadAt,
+-          createdAt,
+-          now,
+-        ],
+-      );
++      final rows = await db.query(_table,
++          where: 'owner_user_id = ? AND conversation_id = ?',
++          whereArgs: [owner, conversation],
++          limit: 1);
++      final record = merge(rows.isEmpty ? null : _recordFromRow(rows.single));
++      if (record == null) return;
++      await db.rawInsert('''INSERT OR REPLACE INTO $_table (
++        owner_user_id, conversation_id, last_read_message_id, clean_timestamp, clean_sequence,
++        last_read_at, read_event_at, attempt_count, next_retry_at, created_at, updated_at
++      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)''', [
++        owner,
++        conversation,
++        record.lastReadMessageId,
++        record.cleanTimestamp,
++        record.cleanSequence,
++        record.lastReadAtMs,
++        record.readEventAtMs,
++        now,
++        now
++      ]);
+     });
+   }
+ 
+@@ -175,16 +191,20 @@ class ConversationReadOutboxStore {
+       for (final id in ids) {
+         final key = '$owner|$id';
+         final current = _webRows[key];
+-        if (current != null && current.lastReadAtMs > readAt) continue;
++        if (current != null) continue;
+         _webRows[key] = ConversationReadOutboxRecord(
+           ownerUserId: owner,
+           conversationId: id,
+           lastReadMessageId: '',
+           cleanTimestamp: 0,
+           cleanSequence: 0,
+-          lastReadAtMs: readAt,
++          lastReadAtMs: current != null && current.lastReadAtMs >= readAt
++              ? current.lastReadAtMs + 1
++              : readAt,
+           attemptCount: 0,
+           nextRetryAtMs: 0,
++          createdAtMs: now,
++          readEventAtMs: readAt,
+         );
+       }
+       return;
+@@ -202,7 +222,9 @@ class ConversationReadOutboxStore {
+         final currentReadAt = current.isEmpty
+             ? -1
+             : (current.first['last_read_at'] as int? ?? -1);
+-        if (currentReadAt > readAt) continue;
++        if (current.isNotEmpty) continue;
++        final effectiveReadAt =
++            currentReadAt >= readAt ? currentReadAt + 1 : readAt;
+         final createdAt = current.isEmpty
+             ? now
+             : (current.first['created_at'] as int? ?? now);
+@@ -210,11 +232,11 @@ class ConversationReadOutboxStore {
+           '''
+           INSERT OR REPLACE INTO $_table (
+             owner_user_id, conversation_id, last_read_message_id,
+-            clean_timestamp, clean_sequence, last_read_at, attempt_count,
++            clean_timestamp, clean_sequence, last_read_at, read_event_at, attempt_count,
+             next_retry_at, created_at, updated_at
+-          ) VALUES (?, ?, '', 0, 0, ?, 0, 0, ?, ?)
++          ) VALUES (?, ?, '', 0, 0, ?, ?, 0, 0, ?, ?)
+         ''',
+-          <Object?>[owner, id, readAt, createdAt, now],
++          <Object?>[owner, id, effectiveReadAt, readAt, createdAt, now],
+         );
+       }
+     });
+@@ -312,7 +334,10 @@ class ConversationReadOutboxStore {
+     final now = DateTime.now().millisecondsSinceEpoch;
+     if (kIsWeb) {
+       return _webRows.values
+-          .where((row) => row.ownerUserId == owner && row.nextRetryAtMs <= now)
++          .where((row) =>
++              row.ownerUserId == owner &&
++              row.nextRetryAtMs >= 0 &&
++              row.nextRetryAtMs <= now)
+           .take(limit)
+           .toList(growable: false);
+     }
+@@ -321,7 +346,8 @@ class ConversationReadOutboxStore {
+         .runTransaction<List<ConversationReadOutboxRecord>>((db) async {
+       final rows = await db.query(
+         _table,
+-        where: 'owner_user_id = ? AND next_retry_at <= ?',
++        where:
++            'owner_user_id = ? AND next_retry_at >= 0 AND next_retry_at <= ?',
+         whereArgs: <Object?>[owner, now],
+         orderBy: 'next_retry_at ASC, updated_at ASC',
+         limit: limit,
+@@ -336,7 +362,7 @@ class ConversationReadOutboxStore {
+     if (kIsWeb) {
+       int? earliest;
+       for (final row in _webRows.values) {
+-        if (row.ownerUserId != owner) continue;
++        if (row.ownerUserId != owner || row.nextRetryAtMs < 0) continue;
+         if (earliest == null || row.nextRetryAtMs < earliest) {
+           earliest = row.nextRetryAtMs;
+         }
+@@ -347,17 +373,26 @@ class ConversationReadOutboxStore {
+     return MessageCoreStore.instance.runTransaction<int?>((db) async {
+       final rows = await db.rawQuery(
+         'SELECT MIN(next_retry_at) AS earliest FROM $_table '
+-        'WHERE owner_user_id = ?',
++        'WHERE owner_user_id = ? AND next_retry_at >= 0',
+         <Object?>[owner],
+       );
+       return rows.isEmpty ? null : rows.first['earliest'] as int?;
+     });
+   }
+ 
+-  Future<void> markRetry(ConversationReadOutboxRecord record) async {
++  Future<void> markRetry(ConversationReadOutboxRecord record,
++      {int? sdkCode, String? reason}) async {
+     final attempt = record.attemptCount + 1;
+     final now = DateTime.now().millisecondsSinceEpoch;
+-    final next = now + _backoffMs(attempt);
++    var cause = reason ?? ConversationReadPolicy.failureReason(sdkCode ?? -1);
++    if (cause.startsWith('transient:') &&
++        record.createdAtMs > 0 &&
++        now - record.createdAtMs >=
++            const Duration(minutes: 15).inMilliseconds) {
++      cause = 'reconnect:retry_window_elapsed';
++    }
++    final next =
++        cause.startsWith('transient:') ? now + _backoffMs(attempt) : -1;
+     if (kIsWeb) {
+       final key = '${record.ownerUserId}|${record.conversationId}';
+       final current = _webRows[key];
+@@ -373,6 +408,9 @@ class ConversationReadOutboxStore {
+         lastReadAtMs: record.lastReadAtMs,
+         attemptCount: attempt,
+         nextRetryAtMs: next,
++        retryReason: cause,
++        createdAtMs: record.createdAtMs,
++        readEventAtMs: record.readEventAtMs,
+       );
+       return;
+     }
+@@ -383,6 +421,7 @@ class ConversationReadOutboxStore {
+         <String, Object?>{
+           'attempt_count': attempt,
+           'next_retry_at': next,
++          'retry_reason': cause,
+           'updated_at': now,
+         },
+         where: 'owner_user_id = ? AND conversation_id = ? AND last_read_at = ?',
+@@ -395,6 +434,40 @@ class ConversationReadOutboxStore {
+     });
+   }
+ 
++  Future<void> resumeAfterReconnect(String ownerUserId) async {
++    final now = DateTime.now().millisecondsSinceEpoch;
++    if (kIsWeb) {
++      for (final entry in _webRows.entries.toList()) {
++        final row = entry.value;
++        if (row.ownerUserId != ownerUserId ||
++            !row.retryReason.startsWith('reconnect:')) continue;
++        _webRows[entry.key] = ConversationReadOutboxRecord(
++            ownerUserId: row.ownerUserId,
++            conversationId: row.conversationId,
++            lastReadMessageId: row.lastReadMessageId,
++            cleanTimestamp: row.cleanTimestamp,
++            cleanSequence: row.cleanSequence,
++            lastReadAtMs: row.lastReadAtMs,
++            readEventAtMs: row.readEventAtMs,
++            attemptCount: 0,
++            nextRetryAtMs: 0,
++            createdAtMs: now);
++      }
++      return;
++    }
++    await _ensureSchema();
++    await MessageCoreStore.instance.runTransaction((db) => db.update(
++        _table,
++        {
++          'next_retry_at': 0,
++          'attempt_count': 0,
++          'retry_reason': '',
++          'created_at': now
++        },
++        where: "owner_user_id = ? AND retry_reason LIKE 'reconnect:%'",
++        whereArgs: [ownerUserId]));
++  }
++
+   Future<void> clearOwner(String ownerUserId) async {
+     final owner = ownerUserId.trim();
+     if (owner.isEmpty) return;
+@@ -421,6 +494,10 @@ ConversationReadOutboxRecord _recordFromRow(Map<String, Object?> row) {
+     lastReadAtMs: row['last_read_at'] as int? ?? 0,
+     attemptCount: row['attempt_count'] as int? ?? 0,
+     nextRetryAtMs: row['next_retry_at'] as int? ?? 0,
++    retryReason: row['retry_reason'] as String? ?? '',
++    createdAtMs: row['created_at'] as int? ?? 0,
++    readEventAtMs:
++        row['read_event_at'] as int? ?? row['last_read_at'] as int? ?? 0,
+   );
+ }
+ 
+diff --git a/lib/src/services/im/tencent_conversation_read_service.dart b/lib/src/services/im/tencent_conversation_read_service.dart
+index 64da8a650ca5c4df169f421337e37907a4a87295..9f7b92ce06f1209b24418b23aae80bb20452fe9e 100644
+--- a/lib/src/services/im/tencent_conversation_read_service.dart
++++ b/lib/src/services/im/tencent_conversation_read_service.dart
+@@ -1,4 +1,5 @@
+ import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
++import 'conversation_read_policy.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+ import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
+ import 'package:tencent_cloud_chat_sdk/models/v2_tim_callback.dart'
+@@ -17,14 +18,21 @@ class TencentConversationReadService {
+     required String conversationID,
+     required bool isGroup,
+     required SessionIdentity capturedIdentity,
++    bool explicitFullConversationClear = false,
+   }) async {
+     final id = _rawPeerID(conversationID, isGroup: isGroup);
+-    if (id.isEmpty) {
++    if (id.isEmpty || id == 'c2c' || id == 'group') {
+       return V2TimCallback(code: -1, desc: 'empty_conversation_id');
+     }
+     if (!_isCurrent(capturedIdentity)) {
+       return _staleIdentity();
+     }
++    // Old page lifecycle callbacks carry no visible-message watermark.
++    // They must not clear newer/unseen messages; the read outbox owns those
++    // bounded acknowledgements. Full clears require an explicit user action.
++    if (!explicitFullConversationClear) {
++      return V2TimCallback(code: -1, desc: 'read_watermark_unavailable');
++    }
+     final result = isGroup
+         ? await messageService.markGroupMessageAsRead(groupID: id)
+         : await messageService.markC2CMessageAsRead(userID: id);
+@@ -45,7 +53,8 @@ class TencentConversationReadService {
+     if (!_isCurrent(capturedIdentity)) {
+       return _staleIdentity();
+     }
+-    if (!allowFullTypeClean && cleanTimestamp <= 0 && cleanSequence <= 0) {
++    if (!ConversationReadPolicy.validTarget(id, cleanTimestamp, cleanSequence,
++        explicitTypeClear: allowFullTypeClean)) {
+       return V2TimCallback(code: -1, desc: 'read_watermark_unavailable');
+     }
+     final result = await TencentImSDKPlugin.v2TIMManager
+diff --git a/lib/src/services/im_connect_status_service.dart b/lib/src/services/im_connect_status_service.dart
+index d13f7492b392050e388f72e99cf104f0377be5ca..e6b2be52dae0be6ec6ef4456c00014cc2e5c534e 100644
+--- a/lib/src/services/im_connect_status_service.dart
++++ b/lib/src/services/im_connect_status_service.dart
+@@ -174,7 +174,9 @@ class ImConnectStatusService extends ChangeNotifier {
+     }
+     ImSdkRelationshipReconcileService.instance.onSocketConnectSuccess();
+     unawaited(
+-      ConversationUnreadClearService.recoverPendingReadOutbox().catchError(
++      ConversationUnreadClearService.recoverPendingReadOutbox(
++              afterReconnect: true)
++          .catchError(
+         (Object error) => debugPrint(
+           'recover conversation read outbox failed '
+           'errorType=${error.runtimeType}',
+diff --git a/lib/src/services/web_read_service.dart b/lib/src/services/web_read_service.dart
+index 68cf08b1bb8b5206dfdf9506e791cbcaedde3035..3cee8e454a1abe3d5c2cbfc9572f90d1c6739836 100644
+--- a/lib/src/services/web_read_service.dart
++++ b/lib/src/services/web_read_service.dart
+@@ -1,4 +1,5 @@
+ import 'package:flutter/foundation.dart';
++import 'im/conversation_read_policy.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/tencent_conversation_read_service.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im_web_ready_guard.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+@@ -39,9 +40,7 @@ class WebReadService {
+   }
+ 
+   int _timestampSeconds(int? value) {
+-    final timestamp = value ?? 0;
+-    if (timestamp <= 0) return 0;
+-    return timestamp > 9999999999 ? timestamp ~/ 1000 : timestamp;
++    return ConversationReadPolicy.conservativeTimestamp(value ?? 0);
+   }
+ 
+   String _conversationID(V2TimConversation conversation) {
+diff --git a/test/im08_outcome_unknown_manual_closure_test.dart b/test/im08_outcome_unknown_manual_closure_test.dart
+index 7feb187d238da65eafc00be3680d471f6169597a..28b571f27973aab2a8d85544ff85bca18d839f8e 100644
+--- a/test/im08_outcome_unknown_manual_closure_test.dart
++++ b/test/im08_outcome_unknown_manual_closure_test.dart
+@@ -10,7 +10,9 @@ void main() {
+     ).readAsStringSync();
+     expect(
+       source,
+-      contains('current?.state == ImOutboxState.outcomeUnknown'),
++      // Retry eligibility now belongs to the committed verdict. Actual
++      // dispatch/unknown behavior is covered by round2_dispatch_and_draft_test.
++      contains('return verdict.canRetry;'),
+     );
+     expect(source, contains('if (!shouldSettleAsFailed) continue;'));
+   });
+diff --git a/test/im09_read_authority_test.dart b/test/im09_read_authority_test.dart
+index 5f270ef60038af081996819a83a9ab7da4faa085..8c218ce218f09a137b75b374eec9c0fb2d1d29a4 100644
+--- a/test/im09_read_authority_test.dart
++++ b/test/im09_read_authority_test.dart
+@@ -32,7 +32,21 @@ V2TimCallback _success() => V2TimCallback(code: 0, desc: 'ok');
+ void main() {
+   TestWidgetsFlutterBinding.ensureInitialized();
+ 
+-  test('normalizes C2C and group ids before the SDK authority call', () async {
++  test('page lifecycle without a watermark never invokes a full SDK clear',
++      () async {
++    final service = _FakeMessageService();
++    final result = await TencentConversationReadService.markRead(
++        messageService: service,
++        conversationID: 'c2c_bob',
++        isGroup: false,
++        capturedIdentity:
++            SessionIdentityService.instance.capture(ownerUserId: 'alice'));
++    expect(result.desc, 'read_watermark_unavailable');
++    expect(service.calls, isEmpty);
++  });
++
++  test('normalizes explicit C2C and group clears before the SDK authority call',
++      () async {
+     final service = _FakeMessageService();
+     final identity =
+         SessionIdentityService.instance.capture(ownerUserId: 'alice');
+@@ -42,12 +56,14 @@ void main() {
+       conversationID: 'c2c_bob',
+       isGroup: false,
+       capturedIdentity: identity,
++      explicitFullConversationClear: true,
+     );
+     final group = await TencentConversationReadService.markRead(
+       messageService: service,
+       conversationID: 'group_@TGS#room',
+       isGroup: true,
+       capturedIdentity: identity,
++      explicitFullConversationClear: true,
+     );
+ 
+     expect(c2c.code, 0);
+@@ -68,6 +84,7 @@ void main() {
+       conversationID: 'c2c_bob',
+       isGroup: false,
+       capturedIdentity: identity,
++      explicitFullConversationClear: true,
+     );
+     await Future<void>.delayed(Duration.zero);
+     SessionIdentityService.instance.invalidate(reason: 'test_account_switch');
+diff --git a/test/round2_crash_worker_test.dart b/test/round2_crash_worker_test.dart
+new file mode 100644
+index 0000000000000000000000000000000000000000..c5b9c30a962705e24961ec2f914b009203f87841
+--- /dev/null
++++ b/test/round2_crash_worker_test.dart
+@@ -0,0 +1,255 @@
++import 'dart:async';
++import 'dart:convert';
++import 'dart:io';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import 'package:sqflite_common_ffi/sqflite_ffi.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im05_persistence.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/message_core_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/message_persist_coordinator.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/outbox_draft_submission.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/outbox_payload_cipher.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/writer_lease.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/contracts/outgoing_identity_contract.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/contracts/account_scoped_conversation_key.dart';
++import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_draft_service.dart';
++
++const directory = String.fromEnvironment('CRASH_DIR');
++const scenario = String.fromEnvironment('CRASH_CASE');
++const mode = String.fromEnvironment('CRASH_MODE');
++const nonce = String.fromEnvironment('CRASH_NONCE');
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++  test('isolated process $scenario $mode', () async {
++    SharedPreferences.setMockInitialValues({});
++    sqfliteFfiInit();
++    databaseFactory = databaseFactoryFfi;
++    await databaseFactory.setDatabasesPath(directory);
++    final core = MessageCoreStore.instance;
++    final store = ConversationLocalImIngressStore(core: core);
++    final cipher = OutboxPayloadCipher(
++        readKey: () async => base64Encode(List.filled(32, 7)),
++        writeKey: (_) async {});
++    final scope = AccountScopedConversationKey(
++        ownerUserId: 'alice',
++        conversationType: ImConversationType.c2c,
++        conversationId: 'c2c_bob');
++    final identity = OutgoingIdentityContract(
++        scope: scope,
++        operationId: 'op-$scenario',
++        clientCorrelationId: 'corr-$scenario',
++        messageKind: OutgoingMessageKind.text,
++        payloadFingerprint: 'fixture-payload-fingerprint',
++        createdAtMs: 10);
++    final persistence = Im05Persistence(store: store);
++    if (mode == 'write') {
++      final lease = (await ImWriterLeaseService(store: store).acquire(
++          ownerUserId: 'alice',
++          leaseOwnerId: 'writer',
++          nowMs: 10,
++          ttlMs: 100000))!;
++      final protected =
++          (await cipher.protect(ownerUserId: 'alice', plaintext: 'A'))!;
++      final draft = ImDraftAcceptance(
++          ownerUserId: 'alice',
++          conversationId: 'c2c_bob',
++          draftId: 'draft-A',
++          protectedText: protected.value);
++      await store
++          .transaction((tx) => (tx as ImDraftTransaction).saveDraftHead(draft));
++      final payload = (await cipher.protect(
++          ownerUserId: 'alice',
++          plaintext: jsonEncode({
++            'schemaVersion': 1,
++            'message': {
++              'textElem': {'text': 'A'},
++              'groupAtUserList': ['mentioned-user']
++            },
++            'businessCloudCustomData': {
++              'messageReply': {'messageID': 'quoted-message'},
++              'mentionOccurrences': ['mentioned-user']
++            }
++          })))!;
++      final preparePersistence = scenario == 'before_commit'
++          ? Im05Persistence(store: _PauseAfterAction(store))
++          : persistence;
++      await preparePersistence.prepareOutbox(
++          main: ImOutboxRecord(
++              operationId: identity.operationId,
++              ownerUserId: 'alice',
++              conversationId: scope.storageKey,
++              clientCorrelationId: identity.clientCorrelationId,
++              messageType: 1,
++              payloadReference: payload.value,
++              payloadHash: identity.payloadFingerprint,
++              state: ImOutboxState.prepared,
++              createdAtMs: 10,
++              updatedAtMs: 10,
++              sdkMessageId: 'local'),
++          recoveryCopy: ImOutboxRecoveryRecord(
++              ownerUserId: 'alice',
++              operationId: identity.operationId,
++              clientCorrelationId: identity.clientCorrelationId,
++              conversationId: scope.storageKey,
++              messageType: 1,
++              recoveryRevision: 1,
++              state: ImOutboxCopyState.copyPrepared,
++              payloadReferenceOrCiphertext: payload.value,
++              payloadHash: identity.payloadFingerprint,
++              checksum: identity.payloadFingerprint,
++              updatedAtMs: 10,
++              sdkLocalId: 'local'),
++          draftAcceptance: draft,
++          leaseOwnerId: 'writer',
++          fencingToken: lease.fencingToken,
++          nowMs: 10);
++      if (scenario != 'prepared') {
++        final intent = await persistence.recordDispatchIntent(
++            ownerUserId: 'alice',
++            operationId: identity.operationId,
++            dispatchAttemptId: 'attempt',
++            leaseOwnerId: 'writer',
++            fencingToken: lease.fencingToken,
++            nowMs: 11);
++        if (scenario == 'sdk_success_commit_failure') {
++          await persistence.transitionOutbox(
++              next: intent.main!.copyWith(state: ImOutboxState.sending),
++              expectedState: ImOutboxState.dispatchIntent,
++              leaseOwnerId: 'writer',
++              fencingToken: lease.fencingToken,
++              nowMs: 12);
++          // A separate serialized provider fixture stands in for a later SDK query.
++          // This proves process independence, not real Tencent delivery.
++          await File('$directory/provider.json').writeAsString(
++              jsonEncode({
++                'sender': 'alice',
++                'isSelf': true,
++                'status': 2,
++                'msgID': 'server-confirmed',
++                'cloudCustomData': identity.encodeCloudCustomData()
++              }),
++              flush: true);
++          final db =
++              await openDatabase('$directory/${MessageCoreStore.dbName}');
++          await db.execute('PRAGMA foreign_keys=ON');
++          await db.execute('CREATE TABLE parent(id INTEGER PRIMARY KEY)');
++          await db.execute(
++              'CREATE TABLE child(id INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED)');
++          await db.execute(
++              "CREATE TRIGGER fail_commit AFTER UPDATE ON message_outbox WHEN NEW.state='acknowledged' BEGIN INSERT INTO child VALUES(9); END");
++          await expectLater(
++              persistence.adjudicateOutboxSdkResult(
++                  ownerUserId: 'alice',
++                  operationId: identity.operationId,
++                  expectedAttemptId: 'attempt',
++                  succeeded: true,
++                  leaseOwnerId: 'writer',
++                  fencingToken: lease.fencingToken,
++                  nowMs: 20,
++                  sdkLocalId: 'local',
++                  serverMsgId: 'server-confirmed',
++                  resultCode: '0'),
++              throwsA(anything));
++        }
++      }
++      await pauseForKill();
++    } else {
++      final draftService = ConversationDraftService.forTesting(
++          ownerForTest: () => 'alice',
++          writeForTest: (_, __) async => 0,
++          readForTest: (_) async => 'A',
++          commitForTest: (_, __) async {},
++          draftStoreForTest: store,
++          draftCipherForTest: cipher);
++      final edit = draftService.beginEditing('c2c_bob');
++      final restoredDraft = await draftService.loadDraftText(
++          conversationID: 'c2c_bob', expectedEdit: edit);
++      final result = await persistence.readOutboxResult(
++          ownerUserId: 'alice', operationId: identity.operationId);
++      if (scenario == 'before_commit') {
++        expect(result.decision, ImOutboxResultDecision.missing);
++        expect(restoredDraft, 'A');
++      } else {
++        expect(restoredDraft, isNull);
++        final recoveredPayload = jsonDecode((await cipher.reveal(
++            ownerUserId: 'alice', value: result.main!.payloadReference))!);
++        expect(
++            recoveredPayload['businessCloudCustomData']['messageReply']
++                ['messageID'],
++            'quoted-message');
++        expect(
++            recoveredPayload['message']['groupAtUserList'], ['mentioned-user']);
++        final assessment = await persistence.recoverOutbox(
++            ownerUserId: 'alice', operationId: identity.operationId);
++        expect(assessment.canDispatch, scenario == 'prepared');
++        if (scenario != 'prepared')
++          expect(assessment.requiresOutcomeQuery, isTrue);
++        if (scenario == 'sdk_success_commit_failure') {
++          expect(result.currentState, ImOutboxState.sending);
++          final provider =
++              jsonDecode(await File('$directory/provider.json').readAsString());
++          expect(provider['status'], 2);
++          expect(provider['sender'], 'alice');
++          final fromCloud = OutgoingIdentityContract.fromCloudCustomData(
++              provider['cloudCustomData'],
++              scope: scope)!;
++          await core
++              .runTransaction((db) => db.execute('DROP TRIGGER fail_commit'));
++          expect(
++              await persistence.adoptOutboxProviderSucceeded(
++                  ownerUserId: 'alice',
++                  operationId: fromCloud.operationId,
++                  clientCorrelationId: fromCloud.clientCorrelationId,
++                  conversationId: scope.storageKey,
++                  payloadHash: fromCloud.payloadFingerprint,
++                  leaseOwnerId: 'writer',
++                  fencingToken: 1,
++                  nowMs: 30,
++                  serverMsgId: provider['msgID']),
++              isTrue);
++          expect(
++              (await persistence.readOutboxResult(
++                      ownerUserId: 'alice', operationId: identity.operationId))
++                  .deliveryConfirmed,
++              isTrue);
++        }
++      }
++      await File('$directory/verified.json').writeAsString(
++          jsonEncode({
++            'scenario': scenario,
++            'newProcessPid': pid,
++            'draftRecovered': restoredDraft,
++            'durableStateBeforeRepair': result.currentState?.name,
++            'canRetry': result.canRetry,
++            'recoveryPerformedSdkSends': 0,
++            'providerEvidence': 'serialized synthetic fixture'
++          }),
++          flush: true);
++      await core.closeIfOpen();
++    }
++  }, skip: directory.isEmpty, timeout: const Timeout(Duration(minutes: 2)));
++}
++
++Future<void> pauseForKill() async {
++  await File('$directory/ready.json').writeAsString(
++      jsonEncode({'pid': pid, 'nonce': nonce, 'scenario': scenario}),
++      flush: true);
++  await Completer<void>().future;
++}
++
++class _PauseAfterAction implements ImIngressStore {
++  _PauseAfterAction(this.inner);
++  final ImIngressStore inner;
++  @override
++  Future<T> transaction<T>(Future<T> Function(ImIngressTransaction) action,
++          {MessagePersistPriority persistPriority =
++              MessagePersistPriority.realtime}) =>
++      inner.transaction((tx) async {
++        final result = await action(tx);
++        await pauseForKill();
++        return result;
++      }, persistPriority: persistPriority);
++}
+diff --git a/test/round2_dispatch_and_draft_test.dart b/test/round2_dispatch_and_draft_test.dart
+new file mode 100644
+index 0000000000000000000000000000000000000000..03d0c65a358a740cd4d0ea0c851ec95ba7278d4b
+--- /dev/null
++++ b/test/round2_dispatch_and_draft_test.dart
+@@ -0,0 +1,395 @@
++import 'dart:async';
++import 'dart:convert';
++import 'package:flutter_secure_storage/flutter_secure_storage.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
++import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
++import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_draft_service.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im05_persistence.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/message_persist_coordinator.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/outbox_draft_submission.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/outbox_payload_cipher.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_send_coordinator.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/writer_lease.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/contracts/contracts.dart';
++import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart';
++import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.dart';
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++  setUp(() async {
++    SharedPreferences.setMockInitialValues({});
++    FlutterSecureStorage.setMockInitialValues({});
++    await ApiClient.instance
++        .saveAuthenticatedUserIdIfCurrent(expectedToken: null, userId: 'alice');
++  });
++
++  test(
++      'two recovery coordinators invoke the SDK once; unknown outcome cannot redispatch',
++      () async {
++    final f = await _Fixture.create();
++    await f.prepare();
++    final sdk = _CountingSdk();
++    Future<ImCoordinatedSendResult> send() => f.coordinator().send(
++        messageService: sdk,
++        sdkLocalId: 'local',
++        conversationId: 'c2c_bob',
++        conversationType: ImConversationType.c2c,
++        receiver: 'bob',
++        groupID: '',
++        fallbackMessage: f.message,
++        recoverPreparedOutbox: true,
++        operationIdOverride: 'op',
++        clientCorrelationIdOverride: 'corr');
++    final first = send();
++    final second = send();
++    await sdk.entered.future;
++    expect(sdk.calls, 1);
++    sdk.result
++        .completeError(StateError('transport disappeared after dispatch'));
++    final outcomes = await Future.wait([first, second]);
++    expect(outcomes.every((result) => result.outcomeUnknown), isTrue);
++    await send();
++    expect(sdk.calls, 1);
++    expect((await f.read()).currentState, ImOutboxState.outcomeUnknown);
++  });
++
++  test(
++      'two clicks on the same durable failure share one retry identity and SDK call',
++      () async {
++    final f = await _Fixture.create();
++    await f.fail();
++    final sdk = _CountingSdk();
++    var uiAdmissions = 0;
++    Future<ImCoordinatedSendResult> retry(String localId) =>
++        f.coordinator().send(
++            messageService: sdk,
++            sdkLocalId: localId,
++            conversationId: 'c2c_bob',
++            conversationType: ImConversationType.c2c,
++            receiver: 'bob',
++            groupID: '',
++            fallbackMessage: f.message,
++            retryOfSdkLocalId: 'local',
++            onDispatchGranted: () => uiAdmissions++);
++    final a = retry('recreated-a'), b = retry('recreated-b');
++    await sdk.entered.future;
++    sdk.result.complete(
++        V2TimValueCallback<V2TimMessage>(code: 0, desc: '', data: f.message));
++    final results = await Future.wait([a, b]);
++    expect(sdk.calls, 1);
++    expect(uiAdmissions, 1);
++    expect(results.first.identity!.operationId,
++        results.last.identity!.operationId);
++  });
++
++  test('success after retry preparation prevents dispatch and UI replacement',
++      () async {
++    final f = await _Fixture.create();
++    await f.fail();
++    var corrected = false, uiAdmissions = 0;
++    String? retryOperation;
++    final hooked = _AfterTransactionStore(f.store, (result) async {
++      if (!corrected &&
++          result is ImOutboxDispatchAssessment &&
++          result.main?.retryOfOperationId == 'op' &&
++          result.canDispatch) {
++        corrected = true;
++        retryOperation = result.main!.operationId;
++        await f.persistence.adoptOutboxProviderSucceeded(
++            ownerUserId: 'alice',
++            operationId: 'op',
++            clientCorrelationId: 'corr',
++            conversationId: 'alice|c2c_bob',
++            payloadHash: 'hash',
++            leaseOwnerId: 'writer',
++            fencingToken: f.lease.fencingToken,
++            nowMs: f.now,
++            serverMsgId: 'confirmed-server');
++      }
++    });
++    final coordinator = f.coordinator(storeOverride: hooked),
++        sdk = _CountingSdk();
++    final result = await coordinator.send(
++        messageService: sdk,
++        sdkLocalId: 'recreated',
++        conversationId: 'c2c_bob',
++        conversationType: ImConversationType.c2c,
++        receiver: 'bob',
++        groupID: '',
++        fallbackMessage: f.message,
++        retryOfSdkLocalId: 'local',
++        onDispatchGranted: () => uiAdmissions++);
++    expect(corrected, isTrue);
++    expect(sdk.calls, 0);
++    expect(uiAdmissions, 0);
++    expect(result.outcomeUnknown, isTrue);
++    expect((await f.read()).deliveryConfirmed, isTrue);
++    final recovered = await f.persistence.assessOutboxForDispatch(
++        ownerUserId: 'alice',
++        operationId: retryOperation!,
++        leaseOwnerId: 'writer',
++        fencingToken: f.lease.fencingToken,
++        nowMs: f.now);
++    expect(recovered.canDispatch, isFalse);
++    expect(recovered.decision, ImOutboxDispatchDecision.recoveryConflict);
++  });
++
++  test(
++      'matching local optimistic and failed SDK objects are not success evidence',
++      () async {
++    final f = await _Fixture.create();
++    await f.prepare();
++    await f.persistence.recordDispatchIntent(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        dispatchAttemptId: 'attempt',
++        leaseOwnerId: 'writer',
++        fencingToken: f.lease.fencingToken,
++        nowMs: f.now);
++    final coordinator = f.coordinator();
++    for (final state in [
++      MessageStatus.V2TIM_MSG_STATUS_SENDING,
++      MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL
++    ]) {
++      f.message.status = state;
++      expect(
++          await coordinator.adoptProviderHistory([f.message],
++              source: ImProviderEvidenceSource.sdkHistory),
++          0);
++      expect((await f.read()).deliveryConfirmed, isFalse);
++    }
++    f.message.status = MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC;
++    expect(
++        await coordinator.adoptProviderHistory([f.message],
++            source: ImProviderEvidenceSource.appProjection),
++        0);
++    expect((await f.read()).deliveryConfirmed, isFalse);
++    expect(
++        await coordinator.adoptProviderHistory([f.message],
++            source: ImProviderEvidenceSource.sdkHistory),
++        1);
++    expect((await f.read()).deliveryConfirmed, isTrue);
++  });
++
++  test(
++      'accepted A cannot erase a new identical-text B; old SDK write cannot restore A',
++      () async {
++    final f = await _Fixture.create();
++    final cipher = OutboxPayloadCipher(
++        readKey: () async => base64UrlEncode(List.filled(32, 7)),
++        writeKey: (_) async {});
++    String? sdk = 'same';
++    ConversationDraftService service() => ConversationDraftService.forTesting(
++        ownerForTest: () => 'alice',
++        writeForTest: (_, value) async {
++          sdk = value;
++          return 0;
++        },
++        readForTest: (_) async => sdk,
++        commitForTest: (_, __) async {},
++        draftStoreForTest: f.store,
++        draftCipherForTest: cipher);
++    final drafts = service();
++    var edit = drafts.beginEditing('c2c_bob');
++    final a = drafts.recordEdit(edit, 'same')!;
++    final acceptanceA = await drafts.submissionContext(a).prepare();
++    edit = drafts.recordEdit(a, 'same')!;
++    expect(edit.draftId, isNot(a.draftId));
++    await drafts.persistDraft(
++        conversationID: 'c2c_bob', rawInputText: 'same', expectedEdit: edit);
++    await f.prepare(draft: acceptanceA);
++    await f.store.transaction(
++        (tx) => (tx as ImDraftTransaction).saveDraftHead(acceptanceA));
++    final restarted = service();
++    final reopened = restarted.beginEditing('c2c_bob');
++    expect(
++        await restarted.loadDraftText(
++            conversationID: 'c2c_bob', expectedEdit: reopened),
++        'same');
++    final head = await f.store.transaction(
++        (tx) => (tx as ImDraftTransaction).findDraftHead('alice', 'c2c_bob'));
++    expect(head!['draft_id'], edit.draftId);
++    expect(head['accepted_operation_id'], isNull);
++  });
++
++  test(
++      'one draft cannot be accepted by two operations; transaction rolls back second pair',
++      () async {
++    final f = await _Fixture.create();
++    const draft = ImDraftAcceptance(
++        ownerUserId: 'alice',
++        conversationId: 'c2c_bob',
++        draftId: 'draft-A',
++        protectedText: 'ciphertext');
++    await f.prepare(draft: draft);
++    await expectLater(
++        f.prepare(draft: draft, operation: 'op2'), throwsStateError);
++    final second = await f.persistence
++        .readOutboxResult(ownerUserId: 'alice', operationId: 'op2');
++    expect(second.decision, ImOutboxResultDecision.missing);
++  });
++
++  test('rejected prepared assessment does not accept or clear a new draft',
++      () async {
++    final f = await _Fixture.create();
++    await f.prepare();
++    await f.persistence.recordDispatchIntent(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        dispatchAttemptId: 'attempt',
++        leaseOwnerId: 'writer',
++        fencingToken: f.lease.fencingToken,
++        nowMs: f.now);
++    const draft = ImDraftAcceptance(
++        ownerUserId: 'alice',
++        conversationId: 'c2c_bob',
++        draftId: 'draft-B',
++        protectedText: 'ciphertext');
++    await f.store
++        .transaction((tx) => (tx as ImDraftTransaction).saveDraftHead(draft));
++    expect((await f.prepare(draft: draft)).canDispatch, isFalse);
++    final head = await f.store.transaction(
++        (tx) => (tx as ImDraftTransaction).findDraftHead('alice', 'c2c_bob'));
++    expect(head!['accepted_operation_id'], isNull);
++  });
++}
++
++class _CountingSdk implements MessageService {
++  int calls = 0;
++  final entered = Completer<void>();
++  final result = Completer<V2TimValueCallback<V2TimMessage>>();
++  @override
++  dynamic noSuchMethod(Invocation invocation) {
++    if (invocation.memberName == #sendMessage) {
++      calls++;
++      if (!entered.isCompleted) entered.complete();
++      return result.future;
++    }
++    throw StateError('unexpected SDK ${invocation.memberName}');
++  }
++}
++
++class _AfterTransactionStore implements ImIngressStore {
++  _AfterTransactionStore(this.delegate, this.after);
++  final ImIngressStore delegate;
++  final Future<void> Function(Object?) after;
++  @override
++  Future<T> transaction<T>(Future<T> Function(ImIngressTransaction) action,
++      {MessagePersistPriority persistPriority =
++          MessagePersistPriority.realtime}) async {
++    final result =
++        await delegate.transaction(action, persistPriority: persistPriority);
++    await after(result);
++    return result;
++  }
++}
++
++class _Fixture {
++  final store = InMemoryImIngressStore();
++  late final persistence = Im05Persistence(store: store);
++  late final ImWriterLease lease;
++  final now = DateTime.now().millisecondsSinceEpoch;
++  late final identity = OutgoingIdentityContract(
++      scope: AccountScopedConversationKey(
++          ownerUserId: 'alice',
++          conversationType: ImConversationType.c2c,
++          conversationId: 'c2c_bob'),
++      operationId: 'op',
++      clientCorrelationId: 'corr',
++      messageKind: OutgoingMessageKind.text,
++      payloadFingerprint: 'hash',
++      createdAtMs: now);
++  late final message =
++      V2TimMessage.fromJson({'message_risk_type_identified': 0})
++        ..id = 'local'
++        ..msgID = 'server'
++        ..userID = 'bob'
++        ..sender = 'alice'
++        ..isSelf = true
++        ..elemType = 1
++        ..cloudCustomData = identity.encodeCloudCustomData();
++  static Future<_Fixture> create() async {
++    final f = _Fixture();
++    f.lease = (await ImWriterLeaseService(store: f.store).acquire(
++        ownerUserId: 'alice',
++        leaseOwnerId: 'writer',
++        nowMs: f.now,
++        ttlMs: 600000))!;
++    return f;
++  }
++
++  ImOutgoingSendCoordinator coordinator({ImIngressStore? storeOverride}) =>
++      ImOutgoingSendCoordinator.forTesting(
++          leaseContext: () async => ImMessageCoreLeaseContext(
++              store: storeOverride ?? store,
++              lease: lease,
++              ownerUserId: 'alice',
++              accountGeneration: SessionIdentityService.instance.generation,
++              domainGeneration: 1));
++  Future<ImOutboxResultVerdict> read() =>
++      persistence.readOutboxResult(ownerUserId: 'alice', operationId: 'op');
++  Future<void> fail() async {
++    await prepare();
++    final intent = await persistence.recordDispatchIntent(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        dispatchAttemptId: 'first',
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: now);
++    await persistence.transitionOutbox(
++        next: intent.main!.copyWith(state: ImOutboxState.sending),
++        expectedState: ImOutboxState.dispatchIntent,
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: now);
++    await persistence.adjudicateOutboxSdkResult(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        expectedAttemptId: 'first',
++        succeeded: false,
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: now,
++        resultCode: '6012',
++        sdkLocalId: 'local');
++  }
++
++  Future<ImOutboxDispatchAssessment> prepare(
++          {ImDraftAcceptance? draft, String operation = 'op'}) =>
++      persistence.prepareOutbox(
++          main: ImOutboxRecord(
++              ownerUserId: 'alice',
++              operationId: operation,
++              conversationId: 'alice|c2c_bob',
++              clientCorrelationId: 'corr',
++              messageType: 1,
++              payloadReference: 'encrypted',
++              payloadHash: 'hash',
++              sdkMessageId: 'local',
++              state: ImOutboxState.prepared,
++              createdAtMs: now,
++              updatedAtMs: now),
++          recoveryCopy: ImOutboxRecoveryRecord(
++              ownerUserId: 'alice',
++              operationId: operation,
++              conversationId: 'alice|c2c_bob',
++              clientCorrelationId: 'corr',
++              messageType: 1,
++              payloadReferenceOrCiphertext: 'encrypted',
++              payloadHash: 'hash',
++              checksum: 'hash',
++              state: ImOutboxCopyState.copyPrepared,
++              recoveryRevision: 1,
++              updatedAtMs: now),
++          draftAcceptance: draft,
++          leaseOwnerId: 'writer',
++          fencingToken: lease.fencingToken,
++          nowMs: now);
++}
+diff --git a/test/round2_live_result_widget_test.dart b/test/round2_live_result_widget_test.dart
+new file mode 100644
+index 0000000000000000000000000000000000000000..5a08063b38758ce8d070bbafdf2ce3b93d3c5209
+--- /dev/null
++++ b/test/round2_live_result_widget_test.dart
+@@ -0,0 +1,185 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:provider/provider.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im05_persistence.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_send_coordinator.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/writer_lease.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/contracts/account_scoped_conversation_key.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/contracts/outgoing_identity_contract.dart';
++import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_callback.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart';
++import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_separate_view_model.dart';
++import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
++import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_friendship_view_model.dart';
++import 'package:tencent_cloud_chat_uikit/business_logic/view_models/chat_ui_state_store.dart';
++import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
++import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.dart';
++import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list_item.dart';
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++  testWidgets(
++      'already rendered failed UIKit row removes its real retry icon after committed success',
++      (tester) async {
++    final frameworkErrorHandler = FlutterError.onError;
++    addTearDown(() => FlutterError.onError = frameworkErrorHandler);
++    SharedPreferences.setMockInitialValues({});
++    setupServiceLocator();
++    await serviceLocator.unregister<MessageService>();
++    serviceLocator.registerSingleton<MessageService>(_MetadataOnlyService());
++    final global = serviceLocator<TUIChatGlobalModel>();
++    global.clearData();
++    final separate = TUIChatSeparateViewModel()
++      ..conversationID = 'bob'
++      ..conversationType = ConvType.c2c;
++    final store = InMemoryImIngressStore();
++    final persistence = Im05Persistence(store: store);
++    final lease = (await ImWriterLeaseService(store: store).acquire(
++        ownerUserId: 'alice',
++        leaseOwnerId: 'writer',
++        nowMs: 10,
++        ttlMs: 100000))!;
++    await persistence.prepareOutbox(
++        main: const ImOutboxRecord(
++            operationId: 'op',
++            ownerUserId: 'alice',
++            conversationId: 'alice|c2c_bob',
++            clientCorrelationId: 'corr',
++            messageType: 1,
++            payloadReference: 'encrypted',
++            payloadHash: 'hash',
++            state: ImOutboxState.prepared,
++            createdAtMs: 10,
++            updatedAtMs: 10),
++        recoveryCopy: const ImOutboxRecoveryRecord(
++            ownerUserId: 'alice',
++            operationId: 'op',
++            clientCorrelationId: 'corr',
++            conversationId: 'alice|c2c_bob',
++            messageType: 1,
++            recoveryRevision: 1,
++            state: ImOutboxCopyState.copyPrepared,
++            payloadReferenceOrCiphertext: 'encrypted',
++            payloadHash: 'hash',
++            checksum: 'hash',
++            updatedAtMs: 10),
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: 10);
++    final intent = await persistence.recordDispatchIntent(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        dispatchAttemptId: 'attempt',
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: 11);
++    await persistence.transitionOutbox(
++        next: intent.main!.copyWith(state: ImOutboxState.sending),
++        expectedState: ImOutboxState.dispatchIntent,
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: 12);
++    final view = persistence.watchOutboxResult('alice', 'op');
++    final failed = await persistence.adjudicateOutboxSdkResult(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        expectedAttemptId: 'attempt',
++        succeeded: false,
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: 15,
++        resultCode: '6012',
++        sdkLocalId: 'local');
++    final message = V2TimMessage.fromJson({'message_risk_type_identified': 0})
++      ..id = 'local'
++      ..msgID = 'server'
++      ..sender = 'alice'
++      ..userID = 'bob'
++      ..isSelf = true
++      ..elemType = 1
++      ..timestamp = 1700000000
++      ..status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
++    global.setMessageList('bob', [message], replace: true);
++    final result = ImCoordinatedSendResult(
++        sdkResult: V2TimValueCallback<V2TimMessage>(
++            code: 6012, desc: 'failed', data: message),
++        usedOutbox: true,
++        identity: OutgoingIdentityContract(
++            scope: AccountScopedConversationKey(
++                ownerUserId: 'alice',
++                conversationType: ImConversationType.c2c,
++                conversationId: 'c2c_bob'),
++            operationId: 'op',
++            clientCorrelationId: 'corr',
++            messageKind: OutgoingMessageKind.text,
++            payloadFingerprint: 'hash',
++            createdAtMs: 10),
++        outboxResult: failed,
++        resultView: view);
++    global.applyOutgoingSendResult(
++        result.sdkResult, 'bob', 'local', ConvType.c2c, null, null,
++        coordinatedResult: result);
++    await tester.pumpWidget(MultiProvider(
++        providers: [
++          ChangeNotifierProvider<TUIChatGlobalModel>.value(value: global),
++          ChangeNotifierProvider<TUIChatSeparateViewModel>.value(
++              value: separate),
++          ChangeNotifierProvider<TUIFriendShipViewModel>.value(
++              value: serviceLocator<TUIFriendShipViewModel>()),
++          ChangeNotifierProvider<ChatUiStateStore>.value(
++              value: serviceLocator<ChatUiStateStore>()),
++        ],
++        child: MaterialApp(
++            home: Scaffold(
++                body: ListView(children: [
++          TIMUIKitHistoryMessageListItem(
++              message: message,
++              showAvatar: false,
++              showMessageReadReceipt: false,
++              messageItemBuilder: MessageItemBuilder(
++                  textMessageItemBuilder: (_, __, ___) => const Text('A'))),
++        ])))));
++    await tester.pump(const Duration(milliseconds: 50));
++    FlutterError.onError = frameworkErrorHandler;
++    expect(find.byIcon(Icons.error), findsOneWidget);
++    await persistence.adoptOutboxProviderSucceeded(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        clientCorrelationId: 'corr',
++        conversationId: 'alice|c2c_bob',
++        payloadHash: 'hash',
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: 20,
++        serverMsgId: 'server');
++    await tester.pump(const Duration(milliseconds: 50));
++    FlutterError.onError = frameworkErrorHandler;
++    print(
++        'live-probe: stored=${view.current?.currentState} row=${global.rawMessageList('bob')?.first.status} effective=${result.sdkResult.code}');
++    expect(find.byIcon(Icons.error), findsNothing);
++    expect(global.rawMessageList('bob')!.single.status,
++        MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC);
++    expect(global.getConversationPreviewMessage('bob')!.status,
++        MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC);
++    expect(result.currentOutboxResult!.canRetry, isFalse);
++    await tester.pumpWidget(const SizedBox());
++    global.clearData();
++    separate.dispose();
++    await tester.pump(const Duration(seconds: 3));
++  });
++}
++
++class _MetadataOnlyService implements MessageService {
++  @override
++  Future<V2TimCallback> setLocalCustomData(
++          {required String msgID, required String localCustomData}) async =>
++      V2TimCallback(code: 0, desc: '');
++  @override
++  dynamic noSuchMethod(Invocation invocation) =>
++      throw StateError('unexpected SDK ${invocation.memberName}');
++}
+diff --git a/test/round2_outbox_boundaries_test.dart b/test/round2_outbox_boundaries_test.dart
+new file mode 100644
+index 0000000000000000000000000000000000000000..eb066d4b1f39ed5ed29d5714270d6ef813c273f0
+--- /dev/null
++++ b/test/round2_outbox_boundaries_test.dart
+@@ -0,0 +1,334 @@
++import 'dart:async';
++import 'dart:io';
++import 'package:sqflite_common_ffi/sqflite_ffi.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/message_core_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/message_persist_coordinator.dart';
++import 'package:flutter/foundation.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im05_persistence.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/writer_lease.dart';
++import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_draft_service.dart';
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++  setUp(() => SharedPreferences.setMockInitialValues({}));
++
++  test('every committed canonical send state has a newer version', () async {
++    final f = await _Fixture.create();
++    final prepared = await f.read();
++    final intent = await f.intent();
++    final dispatch = await f.read();
++    await f.persistence.transitionOutbox(
++        next: intent.main!.copyWith(state: ImOutboxState.sending),
++        expectedState: ImOutboxState.dispatchIntent,
++        leaseOwnerId: 'writer',
++        fencingToken: f.lease.fencingToken,
++        nowMs: 12);
++    final sending = await f.read();
++    expect(dispatch.stateVersion, greaterThan(prepared.stateVersion));
++    expect(sending.stateVersion, greaterThan(dispatch.stateVersion));
++  });
++
++  test('terminal truth survives recovery payload garbage collection', () async {
++    final f = await _Fixture.create();
++    await f.send();
++    final success = await f.result(true);
++    await f.persistence.completeOutboxProjection(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        leaseOwnerId: 'writer',
++        fencingToken: f.lease.fencingToken,
++        nowMs: 22);
++    final version = (await f.read()).stateVersion;
++    (f.store as InMemoryImIngressStore).outboxRecoveryCopies.clear();
++    final restored = await f.read();
++    expect(restored.deliveryConfirmed, isTrue);
++    expect(restored.canRetry, isFalse);
++    expect(restored.stateVersion, greaterThanOrEqualTo(version));
++    expect(restored.stateVersion, greaterThan(success.stateVersion));
++  });
++
++  test('committed success actively notifies an already displayed failure',
++      () async {
++    final f = await _Fixture.create();
++    await f.send();
++    final view = f.persistence.watchOutboxResult('alice', 'op');
++    await f.result(false);
++    var notifications = 0;
++    final dynamic observable = view;
++    expect(view, isA<Listenable>());
++    void onChange() => notifications++;
++    observable.addListener(onChange);
++    await f.persistence.adoptOutboxProviderSucceeded(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        clientCorrelationId: 'corr',
++        conversationId: 'alice|c2c_bob',
++        payloadHash: 'hash',
++        leaseOwnerId: 'writer',
++        fencingToken: f.lease.fencingToken,
++        nowMs: 24,
++        serverMsgId: 'server');
++    expect(notifications, greaterThan(0));
++    expect(view.current!.deliveryConfirmed, isTrue);
++    observable.removeListener(onChange);
++  });
++
++  test('a caller timeout cannot release the SDK draft write queue', () async {
++    final first = Completer<int>();
++    var calls = 0;
++    String? sdk;
++    final service = ConversationDraftService.forTesting(
++        ownerForTest: () => 'alice',
++        writeForTest: (_, value) async {
++          calls++;
++          if (calls == 1) await first.future;
++          sdk = value;
++          return 0;
++        },
++        readForTest: (_) async => sdk,
++        commitForTest: (_, __) async {});
++    var edit = service.beginEditing('c2c_bob');
++    edit = service.recordEdit(edit, 'A')!;
++    final a = service.persistDraft(
++        conversationID: 'c2c_bob', rawInputText: 'A', expectedEdit: edit);
++    await expectLater(
++        a.timeout(Duration.zero), throwsA(isA<TimeoutException>()));
++    edit = service.recordEdit(edit, 'B')!;
++    final b = service.persistDraft(
++        conversationID: 'c2c_bob', rawInputText: 'B', expectedEdit: edit);
++    await Future<void>.value();
++    expect(calls, 1);
++    first.complete(0);
++    await Future.wait([a, b]);
++    expect(calls, 2);
++    expect(
++        await service.loadDraftText(
++            conversationID: 'c2c_bob', expectedEdit: edit),
++        'B');
++  });
++
++  test('storage error is unavailable, never legacy missing or retry permission',
++      () async {
++    final result = await Im05Persistence(store: _UnavailableStore())
++        .readOutboxResult(ownerUserId: 'alice', operationId: 'op');
++    expect(result.decision, ImOutboxResultDecision.unavailable);
++    expect(result.canRetry, isFalse);
++    expect(result.reason, contains('storage_unavailable'));
++  });
++
++  test(
++      'SQLite commit failure emits nothing; two adapters share committed truth and GC version',
++      () async {
++    sqfliteFfiInit();
++    databaseFactory = databaseFactoryFfi;
++    final original = await getDatabasesPath();
++    final directory = await Directory.systemTemp.createTemp('round2-commit-');
++    final core = MessageCoreStore.instance;
++    await core.closeIfOpen();
++    await databaseFactory.setDatabasesPath(directory.path);
++    try {
++      final firstStore = ConversationLocalImIngressStore(core: core);
++      final f = await _Fixture.create(store: firstStore);
++      await f.send();
++      final second =
++          Im05Persistence(store: ConversationLocalImIngressStore(core: core));
++      final view = second.watchOutboxResult('alice', 'op');
++      final before = await second.readOutboxResult(
++          ownerUserId: 'alice', operationId: 'op');
++      var changes = 0;
++      view.addListener(() => changes++);
++      // Same SQLite handle; enable FK enforcement outside a transaction.
++      var db =
++          await openDatabase('${directory.path}/${MessageCoreStore.dbName}');
++      print('commit_probe: handle');
++      await db.execute('PRAGMA foreign_keys=ON');
++      await db.execute('CREATE TABLE commit_parent(id INTEGER PRIMARY KEY)');
++      await db.execute(
++          'CREATE TABLE commit_child(id INTEGER REFERENCES commit_parent(id) DEFERRABLE INITIALLY DEFERRED)');
++      await db.execute(
++          "CREATE TRIGGER fail_at_commit AFTER UPDATE ON message_outbox WHEN NEW.state='acknowledged' BEGIN INSERT INTO commit_child VALUES(999); END");
++      print('commit_probe: armed');
++      await expectLater(f.result(true), throwsA(anything));
++      print('commit_probe: rejected');
++      expect(changes, 0);
++      final after = await f.read();
++      print('commit_probe: readable');
++      db = await openDatabase('${directory.path}/${MessageCoreStore.dbName}');
++      expect(after.stateVersion, before.stateVersion);
++      expect(after.currentState, ImOutboxState.sending);
++      expect((await db.rawQuery('SELECT * FROM commit_child')), isEmpty);
++      await db.execute('DROP TRIGGER fail_at_commit');
++      await f.result(true);
++      expect(view.current!.deliveryConfirmed, isTrue);
++      expect(changes, 1);
++      final confirmedVersion = view.current!.stateVersion;
++      await db.delete('message_outbox_recovery_copy');
++      final withoutPayload = await second.readOutboxResult(
++          ownerUserId: 'alice', operationId: 'op');
++      expect(withoutPayload.deliveryConfirmed, isTrue);
++      expect(withoutPayload.stateVersion, greaterThan(confirmedVersion));
++      await core.closeIfOpen();
++      final reopened = await Im05Persistence(
++              store: ConversationLocalImIngressStore(core: core))
++          .readOutboxResult(ownerUserId: 'alice', operationId: 'op');
++      expect(reopened.deliveryConfirmed, isTrue);
++      expect(reopened.stateVersion, withoutPayload.stateVersion);
++    } finally {
++      await core.closeIfOpen();
++      await databaseFactory
++          .deleteDatabase('${directory.path}/${MessageCoreStore.dbName}');
++      await databaseFactory.setDatabasesPath(original);
++      await directory.delete();
++    }
++  });
++
++  test('concurrent same-operation attempts get exactly one SDK dispatch permit',
++      () async {
++    final f = await _Fixture.create();
++    final other = Im05Persistence(store: f.store);
++    var sdkCalls = 0;
++    Future<void> attempt(Im05Persistence persistence, String attempt) async {
++      final permit = await persistence.recordDispatchIntent(
++          ownerUserId: 'alice',
++          operationId: 'op',
++          dispatchAttemptId: attempt,
++          leaseOwnerId: 'writer',
++          fencingToken: f.lease.fencingToken,
++          nowMs: 11);
++      if (permit.canDispatch) sdkCalls++;
++    }
++
++    await Future.wait([attempt(f.persistence, 'one'), attempt(other, 'two')]);
++    expect(sdkCalls, 1);
++    expect((await f.read()).canRetry, isFalse);
++  });
++
++  test('a zero-row recovery update rolls back the main outcome transition',
++      () async {
++    sqfliteFfiInit();
++    databaseFactory = databaseFactoryFfi;
++    final original = await getDatabasesPath();
++    final directory = await Directory.systemTemp.createTemp('round2-cas-');
++    final core = MessageCoreStore.instance;
++    await core.closeIfOpen();
++    await databaseFactory.setDatabasesPath(directory.path);
++    try {
++      final f = await _Fixture.create(
++          store: ConversationLocalImIngressStore(core: core));
++      await f.send();
++      final before = await f.read();
++      final db =
++          await openDatabase('${directory.path}/${MessageCoreStore.dbName}');
++      await db.execute(
++          "CREATE TRIGGER ignore_copy BEFORE UPDATE ON message_outbox_recovery_copy BEGIN SELECT RAISE(IGNORE); END");
++      await expectLater(
++          f.persistence.recordOutcomeUnknown(
++              ownerUserId: 'alice',
++              operationId: 'op',
++              leaseOwnerId: 'writer',
++              fencingToken: f.lease.fencingToken,
++              nowMs: 30),
++          throwsStateError);
++      final after = await f.read();
++      expect(after.currentState, before.currentState);
++      expect(after.stateVersion, before.stateVersion);
++    } finally {
++      await core.closeIfOpen();
++      await databaseFactory
++          .deleteDatabase('${directory.path}/${MessageCoreStore.dbName}');
++      await databaseFactory.setDatabasesPath(original);
++      await directory.delete();
++    }
++  });
++}
++
++class _UnavailableStore implements ImIngressStore {
++  @override
++  Future<T> transaction<T>(Future<T> Function(ImIngressTransaction) action,
++          {MessagePersistPriority persistPriority =
++              MessagePersistPriority.realtime}) =>
++      Future.error(StateError('injected read fault'));
++}
++
++class _Fixture {
++  _Fixture(this.store, this.persistence, this.lease);
++  final ImIngressStore store;
++  final Im05Persistence persistence;
++  final ImWriterLease lease;
++  static Future<_Fixture> create({ImIngressStore? store}) async {
++    store ??= InMemoryImIngressStore();
++    final persistence = Im05Persistence(store: store);
++    final lease = (await ImWriterLeaseService(store: store).acquire(
++        ownerUserId: 'alice',
++        leaseOwnerId: 'writer',
++        nowMs: 10,
++        ttlMs: 100000))!;
++    await persistence.prepareOutbox(
++        main: const ImOutboxRecord(
++            operationId: 'op',
++            ownerUserId: 'alice',
++            conversationId: 'alice|c2c_bob',
++            clientCorrelationId: 'corr',
++            messageType: 1,
++            payloadReference: 'encrypted',
++            payloadHash: 'hash',
++            state: ImOutboxState.prepared,
++            createdAtMs: 10,
++            updatedAtMs: 10,
++            sdkMessageId: 'local'),
++        recoveryCopy: const ImOutboxRecoveryRecord(
++            ownerUserId: 'alice',
++            operationId: 'op',
++            clientCorrelationId: 'corr',
++            conversationId: 'alice|c2c_bob',
++            messageType: 1,
++            recoveryRevision: 1,
++            state: ImOutboxCopyState.copyPrepared,
++            payloadReferenceOrCiphertext: 'encrypted',
++            payloadHash: 'hash',
++            checksum: 'hash',
++            updatedAtMs: 10,
++            sdkLocalId: 'local'),
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: 10);
++    return _Fixture(store, persistence, lease);
++  }
++
++  Future<ImOutboxResultVerdict> read() =>
++      persistence.readOutboxResult(ownerUserId: 'alice', operationId: 'op');
++  Future<ImOutboxDispatchAssessment> intent() =>
++      persistence.recordDispatchIntent(
++          ownerUserId: 'alice',
++          operationId: 'op',
++          dispatchAttemptId: 'attempt',
++          leaseOwnerId: 'writer',
++          fencingToken: lease.fencingToken,
++          nowMs: 11);
++  Future<void> send() async {
++    final result = await intent();
++    await persistence.transitionOutbox(
++        next: result.main!.copyWith(state: ImOutboxState.sending),
++        expectedState: ImOutboxState.dispatchIntent,
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: 12);
++  }
++
++  Future<ImOutboxResultVerdict> result(bool success) =>
++      persistence.adjudicateOutboxSdkResult(
++          ownerUserId: 'alice',
++          operationId: 'op',
++          expectedAttemptId: 'attempt',
++          succeeded: success,
++          leaseOwnerId: 'writer',
++          fencingToken: lease.fencingToken,
++          nowMs: 20,
++          sdkLocalId: 'local',
++          serverMsgId: 'server',
++          resultCode: success ? '0' : '6012');
++}
+diff --git a/test/round2_route_read_boundaries_test.dart b/test/round2_route_read_boundaries_test.dart
+new file mode 100644
+index 0000000000000000000000000000000000000000..5af227cf52834032d4bb520e201e63ee2f609c98
+--- /dev/null
++++ b/test/round2_route_read_boundaries_test.dart
+@@ -0,0 +1,264 @@
++import 'dart:async';
++import 'dart:io';
++import 'package:flutter/material.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import 'package:sqflite_common_ffi/sqflite_ffi.dart';
++import 'package:tencent_cloud_chat_demo/src/navigation/app_chat_route.dart';
++import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
++import 'package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/read_outbox_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/message_core_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/conversation_read_policy.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart';
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++  setUp(() => SharedPreferences.setMockInitialValues({}));
++  tearDown(() {
++    AppChatRouteRegistry.instance.reset();
++    ChatOpenPerfLog.resetForTest();
++  });
++  for (final warmup in ['success', 'failure', 'timeout']) {
++    testWidgets(
++        'concurrent initial opens share one route through $warmup and wait for pop',
++        (tester) async {
++      final navKey = GlobalKey<NavigatorState>();
++      late BuildContext context;
++      await tester.pumpWidget(MaterialApp(
++          navigatorKey: navKey,
++          home: Builder(builder: (c) {
++            context = c;
++            return const SizedBox();
++          })));
++      final prepare = Completer<void>();
++      var prepares = 0, pushes = 0;
++      final registry = AppChatRouteRegistry.instance;
++      registry.prepareForTest = () {
++        prepares++;
++        return prepare.future;
++      };
++      registry.routeForTest = () {
++        pushes++;
++        return MaterialPageRoute<String>(builder: (_) => const Text('chat'));
++      };
++      final conversation =
++          V2TimConversation(conversationID: 'c2c_bob', userID: 'bob', type: 1);
++      var completions = 0;
++      final a = openOrReuseAppChat<String>(context, conversation)
++          .whenComplete(() => completions++);
++      final b = openOrReuseAppChat<String>(context, conversation)
++          .whenComplete(() => completions++);
++      expect(prepares, 1);
++      if (warmup == 'success') prepare.complete();
++      if (warmup == 'failure') prepare.completeError(StateError('warmup'));
++      await tester.pump(const Duration(seconds: 1));
++      await tester.pumpAndSettle();
++      expect(pushes, 1);
++      expect(completions, 0);
++      navKey.currentState!.pop('popped');
++      await tester.pumpAndSettle();
++      expect(await a, 'popped');
++      expect(await b, 'popped');
++      if (warmup == 'timeout') prepare.complete();
++    });
++  }
++
++  testWidgets(
++      'account generation change cancels pending push and releases reservation',
++      (tester) async {
++    late BuildContext context;
++    await tester.pumpWidget(MaterialApp(home: Builder(builder: (c) {
++      context = c;
++      return const SizedBox();
++    })));
++    final prepare = Completer<void>();
++    var pushes = 0;
++    AppChatRouteRegistry.instance.prepareForTest = () => prepare.future;
++    AppChatRouteRegistry.instance.routeForTest = () {
++      pushes++;
++      return MaterialPageRoute<void>(builder: (_) => const SizedBox());
++    };
++    final pending = openOrReuseAppChat<void>(context,
++        V2TimConversation(conversationID: 'c2c_bob', userID: 'bob', type: 1));
++    SessionIdentityService.instance.invalidate(reason: 'test-account-switch');
++    prepare.complete();
++    await tester.pumpAndSettle();
++    await pending;
++    expect(pushes, 0);
++    ChatOpenPerfLog.resetForTest();
++    await tester.pump(const Duration(seconds: 3));
++  });
++
++  for (final keepSecondCaller in [true, false]) {
++    testWidgets('disposed caller preserves other waiters=$keepSecondCaller',
++        (tester) async {
++      final nav = GlobalKey<NavigatorState>();
++      late BuildContext aContext, bContext, survivingContext;
++      late StateSetter rebuild;
++      var showCallers = true;
++      await tester.pumpWidget(MaterialApp(
++          navigatorKey: nav,
++          home: StatefulBuilder(builder: (context, setState) {
++            survivingContext = context;
++            rebuild = setState;
++            return Column(children: [
++              if (showCallers)
++                Builder(
++                    key: const ValueKey('a'),
++                    builder: (c) {
++                      aContext = c;
++                      return const SizedBox();
++                    }),
++              if (showCallers || keepSecondCaller)
++                Builder(
++                    key: const ValueKey('b'),
++                    builder: (c) {
++                      bContext = c;
++                      return const SizedBox();
++                    }),
++            ]);
++          })));
++      final ready = Completer<void>();
++      var pushes = 0;
++      final registry = AppChatRouteRegistry.instance;
++      registry.prepareForTest = () => ready.future;
++      registry.routeForTest = () {
++        pushes++;
++        return MaterialPageRoute<void>(builder: (_) => const Text('chat'));
++      };
++      final conversation =
++          V2TimConversation(conversationID: 'c2c_bob', userID: 'bob', type: 1);
++      final a = openOrReuseAppChat(aContext, conversation);
++      final b = openOrReuseAppChat(bContext, conversation);
++      rebuild(() => showCallers = false);
++      await tester.pump();
++      ready.complete();
++      await tester.pumpAndSettle();
++      expect(pushes, keepSecondCaller ? 1 : 0);
++      if (keepSecondCaller) {
++        nav.currentState!.pop();
++        await tester.pumpAndSettle();
++      }
++      await Future.wait([a, b]);
++      // The completed reservation must release even if every original caller left.
++      final reopened = openOrReuseAppChat(survivingContext, conversation);
++      await tester.pumpAndSettle();
++      expect(pushes, keepSecondCaller ? 2 : 1);
++      nav.currentState!.pop();
++      await tester.pumpAndSettle();
++      await reopened;
++      ChatOpenPerfLog.resetForTest();
++      await tester.pump(const Duration(seconds: 3));
++    });
++  }
++
++  test('inclusive seconds cannot clear the unseen message sharing timestamp T',
++      () {
++    expect(
++        ConversationReadPolicy.conservativeTimestamp(1700000000), 1699999999);
++    expect(ConversationReadPolicy.conservativeTimestamp(1700000000000),
++        1699999999);
++    expect(ConversationReadPolicy.validTarget('c2c_bob', 0, 0), isFalse);
++    expect(ConversationReadPolicy.validTarget('c2c', 100, 0), isFalse);
++    expect(
++        ConversationReadPolicy.validTarget('', 100, 0, explicitTypeClear: true),
++        isFalse);
++    expect(ConversationReadPolicy.validTarget('group_room', 100, 0), isFalse);
++    expect(ConversationReadPolicy.validTarget('group_room', 0, 20), isTrue);
++    expect(
++        ConversationReadPolicy.validTarget('c2c', 0, 0,
++            explicitTypeClear: true),
++        isTrue);
++  });
++
++  test(
++      'read W1 acknowledgement preserves same-millisecond W2; retries classify and resume',
++      () async {
++    sqfliteFfiInit();
++    databaseFactory = databaseFactoryFfi;
++    final original = await getDatabasesPath();
++    final directory = await Directory.systemTemp.createTemp('round2-read-');
++    await MessageCoreStore.instance.closeIfOpen();
++    await databaseFactory.setDatabasesPath(directory.path);
++    final store = ConversationReadOutboxStore.instance;
++    try {
++      await store.enqueue(
++          ownerUserId: 'alice',
++          conversationId: 'c2c_bob',
++          lastReadMessageId: 'W1',
++          cleanTimestamp: 10,
++          lastReadAtMs: 100);
++      final w1 =
++          (await store.find(ownerUserId: 'alice', conversationId: 'c2c_bob'))!;
++      await store.enqueue(
++          ownerUserId: 'alice',
++          conversationId: 'c2c_bob',
++          lastReadMessageId: 'W2',
++          cleanTimestamp: 11,
++          lastReadAtMs: 100);
++      await store.acknowledge(
++          ownerUserId: 'alice',
++          conversationId: 'c2c_bob',
++          lastReadAtMs: w1.lastReadAtMs);
++      final w2 =
++          (await store.find(ownerUserId: 'alice', conversationId: 'c2c_bob'))!;
++      expect(w2.lastReadMessageId, 'W2');
++      expect(w2.lastReadAtMs, greaterThan(w1.lastReadAtMs));
++      await store.markRetry(w1, sdkCode: 6017);
++      expect(
++          (await store.find(ownerUserId: 'alice', conversationId: 'c2c_bob'))!
++              .attemptCount,
++          0);
++      await store.markRetry(w2, sdkCode: 6014);
++      expect(await store.listDue(ownerUserId: 'alice'), isEmpty);
++      expect(await store.earliestNextRetryAt(ownerUserId: 'alice'), isNull);
++      await store.resumeAfterReconnect('bob');
++      expect(await store.listDue(ownerUserId: 'alice'), isEmpty);
++      await store.resumeAfterReconnect('alice');
++      expect(await store.listDue(ownerUserId: 'alice'), hasLength(1));
++      final resumed =
++          (await store.find(ownerUserId: 'alice', conversationId: 'c2c_bob'))!;
++      await store.markRetry(resumed, sdkCode: 6017);
++      await store.resumeAfterReconnect('alice');
++      expect(await store.listDue(ownerUserId: 'alice'), isEmpty);
++      expect(
++          (await store.find(ownerUserId: 'alice', conversationId: 'c2c_bob'))!
++              .retryReason,
++          'blocked:sdk_6017');
++      await store.enqueue(
++          ownerUserId: 'alice',
++          conversationId: 'c2c_bob',
++          lastReadMessageId: 'W2',
++          cleanTimestamp: 11,
++          lastReadAtMs: 100);
++      expect(await store.listDue(ownerUserId: 'alice'), isEmpty,
++          reason: 'same target must retain blocked state');
++      await store.enqueue(
++          ownerUserId: 'alice',
++          conversationId: 'c2c_bob',
++          lastReadMessageId: 'W3',
++          cleanTimestamp: 12,
++          lastReadAtMs: 100);
++      final w3 =
++          (await store.find(ownerUserId: 'alice', conversationId: 'c2c_bob'))!;
++      expect(w3.lastReadMessageId, 'W3');
++      expect(w3.lastReadAtMs, greaterThan(w2.lastReadAtMs));
++      expect(w3.attemptCount, 0);
++      await store.acknowledge(
++          ownerUserId: 'alice',
++          conversationId: 'c2c_bob',
++          lastReadAtMs: w2.lastReadAtMs);
++      expect(
++          (await store.find(ownerUserId: 'alice', conversationId: 'c2c_bob'))!
++              .lastReadMessageId,
++          'W3');
++    } finally {
++      await MessageCoreStore.instance.closeIfOpen();
++      await databaseFactory
++          .deleteDatabase('${directory.path}/${MessageCoreStore.dbName}');
++      await databaseFactory.setDatabasesPath(original);
++      await directory.delete();
++    }
++  });
++}
+diff --git a/third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart b/third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart
+index 3a64d426c450d6f2f411556f72883b3bfc219402..788d75d5237b4cc66aba6f311841b0a7483eea7c 100644
+--- a/third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart
++++ b/third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart
+@@ -28,6 +28,7 @@ import 'package:tencent_cloud_chat_uikit/business_logic/mobile_async_commit_guar
+ import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/contracts/contracts.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_send_coordinator.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/outbox_draft_submission.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/c2c_friend_message_guard.dart';
+ import 'package:tencent_cloud_chat_demo/src/utils/c2c_blocked_outgoing_message_sync.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_message_recreator.dart';
+@@ -5421,6 +5422,8 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
+     bool? isEditStatusMessage = false,
+     bool? isExcludedFromContentModeration,
+     bool preserveTargetGroupID = false,
++    String? retryOfSdkLocalId,
++    VoidCallback? onDispatchGranted,
+   }) async {
+     debugPrint(
+       '[IM_SEND_INTENT] conv=$convID type=${convType.name} clientId=$id',
+@@ -5550,8 +5553,11 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
+         // Preserve opaque metadata; it keeps the legacy serial admission.
+       }
+     }
++    var retryDispatched = false;
+     final coordinatedSend = await ImOutgoingSendCoordinator.instance.send(
+       messageService: _messageService,
++      retryOfSdkLocalId: retryOfSdkLocalId,
++      onDispatchGranted: () { retryDispatched = true; onDispatchGranted?.call(); },
+       sdkLocalId: id,
+       conversationId: convType == ConvType.group ? groupID : receiver,
+       conversationType: convType == ConvType.group
+@@ -5580,6 +5586,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
+       },
+     );
+     var sendMsgRes = coordinatedSend.sdkResult;
++    if (retryOfSdkLocalId != null && !retryDispatched) return sendMsgRes;
+     if (!canSendCapturedMedia) return sendMsgRes;
+     debugPrint(
+       '[IM_SEND_COORDINATOR_RESULT] conv=$convID clientId=$id '
+@@ -5651,7 +5658,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
+     // projection here would resurrect an in-flight message or flash a
+     // red retry icon on a still-pending send.
+     var projectionCommitted = true;
+-    if (isEditStatusMessage == false && !coordinatedSend.outcomeUnknown) {
++    if (isEditStatusMessage == false) {
+       projectionCommitted = globalModel.applyOutgoingSendResult(
+         sendMsgRes,
+         convID,
+@@ -6274,7 +6281,14 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
+     // the composer immediately instead of waiting for the network result. It
+     // also prevents an older send completion from clearing a newly selected
+     // reply target.
+-    repliedMessage = null;
++    final submissionBoundary = ImDraftSubmissionContext.current;
++    if (submissionBoundary == null) {
++      repliedMessage = null;
++    } else {
++      submissionBoundary.onAccepted(() {
++        if (identical(_composerUi.repliedMessage, replyTarget)) repliedMessage = null;
++      });
++    }
+     final V2TimMsgCreateInfoResult? textMessageInfo =
+         normalizedAtUserIDs.isEmpty
+             ? await _messageService.createTextMessage(text: text)
+@@ -7590,30 +7604,20 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
+     if (recreatedId.isEmpty || recreatedMessage == null || !canResend()) {
+       return null;
+     }
+-    _removeOutgoingMessage(
+-      convID: convID,
+-      clientId: clientId.isEmpty ? null : clientId,
+-      msgID: msgID.isEmpty ? null : msgID,
+-    );
+-    if (msgID.isNotEmpty) {
+-      try {
+-        await _messageService.deleteMessageFromLocalStorage(
+-          msgID: msgID,
+-          webMessageInstance: message.messageFromWeb,
+-        );
+-      } catch (_) {}
+-    }
+     final outgoing = tools.setUserInfoForMessage(recreatedMessage, recreatedId);
+     applyOutgoingStableIdToMessage(outgoing, recreatedId);
+-    outgoing.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+-    addSendingMessageID(recreatedId);
+-    _prependOutgoingMessageForConversation(
+-      convID,
+-      outgoing,
+-      skipEnterAnimation: true,
+-    );
+     return _sendMessage(
+       id: recreatedId,
++      retryOfSdkLocalId: clientId,
++      onDispatchGranted: () {
++        _removeOutgoingMessage(convID: convID, clientId: clientId.isEmpty ? null : clientId,
++          msgID: msgID.isEmpty ? null : msgID);
++        outgoing.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
++        addSendingMessageID(recreatedId);
++        _prependOutgoingMessageForConversation(convID, outgoing, skipEnterAnimation: true);
++        if (msgID.isNotEmpty) unawaited(_messageService.deleteMessageFromLocalStorage(
++          msgID: msgID, webMessageInstance: message.messageFromWeb).then<void>((_) {}, onError: (Object _, StackTrace __) {}));
++      },
+       convID: convID,
+       convType: convType,
+       messageInfo: outgoing,
+diff --git a/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart b/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart
+index 7ff1a57cf3a93598967352027c13785ac3401fc9..5eee30bed9256f396fd2a138cf7782bbb6483437 100644
+--- a/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart
++++ b/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart
+@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/contracts/contracts.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/history_search_coordinator.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_send_coordinator.dart';
++import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/tencent_conversation_read_service.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+ import 'package:tencent_cloud_chat_demo/utils/custom_message/c2c_peer_rejected_tip_message.dart';
+@@ -1387,7 +1388,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+     );
+     unawaited(
+       ImOutgoingSendCoordinator.instance
+-          .adoptProviderHistory(historyList)
++          .adoptProviderHistory(historyList, source: ImProviderEvidenceSource.sdkHistory)
+           .catchError((Object error) {
+         debugPrint(
+           'OUTBOX_HISTORY_ADOPTION_FAILURE '
+@@ -3668,6 +3669,44 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+     );
+   }
+ 
++  final Map<String, VoidCallback> _outboxResultSubscriptions = {};
++  final Map<String, String> _outboxSubscriptionConversations = {};
++
++  void _observeOutgoingResult(ImCoordinatedSendResult live, String convID,
++      String clientId, ConvType convType, GroupReceiptAllowType? groupType) {
++    final view = live.resultView;
++    final identity = live.identity;
++    if (view == null || identity == null || live.currentOutboxResult?.deliveryConfirmed == true) return;
++    final key = identity.scope.ownerUserId + '|' + identity.operationId;
++    if (_outboxResultSubscriptions.containsKey(key)) return;
++    void remove() {
++      _outboxSubscriptionConversations.remove(key);
++      _outboxResultSubscriptions.remove(key)?.call();
++    }
++    void changed() {
++      final snapshot = live.snapshot();
++      if (!snapshot.isCurrentSession) { remove(); return; }
++      if (snapshot.outcomeUnknown) return;
++      final applied = applyOutgoingSendResult(snapshot.sdkResult, convID,
++          clientId, convType, groupType, null, coordinatedResult: snapshot);
++      if (snapshot.currentOutboxResult?.deliveryConfirmed == true) {
++        remove();
++        final message = snapshot.sdkResult.data;
++        if (applied && message != null) {
++          // Projection only: do not replay messageDidSend or clear input.
++          final session = snapshot.accountGeneration == null ? null : SessionIdentity(
++            ownerUserId: identity.scope.ownerUserId, generation: snapshot.accountGeneration!);
++          unawaited(ConversationSyncService.instance.patchConversationLastMessage(
++            conversationID: identity.scope.conversationId, message: message, identity: session)
++              .catchError((Object error) { outputLogger.i('outbox preview repair: ' + error.runtimeType.toString()); }));
++        }
++      }
++    }
++    view.addListener(changed);
++    _outboxSubscriptionConversations[key] = convID;
++    _outboxResultSubscriptions[key] = () => view.removeListener(changed);
++  }
++
+   bool applyOutgoingSendResult(
+     V2TimValueCallback<V2TimMessage> sendMsgRes,
+     String convID,
+@@ -3678,6 +3717,8 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+     ImCoordinatedSendResult? coordinatedResult,
+   }) {
+     if (coordinatedResult != null) {
++      _observeOutgoingResult(coordinatedResult, convID, clientId, convType, groupType);
++      coordinatedResult = coordinatedResult.snapshot();
+       final identity = coordinatedResult.identity;
+       if (identity != null && coordinatedResult.accountGeneration != null &&
+           !SessionIdentityService.instance.isCurrent(SessionIdentity(
+@@ -3700,6 +3741,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+         convType,
+         groupType,
+         setInputField,
++        stateVersion: coordinatedResult?.currentOutboxResult?.stateVersion,
+       );
+       if (sendMsgRes.code != 0) {
+         markOutgoingSendFailedByIdentity(
+@@ -7006,6 +7048,13 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+   }
+ 
+   void removeMessageList(String conversationID) {
++    final subscriptions = _outboxSubscriptionConversations.entries
++        .where((entry) => _isSameConversationID(entry.value, conversationID))
++        .map((entry) => entry.key).toList(growable: false);
++    for (final key in subscriptions) {
++      _outboxSubscriptionConversations.remove(key);
++      _outboxResultSubscriptions.remove(key)?.call();
++    }
+     clearOpenHydrateResult(conversationID);
+     _openHydrateInFlightByConv.removeWhere(
+       (key, _) => _isSameConversationID(key, conversationID),
+@@ -7498,6 +7547,9 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+   }
+ 
+   clearData() {
++    for (final cancel in _outboxResultSubscriptions.values) { cancel(); }
++    _outboxResultSubscriptions.clear();
++    _outboxSubscriptionConversations.clear();
+     invalidateBoundedHistorySessions();
+     _writerProjectionAuthorities.clear();
+     // Flush all buffered inbound messages before clearing state so SDK
+@@ -10298,7 +10350,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+     );
+     if (message.isSelf == true) {
+       unawaited(ImOutgoingSendCoordinator.instance
+-          .adoptProviderHistory(<V2TimMessage>[message])
++          .adoptProviderHistory(<V2TimMessage>[message], source: ImProviderEvidenceSource.sdkRealtime)
+           .catchError((Object error) {
+         debugPrint('[IM_SEND_COORDINATOR] realtime result repair pending: ${error.runtimeType}');
+         return 0;
+@@ -10898,7 +10950,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+     // projection here would resurrect an in-flight message or flash a
+     // red retry icon on a still-pending send.
+     var projectionCommitted = true;
+-    if (isEditStatusMessage == false && !coordinatedSend.outcomeUnknown) {
++    if (isEditStatusMessage == false) {
+       projectionCommitted = applyOutgoingSendResult(
+         sendMsgRes,
+         convID,
+@@ -12254,8 +12306,9 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+     String id,
+     ConvType convType,
+     GroupReceiptAllowType? groupType,
+-    ValueChanged<String>? setInputField,
+-  ) {
++    ValueChanged<String>? setInputField, {
++    int? stateVersion,
++  }) {
+     if (!_mayProjectOutgoingResult(convID, id, sendMsgRes)) return;
+     final storageConvID = _resolveMessageListStorageKey(convID);
+     List<V2TimMessage> currentHistoryMsgList =
+@@ -12398,7 +12451,10 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+     final authoritativeSendCommit = commitMessageDelta(
+       MessageDelta<V2TimMessage>(
+         conversationKey: storageConvID,
+-        eventID: 'send_adoption:$stableIdentity:${resolvedMessage.msgID ?? ''}',
++        // A later committed result is a new event for the same message.
++        // Legacy callbacks still distinguish failure from confirmed success.
++        eventID: 'send_adoption:$stableIdentity:${resolvedMessage.msgID ?? ''}:'
++            '${stateVersion ?? resolvedMessage.status}',
+         kind: MessageDeltaKind.optimisticAdoption,
+         source: MessageDeltaSource.sendPipeline,
+         generation: messageDeltaGenerationFor(storageConvID),
+diff --git a/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart b/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart
+index 043875b82a78e65c8ecc439cbfa07858655bea0a..699a15047f69587fe296e34d237740f64c085405 100644
+--- a/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart
++++ b/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart
+@@ -1,4 +1,5 @@
+ import 'dart:async';
++import 'package:tencent_cloud_chat_demo/src/services/im/outbox_draft_submission.dart';
+ import 'dart:math';
+ 
+ import 'package:collection/collection.dart';
+@@ -362,17 +363,17 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
+ 
+   // 和onSubmitted一样，只是保持焦点的不同
+   _onEmojiSubmitted() {
++    if (_textAcceptancePending) return;
+     lastText = "";
+     final text = textEditingController.text.trim();
+     final convType = widget.conversationType;
+-    conversationModel.clearWebDraft(conversationID: widget.conversationID);
+     if (text.isNotEmpty && text != zeroWidthSpace) {
+       final submission = widget.model.lifeCycle?.textWillSubmit?.call(text);
+       if (widget.model.repliedMessage != null) {
+         MessageUtils.handleMessageError(
+             _observeTextSubmission(
+                 submission,
+-                widget.model.sendReplyMessage(
++                () => widget.model.sendReplyMessage(
+                   text: text,
+                   convID: widget.conversationID,
+                   convType: convType,
+@@ -383,41 +384,54 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
+         MessageUtils.handleMessageError(
+             _observeTextSubmission(
+                 submission,
+-                widget.model.sendTextMessage(
++                () => widget.model.sendTextMessage(
+                   text: text,
+                   convID: widget.conversationID,
+                   convType: convType,
+                 )),
+             context);
+       }
+-      textEditingController.clear();
+-      // Controller mutations do not invoke TextField.onChanged. Notify the
+-      // host explicitly so its local draft is cleared at send intent instead
+-      // of waiting for the asynchronous messageDidSend callback.
+-      _notifySubmissionClear(submission);
++      // The captured input is cleared only by the prepared acceptance callback.
+       goDownBottom(fromOutgoingSend: true);
+     }
+     currentCursor = null;
+   }
+ 
++  bool _textAcceptancePending = false;
++  Object? _textAcceptanceTicket;
+   Future<V2TimValueCallback<V2TimMessage>?> _observeTextSubmission(
+-      Object? submission, Future<V2TimValueCallback<V2TimMessage>?> pending) {
+-    // Capture the host callback too: the model can switch conversations while
+-    // this SDK future is pending.
++      Object? submission, Future<V2TimValueCallback<V2TimMessage>?> Function() send) {
+     final completed = widget.model.lifeCycle?.textDidSubmit;
++    final clear = widget.model.lifeCycle?.textDidClearAfterSubmit;
++    final boundary = submission is ImDurableTextSubmission ? submission.durableContext : null;
++    _textAcceptancePending = true;
++    final ticket = Object();
++    _textAcceptanceTicket = ticket;
++    void release() {
++      if (identical(_textAcceptanceTicket, ticket)) {
++        _textAcceptancePending = false;
++        _textAcceptanceTicket = null;
++      }
++    }
++    void accepted() {
++      release();
++      if (boundary != null && !boundary.isCurrent()) return;
++      if (mounted) {
++        textEditingController.clear();
++        _clearMentionState();
++        currentCursor = null;
++        lastText = '';
++        conversationModel.clearWebDraft(conversationID: widget.conversationID);
++      }
++      if (clear != null) { clear(submission); }
++      else if (mounted) { widget.onChanged?.call(''); }
++    }
++    final pending = boundary == null ? send() : boundary.run(send, accepted);
++    if (boundary == null) accepted();
+     return pending.then((result) {
+       if (result != null) completed?.call(submission, result);
+       return result;
+-    });
+-  }
+-
+-  void _notifySubmissionClear(Object? submission) {
+-    final cleared = widget.model.lifeCycle?.textDidClearAfterSubmit;
+-    if (cleared != null) {
+-      cleared(submission);
+-    } else {
+-      widget.onChanged?.call("");
+-    }
++    }).whenComplete(release);
+   }
+ 
+   // index为emoji的index,data为baseurl+name
+@@ -496,7 +510,7 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
+   }
+ 
+   onSubmitted() async {
+-    conversationModel.clearWebDraft(conversationID: widget.conversationID);
++    if (_textAcceptancePending) return;
+     lastText = "";
+     final text = textEditingController.text.trim();
+     final convType = widget.conversationType;
+@@ -507,7 +521,7 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
+         MessageUtils.handleMessageError(
+             _observeTextSubmission(
+                 submission,
+-                widget.model.sendReplyMessage(
++                () => widget.model.sendReplyMessage(
+                     text: text,
+                     convID: widget.conversationID,
+                     convType: convType,
+@@ -517,7 +531,7 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
+       } else if (mentionedMembersMap.isNotEmpty) {
+         _observeTextSubmission(
+             submission,
+-            widget.model.sendTextAtMessage(
++            () => widget.model.sendTextAtMessage(
+                 text: text,
+                 convType: widget.conversationType,
+                 convID: widget.conversationID,
+@@ -527,17 +541,13 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
+         MessageUtils.handleMessageError(
+             _observeTextSubmission(
+                 submission,
+-                widget.model.sendTextMessage(
++                () => widget.model.sendTextMessage(
+                     text: text,
+                     convID: widget.conversationID,
+                     convType: convType)),
+             context);
+       }
+-      textEditingController.clear();
+-      _notifySubmissionClear(submission);
+-      currentCursor = null;
+-      lastText = "";
+-      _clearMentionState();
++      // Keep the complete composer until the durable acceptance boundary.
+ 
+       widget.controller?.markOutgoingMessageSend();
+       goDownBottom(fromOutgoingSend: true);

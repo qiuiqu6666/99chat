@@ -1,0 +1,173 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract",
+    "name": "OutgoingIdentityContract",
+    "kind": "Class",
+    "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart",
+    "startLine": 26,
+    "endLine": 188
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "calls": [
+      {
+        "uid": "Function:test/im_contracts_test.dart:main",
+        "name": "main",
+        "filePath": "test/im_contracts_test.dart"
+      },
+      {
+        "uid": "Function:test/sdk_realtime_delivery_test.dart:main",
+        "name": "main",
+        "filePath": "test/sdk_realtime_delivery_test.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.fromCloudCustomData#2",
+        "name": "fromCloudCustomData",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.withFormalIdentity#2",
+        "name": "withFormalIdentity",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.send#21",
+        "name": "send",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      }
+    ],
+    "imports": [
+      {
+        "uid": "File:lib/src/services/chat_failed_message_retry_service.dart",
+        "name": "chat_failed_message_retry_service.dart",
+        "filePath": "lib/src/services/chat_failed_message_retry_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/contracts/contracts.dart",
+        "name": "contracts.dart",
+        "filePath": "lib/src/services/im/contracts/contracts.dart"
+      },
+      {
+        "uid": "File:test/im08_outgoing_send_coordinator_test.dart",
+        "name": "im08_outgoing_send_coordinator_test.dart",
+        "filePath": "test/im08_outgoing_send_coordinator_test.dart"
+      }
+    ],
+    "accesses": [
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.completeSuccessfulProjection#1",
+        "name": "completeSuccessfulProjection",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.OutgoingIdentityContract#8",
+        "name": "OutgoingIdentityContract",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.encodeCloudCustomData#1",
+        "name": "encodeCloudCustomData",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.fromCloudCustomData#2",
+        "name": "fromCloudCustomData",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.matchesCandidate#4",
+        "name": "matchesCandidate",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.toCloudCustomData#1",
+        "name": "toCloudCustomData",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.toMetadataJson#0",
+        "name": "toMetadataJson",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.withFormalIdentity#2",
+        "name": "withFormalIdentity",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Function:lib/src/services/im/contracts/outgoing_identity_contract.dart:_optionalId",
+        "name": "_optionalId",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Function:lib/src/services/im/contracts/outgoing_identity_contract.dart:_requiredId",
+        "name": "_requiredId",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.clientCorrelationId",
+        "name": "clientCorrelationId",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.createdAtMs",
+        "name": "createdAtMs",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.messageKind",
+        "name": "messageKind",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.operationId",
+        "name": "operationId",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.payloadFingerprint",
+        "name": "payloadFingerprint",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.scope",
+        "name": "scope",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.sdkLocalId",
+        "name": "sdkLocalId",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/contracts/outgoing_identity_contract.dart:OutgoingIdentityContract.serverMsgId",
+        "name": "serverMsgId",
+        "filePath": "lib/src/services/im/contracts/outgoing_identity_contract.dart"
+      }
+    ]
+  },
+  "typed_properties": [
+    {
+      "uid": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImCoordinatedSendResult.identity",
+      "name": "identity",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "declaredType": "OutgoingIdentityContract"
+    },
+    {
+      "uid": "Property:lib/src/services/im/tencent_message_adapter.dart:ImSendResponse.identity",
+      "name": "identity",
+      "filePath": "lib/src/services/im/tencent_message_adapter.dart",
+      "declaredType": "OutgoingIdentityContract"
+    }
+  ],
+  "processes": []
+}

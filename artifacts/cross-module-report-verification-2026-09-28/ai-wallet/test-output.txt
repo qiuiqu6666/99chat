@@ -1,0 +1,17 @@
+00:00 +0: loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/artifacts/cross-module-report-verification-2026-09-28/ai-wallet/ai_wallet_fault_injection_test.dart
+00:00 +0: A01 actual API fails only at multi-byte UTF8 boundaries
+AUDIT A01 split cases: failed=7 passed=34 total=41
+00:00 +1: A13 stop after delta keeps streaming and blocks next request
+ToastUtils: 操作失败，请稍后重试
+AUDIT A13 stopped after delta: status=streaming, second request blocked
+00:00 +2: A13 stop before delta allows another request control
+00:00 +3: A13 stale upload failure corrupts the next active reply
+ToastUtils: 操作失败，请稍后重试
+AUDIT A13 old upload failure overwrote new partial; active reply UI stopped
+00:01 +4: A14 incoming delta forces history viewport to newest item
+AUDIT A14 viewport jumped from old item30 to newest item0 on delta
+00:01 +5: A15 actual retained controller reloads on hidden balance event
+AUDIT A15 hidden balance event performed getWallet; disposed listener did not
+00:01 +6: A17 actual default catalog selects HTTP and all realtime entries select plain TCP
+AUDIT A17 default API is HTTP; 2/2 realtime catalog entries useTls=false; HTTPS control=true
+00:01 +7: All tests passed!

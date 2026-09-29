@@ -1,0 +1,75 @@
+void _startOpenHistoryGate(String convKey) {
+    _openLifecycle.openHistoryGateConvKey = convKey;
+    _openLifecycle.openHistoryPreparationGate = null;
+    if (convKey.isEmpty ||
+        widget.initFindingMsg != null ||
+        widget.searchJumpAnchor != null ||
+        UnreadTonguePolicy.isEntryUnreadEnabledForConvType(
+          _getConvType(),
+          widget.entryUnreadCount ?? 0,
+        )) {
+      _openLifecycle.openHistoryGate = null;
+      if (convKey.isNotEmpty) {
+        ChatHistoryOpenLayoutReady.cancel(convKey);
+      }
+      return;
+    }
+    // 先同步灌入缓存；只有完整首屏（或确认空）才跳过 gate。
+    // 列表 LOCAL 预热常常只有几条：立刻上屏会在反转列表底部露出大片空白。
+    _seedCachedHistoryOnOpen(convKey);
+    _ensureEmptyConversationReadyForOpen(convKey);
+    final globalModel = serviceLocator<TUIChatGlobalModel>();
+    final rawCount = globalModel.rawMessageCount(convKey);
+    final emptyConfirmed =
+        globalModel.hasInitialHistoryLoaded(convKey) && rawCount == 0;
+    final completeWindow =
+        ConversationPreviewHistorySync.isCompleteOpenHistoryWindow(
+      globalModel: globalModel,
+      conversationKey: convKey,
+    );
+    // 完整首屏或确认空：无需等待可交互 gate。
+    if (completeWindow || emptyConfirmed) {
+      ChatHistoryOpenLayoutReady.cancel(convKey);
+      ChatOpenPerfLog.mark(
+        'history_gate_content_ready_skip',
+        conversationID: convKey,
+        extras: <String, Object?>{
+          'rawCount': rawCount,
+          'emptyConfirmed': emptyConfirmed,
+          'completeWindow': completeWindow,
+          'initialLoaded': globalModel.hasInitialHistoryLoaded(convKey),
+        },
+      );
+      _openLifecycle.openHistoryGate = null;
+      final preparation = _prepareOpenHistoryGate(
+        convKey,
+        cachedHistorySeeded: true,
+      );
+      _openLifecycle.openHistoryPreparationGate = preparation;
+      unawaited(preparation);
+      if (_getConvType() == ConvType.group) {
+        unawaited(_ensureGroupLocalTipsMergedOnOpen(convKey));
+      }
+      return;
+    }
+    ChatHistoryOpenLayoutReady.begin(convKey);
+    // 未灌满的预热窗也走 prepare + layout，避免先亮底部几条。
+    // 真冷零消息仍串行；事件名保留 cold_shell，兼容既有性能日志。
+    final thinWindow = rawCount > 0;
+    ChatOpenPerfLog.mark(
+      thinWindow ? 'history_gate_thin_window' : 'history_gate_cold_shell',
+      conversationID: convKey,
+      extras: <String, Object?>{'rawCount': rawCount},
+    );
+    final preparation = _prepareOpenHistoryGate(
+      convKey,
+      cachedHistorySeeded: true,
+      coldOpen: !thinWindow,
+    );
+    _openLifecycle.openHistoryPreparationGate = preparation;
+    _openLifecycle.openHistoryGate = _runOpenHistoryGateWithTipsMerge(
+      convKey,
+      coldOpen: !thinWindow,
+      preparation: preparation,
+    );
+  }

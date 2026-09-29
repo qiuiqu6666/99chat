@@ -1,0 +1,554 @@
+void _loadData({
+    V2TimMessage? initFindingMsg,
+    MessageAnchor? searchJumpAnchor,
+  }) {
+    final count = HistoryMessageDartConstant.getCount;
+    searchJumpAnchor ??= initFindingMsg == null
+        ? null
+        : MessageAnchor(
+            conversationID: conversationID,
+            convType: conversationType.index,
+            msgID: initFindingMsg.msgID,
+            localID: initFindingMsg.id,
+            seq: initFindingMsg.seq,
+            timestamp: initFindingMsg.timestamp,
+            sender: initFindingMsg.sender,
+            elemType: initFindingMsg.elemType);
+    final isSearchJump = searchJumpAnchor != null;
+    final searchRequest =
+        isSearchJump ? globalModel.beginSearchJump(conversationID) : null;
+    bool isCurrentSearch() =>
+        searchRequest == null ||
+        globalModel.isCurrentSearchJumpRequest(conversationID, searchRequest);
+    final localOnlyPlainOpen =
+        model!.localOnlyInitialOpen && !isSearchJump && initFindingMsg == null;
+    if (!isSearchJump) {
+      globalModel.clearSearchJumpStatus(conversationID);
+    }
+    final needUnreadSync = !localOnlyPlainOpen &&
+        !isSearchJump &&
+        initFindingMsg == null &&
+        UnreadTonguePolicy.isEntryUnreadEnabledForConvType(
+          conversationType,
+          initialUnreadCount,
+        );
+    Future<void>(() async {
+      final loadTrace = ChatOpenPerfLog.captureCurrent(
+        conversationKey: conversationID,
+      );
+      if (!isCurrentSearch()) return;
+      final initialLoadGeneration =
+          ChatHistoryRecoveryCoordinator.instance.beginInitialLoad(
+        conversationID,
+      );
+      var shouldMarkRead = false;
+      String messageListSignature(List<V2TimMessage>? messages) {
+        if (messages == null || messages.isEmpty) {
+          return 'empty';
+        }
+        return messages.map((message) {
+          final msgID = message.msgID?.trim() ?? '';
+          if (msgID.isNotEmpty) return msgID;
+          final id = message.id?.trim() ?? '';
+          if (id.isNotEmpty) return id;
+          final seq = message.seq?.trim() ?? '';
+          if (seq.isNotEmpty) return 'seq_$seq';
+          return message.timestamp?.toString() ?? '';
+        }).join('|');
+      }
+
+      try {
+        final target = initFindingMsg;
+        if (!isSearchJump && target == null) {
+          if (needUnreadSync && initialUnreadCount > 0) {
+            await _ensureInitialUnreadWindowLoaded(initialUnreadCount);
+            final loadedMessages = globalModel.getMessageList(conversationID);
+            if (loadedMessages != null && loadedMessages.isNotEmpty) {
+              // 大量未读入口先展示提示条，等用户主动查看后再上报已读。
+              _lockEntryUnreadWithFrozenSeq(
+                conversationID: conversationID,
+                unreadCount: initialUnreadCount,
+              );
+              globalModel.setMessageListPosition(
+                conversationID,
+                HistoryMessagePosition.bottom,
+                notify: true,
+              );
+              return;
+            }
+          }
+
+          final rawCount = globalModel.rawMessageCount(conversationID);
+          final currentPosition = globalModel.getMessageListPosition(
+            conversationID,
+          );
+          if (rawCount > 0 &&
+              currentPosition == HistoryMessagePosition.notShowLatest) {
+            OutgoingVisibleProbe.log(
+              'load_not_show_latest_wipe',
+              conversationID: conversationID,
+              extras: <String, Object?>{'rawCount': rawCount},
+            );
+            ChatOpenPerfLog.mark(
+              'uikit_removeMessageList',
+              conversationID: conversationID,
+              extras: <String, Object?>{
+                'reason': 'not_show_latest_wipe',
+                'rawCount': rawCount,
+              },
+              trace: loadTrace,
+            );
+            // 搜索定位后若仍停留在历史窗口缓存，普通进入应回到最新。
+            globalModel.removeMessageList(conversationID);
+            globalModel.setMessageListPosition(
+              conversationID,
+              HistoryMessagePosition.bottom,
+              notify: true,
+            );
+            model!.haveMoreData = false;
+            model!.haveMoreLatestData = false;
+          }
+
+          if (localOnlyPlainOpen) {
+            // The app-owned bootstrap is the only first-window owner. Give it
+            // a tiny coalescing window, then let the page mount immediately.
+            // A native SDK read can be slow on some conversations; waiting
+            // 900ms and then another 3s here made route entry look frozen.
+            await globalModel.awaitOpenHydrateInFlight(
+              conversationID,
+              timeout: const Duration(milliseconds: 80),
+            );
+            ChatOpenPerfLog.mark(
+              'uikit_hydrate_wait_result',
+              conversationID: conversationID,
+              extras: <String, Object?>{
+                'waitMs': 80,
+                'hasInFlight':
+                    globalModel.hasOpenHydrateInFlight(conversationID),
+              },
+              trace: loadTrace,
+            );
+            if (globalModel.hasOpenHydrateInFlight(conversationID)) {
+              model!.syncHaveMoreDataFromCachedHistory(mayHaveOlder: true);
+              ChatHistoryTrace.log(
+                'chat_page_defer_open_hydrate_inflight',
+                conversationID: conversationID,
+                extras: <String, Object?>{
+                  'needUnreadSync': needUnreadSync,
+                  'waitMs': 80,
+                },
+              );
+              ChatOpenPerfLog.mark(
+                'uikit_hydrate_deferred',
+                conversationID: conversationID,
+                extras: <String, Object?>{'waitMs': 80},
+                trace: loadTrace,
+              );
+              return;
+            }
+
+            // App-owned ChatHistoryPeekBootstrap normally has already placed
+            // the local snapshot into the global model. If this widget wins a
+            // race before that task starts, perform one local SDK read here.
+            // Never fall through to hydrateInitialHistoryPeekStyle or the
+            // cloud branches below during the initial route open.
+            var localMessages = globalModel.getMessageList(conversationID);
+            final openResult = globalModel.openHydrateResultFor(conversationID);
+            if ((localMessages == null || localMessages.isEmpty) &&
+                openResult?.shouldSuppressOrdinaryLoad != true) {
+              ChatOpenPerfLog.mark(
+                'uikit_loadChatRecord_local_started',
+                conversationID: conversationID,
+                trace: loadTrace,
+              );
+              await model!.loadChatRecord(
+                count: HistoryMessageDartConstant.initialOpenFetchCount,
+                getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
+              );
+              localMessages = globalModel.getMessageList(conversationID);
+              ChatOpenPerfLog.mark(
+                'uikit_loadChatRecord_local_done',
+                conversationID: conversationID,
+                extras: <String, Object?>{
+                  'localCount': localMessages?.length ?? 0,
+                },
+                trace: loadTrace,
+              );
+            }
+            final localCount = localMessages?.length ?? 0;
+            // Local SDK is not proof of cloud continuity. Keep pagination
+            // armed until the deferred cloud verification or an explicit
+            // user pagination receives a terminal cloud result.
+            // D-fix：若 warm scheduler 已经标 mayHaveOlder=false（SDK isFinished），
+            // 沿用 false；否则保持原行为 true。
+            final mayHaveOlder =
+                globalModel.mayHaveOlderHistory(conversationID);
+            globalModel.markLocalInitialHistoryVisible(conversationID);
+            globalModel.markInitialHistoryMayHaveOlder(
+              conversationID,
+              mayHaveOlder: mayHaveOlder,
+            );
+            model!.syncHaveMoreDataFromCachedHistory(
+              mayHaveOlder: mayHaveOlder,
+            );
+            globalModel.setMessageListPosition(
+              conversationID,
+              HistoryMessagePosition.bottom,
+              notify: true,
+            );
+            shouldMarkRead = localCount > 0 && initialUnreadCount <= 0;
+            ChatHistoryTrace.log(
+              'chat_page_local_only_initial_done',
+              conversationID: conversationID,
+              extras: <String, Object?>{
+                'localCount': localCount,
+                'mayHaveOlder': mayHaveOlder,
+              },
+            );
+            return;
+          }
+
+          // Non-local/search/unread entry paths retain their existing bounded
+          // coordination because they have explicit positioning semantics.
+          await globalModel.awaitOpenHydrateInFlight(
+            conversationID,
+            timeout: const Duration(milliseconds: 900),
+          );
+          if (globalModel.hasOpenHydrateInFlight(conversationID)) {
+            // A Dart timeout does not cancel the native SDK request. Do not
+            // create a second logical first-window owner after the bounded
+            // wait; the app bootstrap will publish its result and the normal
+            // post-open recovery path may retry only after the flight ends.
+            await globalModel.awaitOpenHydrateInFlight(
+              conversationID,
+              timeout: const Duration(milliseconds: 3000),
+            );
+            if (globalModel.hasOpenHydrateInFlight(conversationID)) {
+              ChatHistoryTrace.log(
+                'chat_page_defer_open_hydrate_inflight',
+                conversationID: conversationID,
+                extras: <String, Object?>{'needUnreadSync': needUnreadSync},
+              );
+              return;
+            }
+          }
+
+          model!.haveMoreData = false;
+          model!.haveMoreLatestData = false;
+
+          final fetchCount = HistoryMessageDartConstant.initialOpenFetchCount;
+          if (_reusePreparedInitialHistory(fetchCount)) {
+            ChatHistoryTrace.log(
+              'chat_page_reuse_prepared_window',
+              conversationID: conversationID,
+              extras: <String, Object?>{
+                'rawCount': globalModel.rawMessageCount(conversationID),
+                'mayHaveOlder': globalModel.mayHaveOlderHistory(conversationID),
+              },
+            );
+            shouldMarkRead = true;
+            return;
+          }
+
+          ChatHistoryTrace.log(
+            'chat_page_hydrate_begin',
+            conversationID: conversationID,
+            extras: <String, Object?>{
+              'modelConv': model!.conversationID,
+              'needUnreadSync': needUnreadSync,
+              'entryUnread': initialUnreadCount,
+              'rawCount': globalModel.rawMessageCount(conversationID),
+              'modelRawCount': globalModel.rawMessageCount(
+                model!.conversationID,
+              ),
+              ...ChatHistoryTrace.windowSummary(
+                globalModel.messageListMap[conversationID] ??
+                    globalModel.messageListMap[model!.conversationID],
+                prefix: 'before',
+              ),
+            },
+          );
+
+          // 与会话 Peek 相同：每次进页按预览窗口 replace 首屏（不信任旧暖缓存）。
+          final peekRefreshed = await model!.hydrateInitialHistoryPeekStyle(
+            count: fetchCount,
+            plainOpen: true,
+          );
+          final afterPeekCount = globalModel.rawMessageCount(conversationID);
+          ChatHistoryTrace.log(
+            'chat_page_hydrate_end',
+            conversationID: conversationID,
+            extras: <String, Object?>{
+              'peekRefreshed': peekRefreshed,
+              'afterPeekCount': afterPeekCount,
+              'willFallthroughLoad': peekRefreshed && afterPeekCount == 0,
+              'modelAfterCount': globalModel.rawMessageCount(
+                model!.conversationID,
+              ),
+              ...ChatHistoryTrace.windowSummary(
+                globalModel.messageListMap[conversationID] ??
+                    globalModel.messageListMap[model!.conversationID],
+                prefix: 'after',
+              ),
+            },
+          );
+          if (peekRefreshed && afterPeekCount > 0) {
+            // 首屏 replace 后务必恢复上拉开关，避免 haveMoreData 被误留 false。
+            model!.syncHaveMoreDataFromCachedHistory(
+              mayHaveOlder: globalModel.mayHaveOlderHistory(conversationID) ||
+                  afterPeekCount >=
+                      HistoryMessageDartConstant.initialOpenFetchCount ||
+                  model!.haveMoreData,
+            );
+            shouldMarkRead = true;
+            return;
+          }
+        }
+        if (isSearchJump && searchJumpAnchor != null) {
+          // Keep a local non-null reference across the await below. Dart
+          // cannot promote the captured variable after an async suspension.
+          final anchor = searchJumpAnchor;
+          globalModel.setSearchJumpStatus(
+            conversationID,
+            SearchJumpStatus.loading,
+            requestID: searchRequest,
+            notify: true,
+          );
+          OutgoingVisibleProbe.log(
+            'search_jump_preserve_window',
+            conversationID: conversationID,
+          );
+          globalModel.setMessageListPosition(
+            conversationID,
+            HistoryMessagePosition.notShowLatest,
+            notify: false,
+          );
+          final loaded = await model!
+              .loadListForSpecificMessage(
+                anchor: anchor,
+                targetMessage: target,
+                searchJumpRequest: searchRequest,
+              )
+              .timeout(const Duration(seconds: 12));
+          if (!isCurrentSearch()) return;
+          final messages = globalModel.getMessageList(conversationID);
+          if (loaded && messages != null && anchor.isPresentIn(messages)) {
+            globalModel.setSearchJumpStatus(
+              conversationID,
+              SearchJumpStatus.positioning,
+              requestID: searchRequest,
+              notify: true,
+            );
+            shouldMarkRead = false;
+            return;
+          }
+          globalModel.setSearchJumpStatus(
+              conversationID, SearchJumpStatus.failed,
+              requestID: searchRequest, notify: true);
+          TIMUIKitClass.onTIMCallback(TIMCallback(
+            type: TIMCallbackType.INFO,
+            infoRecommendText: TIM_t("无法定位到原消息，请重试"),
+            infoCode: 6660401,
+          ));
+          return;
+        } else if (target != null) {
+          final fallbackAnchor = MessageAnchor(
+            conversationID: conversationID,
+            convType: conversationType.index,
+            msgID: target.msgID?.trim().isEmpty ?? true
+                ? null
+                : target.msgID?.trim(),
+            localID:
+                target.id?.trim().isEmpty ?? true ? null : target.id?.trim(),
+            seq: target.seq?.trim().isEmpty ?? true ? null : target.seq?.trim(),
+            timestamp: target.timestamp,
+            sender: target.sender ?? target.userID,
+            elemType: target.elemType,
+          );
+          final loaded = await model!.loadListForSpecificMessage(
+            anchor: fallbackAnchor,
+            targetMessage: target,
+          );
+          final messages = globalModel.getMessageList(conversationID);
+          if (loaded && messages != null && messages.isNotEmpty) {
+            shouldMarkRead = true;
+            return;
+          }
+        }
+        final fetchCount = needUnreadSync && initialUnreadCount > 0
+            ? math.min(
+                math.max(
+                  initialUnreadCount + 12,
+                  HistoryMessageDartConstant.initialOpenFetchCount,
+                ),
+                80,
+              )
+            : globalModel.hasInitialHistoryLoaded(conversationID)
+                ? count
+                : HistoryMessageDartConstant.initialOpenFetchCount;
+        final beforeLocalSignature = messageListSignature(
+          globalModel.getMessageList(conversationID),
+        );
+        final localLoaded = await model!.loadChatRecord(
+          count: fetchCount,
+          getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
+        );
+        final localMessages = globalModel.getMessageList(conversationID);
+        final afterLocalSignature = messageListSignature(localMessages);
+        final localChanged = afterLocalSignature != beforeLocalSignature;
+        final localCount = localMessages?.length ?? 0;
+        final localWindowComplete = localLoaded &&
+            localMessages != null &&
+            localMessages.isNotEmpty &&
+            localCount >= fetchCount;
+        final memoryWindowNeedsReconciliation =
+            globalModel.memoryWindowNeedsReconciliation(conversationID);
+        if (localWindowComplete &&
+            localChanged &&
+            !memoryWindowNeedsReconciliation) {
+          globalModel.markInitialHistoryLoaded(conversationID);
+          shouldMarkRead = true;
+          return;
+        }
+        if (localMessages != null && localMessages.isNotEmpty) {
+          final cloudLoaded = await model!.loadChatRecord(
+            count: fetchCount,
+            getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
+          );
+          final cloudMessages = globalModel.getMessageList(conversationID);
+          if (cloudLoaded &&
+              (!globalModel.memoryWindowNeedsReconciliation(conversationID) ||
+                  globalModel.memoryWindowReconciliationCovered(
+                    conversationID,
+                    cloudMessages,
+                  ))) {
+            globalModel.markInitialHistoryLoaded(conversationID);
+            globalModel.clearMemoryWindowReconciliation(conversationID);
+          }
+          shouldMarkRead = cloudMessages != null && cloudMessages.isNotEmpty;
+          return;
+        }
+        final cloudLoaded = await model!.loadChatRecord(
+          count: fetchCount,
+          getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
+        );
+        final cloudMessages = globalModel.getMessageList(conversationID);
+        if (cloudLoaded &&
+            (!globalModel.memoryWindowNeedsReconciliation(conversationID) ||
+                globalModel.memoryWindowReconciliationCovered(
+                  conversationID,
+                  cloudMessages,
+                ))) {
+          globalModel.markInitialHistoryLoaded(conversationID);
+          globalModel.clearMemoryWindowReconciliation(conversationID);
+        }
+        if (cloudLoaded && cloudMessages != null && cloudMessages.isNotEmpty) {
+          shouldMarkRead = true;
+        } else if (!isSearchJump &&
+            target == null &&
+            !needUnreadSync &&
+            (cloudMessages == null || cloudMessages.isEmpty) &&
+            !model!.haveMoreData) {
+          final selected = model!.conversationViewModel.selectedConversation;
+          final selectedMatches = selected != null &&
+              TUIChatSeparateViewModel.selectedConversationMatchesChatId(
+                conversationID: conversationID,
+                selectedUserID: selected.userID,
+                selectedGroupID: selected.groupID,
+                selectedConversationID: selected.conversationID,
+              );
+          final previewLast = selectedMatches ? selected.lastMessage : null;
+          final previewMsgId = previewLast?.msgID?.trim() ?? '';
+          final hasListSideEvidence =
+              initialUnreadCount > 0 || previewLast != null;
+          // 列表侧有 lastMessage/未读时勿误标空历史，留给 Chat post-open 补拉。
+          if (hasListSideEvidence) {
+            // 本地 tip（ce_/localGroupTips）不能当作历史种子，否则会触发 tip
+            // 整库回灌，把空会话铺满入退群灰字。
+            final previewIsLocalTip = previewLast != null &&
+                HistoryPaginationAnchor.isLocalInjectedMessage(previewLast);
+            if (previewLast != null &&
+                !previewIsLocalTip &&
+                globalModel.rawMessageCount(conversationID) == 0) {
+              globalModel.setMessageList(
+                conversationID,
+                TUIChatGlobalModel.mergeHistoricalWithInMemory(
+                  existing: globalModel.messageListMap[conversationID],
+                  fetched: <V2TimMessage>[previewLast],
+                ),
+                needResetNewMessageCount: false,
+                replace: true,
+              );
+              globalModel.markInitialHistoryLoaded(conversationID);
+              shouldMarkRead = true;
+              ChatHistoryTrace.log(
+                'seed_preview_last_message',
+                conversationID: conversationID,
+                extras: <String, Object?>{
+                  'previewMsgId': previewMsgId,
+                  'entryUnread': initialUnreadCount,
+                },
+              );
+            } else if (previewIsLocalTip &&
+                globalModel.rawMessageCount(conversationID) == 0) {
+              globalModel.markInitialHistoryLoaded(conversationID);
+              ChatHistoryTrace.log(
+                'skip_seed_preview_local_tip',
+                conversationID: conversationID,
+                extras: <String, Object?>{
+                  'previewMsgId': previewMsgId,
+                  'entryUnread': initialUnreadCount,
+                },
+              );
+            } else {
+              ChatHistoryTrace.log(
+                'skip_mark_empty_loaded_has_preview',
+                conversationID: conversationID,
+                extras: <String, Object?>{
+                  'entryUnread': initialUnreadCount,
+                  'previewMsgId': previewMsgId,
+                  'localCount': localCount,
+                  'cloudLoaded': cloudLoaded,
+                },
+              );
+            }
+          } else {
+            // 空会话也必须结束首轮历史加载，否则消息区会一直显示 loading。
+            globalModel.markInitialHistoryLoaded(conversationID);
+            ChatHistoryTrace.log(
+              'mark_empty_history_loaded',
+              conversationID: conversationID,
+              extras: <String, Object?>{
+                'localCount': localCount,
+                'cloudLoaded': cloudLoaded,
+              },
+            );
+          }
+        }
+      } catch (error) {
+        if (!isSearchJump) rethrow;
+        if (!isCurrentSearch()) return;
+        // This also invalidates late around-window completions in the model.
+        globalModel.setSearchJumpStatus(conversationID, SearchJumpStatus.failed,
+            requestID: searchRequest, notify: true);
+        ChatHistoryTrace.log('search_jump_load_failed',
+            conversationID: conversationID,
+            extras: {'request': searchRequest, 'error': error.toString()});
+        TIMUIKitClass.onTIMCallback(TIMCallback(
+          type: TIMCallbackType.INFO,
+          infoRecommendText: TIM_t("消息定位加载失败，请重试"),
+          infoCode: 6660401,
+        ));
+      } finally {
+        ChatHistoryRecoveryCoordinator.instance.markInitialLoadComplete(
+          conversationID,
+          generation: initialLoadGeneration,
+        );
+        if (shouldMarkRead &&
+            !needUnreadSync &&
+            !globalModel.hasLockedEntryUnread) {
+          await model!.markMessageAsRead(force: true);
+        }
+      }
+    });
+  }

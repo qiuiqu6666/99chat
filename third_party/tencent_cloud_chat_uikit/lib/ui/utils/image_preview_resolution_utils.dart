@@ -904,6 +904,7 @@ class ImagePreviewDecodeTarget {
     this.width,
     this.height,
     this.staged = false,
+    this.fitWithinBounds = false,
   });
 
   final int? width;
@@ -911,6 +912,7 @@ class ImagePreviewDecodeTarget {
 
   /// 原图像素极高，首屏先用受限解码，停稳后再升级。
   final bool staged;
+  final bool fitWithinBounds;
 
   bool get shouldResize => width != null || height != null;
 }
@@ -938,7 +940,20 @@ ImagePreviewDecodeTarget imagePreviewDecodeTarget({
   bool preferFullResolution = false,
 }) {
   if (imageWidth <= 0 || imageHeight <= 0) {
-    return const ImagePreviewDecodeTarget();
+    // Intrinsic aspect is not known yet. The codec applies fit at decode time;
+    // never stretch to this box or upscale a tiny image. Original stays bounded
+    // until dimensions are known and the normal original/tiled policy can run.
+    final ratio = devicePixelRatio.isFinite && devicePixelRatio > 0
+        ? devicePixelRatio
+        : 1.0;
+    int bound(double side) => side.isFinite && side > 0
+        ? (side * ratio * imagePreviewDecodeScreenFactor).round().clamp(1, 4096)
+        : 2048;
+    return ImagePreviewDecodeTarget(
+        width: bound(screenWidth),
+        height: bound(screenHeight),
+        staged: true,
+        fitWithinBounds: true);
   }
   final staged = imagePreviewIsHugeImage(
     imageWidth: imageWidth,
@@ -1070,6 +1085,10 @@ ImageProvider imagePreviewDecodedProvider(
     provider,
     width: target.width,
     height: target.height,
+    policy: target.fitWithinBounds
+        ? ResizeImagePolicy.fit
+        : ResizeImagePolicy.exact,
+    allowUpscaling: false,
   );
 }
 

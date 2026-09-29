@@ -1,0 +1,1674 @@
+﻿file,sha256,widget_classes,entry_hooks,request_and_load_candidates,api_imports,service_imports,local_http_literals,sdk_candidates,scale_review_candidates,classification
+lib/country_list_pick-1.0.1+5/lib/selection_list.dart,6aaebf0817ce12bfd821dd71e09f9c5fc657198cebab8661bc247691f8f916a4,SelectionList,"58: void initState() {
+63: super.initState();",,,,,,"354: list.sort((a, b) => _indexName(a as CountryCode)
+372: scored.sort((a, b) {
+426: while (child != null) {
+430: final index = sliver.indexOf(child);
+432: next = _alphabet.indexOf(_firstLetter(countries[index]));",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/about.dart,0cb8de887e68231ecffd1e57c56edee17e723a69c1b010ead61abc528a6ed873,About,"104: void initState() {
+107: super.initState();",,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/add_friend.dart,2acf5df0c860ad148ee840a179b481628137ebc01d86192fcf56b19917f3edf1,AddFriend,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/add_group.dart,34d2feb77aa995bfc7bf1ffa693af0355699fa48af7734cf9c48f2df27368e22,AddGroup,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/all_group_application_list.dart,b51d711d787f09c8dbc0a17f58bdc79c80ee3bff16b890c28c9f83afa3a31949,AllGroupApplicationListPage; _GroupApplicationDetailPage,"218: void initState() {
+219: super.initState();","139: Future<void> _loadMoreNotices() async {
+207: final userInfo = await _loadTargetUserInfo(item.application!);
+220: _refreshLocalList();
+244: _refreshLocalList();
+284: void _refreshLocalList() {
+463: await GroupNoticeUnreadService.instance.markRead(
+589: GroupJoinApplicationService.instance.resolveDisplayName(userId: id);
+893: Future<V2TimUserFullInfo?> _loadTargetUserInfo(
+969: await GroupMembershipSyncService.instance.fetchJoinedGroupFromImSdk(
+974: await GroupLocalStore.instance.upsert(
+975: ownerUserId: GroupLocalStore.instance.currentOwnerUserId(),
+984: errorCode: MeGroupApi.readDioCode(error),
+1062: final userInfo = await _loadTargetUserInfo(applicationInfo);
+1215: GroupJoinApplicationService.instance.cacheDisplayName(userID, nickName);
+1241: await GroupJoinApplicationService.instance.approve(applicationInfo);
+1272: await GroupJoinApplicationService.instance.reject(applicationInfo);",package:tencent_cloud_chat_demo/src/api/me_group_api.dart,package:tencent_cloud_chat_demo/src/services/group_join_application_service.dart; package:tencent_cloud_chat_demo/src/services/group_system_notice_service.dart; package:tencent_cloud_chat_demo/src/services/group_notice_unread_service.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_membership_sync_service.dart,,"902: final users = await _friendshipServices.getUsersInfo(userIDList: [userID]);
+1148: await _groupServices.getGroupsInfo(groupIDList: unresolvedGroupIDs);
+1200: final users = await _friendshipServices.getUsersInfo(","148: await Future.wait([
+313: ]..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+455: final results = await Future.wait<bool>([",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/avatar_select_page.dart,4634ed06703d12542812221bbac44a4f16d8b2422fc3133bff4534311a6c6659,AvatarSelectPage,"28: void initState() {
+29: super.initState();",,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/blackList.dart,51d4030fcdace94de83a25122b8b5621a64ee203102b66cf919268dac617413e,BlackList,"39: void initState() {
+40: super.initState();","41: _load(reset: true);
+44: Future<void> _load({required bool reset}) async {
+60: final page = await BlockApi.instance.list(
+81: BlockLocalStore.instance.applyPage(page.items, replace: reset);
+149: await BlockLocalStore.instance.unblock(item.userId);
+209: _load(reset: false);
+214: onRefresh: () => _load(reset: true),
+356: onPressed: () => _load(reset: true),",package:tencent_cloud_chat_demo/src/api/block_api.dart,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/block_local_store.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/cancel_account.dart,4cae2c479d72d8ea36b7136156ce66780fef58142d609ecc7979e9f8b219e5ef,CancelAccount,,36: await AccountSessionService.instance.clearForLogout(,package:tencent_cloud_chat_demo/src/api/api_client.dart,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart; package:tencent_cloud_chat_demo/src/services/im_session_cache.dart; package:tencent_cloud_chat_demo/src/services/auth_bootstrap_service.dart; package:tencent_cloud_chat_demo/src/services/account_session_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/chat.dart,f31cc5197981f0965909adf48fd55631929b4d67583822349f7c1b23c89cd1cd,Chat,"9402: void initState() {
+9403: super.initState();
+9823: void didChangeDependencies() {
+9824: super.didChangeDependencies();
+9918: void didPopNext() {","407: final edit = ConversationDraftService.instance.recordEdit(previous, '');
+679: final local = GroupLocalStore.instance.readCached(groupId: groupId);
+900: return ExternalChatEntryService.instance.resolveConversationId(
+1029: ExternalChatEntryService.instance.logFlow(
+1039: final latestPreview = await _fetchConversationPreviewLastMessage();
+1046: final outcome = await ChatLatestWindowResetService.instance.runInPage(
+1056: ExternalChatEntryService.instance.logFlow(
+1080: final resolved = await GroupLocalStore.instance.resolveImGroupId(raw);
+1111: final cached = GroupLocalStore.instance.readCached(groupId: rawGroupId);
+1155: : GroupLocalStore.instance.readCached(groupId: fromConv);
+1208: await _loadAgentRebateIdentity();
+1218: await _loadAgentRebateIdentity();
+1233: await _loadAgentRebateIdentity();
+1365: Future<void> _loadChatLocalDraft() async {
+1372: final text = await ConversationDraftService.instance.loadDraftText(
+1428: if (!ConversationDraftService.instance.isCurrentEdit(edit)) return;
+1457: await ConversationDraftService.instance.persistDraft(
+1520: !ConversationDraftService.instance.isCurrentEdit(edit) ||
+1592: ? GroupLocalStore.instance.readCached(
+1617: Future<int> _fetchImServerTime() async {
+1626: Future<void> _refreshChatGroupMuteState() async {
+1632: await _fetchAndStoreBackendMuteStatus(groupId);
+1636: Future<void> _fetchAndStoreBackendMuteStatus(String groupId) {
+1639: final owner = GroupLocalStore.instance.currentOwnerUserId();
+1644: owner == GroupLocalStore.instance.currentOwnerUserId() &&
+1652: final muteStatus = await MeGroupApi.instance.fetchMyMuteStatus(groupId);
+1665: await GroupLocalStore.instance.patch(
+1754: ChatSessionController.instance.flushDeferredListUiBeforeChatLeave(
+1768: ChatSessionController.instance.patchConversationAfterChatLeave(
+1775: ChatSessionController.instance.flushDeferredUiNotifyIfNeeded(
+1803: GroupMemberStore.instance.memberOf(groupId, sender)?.faceUrl,
+1844: Future<void> _refreshChatGroupMembers(
+1921: await _refreshChatGroupMembers(groupId, userIds: <String>[targetId]);
+2040: await _refreshChatGroupMembers(groupId, userIds: <String>[targetId]);
+2066: serverTime = await _fetchImServerTime();
+2298: WalletCardDispatchService.instance.removeMatching(data);
+2375: final dispatched = WalletCardDispatchService.instance.takeForConversation(
+2382: WalletCardDispatchService.instance.enqueue(dispatched[j]);
+2441: WalletCardDispatchService.instance.enqueue(data);
+2553: : GroupMemberStore.instance.memberOf(groupId, userID);
+2977: animation: GroupMemberStore.instance.avatarListenable(groupId, sender),
+2980: ? GroupMemberStore.instance.memberOf(groupId, sender)
+3094: GroupLocalStore.instance.readCached(groupId: groupId)?.memberCount ?? 0;
+3126: Future<void> _loadPeerFaceUrl() async {
+3160: _refreshPeerMessageAvatars(resolved);
+3163: Future<void> _loadPeerLocalProfile() async {
+3173: final record = await UserProfileLocalService.instance.read(peerId);
+3195: _refreshPeerMessageAvatars(localFace);
+3222: unawaited(_loadPeerFaceUrl());
+3223: unawaited(_loadPeerLocalProfile());
+3237: _refreshGroupAvatarsFromProfileBus();
+3277: final member = GroupMemberStore.instance.memberOf(groupId, sender);
+3293: void _refreshGroupAvatarsFromProfileBus() {
+3298: unawaited(_refreshGroupAvatarsFromProfileBusAsync(groupId));
+3301: Future<void> _refreshGroupAvatarsFromProfileBusAsync(String groupId) async {
+3316: final storeMember = GroupMemberStore.instance.memberOf(groupId, uid) ??
+3317: GroupMemberStore.instance.memberOf(groupId, rawId);
+3321: final record = await UserProfileLocalService.instance.read(uid);
+3328: GroupMemberStore.instance.putProfileForUser(
+3333: GroupMemberStore.instance.putFriendRemarkForUser(
+3344: GroupMemberStore.instance.notifyChatAvatarRefreshForUsers(
+3350: void _refreshPeerMessageAvatars(String resolvedFace) {
+3827: GroupLocalStore.instance.readCached(groupId: groupId)?.myRole ??
+3871: unawaited(_loadGroupLiveCurrent());
+3908: _loadGroupLiveCurrent().whenComplete(() {
+3932: final item = GroupLiveIndexStore.instance.itemForGroup(groupId);
+3942: unawaited(_loadGroupLiveCurrent());
+3958: Future<void> _loadGroupLiveCurrent() async {
+4059: unawaited(_loadGroupLiveCurrent());
+4169: ChatSessionController.instance.applyRecvOptLocally(
+4175: await ConversationSyncService.instance.applyConversationMuteLocally(
+4206: GroupLocalStore.instance.readCached(groupId: groupId)?.isChannel ==
+4589: await MessageMediaMetadataStore.instance.hydrateMessages(pendingMedia);
+4599: MessageMediaMetadataStore.instance.persistFromMessages(pendingMedia),
+4610: MessageMediaMetadataStore.instance.persistFromMessages(
+4677: await GroupTipsOperatorPatchService.instance.applyPatchesForVisibleGroup(
+4690: unawaited(_refreshHistoryIfPreviewAheadOnOpen(convKey, cachedMessages));
+4713: final localGroup = await GroupLocalStore.instance.read(groupId: groupId);
+4714: final members = await GroupMemberLocalStore.instance.readByUserIds(
+4724: final existing = GroupMemberStore.instance.memberOf(groupId, selfId);
+4767: GroupMemberStore.instance.putMember(groupId, seeded, notify: false);
+4826: final members = await GroupMemberLocalStore.instance.readByUserIds(
+4844: final prev = GroupMemberStore.instance.memberOf(groupId, userID);
+4854: GroupMemberStore.instance.putMembers(groupId, members, notify: false);
+4879: GroupMemberStore.instance.notifyChatAvatarRefreshForUsers(
+4987: await _loadChatBackground();
+5025: void _refreshSelfMessageAvatars() {
+5078: final identity = SessionIdentityService.instance.capture();
+5089: await GroupMembershipSyncService.instance.fetchJoinedGroupFromImSdk(
+5093: if (!mounted || !SessionIdentityService.instance.isCurrent(identity))
+5106: if (!mounted || !SessionIdentityService.instance.isCurrent(identity))
+5108: await GroupMembershipSyncService.instance.onSelfRemovedFromGroup(groupId);
+5138: GroupLocalStore.instance.currentOwnerUserId()) {
+5145: _refreshChannelPresentation();
+5147: unawaited(_refreshGroupSnapshotCount());
+5167: _refreshChannelPresentation();
+5169: unawaited(_refreshGroupSnapshotCount());
+5172: void _refreshChannelPresentation() {
+5188: final owner = GroupMemberLocalStore.instance.currentOwnerUserId();
+5193: unawaited(_refreshGroupSnapshotCount());
+5199: Future<void> _refreshGroupSnapshotCount() {
+5212: GroupLocalStore.instance.readCached(groupId: groupId)?.memberCount;
+5241: var record = GroupLocalStore.instance.readCached(groupId: groupId);
+5248: await GroupNoticeMarqueeDismissService.instance.isDismissed(
+5263: record = GroupLocalStore.instance.readCached(groupId: groupId);
+5297: final cachedRecord = GroupLocalStore.instance.readCached(groupId: groupId);
+5336: await _refreshGroupSnapshotCount();
+5350: await GroupNoticeMarqueeDismissService.instance.isDismissed(
+5450: await GroupNoticeMarqueeDismissService.instance.isDismissed(
+5464: Future<void> _loadGroupMemberCount({bool force = false}) async {
+5478: await _refreshGroupSnapshotCount();
+5484: Future<void> _loadGroupGameStatus() {
+5489: final task = _loadGroupGameStatusImpl();
+5498: Future<void> _loadGroupGameStatusImpl() async {
+5526: await SangongMyConfigService.instance.ensureHydrated();
+5531: GroupLocalStore.instance.readCached(groupId: groupId)?.gameEnabled ??
+5561: final currentGroup = await GroupLocalStore.instance.read(
+5566: PrivilegedGameUserService.instance.refreshFromNetwork(),
+5613: unawaited(_refreshSangongAdminRound(silent: true));
+5617: unawaited(_loadSangongBannerSettings());
+5619: unawaited(_refreshGroupGameRoundStatus());
+5650: Future<void> _loadAgentRebateIdentity() async {
+5672: final cached = AgentIdentityService.instance.cachedEntry(groupId);
+5689: final entry = await AgentIdentityService.instance.refreshForGroup(
+5751: final cached = AgentRebateEntryLocalStore.instance.readCachedSync(
+5772: GroupLocalStore.instance.readCached(groupId: groupId)?.gameEnabled ??
+5810: Future<void> _refreshSangongAdminRound({bool silent = false}) async {
+5818: await SangongAdminRealtimeService.instance.refreshSnapshot();
+5822: final session = await SangongAdminApi.instance.fetchSession();
+5867: action: () => SangongAdminApi.instance.quickSetupBanker(
+5926: Future<SangongAdminRound?> _loadRoundForBetCutoff() async {
+5928: await _refreshSangongAdminRound();
+6051: loadedRound = await _loadRoundForBetCutoff();
+6063: action: () => SangongAdminApi.instance.previewBets(
+6109: action: () => SangongAdminApi.instance.sendSettleReportImage(),
+6142: action: () => SangongAdminApi.instance.sendSettleBillImage(),
+6187: action: () => SangongAdminApi.instance.sendPointsReportImage(
+6240: Future<void> _loadSangongBannerSettings() async {
+6247: final settings = await SangongSettingsApi.instance.fetch();
+6299: SangongAdminRealtimeService.instance.release();
+6303: Future<void> _refreshGroupGameRoundStatus() async {
+6304: await _refreshSangongAdminRound(silent: true);
+6330: Future<void> _loadGroupNoticeBanner({String? forcedText}) async {
+6360: await GroupNoticeMarqueeDismissService.instance.saveDismissedNotice(
+6548: unawaited(_loadSangongBannerSettings());
+6550: unawaited(_refreshGroupGameRoundStatus());
+6559: await PrivilegedGameUserService.instance.refreshFromNetwork();
+6620: unawaited(_refreshSangongAdminRound(silent: true));
+6642: unawaited(_loadGroupGameStatus());
+6648: unawaited(_loadGroupGameStatus());
+6650: unawaited(_loadSangongBannerSettings());
+6651: unawaited(_refreshGroupGameRoundStatus());
+6665: unawaited(_loadGroupGameStatus());
+6671: unawaited(_loadGroupGameStatus());
+6767: Future<void> _loadSangongAgentEntry() async {
+6779: final entry = await AgentRebateApi.instance.fetchEntryContext(groupId);
+7015: var record = GroupLocalStore.instance.readCached(groupId: groupId);
+7042: final acked = await GroupNoticeAckService.instance.getAckSignature(
+7077: await GroupNoticeAckService.instance.saveAckSignature(
+7145: unawaited(_loadGroupNoticeBanner(forcedText: event.notification));
+7196: unawaited(_loadGroupLiveCurrent());
+7203: unawaited(_refreshChatGroupMuteState());
+7209: unawaited(_loadGroupNoticeBanner(forcedText: notice.notification));
+7475: await _loadChatBackground();
+7494: await _loadGroupMemberCount();
+7495: await _loadChatBackground();
+7618: final preview = await _fetchConversationPreviewLastMessage();
+7727: await ChatSessionController.instance.historyClearedAtMs(convKey);
+7782: ? GroupLocalStore.instance.readCached(groupId: groupId)
+7796: UserProfileLocalService.instance.readCached(peerId))
+7941: _refreshSelfMessageAvatars();
+8014: unawaited(_loadPeerFaceUrl());
+8015: unawaited(_loadPeerLocalProfile());
+8017: await _loadChatBackground();
+8027: Future<void> _loadChatBackground() async {
+8039: await ChatBackgroundService.instance.getBackgroundPathWithGlobalFallback(
+8319: final verificationIdentity = SessionIdentityService.instance.capture();
+8320: final latestPreview = await _fetchConversationPreviewLastMessage();
+8323: !SessionIdentityService.instance.isCurrent(verificationIdentity))
+8428: _loadGroupMemberCount(),
+8429: _loadGroupNoticeBanner(),
+8475: _loadChatBackground(),
+8476: _loadChatLocalDraft(),
+8485: _loadPeerFaceUrl(),
+8486: _loadPeerLocalProfile(),
+8519: await _fetchAndStoreBackendMuteStatus(groupId);
+8562: _loadGroupGameStatus(),
+8563: _loadAgentRebateIdentity(),
+8564: _loadSangongAgentEntry(),
+8565: _loadGroupLiveCurrent(),
+8747: Future<V2TimMessage?> _fetchConversationPreviewLastMessage() async {
+8749: final identity = SessionIdentityService.instance.capture();
+8757: !SessionIdentityService.instance.isCurrent(identity)) return null;
+8775: final preview = await _fetchConversationPreviewLastMessage();
+8816: ExternalChatEntryService.instance.logFlow(
+8833: ExternalChatEntryService.instance.logFlow(
+8850: ExternalChatEntryService.instance.logFlow(
+8934: ExternalChatEntryService.instance.logFlow(
+8949: ExternalChatEntryService.instance.logFlow(
+8974: final preview = await _fetchConversationPreviewLastMessage();
+9048: Future<bool> _refreshChatHistoryLegacyFallback({
+9076: ExternalChatEntryService.instance.logFlow(
+9094: ExternalChatEntryService.instance.logFlow(
+9107: ExternalChatEntryService.instance.logFlow(
+9116: ExternalChatEntryService.instance.logFlow(
+9156: ExternalChatEntryService.instance.updateActiveChatState(
+9182: ExternalChatEntryService.instance.clearActiveChatState(
+9221: await GroupTipsOperatorPatchService.instance.applyPatchesForVisibleGroup(
+9242: ExternalChatEntryService.instance.logFlow(
+9253: await _refreshChatHistoryFromExternalEntry();
+9260: Future<void> _refreshHistoryIfPreviewAheadOnOpen(
+9433: GroupLiveIndexStore.instance.addListener(_onGroupLiveIndexStoreChanged);
+9452: _peerLocalProfile = UserProfileLocalService.instance.readCached(peerId);
+9475: identity: SessionIdentityService.instance.capture(),
+9572: ExternalChatEntryService.instance.claimActiveChatSource(
+9576: DeviceSyncService.instance.prepareForChatNavigation();
+9577: DeviceSyncService.instance.beginForegroundMediaWork(
+9611: PushFocusService.instance.enterChat(
+9636: MessageMediaMetadataStore.instance.upsertFromMessage(message),
+9707: MessageMediaMetadataStore.instance.upsertFromMessage(sent),
+9733: await ChatSessionController.instance.refreshConversationItem(
+9766: GroupMemberStore.instance.addListener(_onGroupMemberStoreChanged);
+9767: unawaited(_loadPeerFaceUrl());
+9768: unawaited(_loadPeerLocalProfile());
+9808: CallBubbleInsertService.instance.ensureConversationBubbles(
+10023: GroupLiveIndexStore.instance.removeListener(_onGroupLiveIndexStoreChanged);
+10066: PushFocusService.instance.leaveChat(
+10100: DeviceSyncService.instance.onChatClosed();
+10101: DeviceSyncService.instance.endForegroundMediaWork(
+10113: GroupMemberStore.instance.removeListener(_onGroupMemberStoreChanged);
+10139: ChatSessionController.instance.schedulePostPopCoalesceWindow(
+10183: unawaited(_refreshChatHistoryFromExternalEntry());
+10204: Future<void> _refreshChatHistoryFromExternalEntry() async {
+10219: Future<void> _refreshChatHistoryFromExternalEntryImpl() async {
+10229: ExternalChatEntryService.instance.logFlow(
+10256: final preview = await _fetchConversationPreviewLastMessage();
+10266: ExternalChatEntryService.instance.logFlow(
+10293: ExternalChatEntryService.instance.logFlow(
+10308: ExternalChatEntryService.instance.logFlow(
+10328: ExternalChatEntryService.instance.logFlow(
+10365: ExternalChatEntryService.instance.logFlow(
+10393: ExternalChatEntryService.instance.logFlow(
+10415: ExternalChatEntryService.instance.logFlow(
+10440: final changed = await _refreshChatHistoryLegacyFallback(
+10452: ExternalChatEntryService.instance.logFlow(
+10465: ExternalChatEntryService.instance.logFlow(
+10488: ExternalChatEntryService.instance.logFlow(
+10928: final rebateCached = AgentRebateEntryLocalStore.instance.readCachedSync(
+11286: ChatAttachmentService.instance.tasksFor(",package:tencent_cloud_chat_demo/src/api/api_client.dart; package:tencent_cloud_chat_demo/src/api/agent_rebate_api.dart; package:tencent_cloud_chat_demo/src/api/group_game_api.dart; package:tencent_cloud_chat_demo/src/api/me_group_api.dart; package:tencent_cloud_chat_demo/src/api/sangong_admin_api.dart; package:tencent_cloud_chat_demo/src/api/sangong_game_http.dart; package:tencent_cloud_chat_demo/src/api/sangong_settings_api.dart; package:tencent_cloud_chat_demo/src/api/agent_session_guard.dart,package:tencent_cloud_chat_demo/src/services/chat_attachment_service.dart; package:tencent_cloud_chat_demo/src/services/group_notice_ack_service.dart; package:tencent_cloud_chat_demo/src/services/group_notice_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/agent_identity_service.dart; package:tencent_cloud_chat_demo/src/services/android_performance_profile.dart; package:tencent_cloud_chat_demo/src/services/group_game/privileged_game_user_service.dart; package:tencent_cloud_chat_demo/src/services/group_game/sangong_my_config_service.dart; package:tencent_cloud_chat_demo/src/services/agent_rebate_local/agent_rebate_entry_local_store.dart; package:tencent_cloud_chat_demo/src/services/sangong_admin_realtime_service.dart; package:tencent_cloud_chat_demo/src/services/group_notice_marquee_dismiss_service.dart; package:tencent_cloud_chat_demo/src/services/group_game_prefs.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_member_incremental_sync_service.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_tips_operator_patch_service.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_sync_service.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_info_resolver.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_metadata_refresh_coordinator.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_member_local_store.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_membership_sync_service.dart; package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart; package:tencent_cloud_chat_demo/src/services/c2c_friend_message_guard.dart; package:tencent_cloud_chat_demo/src/services/chat_background_service.dart; package:tencent_cloud_chat_demo/src/chat_page/c2c_send_permission_controller.dart; package:tencent_cloud_chat_demo/src/chat_page/chat_draft_controller.dart; package:tencent_cloud_chat_demo/src/chat_page/chat_group_page_side_controller.dart; package:tencent_cloud_chat_demo/src/chat_page/chat_header_state_controller.dart; package:tencent_cloud_chat_demo/src/chat_page/chat_top_fix_state_controller.dart; package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart; package:tencent_cloud_chat_demo/src/services/chat_open_viewport_coordinator.dart; package:tencent_cloud_chat_demo/src/services/chat_viewport/chat_viewport_collection.dart; package:tencent_cloud_chat_demo/src/services/group_live/group_live_chat_state.dart; package:tencent_cloud_chat_demo/src/services/group_live/group_live_index_store.dart; package:tencent_cloud_chat_demo/src/services/chat_history_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/call_bubble_insert_service.dart; package:tencent_cloud_chat_demo/src/services/call_lifecycle_service.dart; package:tencent_cloud_chat_demo/src/services/call_result_repository.dart; package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart; package:tencent_cloud_chat_demo/src/services/conversation_deleted_bus.dart; package:tencent_cloud_chat_demo/src/services/local_message_overlay_store.dart; package:tencent_cloud_chat_demo/src/services/im_group_receive_opt.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart; package:tencent_cloud_chat_demo/src/services/conversation_notify_sync_service.dart; package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_draft_service.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_draft_leave_trace.dart; package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_flags.dart; package:tencent_cloud_chat_demo/src/services/conversation_unread_clear_service.dart; package:tencent_cloud_chat_demo/src/services/chat_pipeline_clock.dart; package:tencent_cloud_chat_demo/src/services/conversation_history_sync_coordinator.dart; package:tencent_cloud_chat_demo/src/services/conversation_peek_service.dart; package:tencent_cloud_chat_demo/src/services/chat_history_recovery_coordinator.dart; package:tencent_cloud_chat_demo/src/services/chat_latest_window_reset_service.dart; package:tencent_cloud_chat_demo/src/services/chat_latest_window_trust.dart; package:tencent_cloud_chat_demo/src/services/im_connect_status_service.dart; package:tencent_cloud_chat_demo/src/services/resume_foreground_policy.dart; package:tencent_cloud_chat_demo/src/services/conversation_history_warm_scheduler.dart; package:tencent_cloud_chat_demo/src/services/active_chat_registry.dart; package:tencent_cloud_chat_demo/src/services/external_chat_entry_service.dart; package:tencent_cloud_chat_demo/src/services/chat_diag_log.dart; package:tencent_cloud_chat_demo/src/services/im_chat_notification_clear_service.dart; package:tencent_cloud_chat_demo/src/services/im_recovery_service.dart; package:tencent_cloud_chat_demo/src/services/message_media_metadata_store.dart; package:tencent_cloud_chat_demo/src/services/push_focus_service.dart; package:tencent_cloud_chat_demo/src/services/device_sync_service.dart; package:tencent_cloud_chat_demo/src/provider/custom_sticker_package.dart; package:tencent_cloud_chat_demo/src/repository/sticker_repository.dart; package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_uikit/business_logic/controllers/history_pagination_controller.dart; package:tencent_cloud_chat_demo/src/services/call_launcher.dart; package:tencent_cloud_chat_demo/src/services/perf_timeline.dart; package:tencent_cloud_chat_uikit/business_logic/services/group_member_store.dart; package:tencent_cloud_chat_uikit/ui/controller/tim_uikit_chat_controller.dart; package:tencent_cloud_chat_demo/src/services/chat_external_message_sender.dart,,"1307: for (final member in _chatController.getGroupMemberList()) {
+2984: _chatController.getGroupMemberList(),
+3388: chatMembers: _chatController.getGroupMemberList(),
+3405: chatMembers: _chatController.getGroupMemberList(),
+7980: _chatController.getGroupMemberList(),
+8200: // SDK API：getHistoryMessageList（带 messageTypeList）。
+8205: await sdk.getHistoryMessageList(","3891: _groupLiveCurrentPollTimer = Timer.periodic(_groupLiveCurrentPollInterval, (
+5227: } while (_groupSnapshotCountDirty);
+5564: final results = await Future.wait([
+8295: while (globalModel.isChatListUserScrolling ||
+8427: await Future.wait<void>(<Future<void>>[
+8474: await Future.wait<void>(<Future<void>>[
+8484: await Future.wait<void>(<Future<void>>[
+8561: await Future.wait<void>(<Future<void>>[
+8594: await Future.wait<void>(idleTasks);",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/chatv2.dart,4c0354c6aa2dabf5b172b4c57f4d47642fdec181767a79a134401af1a0360747,ChatV2,,,,package:tencent_cloud_chat_uikit/ui/controller/tim_uikit_chat_controller.dart; package:tencent_cloud_chat_demo/src/services/conversation_history_sync_coordinator.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_flags.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/contact.dart,9ec034f674ace11a51ea6dcc282fd856191b5b49ba6267808375043b1486227c,Contact,"71: void initState() {
+72: super.initState();
+92: void didChangeDependencies() {
+93: super.didChangeDependencies();","79: _identity = SessionIdentityService.instance.capture();
+83: unawaited(_loadImFriends());
+87: unawaited(_loadFriendshipUIKitForContactPage());
+95: final identity = SessionIdentityService.instance.capture();
+105: unawaited(_loadImFriends());
+121: unawaited(_loadImFriends());
+133: unawaited(_loadImFriends());
+136: Future<void> _loadImFriends() {
+148: unawaited(_loadImFriends());
+166: final identity = _identity ?? SessionIdentityService.instance.capture();
+197: Future<void> _loadFriendshipUIKitForContactPage() {
+201: task = _loadFriendshipUIKit().whenComplete(() {
+210: Future<void> _loadFriendshipUIKit() async {
+317: unawaited(GroupNoticeUnreadService.instance.markRead());
+335: await FriendRequestNoticeService.instance.commitObservedAsRead();",,package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/friend_request_notice_service.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_directory.dart; package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_reconcile_service.dart; package:tencent_cloud_chat_demo/src/services/group_notice_unread_service.dart; package:tencent_cloud_chat_demo/src/services/perf_timeline.dart; package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/startup_perf_log.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/contactPage.dart,e7e7afc2d73ec66829122b814b78fa4b2315b2214862f14661afaed1b28f53d9,ContactPage,"27: void initState() {
+28: super.initState();",,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/conversation.dart,971921a74f2a1f1f549bf50bf44ad52f2dfb480766194231ebd99ccacb4e60d4,Conversation; ArchivedConversationPage,"1139: void didChangeDependencies() {
+1140: super.didChangeDependencies();
+1154: void initState() {
+1155: super.initState();
+5869: void initState() {
+5870: super.initState();","528: ConversationSyncService.instance.syncFromSdk(
+903: final identity = SessionIdentityService.instance.capture();
+904: final folder = ConversationFolderStore.instance.folderById(selected);
+913: SessionIdentityService.instance.isCurrent(previousIdentity) &&
+921: !SessionIdentityService.instance.isCurrent(previousIdentity)) {
+950: SessionIdentityService.instance.isCurrent(identity);
+1009: !SessionIdentityService.instance.isCurrent(expectedIdentity)) return;
+1012: final folder = ConversationFolderStore.instance.folderById(selected);
+1022: final identity = SessionIdentityService.instance.capture();
+1051: GroupLocalStore.instance.currentOwnerUserId()) return;
+1068: ChatSessionController.instance.bumpRowRevisions(conversationIds);
+1080: Future<void> _refreshDesktopLoginBanner({
+1087: return DesktopLoginSessionService.instance.refresh(
+1103: unawaited(_refreshDesktopLoginBanner(reason: 'visible'));
+1184: unawaited(GroupNoticeUnreadService.instance.ensureLoaded());
+1185: unawaited(GroupNoticeEntrySettingsService.instance.ensureLoaded());
+1186: unawaited(ConversationFolderStore.instance.ensureLoaded());
+1189: unawaited(GroupNoticeUnreadService.instance.ensureLoaded());
+1190: unawaited(GroupNoticeEntrySettingsService.instance.ensureLoaded());
+1191: unawaited(ConversationFolderStore.instance.ensureLoaded());
+1284: ChatSessionController.instance.addListener(_scheduleFolderUnreadRefresh);
+1289: ChatSessionController.instance.addListener(_onSessionProjectionChanged);
+1292: ChatSessionController.instance.ensureArchiveChangeListenersAttached();
+1311: unawaited(ConversationLocalStore.instance.preloadHistoryClearIndex());
+1339: GroupLiveIndexSyncService.instance.onGroupTabVisible();
+1343: GroupLiveIndexSyncService.instance.onGroupTabHidden();
+1351: await GroupNoticeIncrementalSyncService.instance.sync(
+1363: GroupJoinApplicationService.instance.refresh(syncMembership: false),
+1364: GroupNoticeIncrementalSyncService.instance.sync(
+1419: ConversationFolderStore.instance.folderById(selected) == null;
+1523: final identity = SessionIdentityService.instance.capture();
+1528: !SessionIdentityService.instance.isCurrent(previousIdentity) ||
+1571: !SessionIdentityService.instance.isCurrent(identity)) {
+1629: await ConversationSyncService.instance.ensureVisibleConversations(
+1647: final identity = SessionIdentityService.instance.capture();
+1660: !SessionIdentityService.instance.isCurrent(identity) ||
+1665: await ChatSessionController.instance.restoreProjection(
+1669: if (!SessionIdentityService.instance.isCurrent(identity)) {
+1710: ChatSessionController.instance.applyPeerDisplayNameFromStore(
+1716: ChatSessionController.instance.bumpRowRevisions(conversationIds);
+1832: ConversationSyncService.instance.refreshConversationItem(
+1932: ChatSessionController.instance.removeListener(listener);
+1953: ChatSessionController.instance.addListener(tryRestore);
+2079: ConversationSyncService.instance.onFeedScrollStarted();
+2118: ChatSessionController.instance.flushDeferredUiNotifyIfNeeded(
+2330: final identity = SessionIdentityService.instance.capture();
+2336: if (!mounted || !SessionIdentityService.instance.isCurrent(identity)) {
+2345: !SessionIdentityService.instance.isCurrent(identity)) {
+2373: unawaited(_loadMoreFeedConversations(allowSdk: allowSdk));
+2457: ChatSessionController.instance.updateViewportAnchor(anchor.id);
+2526: ChatSessionController.instance.updateViewportAnchor(virtualAnchor.id);
+2541: ChatSessionController.instance.updateViewportAnchor(id);
+2672: await _loadMoreFeedConversations();
+2699: Future<void> _loadMoreFeedConversations({bool allowSdk = true}) async {
+2705: final identity = SessionIdentityService.instance.capture();
+2720: if (!mounted || !SessionIdentityService.instance.isCurrent(identity))
+2749: if (SessionIdentityService.instance.isCurrent(identity)) {
+2777: final identity = SessionIdentityService.instance.capture();
+2787: !SessionIdentityService.instance.isCurrent(identity)) {
+2806: WebConversationSyncService.instance.syncJoinedGroupConversations(
+2861: ChatSessionController.instance.removeListener(
+2866: ChatSessionController.instance.removeListener(_onSessionProjectionChanged);
+3265: ConversationSyncService.instance.retainOpenedGroupConversation(
+3274: ConversationSyncService.instance.beginChatTransition();
+3352: ConversationSyncService.instance.cancelChatTransition();
+3357: DeviceSyncService.instance.prepareForChatNavigation();
+3483: ConversationSyncService.instance.cancelChatTransition();
+3506: final result = await ConversationPinService.instance.togglePinned(
+3561: final identity = SessionIdentityService.instance.capture();
+3655: ChatSessionController.instance.applyRecvOptLocally(
+3687: await GroupLocalStore.instance.resolveImGroupId(groupID);
+3697: await ConversationSyncService.instance.applyConversationMuteLocally(
+3725: final captured = SessionIdentityService.instance.capture();
+3838: _visibleCacheIdentity = SessionIdentityService.instance.capture();
+3854: !SessionIdentityService.instance.isCurrent(identity)) {
+3864: !SessionIdentityService.instance.isCurrent(folderIdentity)) {
+3988: : ConversationFolderStore.instance.folderById(folderId);
+4191: final folder = await ConversationFolderSyncService.instance.createFolder(
+4221: await ConversationFolderSyncService.instance.renameFolder(
+4231: if (!ConversationFolderStore.instance.isNameTaken(
+4278: await ConversationFolderSyncService.instance.deleteFolder(folder.folderId);
+4302: ConversationFolderSyncService.instance.flushPendingReorderToServer(),
+4362: final currentFolder = ConversationFolderStore.instance.folderContaining(
+4433: await ConversationFolderSyncService.instance.addConversationsToFolder(
+4442: await ConversationFolderSyncService.instance.addConversationsToFolder(
+4455: await ConversationFolderSyncService.instance.removeConversationsFromFolder(
+4550: await ArchivedConversationSyncService.instance.setArchivedForConversations(
+4555: await ChatSessionController.instance.syncMainListAfterArchiveChange(
+4617: await GroupNoticeUnreadService.instance.markReadUpToLatest();
+4653: final identity = SessionIdentityService.instance.capture();
+4740: unawaited(GroupNoticeUnreadService.instance.markRead());
+4754: await GroupNoticeEntrySettingsService.instance.togglePinned();
+4758: await GroupNoticeEntrySettingsService.instance.toggleMuted();
+4762: await GroupNoticeUnreadService.instance.markReadUpToLatest();
+4767: await GroupNoticeEntrySettingsService.instance.dismissEntry(
+4824: SessionIdentityService.instance.isCurrent(_folderSdkIdentity!),
+4827: SessionIdentityService.instance.isCurrent(_folderSdkIdentity!),
+4973: : GroupLocalStore.instance.readCached(groupId: groupId)?.groupName;
+5020: UserProfileLocalService.instance.readCached(ownerId)?.avatarVersion;
+5047: : UserProfileLocalService.instance.readCached(ownerId)?.avatarVersion;
+5645: GroupLiveIndexSyncService.instance.onGroupTabHidden();
+5687: _refreshDesktopLoginBanner(
+5731: ConversationFolderSyncService.instance.reorderFolders(
+5820: mounted && SessionIdentityService.instance.isCurrent(_archiveIdentity);
+5871: _archiveIdentity = SessionIdentityService.instance.capture();
+6037: unawaited(_loadMoreArchived());
+6088: final existing = await ConversationLocalStore.instance.conversationsByIds(
+6115: final cold = await ConversationLocalStore.instance.listColdArchivedIds(
+6160: Future<List<V2TimConversation>> _loadArchivePage({
+6167: return ConversationLocalStore.instance.loadOlderAmongPreparedArchiveIds(
+6174: return ConversationLocalStore.instance.loadOlderAmongIds(
+6183: Future<List<V2TimConversation>> _fetchColdHydrateBatch(int budget) async {
+6192: final identity = SessionIdentityService.instance.capture();
+6194: await ConversationTabStore.instance.readSdkConversationsByIds(batch);
+6197: !SessionIdentityService.instance.isCurrent(identity)) return const [];
+6207: !SessionIdentityService.instance.isCurrent(identity)) return const [];
+6213: await ConversationLocalStore.instance.addArchiveJoinConversationIds(
+6289: await ConversationLocalStore.instance.prepareArchiveIdSet(
+6299: var page = await _loadArchivePage(archivedIds: archivedIds);
+6307: final hydrated = await _fetchColdHydrateBatch(pageSize - page.length);
+6367: Future<void> _loadMoreArchived() async {
+6390: page = await _loadArchivePage(
+6407: page = await _fetchColdHydrateBatch(budget);
+6413: final hydrated = await _fetchColdHydrateBatch(need > cap ? cap : need);
+6530: await ConversationPinService.instance.togglePinned(
+6560: ChatSessionController.instance.applyRecvOptLocally(
+6591: await GroupLocalStore.instance.resolveImGroupId(groupID);
+6600: await ConversationSyncService.instance.applyConversationMuteLocally(
+6619: final captured = SessionIdentityService.instance.capture();
+6751: : GroupLocalStore.instance.readCached(groupId: groupId)?.groupName;
+6805: await ArchivedConversationSyncService.instance.setArchivedForConversations(
+6820: await ChatSessionController.instance.syncMainListAfterArchiveChange(
+6825: await ChatSessionController.instance.syncMainListAfterArchiveChange(",package:tencent_cloud_chat_demo/src/api/conversation_pin_api.dart; package:tencent_cloud_chat_demo/src/api/device_api.dart,package:tencent_cloud_chat_demo/src/widgets/conversation_feed/conversation_anchor_scroll_controller.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_tab_store.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_draft_leave_trace.dart; package:tencent_cloud_chat_demo/src/services/group_join_application_service.dart; package:tencent_cloud_chat_demo/src/services/group_live/group_live_index_sync_service.dart; package:tencent_cloud_chat_demo/src/services/group_notice_entry_settings_service.dart; package:tencent_cloud_chat_demo/src/services/group_notice_unread_service.dart; package:tencent_cloud_chat_demo/src/services/group_system_notice_service.dart; package:tencent_cloud_chat_demo/src/services/group_notice_incremental_sync_service.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart; package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_membership_sync_service.dart; package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart; package:tencent_cloud_chat_demo/src/services/active_chat_registry.dart; package:tencent_cloud_chat_demo/src/services/archived_conversation_sync_service.dart; package:tencent_cloud_chat_demo/src/services/archived_conversation_entry_visibility.dart; package:tencent_cloud_chat_demo/src/services/conversation_folder_store.dart; package:tencent_cloud_chat_demo/src/services/conversation_feed_perf.dart; package:tencent_cloud_chat_demo/src/services/conversation_folder_sync_service.dart; package:tencent_cloud_chat_demo/src/services/c2c_receive_opt_service.dart; package:tencent_cloud_chat_demo/src/services/im/contracts/account_scoped_conversation_key.dart; package:tencent_cloud_chat_demo/src/services/im_group_receive_opt.dart; package:tencent_cloud_chat_demo/src/services/conversation_pin_flicker_log.dart; package:tencent_cloud_chat_demo/src/services/conversation_pin_service.dart; package:tencent_cloud_chat_demo/src/services/conversation_pin_sync_service.dart; package:tencent_cloud_chat_demo/src/services/conversation_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; package:tencent_cloud_chat_demo/src/services/startup_perf_log.dart; package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_rebase_policy.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_gate_log.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_list_sync_notifier.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_unread_aggregate.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_id_canonical.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_flags.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/folder_unread_refresh_gate.dart; package:tencent_cloud_chat_demo/src/services/conversation_notify_sync_service.dart; package:tencent_cloud_chat_demo/src/services/conversation_history_warm_scheduler.dart; package:tencent_cloud_chat_demo/src/services/chat_coverage_repair_scheduler.dart; package:tencent_cloud_chat_demo/src/services/chat_open_viewport_coordinator.dart; package:tencent_cloud_chat_demo/src/services/chat_viewport/open_viewport_cache.dart; package:tencent_cloud_chat_demo/src/services/chat_pipeline_clock.dart; package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart; package:tencent_cloud_chat_demo/src/services/conversation_unread_trace.dart; package:tencent_cloud_chat_demo/src/services/conversation_unread_clear_service.dart; package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_folder_unread_index.dart; package:tencent_cloud_chat_demo/src/services/desktop_login_session_service.dart; package:tencent_cloud_chat_demo/src/services/device_sync_service.dart; package:tencent_cloud_chat_demo/src/services/web_conversation_sync_service.dart; package:tencent_cloud_chat_demo/src/provider/custom_sticker_package.dart; package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/provider/presence_provider.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_uikit/ui/controller/tim_uikit_conversation_controller.dart; package:tencent_cloud_chat_demo/src/services/conversation_peek_service.dart,,,"242: additional.sort(compare);
+246: while (next < additional.length && compare(additional[next], row) < 0) {
+1362: _groupJoinAppRefreshInFlight = Future.wait<void>([
+2663: while (mounted && !_viewportFillDone && _viewportFillPagesDone < maxPages) {
+6218: ..sort(ConversationLocalStore.compareConversationsForUi);
+6310: page.sort(ConversationLocalStore.compareConversationsForUi);
+6416: page.sort(ConversationLocalStore.compareConversationsForUi);",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/create_group.dart,761a98f33dd911f517d81dc55a3753ca3b12c594746cfc3bae38fb1fbcf91860,CreateGroup; _CreateGroupConfirmPage,"891: void initState() {
+892: super.initState();
+1587: void initState() {
+1588: super.initState();","413: await UploadApi.instance.uploadPendingGroupAvatarBytes(
+421: uploadResult = await UploadApi.instance.uploadPendingGroupAvatar(
+509: final limits = await GroupCreateLimitApi.instance.fetch();
+569: final flowGeneration = GroupCreateService.instance.beginCreateFlow();
+575: outcome = await GroupCreateService.instance.createWithRecovery(
+597: outcome = await GroupCreateService.instance.recoverAfterFailure();
+601: if (!GroupCreateService.instance.isLatestCreateFlow(flowGeneration)) {
+631: if (!GroupCreateService.instance.isLatestCreateFlow(flowGeneration)) {
+645: final code = MeGroupApi.readDioCode(dioError);
+746: await GroupMembershipSyncService.instance.upsertCreatedGroup(record);
+783: await ConversationSyncService.instance.commitCreatedConversation(
+791: if (!GroupCreateService.instance.isLatestCreateFlow(flowGeneration)) {
+804: if (!GroupCreateService.instance.isLatestCreateFlow(flowGeneration)) {
+878: GroupChangeEventSyncService.instance.syncForGroup(
+1602: _loadCreateLimits();
+1613: unawaited(_loadCreateLimits());
+1616: Future<void> _loadCreateLimits() async {
+1618: final limits = await GroupCreateLimitApi.instance.fetch();
+2125: final latest = await GroupCreateLimitApi.instance.fetch();
+2172: if (_isCommunitySelected && mounted) await _loadCreateLimits();
+2203: final wallet = await WalletApi.instance.getCurrencies();",package:tencent_cloud_chat_demo/src/api/wallet_api.dart; package:tencent_cloud_chat_demo/src/api/group_create_limit_api.dart; package:tencent_cloud_chat_demo/src/api/group_quota_limit_error.dart; package:tencent_cloud_chat_demo/src/api/me_group_api.dart; package:tencent_cloud_chat_demo/src/api/upload_api.dart,package:tencent_cloud_chat_demo/src/services/app_gallery_picker.dart; package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart; package:tencent_cloud_chat_demo/src/provider/presence_provider.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/chat_external_message_sender.dart; package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_create_limit_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_create_service.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_membership_sync_service.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_change_event_sync_service.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart; package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_directory.dart; package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_reconcile_service.dart; package:tencent_cloud_chat_demo/src/services/conversation_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/create_group_introduction.dart,7b49f73a94982708c67a3d82513b88f0785e35cb15643c0bda7c42f998c38b7b,CreateGroupIntroduction,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/friend_application_audit_page.dart,a45b3d36a4b0aba08222fd248ef8d3d843704110cfc68b4c1ace8d67f327225c,FriendApplicationAuditPage,"45: void initState() {
+46: super.initState();","47: _loadUserInfo();
+50: Future<void> _loadUserInfo() async {",,package:tencent_cloud_chat_demo/src/provider/theme.dart,,58: final users = await _friendshipServices.getUsersInfo(userIDList: [userID]);,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/friend_request_audit_page.dart,e644c254ed44042451403c151118a6cf0322cc0175724ea2ac7a1b0a4bb2abdf,FriendRequestAuditPage,"44: void initState() {
+45: super.initState();","48: _loadUserInfo();
+52: Future<void> _loadUserInfo() async {",,package:tencent_cloud_chat_demo/src/provider/theme.dart,,60: .getUsersInfo(userIDList: [userID]);,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/group_application_list.dart,c27fb0996903b657374599a089e0f3ac7389b7c2536c2b334f756f381f8e7c63,GroupApplicationList,"34: void initState() {
+35: super.initState();","40: if (GroupJoinApi.isSelfHostedJoinGroupType(widget.groupType)) {
+66: GroupJoinApi.isSelfHostedJoinGroupType(groupType),",package:tencent_cloud_chat_demo/src/api/group_join_api.dart,package:tencent_cloud_chat_demo/src/provider/theme.dart,,51: final res = await _groupServices.getGroupsInfo(,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/group_info_detail.dart,5c14d7aa7874a0a72f2f1bb26658c034ea92e5f29a4db169771f1508eb167e45,GroupInfoDetailPage,"55: void initState() {
+56: super.initState();","86: final result = await UploadApi.instance.uploadGroupAvatar(
+94: await GroupMembershipSyncService.instance.upsertGroupAvatar(",package:tencent_cloud_chat_demo/src/api/upload_api.dart; package:tencent_cloud_chat_demo/src/api/me_group_api.dart,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/app_gallery_picker.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_membership_sync_service.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_tip_custom_sender.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/group_list.dart,4d0747a1b43945852ae9a51e25b9bba2b78a22cb61464fb28ea559d73ad24f16,GroupList,"58: void initState() {
+59: super.initState();","65: unawaited(_loadGroupsImmediately());
+69: Future<void> _loadGroupsImmediately() async {
+74: GroupMembershipSyncService.instance.scheduleGroupListBackgroundSync();
+373: GroupLocalStore.instance.readCached(groupId: groupID)?.isChannel ??",,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_local_perf_flags.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_membership_sync_service.dart; package:tencent_cloud_chat_demo/src/services/group_local/my_group_az_skeleton.dart; package:tencent_cloud_chat_demo/src/services/group_local/my_group_list_controller.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/group_manage_page.dart,694a8c9959523c8ca4845b17bc105cdf9ae94b18bcd5d4130ae39872c953dde2,GroupManagePage,,40: return GroupJoinApi.isSelfHostedJoinGroupType(groupInfo.groupType);,package:tencent_cloud_chat_demo/src/api/group_join_api.dart,package:tencent_cloud_chat_demo/src/provider/presence_provider.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/group_profile.dart,6613aeaf79e50a165eadfd0112d0329400a02c0bd2930bc411eaffeeb15644cd,GroupProfilePage,,"780: : GroupMemberStore.instance.memberOf(model.groupID, selfId)?.faceUrl;
+1042: ChatSessionController.instance.applyRecvOptLocally(
+1083: ChatSessionController.instance.applyRecvOptLocally(
+1108: await ConversationSyncService.instance.applyConversationMuteLocally(
+1123: await ConversationSyncService.instance.applyConversationMuteLocally(
+1280: : GroupLocalStore.instance.readCached(groupId: groupId);
+1640: GroupLocalStore.instance.readCached(groupId: groupInfo.groupID);
+1761: GroupLocalStore.instance.readCached(groupId: groupInfo.groupID);
+1923: final localRecord = GroupLocalStore.instance.readCached(
+2200: final local = GroupLocalStore.instance.readCached(",package:tencent_cloud_chat_demo/src/api/me_group_api.dart,package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart; package:tencent_cloud_chat_demo/src/provider/presence_provider.dart; package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/group_notice_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_flags.dart; package:tencent_cloud_chat_demo/src/services/im_group_receive_opt.dart; package:tencent_cloud_chat_uikit/business_logic/services/group_member_store.dart,,,"154: members.sort((a, b) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/launch_page.dart,2fb2855bd8597dc8229e6a9ae9d67b426261cca668c3dbda9163f6b3cdaad036,LaunchPage,"25: void initState() {
+26: super.initState();",,,package:tencent_cloud_chat_demo/src/services/splash_config_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/my_profile_detail.dart,9a88609a973b0a2010950ea9b8f6e53c0b1ac1fc394780794691279dbee35baa,MyProfileDetail,"101: void initState() {
+102: super.initState();","115: unawaited(_refreshUserProfile());
+116: _loadAccountInfo();
+117: unawaited(MomentsSettingsService.instance.hydrateFromLocal());
+121: Future<void> _refreshUserProfile() async {
+140: final localRecord = await UserProfileLocalService.instance.read(userId);
+151: final me = await AuthApi.instance.fetchMe();
+154: await UserProfileLocalService.instance.saveMeResult(me);
+165: await UserProfileLocalService.instance.saveUserFullInfo(imInfo);
+168: final localAfter = await UserProfileLocalService.instance.read(userId);
+214: await UserProfileLocalService.instance.saveUserFullInfo(imInfo);
+219: Future<void> _loadAccountInfo() async {
+230: final me = await AuthApi.instance.fetchMe();
+256: await AccountSessionService.instance.clearForLogout(
+585: final result = await UploadApi.instance.uploadUserAvatar(
+670: Future<String?> _fetchAvatarPreviewUrl() {
+686: final request = _loadAvatarPreview(userId);
+695: Future<String?> _loadAvatarPreview(String userId) async {
+697: final result = await UserApi.instance.fetchUserAvatarPreview(userId);
+780: final preview = await _fetchAvatarPreviewUrl();
+798: UserProfileLocalService.instance.readCached(userId)?.avatarVersion ??
+825: UserProfileLocalService.instance.readCached(userId)?.avatarVersion ?? 0;
+858: final previewUrl = await _fetchAvatarPreviewUrl();
+892: final url = await _fetchAvatarPreviewUrl();
+1014: unawaited(_loadAccountInfo());
+1025: unawaited(_loadAccountInfo());
+1153: unawaited(MomentsSettingsService.instance.hydrateFromLocal());",package:tencent_cloud_chat_demo/src/api/auth_api.dart; package:tencent_cloud_chat_demo/src/api/api_client.dart; package:tencent_cloud_chat_demo/src/api/user_api.dart; package:tencent_cloud_chat_demo/src/api/upload_api.dart,package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/app_gallery_picker.dart; package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart; package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart; package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart; package:tencent_cloud_chat_demo/src/services/im_session_cache.dart; package:tencent_cloud_chat_demo/src/services/auth_bootstrap_service.dart; package:tencent_cloud_chat_demo/src/services/account_session_service.dart; package:tencent_cloud_chat_demo/src/services/moments/moments_settings_service.dart,,160: .getUsersInfo(userIDList: [userId]);,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/newContact.dart,292ebfacbd18ca25961eb8451084af7c0cd05084ada6ae424caa732e1735e898,NewContact,"64: void initState() {
+65: super.initState();
+118: void didChangeDependencies() {
+119: super.didChangeDependencies();","74: final identity = SessionIdentityService.instance.capture();
+76: mounted && SessionIdentityService.instance.isCurrent(identity);
+79: _loadPendingRequests();
+91: Future<void> _loadPendingRequests() async {
+125: _loadPendingRequests();
+293: await _loadPendingRequests();
+331: await _loadPendingRequests();
+438: await _loadPendingRequests();
+439: await FriendRequestNoticeService.instance.refreshPendingCount();",,package:tencent_cloud_chat_demo/src/services/friend_request_list_controller.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/friend_request_notice_service.dart,,,"163: list.sort(
+172: list.sort(
+185: records.sort(",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/profile.dart,5413676f5134f1f4aaa217e03fc1a246243c918383a150cfef352a1d51392178,_HotEcoTile; _HotEcoLightSweep; MyProfile,"98: void initState() {
+99: super.initState();
+119: void didChangeDependencies() {
+120: super.didChangeDependencies();
+404: void initState() {
+405: super.initState();
+411: void didChangeDependencies() {
+412: super.didChangeDependencies();","354: if (mounted && _profileTabWasActive) unawaited(_refreshSelfSignature());
+358: Future<void> _refreshSelfSignature() async {
+362: SessionIdentityService.instance.capture(ownerUserId: owner);
+373: !SessionIdentityService.instance.isCurrent(identity,
+407: _loadBackendAvatar();
+419: _loadBackendAvatar();
+426: Future<void> _loadBackendAvatar() {
+433: task = _loadBackendAvatarOnce().whenComplete(() {
+453: Future<void> _loadBackendAvatarOnce() async {
+457: final local = await UserProfileLocalService.instance.read(currentOwner);
+474: final identity = SessionIdentityService.instance.capture();
+476: final me = await AuthApi.instance.fetchMe();
+488: await UserProfileLocalService.instance.saveMeResult(me);
+1012: unawaited(MomentsSettingsService.instance.hydrateFromLocal());
+1014: await _loadBackendAvatar();
+1605: _loadBackendAvatar();",package:tencent_cloud_chat_demo/src/api/auth_api.dart,package:tencent_cloud_chat_demo/src/services/moments/moments_settings_service.dart; package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/account_session_service.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart; package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart,,370: final response = await TIMUIKitCore.getSDKInstance().getUsersInfo(,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/qr_code_page.dart,68130ac3eb7a681a4ac2e43814ad5d65112ab6004570eeb95b6c1dfe4c29609a,QRCodePage,"95: void initState() {
+96: super.initState();","97: unawaited(_loadQrLandingUrl());
+104: unawaited(_loadLocalUserIdentity());
+107: unawaited(_loadGroupJoinOptions());
+108: unawaited(_loadGroupMemberCount());
+112: Future<void> _loadGroupMemberCount() async {
+137: Future<void> _loadQrLandingUrl() async {
+138: final url = await ShareAppService.instance.resolveQrLandingUrl();
+148: Future<void> _loadGroupJoinOptions() async {
+156: final options = await GroupJoinApi.instance.fetchJoinOptions(groupId);
+171: Future<void> _loadLocalUserIdentity() async {
+181: final record = await UserProfileLocalService.instance.read(fallbackId);
+201: await _loadGenderFromSdk(fallbackId);
+206: Future<void> _loadGenderFromSdk(String userId) async {",package:tencent_cloud_chat_demo/src/api/group_join_api.dart,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart; package:tencent_cloud_chat_demo/src/services/qr_share_file_access.dart; package:tencent_cloud_chat_demo/src/services/chat_external_message_sender.dart; package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart; package:tencent_cloud_chat_demo/src/services/share_app_service.dart,,"118: .getGroupsInfo(groupIDList: [groupId]);
+208: final res = await _sdkInstance.getUsersInfo(userIDList: [userId]);",,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/qr_code_scanner_page.dart,fa3a62d3422f1dd0523de6f96bf484e7bef082345dd4cb3771d3a29325ecfc89,QRCodeScannerPage; _ScanResultDialogButton,"173: void initState() {
+174: super.initState();","287: Future<V2TimGroupInfo?> _fetchGroupInfo(String groupID) async {
+516: final groupInfo = await _fetchGroupInfo(data.id);",package:tencent_cloud_chat_demo/src/api/api_client.dart,package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/app_gallery_picker.dart,,488: final users = await _friendshipServices.getUsersInfo(userIDList: [userID]);,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/search.dart,3406e2ab6e45efc21b5d560724e53072f122f8745da733bb0a792913fbdb8264,Search,"214: void didChangeDependencies() {
+215: super.didChangeDependencies();","277: final identity = SessionIdentityService.instance.capture();
+287: SessionIdentityService.instance.capture() != identity) {",,package:tencent_cloud_chat_demo/src/provider/presence_provider.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/search_add_page.dart,34eacb1f7cebf7a229a60761143482c53894f08afe480f38d482d6e7a8eb1209,SearchAddPage; UnifiedSearchAddPage; _SearchAddGuideSection; _SearchAddRowWidget,,281: final hit = await UserApi.instance.searchUser(,package:tencent_cloud_chat_demo/src/api/user_api.dart,package:tencent_cloud_chat_demo/src/provider/theme.dart,,492: await TIMUIKitCore.getSDKInstance().getUsersInfo(userIDList: [userID]);,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/tencent_page.dart,ec8140b0cc3898bb7d2046867fc935716cf96be4d22320a2a636a0f3f7af4eb8,TencentPage,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/user_profile.dart,4bd2ba0534f409c9b70995e9d4e264372dec1fbc73800c9738a9d524ab0d2c02,UserProfile,"2941: void initState() {
+2942: super.initState();","208: Future<void> _loadFriendRelation() async {
+217: await MeFriendApi.instance.tryFetchRelation(widget.userID.trim());
+223: unawaited(_loadMomentsPrivacy());
+227: unawaited(_loadMomentsPrivacy());
+301: DisplayNameStore.instance.applyImFriendShowName(
+324: DisplayNameStore.instance.applyImFriendShowName(
+330: ConversationSyncService.instance.applyConversationMetadataPatch(
+373: final friendRecord = await MeFriendApi.instance.cachedByUserId(userId);
+383: final remote = await UserApi.instance.tryFetchUserById(userId);
+391: await UserProfileLocalService.instance.saveFriendRecord(
+402: await UserProfileLocalService.instance.saveBackendProfile(
+410: await UserProfileLocalService.instance.saveFriendRecord(friendRecord);
+417: final local = await UserProfileLocalService.instance.read(userId);
+451: await MeFriendApi.instance.deleteFriend(widget.userID);
+525: FriendSyncService.instance.publishFriendRemarkDisplayName(
+531: UserProfileLocalService.instance.saveFriendRemark(
+597: final check = await UserApi.instance.checkAddFriend(
+633: unawaited(FriendSyncService.instance.onBecameFriends(
+651: await _loadFriendRelation();
+702: final add = shouldAdd ?? !BlockLocalStore.instance.isBlocked(widget.userID);
+742: await BlockLocalStore.instance.block(widget.userID);
+744: await BlockLocalStore.instance.unblock(widget.userID);
+786: final privacy = await UserApi.instance.fetchPrivacy();
+789: final remote = await UserApi.instance.fetchUserPrivacy(
+1032: UserProfileLocalService.instance.readCached(userId)?.avatarVersion ?? 0;
+1034: UserProfileLocalService.instance.readCached(userId)?.avatarUrl.trim() ??
+1049: await UserApi.instance.fetchUserAvatarPreview(userId);
+1350: final blocked = BlockLocalStore.instance.isBlocked(widget.userID);
+1386: Future<void> _loadMomentsPrivacy() async {
+1399: final block = await MomentsSettingsService.instance.isBlockedViewer(peerId);
+1400: final hide = await MomentsSettingsService.instance.isHiddenAuthor(peerId);
+1417: await MomentsSettingsService.instance.setBlockedViewer(peerId, value);
+1440: await MomentsSettingsService.instance.setHiddenAuthor(peerId, value);
+1603: Future<void> _loadCommonGroupCount() async {
+1787: final blocked = BlockLocalStore.instance.isBlocked(widget.userID);
+1955: BlockLocalStore.instance.isBlocked(widget.userID)
+2861: void _refreshPrivilegedGameAccess() {
+2862: unawaited(PrivilegedGameUserService.instance.refreshFromNetwork());
+2945: unawaited(_loadFriendRelation());
+2946: unawaited(_loadCommonGroupCount());
+2947: unawaited(BlockLocalStore.instance.ensureLoaded());
+2948: BlockLocalStore.instance.addListener(_onBlockStoreChanged);
+2951: unawaited(_loadGroupMemberJoinMeta());
+2957: _refreshPrivilegedGameAccess();
+2965: await SangongMyConfigService.instance.activateSession();
+2971: Future<void> _loadGroupMemberJoinMeta() async {
+3296: BlockLocalStore.instance.removeListener(_onBlockStoreChanged);
+3343: await _loadFriendRelation();",package:tencent_cloud_chat_demo/src/api/me_friend_api.dart; package:tencent_cloud_chat_demo/src/api/user_api.dart; package:tencent_cloud_chat_demo/src/api/sangong_game_http.dart,package:tencent_cloud_chat_demo/src/services/c2c_friend_message_guard.dart; package:tencent_cloud_chat_demo/src/services/group_game/privileged_game_user_service.dart; package:tencent_cloud_chat_demo/src/services/block_local_store.dart; package:tencent_cloud_chat_demo/src/provider/starred_friend_provider.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/call_launcher.dart; package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart; package:tencent_cloud_chat_demo/src/services/chat_external_message_sender.dart; package:tencent_cloud_chat_demo/src/services/conversation_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart; package:tencent_cloud_chat_demo/src/services/friend_local/friend_sync_service.dart; package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart; package:tencent_cloud_chat_uikit/business_logic/services/display_name_store.dart; package:tencent_cloud_chat_demo/src/services/group_game/sangong_my_config_service.dart; package:tencent_cloud_chat_demo/src/services/moments/moments_settings_service.dart; package:tencent_cloud_chat_demo/src/services/common_group_chats_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/chat/chat_camerawesome_capture_page.dart,991e5c54e8451d32a5998815f42ba5a98c5bda1516e8653a78c1c7eea5711be5,ChatCamerAwesomeCapturePage; _ChatCamerAwesomeRecordBadge; _ChatCamerAwesomeShutter,"54: void initState() {
+55: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/add_friend_page.dart,67560a813b47d942e28b5039a172557d2977ca6b7a66859ad83b57fb09352fbb,AddFriendPage,"197: void initState() {
+198: super.initState();","204: BlockLocalStore.instance.addListener(_onBlockStoreChanged);
+207: _loadUserInfo();
+209: _refreshQrAddPolicy();
+210: _refreshPrivilegedGameAccess();
+211: unawaited(_loadGroupMemberJoinMeta());
+214: _refreshCardAddPolicy();
+234: await SangongMyConfigService.instance.activateSession();
+240: Future<void> _loadGroupMemberJoinMeta() async {
+260: BlockLocalStore.instance.removeListener(_onBlockStoreChanged);
+324: Future<void> _refreshCardAddPolicy() async {
+330: final check = await UserApi.instance.checkAddFriend(
+369: Future<void> _refreshQrAddPolicy() async {
+375: final check = await UserApi.instance.checkAddFriend(
+408: Future<void> _loadUserInfo() async {
+551: await BlockLocalStore.instance.ensureLoaded();
+582: if (BlockLocalStore.instance.isBlocked(widget.userID)) {
+594: final blocked = BlockLocalStore.instance.isBlocked(widget.userID);
+635: await BlockLocalStore.instance.unblock(widget.userID);
+646: unawaited(_refreshQrAddPolicy());
+648: unawaited(_refreshCardAddPolicy());
+658: await BlockLocalStore.instance.block(widget.userID);
+701: void _refreshPrivilegedGameAccess() {
+702: unawaited(PrivilegedGameUserService.instance.refreshFromNetwork());
+841: final check = await UserApi.instance.checkAddFriend(
+887: final result = await FriendRequestApi.instance.create(
+902: unawaited(FriendSyncService.instance.onBecameFriends(
+1131: BlockLocalStore.instance.isBlocked(widget.userID)",package:tencent_cloud_chat_demo/src/api/friend_request_api.dart; package:tencent_cloud_chat_demo/src/api/user_api.dart; package:tencent_cloud_chat_demo/src/api/sangong_game_http.dart,package:tencent_cloud_chat_demo/src/services/group_game/privileged_game_user_service.dart; package:tencent_cloud_chat_demo/src/provider/presence_provider.dart; package:tencent_cloud_chat_demo/src/services/block_local_store.dart; package:tencent_cloud_chat_demo/src/services/friend_local/friend_sync_service.dart; package:tencent_cloud_chat_demo/src/services/c2c_friend_message_guard.dart; package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/group_game/sangong_my_config_service.dart; package:tencent_cloud_chat_uikit/business_logic/services/display_name_store.dart,,422: final res = await _sdkInstance.getUsersInfo(userIDList: [widget.userID]);,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/agent_rebate_current_page.dart,4287183141b8ba3f163647a844424b271efbe65f1aa62b176fcacb4e50a1e849,AgentRebateCurrentPage; _ErrorState,"58: void initState() {
+59: super.initState();","60: unawaited(_load());
+61: unawaited(_loadApplyStatuses());
+70: Future<void> _load() async {
+77: final result = await _api.fetchCurrent();
+86: AgentIdentityService.instance.revokeGroupAgent(null);
+96: Future<void> _loadApplyStatuses() async {
+100: _api.fetchPersonalRebateApplyStatus(),
+101: _api.fetchAgentRebateApplyStatus(),
+175: ? await _api.submitPersonalRebateApply()
+176: : await _api.submitAgentRebateApply();
+189: await _load();
+196: AgentIdentityService.instance.revokeGroupAgent(null);
+221: ? await _api.fetchPersonalRebateApplyStatus()
+222: : await _api.fetchAgentRebateApplyStatus();
+234: await _load();",package:tencent_cloud_chat_demo/src/api/agent_rebate_api.dart; package:tencent_cloud_chat_demo/src/api/agent_session_guard.dart,package:tencent_cloud_chat_demo/src/services/agent_identity_service.dart,,,99: final results = await Future.wait([,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/agent_rebate_descendants_page.dart,4a23d882f5c8729650bc3315ebb66a79ed2628d7744957bb51b38b874253e9c2,AgentRebateDescendantsPage; _DescendantTile; _AgentBadge; _ErrorState,"101: void initState() {
+102: super.initState();","103: unawaited(_load());
+114: Future<void> _load() async {
+131: final result = await _api.fetchDescendants(
+142: unawaited(_loadProfiles(_collectProfileItems(_data!)));
+149: AgentIdentityService.instance.revokeGroupAgent(null);
+175: final result = await _api.fetchDescendants(
+186: unawaited(_loadProfiles(result.items));
+237: Future<void> _loadProfiles(List<AgentDescendantItemDto> items) async {",package:tencent_cloud_chat_demo/src/api/agent_rebate_api.dart; package:tencent_cloud_chat_demo/src/api/agent_session_guard.dart; package:tencent_cloud_chat_demo/src/api/user_api.dart,package:tencent_cloud_chat_demo/src/services/agent_identity_service.dart,,,"172: while (mounted &&
+250: final profiles = await Future.wait(
+417: groups.sort((left, right) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/agent_rebate_descendant_detail_page.dart,232175c9edc121c54fd625c9f37a5305acefc782e1f20a46bc481aff1100cb7f,AgentRebateDescendantDetailPage; _ChildTile; _Metric; _DetailErrorState,"73: void initState() {
+74: super.initState();","83: unawaited(_load());
+120: Future<void> _load() async {
+129: final result = await _api.fetchDescendantDetail(widget.userId);
+140: AgentIdentityService.instance.revokeGroupAgent(null);",package:tencent_cloud_chat_demo/src/api/agent_rebate_api.dart,package:tencent_cloud_chat_demo/src/services/agent_identity_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/agent_rebate_descendant_history_page.dart,0c04408c50dde6eb68b03843d08bbb7af833bc9f464f53f000b21910372a098e,AgentRebateDescendantHistoryPage; _HistoryCard; _HistoryHighlightMetric; _HistoryMetric; _HistoryErrorState,"63: void initState() {
+64: super.initState();","65: unawaited(_load());
+68: Future<void> _load() async {
+74: final result = await _api.fetchDescendantsHistory(
+86: AgentIdentityService.instance.revokeGroupAgent(null);
+103: await _load();",package:tencent_cloud_chat_demo/src/api/agent_rebate_api.dart,package:tencent_cloud_chat_demo/src/services/agent_identity_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/agent_rebate_history_page.dart,233b0ff0aeab016e0ca1e76976934043ee23ff945dc428db8470206e445fd764,AgentRebateHistoryPage; _DateRangeBar; _HistoryErrorState,"62: void initState() {
+63: super.initState();","64: unawaited(_load());
+67: Future<void> _load() async {
+75: ? await _api.fetchHistory(_range)
+76: : await _api.fetchPersonalHistory(_range);
+85: AgentIdentityService.instance.revokeGroupAgent(null);
+102: await _load();
+114: await _load();
+121: var task = await _api.submitHistoryExport(_range);
+129: task = await _api.fetchHistoryExportTask(task.taskNo);
+143: final download = await _api.downloadHistoryExport(
+181: AgentIdentityService.instance.revokeGroupAgent(null);",package:tencent_cloud_chat_demo/src/api/agent_rebate_api.dart,package:tencent_cloud_chat_demo/src/services/agent_identity_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/app.dart,cdace39c97381408c25ba7703735851719e52bc4477ca6105c900a84a39c7fff,TencentChatApp,"130: void didChangeDependencies() {
+131: super.didChangeDependencies();
+503: void initState() {
+504: super.initState();","144: NotificationSettingsService.instance.setLifecycle(state);
+145: DeviceSyncService.instance.setAppLifecycle(state);
+146: FriendRequestNoticeService.instance.onAppLifecycleChanged(state);
+147: ConversationSyncService.instance.setInboxRecoveryForeground(
+167: ConversationSyncService.instance.invalidateLifecycle();
+233: expectedIdentity: SessionIdentityService.instance.capture(
+263: NotificationSettingsService.instance.consumePendingConversationOpen());
+276: return SessionIdentityService.instance.isCurrent(identity);
+304: unawaited(PresenceApi.instance.heartbeat().catchError((_) {}));
+315: await NotificationSettingsService.instance.applyFromSettings();
+333: await ImRecoveryService.instance.afterOnline(
+344: DeviceSyncService.instance.onAppResumed();
+348: LocationUploadService.instance.maybeUpload(reason: 'app_resumed'),
+357: final identity = SessionIdentityService.instance.capture();
+365: if (!SessionIdentityService.instance.isCurrent(identity)) {
+372: !SessionIdentityService.instance.isCurrent(identity)) {
+376: if (!SessionIdentityService.instance.isCurrent(identity)) {
+397: expectedIdentity ?? SessionIdentityService.instance.capture();
+399: !SessionIdentityService.instance.isCurrent(identity)) {
+407: if (!SessionIdentityService.instance.isCurrent(identity)) {
+410: await AccountSessionService.instance.clearForLogout(
+426: final identity = SessionIdentityService.instance.capture();
+434: SessionIdentityService.instance.isCurrent(identity)) {
+442: SessionIdentityService.instance.isCurrent(identity)) {",package:tencent_cloud_chat_demo/src/api/presence_api.dart; package:tencent_cloud_chat_demo/src/api/api_client.dart; package:tencent_cloud_chat_demo/src/api/auth_api.dart,package:tencent_cloud_chat_demo/src/services/auth_bootstrap_service.dart; package:tencent_cloud_chat_demo/src/services/auth_session_service.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; package:tencent_cloud_chat_demo/src/services/session_diagnostics.dart; package:tencent_cloud_chat_demo/src/services/sqflite_lifecycle_host.dart; package:tencent_cloud_chat_demo/src/services/sqflite_lock_profile_log.dart; package:tencent_cloud_chat_demo/src/services/account_session_service.dart; package:tencent_cloud_chat_demo/src/services/login_coordinator.dart; package:tencent_cloud_chat_demo/src/services/im_connect_status_service.dart; package:tencent_cloud_chat_demo/src/services/im/outgoing_outbox_recovery_service.dart; package:tencent_cloud_chat_demo/src/services/im_recovery_service.dart; package:tencent_cloud_chat_demo/src/services/chat_history_recovery_coordinator.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart; package:tencent_cloud_chat_demo/src/services/location_upload_service.dart; package:tencent_cloud_chat_demo/src/services/network_status_service.dart; package:tencent_cloud_chat_demo/src/services/device_sync_service.dart; package:tencent_cloud_chat_demo/src/services/friend_request_notice_service.dart; package:tencent_cloud_chat_demo/src/services/notification_settings_service.dart; package:tencent_cloud_chat_demo/src/services/resume_foreground_policy.dart; package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart; package:tencent_cloud_chat_demo/src/provider/custom_sticker_package.dart; package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart; package:tencent_cloud_chat_demo/src/provider/presence_provider.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart; package:tencent_cloud_chat_demo/src/services/startup_perf_log.dart; package:tencent_cloud_chat_uikit/ui/controller/tim_uikit_chat_controller.dart; package:tencent_cloud_chat_demo/src/services/voice_output_route_service.dart; package:tencent_cloud_chat_demo/src/services/livekit_call_session.dart; package:tencent_cloud_chat_demo/src/services/livekit_call_media_helpers.dart,,435: final result = await _sdkInstance.getUsersInfo(userIDList: [res.data!]);,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/c2c_chat_settings_page.dart,8e10b0dff9b856f410a851de823fb4bf9f049e0b3f5cc5c24bb7958adcd941e1,C2cChatSettingsPage,"129: void initState() {
+130: super.initState();","152: await _loadLocalProfile();
+158: _refreshConversation(),
+159: _loadLocalProfile(),
+166: unawaited(_loadSideCardExtras());
+170: Future<void> _loadLocalProfile() async {
+175: final record = await UserProfileLocalService.instance.read(peer);
+182: Future<void> _loadSideCardExtras() async {
+186: CommonGroupChatsService.instance.loadCommonGroupsPage(peer, limit: 1),
+246: Future<void> _refreshConversation() async {
+262: ConversationPinSyncService.instance.isPinnedConversationId(id);
+372: unawaited(_loadLocalProfile());
+478: final result = await ConversationPinService.instance.setPinned(
+514: unawaited(_refreshConversation());
+528: final captured = SessionIdentityService.instance.capture();
+577: unawaited(_refreshConversation());
+717: await ConversationSyncService.instance.onConversationHistoryCleared(
+1104: await _loadLocalProfile();
+1149: await MeFriendApi.instance.deleteFriend(peer);",package:tencent_cloud_chat_demo/src/api/me_friend_api.dart; package:tencent_cloud_chat_demo/src/api/user_api.dart; package:tencent_cloud_chat_demo/src/api/conversation_pin_api.dart,package:tencent_cloud_chat_demo/src/services/common_group_chats_service.dart; package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/provider/presence_provider.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart; package:tencent_cloud_chat_demo/src/services/conversation_pin_service.dart; package:tencent_cloud_chat_demo/src/services/c2c_receive_opt_service.dart; package:tencent_cloud_chat_demo/src/services/im/contracts/account_scoped_conversation_key.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; package:tencent_cloud_chat_demo/src/services/conversation_pin_sync_service.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart; package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/call_launcher.dart,,227: final res = await _messageService.searchLocalMessages(,"157: await Future.wait([
+185: final results = await Future.wait<Object?>([",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/channel_intro_page.dart,fee8195643fbd8899a2e153fe5b88a6eed4310696a162ff0e22258597f28207c,ChannelIntroPage,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/channel_type_page.dart,0ec4f66dcf877f24690debfbdf912176db7cacffdfd136ab4300ff0b00e336f5,ChannelTypePage,"35: void initState() {
+36: super.initState();","37: unawaited(_load());
+38: unawaited(_loadLink());
+41: Future<void> _load() async {
+44: await GroupJoinApi.instance.fetchJoinOptions(widget.groupId);
+67: Future<void> _loadLink() async {
+68: final baseUrl = await ShareAppService.instance.resolveQrLandingUrl();
+95: await GroupJoinApi.instance.updateJoinOptions(",package:tencent_cloud_chat_demo/src/api/group_join_api.dart,package:tencent_cloud_chat_demo/src/services/share_app_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/chat_background_page.dart,8a14ebbf56290a6bf42195fcd461b161075895d92c97938f9cfff7759a8043e9,ChatBackgroundPage,"113: void initState() {
+114: super.initState();","118: _load();
+121: Future<void> _load() async {
+180: await ChatBackgroundService.instance.clearBackground(_activeTargetId);
+216: await ChatBackgroundService.instance.saveColorBackground(
+240: await ChatBackgroundService.instance.saveAssetBackground(",,package:tencent_cloud_chat_demo/src/services/chat_background_file_access.dart; package:tencent_cloud_chat_demo/src/services/chat_background_service.dart,,,"728: shrinkWrap: true,
+781: shrinkWrap: true,",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/common_group_chats_page.dart,c6aa7e716058b355a684bd8ee884f58ee974b67e4fc8687bef45904ed7bbb220,CommonGroupChatsPage,"60: void initState() {
+61: super.initState();","71: unawaited(_loadRemainingPages());
+78: unawaited(_loadNextPage(reset: true).then((_) {
+80: unawaited(_loadRemainingPages());
+126: Future<void> _loadRemainingPages() async {
+129: await _loadNextPage();
+140: Future<void> _loadNextPage({bool reset = false}) async {
+167: final page = await CommonGroupChatsService.instance.loadCommonGroupsPage(
+452: onPressed: () => unawaited(_loadNextPage(reset: true).then((_) {
+454: unawaited(_loadRemainingPages());",,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/common_group_chats_service.dart,,,127: while (mounted && _hasMore) {,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/contact_card_user_picker_page.dart,0bbb54d656b07f089c868893ea5ec8df596032dd0b27e6d0458856dc3952f767,ContactCardUserPickerPage; _PickerScaffold,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/contact_friends_page.dart,79a80e48d9cf8b5901845c3868175dbe340c3fba8fb50aac70300c024fec284f,ContactFriendsPage; _ContactFriendRow,"37: void initState() {
+38: super.initState();","39: _loadEntries();
+48: Future<void> _loadEntries() async {
+139: await _loadEntries();",,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/contact_friends_lookup_service.dart; package:tencent_cloud_chat_demo/src/services/contact_invite_launcher.dart,,,91: filtered.sort(ContactFriendsLookupService.compareEntries);,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/desktop_login_sessions_page.dart,5c2647c21fee4ebe430e486c551f6aa00d397fd340afd7d7c6ad6cd6a346277a,DesktopLoginSessionsPage,"37: void initState() {
+38: super.initState();",98: await DeviceApi.instance.kickDevice(device.deviceId);,package:tencent_cloud_chat_demo/src/api/device_api.dart,package:tencent_cloud_chat_demo/src/services/desktop_login_session_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/forgot_password.dart,9e305d41476894f4c4b64466262ff84ce12b5be8960fbffd93b0df2bcfb8a654,ForgotPasswordPage,"70: void initState() {
+71: super.initState();","124: await AuthApi.instance.sendSms(
+159: final tr = await AuthApi.instance.resetPassword(
+168: await AuthSessionService.instance.beginLogin();
+169: await AuthSessionService.instance.applyTokenResult(tr);
+170: await LoginCredentialStore.instance.updateSavedPasswordIfRemembered(
+175: await AuthSessionService.instance.bootstrapAuthenticatedSession();
+177: final imCode = await AuthBootstrapService.instance.loginImStack(",package:tencent_cloud_chat_demo/src/api/auth_api.dart,package:tencent_cloud_chat_demo/src/services/auth_bootstrap_service.dart; package:tencent_cloud_chat_demo/src/services/auth_session_service.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; package:tencent_cloud_chat_demo/src/services/login_credential_store.dart,,,"132: _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_self_hosted_join_application_list_page.dart,8ff80cfadfcec15016663ef1e2fb9e5d6f5c0bcbd5fd9c96ffab13c4bf3db84b,GroupSelfHostedJoinApplicationListPage,"37: void initState() {
+38: super.initState();","39: _load();
+65: Future<void> _load({bool showSpinner = true}) async {
+71: await GroupJoinApplicationService.instance.loadApplicationsForGroup(
+102: final applicant = GroupJoinApplicationService.instance.resolveDisplayName(
+119: GroupJoinApplicationService.instance.resolveDisplayName(
+147: await GroupJoinApplicationService.instance.approve(application);
+151: await GroupJoinApplicationService.instance.reject(application);
+268: onRefresh: () => _load(showSpinner: false),",,package:tencent_cloud_chat_demo/src/services/group_join_application_service.dart,,75: final res = await _groupServices.getGroupsInfo(,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/home_page.dart,c9f9f71a6e1c0b7485e824046591be2ad8f73174f1e60b26258ae81ef5fc7727,HomePage; _DecorativeSparkle; _WalletScanIcon,"222: initState() {
+223: super.initState();
+382: void didChangeDependencies() {
+383: super.didChangeDependencies();","121: NotificationSettingsService.instance.markHomeRouteNotReady();
+238: DeviceSyncService.instance.setHomeTabIndex(currentIndex);
+239: FriendRequestNoticeService.instance.onHomeTabChanged(currentIndex);
+255: NotificationSettingsService.instance.markHomeRouteReady();
+297: NotificationSettingsService.instance.markHomeRouteReady();
+319: await AppUpdateService.instance.check(context, manual: false);
+333: final identity = SessionIdentityService.instance.capture();
+342: SessionIdentityService.instance.isCurrent(identity)) {
+349: SessionIdentityService.instance.isCurrent(identity) &&
+652: NotificationSettingsService.instance.endColdStartBannerSuppression();
+653: NotificationSettingsService.instance.setNotificationClickHandler(
+656: await NotificationSettingsService.instance.applyFromSettings();
+1041: await AccountSessionService.instance.clearForLogout(
+1333: DeviceSyncService.instance.setHomeTabIndex(index);
+1337: FriendRequestNoticeService.instance.onHomeTabChanged(
+1342: FriendRequestNoticeService.instance.enterContactDataSource(
+1347: FriendRequestNoticeService.instance.onHomeTabChanged(index);
+1485: DeviceSyncService.instance.markUserActive();",,package:tencent_cloud_chat_demo/src/services/auth_bootstrap_service.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_list_sync_notifier.dart; package:tencent_cloud_chat_demo/src/services/account_session_service.dart; package:tencent_cloud_chat_demo/src/services/app_update_service.dart; package:tencent_cloud_chat_demo/src/services/interaction_idle_scheduler.dart; package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/push_notification_router.dart; package:tencent_cloud_chat_demo/src/services/notification_settings_service.dart; package:tencent_cloud_chat_demo/src/services/im_connect_status_service.dart; package:tencent_cloud_chat_demo/src/services/startup_perf_log.dart; package:tencent_cloud_chat_demo/src/services/login_coordinator.dart; package:tencent_cloud_chat_demo/src/services/device_sync_service.dart; package:tencent_cloud_chat_demo/src/services/friend_request_notice_service.dart; package:tencent_cloud_chat_demo/src/services/network_status_service.dart; package:tencent_cloud_chat_uikit/ui/controller/tim_uikit_conversation_controller.dart,,343: final result = await sdk.getUsersInfo(userIDList: [res.data!]);,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/join_group_application_page.dart,48e16a13d5c3fa2b85a11b5a0d159ed036fd439bfd0df9e9aab44676d3051cfe,JoinGroupApplicationPage,"106: void initState() {
+107: super.initState();","116: _loadGroupDetail();
+120: Future<void> _loadGroupDetail() async {
+165: GroupLocalStore.instance.readCached(groupId: _group.groupID)?.isChannel ==
+283: if (GroupJoinApi.isSelfHostedGovernanceGroupType(_group.groupType)) {
+284: final result = await GroupJoinApi.instance.applyJoin(
+295: await MeGroupApi.instance.fetchGroupDetail(groupID);
+329: : (GroupJoinApi.isSelfHostedGovernanceGroupType(",package:tencent_cloud_chat_demo/src/api/group_join_api.dart; package:tencent_cloud_chat_demo/src/api/me_group_api.dart,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart,,131: final res = await _groupServices.getGroupsInfo(groupIDList: [groupID]);,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/livekit_call_page.dart,739028ad7e6cb86fe8fd49ad20ae44d55783cb7fd45e23981a6a65e0ccaa860d,LiveKitCallPage,"74: void didChangeDependencies() {
+75: super.didChangeDependencies();
+83: void didPush() {
+88: void didPopNext() {
+103: void initState() {
+104: super.initState();","187: DisplayNameStore.instance.setC2C(peerId, nick);
+290: final fromStore = DisplayNameStore.instance.c2c(_peerId)?.trim() ?? '';
+448: return DesktopCallFloatService.instance.minimize(",,package:tencent_cloud_chat_demo/src/services/desktop_call_float_service.dart; package:tencent_cloud_chat_demo/src/services/livekit_call_navigator.dart; package:tencent_cloud_chat_demo/src/services/livekit_call_page_paint_gate.dart; package:tencent_cloud_chat_demo/src/services/livekit_call_ringtone.dart; package:tencent_cloud_chat_demo/src/services/livekit_call_session.dart; package:tencent_cloud_chat_demo/src/services/livekit_call_system_ui.dart; package:tencent_cloud_chat_demo/src/services/livekit_call_types.dart; package:tencent_cloud_chat_demo/src/services/livekit_call_ui_log.dart; package:tencent_cloud_chat_demo/src/services/livekit_call_video_layer.dart; package:tencent_cloud_chat_demo/src/services/livekit_voip_bridge.dart; package:tencent_cloud_chat_uikit/business_logic/services/display_name_store.dart,,181: .getUsersInfo(userIDList: <String>[peerId]);,"123: _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/login.dart,faed2d0d4468db12efb593841492fd0a3177aa7634320eb7ac7964ca4ea07c4d,LoginPage; _LoginBody; DeviceChallengePage,"189: void initState() {
+190: super.initState();
+239: void didChangeDependencies() {
+240: super.didChangeDependencies();
+1944: void initState() {
+1945: super.initState();","191: AuthSessionService.instance.enterAuthFlow();
+224: _loadSavedCredentials();
+455: final result = await UserApi.instance.checkNicknameForRegister(nickname);
+502: Future<void> _loadSavedCredentials() async {
+503: final saved = await LoginCredentialStore.instance.load();
+528: AuthSessionService.instance.leaveAuthFlow();
+598: await AuthApi.instance.sendSms(
+799: final ready = await AuthBootstrapService.instance.ensureImSdkInitialized();
+1007: final session = await AuthApi.instance.createQrLoginSession();
+1059: final poll = await AuthApi.instance.pollQrLoginSession(sessionId);
+1732: await AuthApi.instance.sendSms(
+1974: await AuthApi.instance.sendSms(",package:tencent_cloud_chat_demo/src/api/auth_api.dart; package:tencent_cloud_chat_demo/src/api/user_api.dart,package:tencent_cloud_chat_demo/src/services/auth_bootstrap_service.dart; package:tencent_cloud_chat_demo/src/services/login_coordinator.dart; package:tencent_cloud_chat_demo/src/services/auth_session_service.dart; package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/services/login_credential_store.dart,,,"606: _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+1017: _qrPollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+1740: _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+1982: _timer = Timer.periodic(const Duration(seconds: 1), (t) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/notification_center_page.dart,2a164d43cdb5ee6f17587a4d77d10e6bd51b0092247a300ab23f1eafcfe2eac6,NotificationCenterPage; _CenterRow,"39: void initState() {
+40: super.initState();","41: unawaited(_refresh());
+44: Future<void> _refresh() async {
+57: final identity = SessionIdentityService.instance.capture();
+85: if (mounted) unawaited(_refresh());
+93: FriendRequestNoticeService.instance.commitObservedAsRead(),
+94: GroupNoticeUnreadService.instance.markRead(),
+103: capturedIdentity: SessionIdentityService.instance.capture(),
+110: if (mounted) await _refresh();",,package:tencent_cloud_chat_demo/src/services/friend_request_notice_service.dart; package:tencent_cloud_chat_demo/src/services/group_notice_unread_service.dart; package:tencent_cloud_chat_demo/src/services/im/tencent_conversation_read_service.dart; package:tencent_cloud_chat_demo/src/services/moments/moments_store.dart; package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart,,,92: await Future.wait([,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/payment_notification_center_page.dart,ea42210c39efd296d86c07e60b1409d4b3feb903b7766b75766184216068269d,PaymentNotificationCenterPage; _PaymentNoticeRow,"34: void initState() {
+35: super.initState();","36: unawaited(_load());
+45: Future<void> _load() async {",,package:tencent_cloud_chat_demo/src/pages/wallet/record/wallet_record_controller.dart; package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/profile_nickname_edit_page.dart,b8ccd0ba782cc5d4a4c1b6f4f78ff4873902f763c4e1cd35498bab315b380d03,ProfileNicknameEditPage,"494: void initState() {
+495: super.initState();","506: _loadProfile();
+554: Future<void> _loadProfile() async {
+556: final me = await AuthApi.instance.fetchMe();
+694: final result = await UserApi.instance.checkNickname(text);
+815: final result = await UserApi.instance.updateNickname(text);",package:tencent_cloud_chat_demo/src/api/auth_api.dart; package:tencent_cloud_chat_demo/src/api/user_api.dart,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/profile_signature_edit_page.dart,660f7f40d8eefc1f1067903759da8ddfb3638b1d22d06fccf465ecf29b7eb0bd,ProfileSignatureEditPage; ProfileSignatureInputField,"254: void initState() {
+255: super.initState();",206: await GroupNoticeAckService.instance.saveAckSignature(,,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/group_notice_ack_service.dart; package:tencent_cloud_chat_demo/src/services/group_notice_refresh_bus.dart; package:tencent_cloud_chat_uikit/ui/controller/tim_uikit_profile_controller.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/qr_web_login_confirm_page.dart,db2cbacc0c019c6b9ca1eaff64115b163a11539f18773653d90ad99dc272f60a,QrWebLoginConfirmPage; _ConfirmLoginButton,"45: void initState() {
+46: super.initState();","61: await AuthApi.instance.scanQrLoginSession(widget.sessionId);
+100: await AuthApi.instance.confirmQrLoginSession(
+106: DesktopLoginSessionService.instance.refresh(
+163: await DesktopLoginSessionService.instance.refresh(
+170: await DeviceApi.instance.kickDevice(device.deviceId);
+172: await DesktopLoginSessionService.instance.refresh(",package:tencent_cloud_chat_demo/src/api/auth_api.dart; package:tencent_cloud_chat_demo/src/api/device_api.dart,package:tencent_cloud_chat_demo/src/services/desktop_login_session_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/recent_calls_page.dart,ad6d2308bd5e0fd97dc177964c0f5bf9e31d6148cfb9500c512cd43e36d71296,RecentCallsPage,"47: void initState() {
+48: super.initState();","50: _loadCalls();
+68: _loadCalls();
+94: Future<void> _loadCalls() async {
+160: await CallRecordApi.instance.deleteOne(item.callId);
+227: await CallRecordApi.instance.deleteBatch(filter);
+559: _loadCalls();",package:tencent_cloud_chat_demo/src/api/call_record_api.dart,package:tencent_cloud_chat_demo/src/services/call_recent_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/call_launcher.dart,,458: await TencentImSDKPlugin.v2TIMManager.getUsersInfo(userIDList: ids);,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/register.dart,7f3b786b4a67eafee35aeff7001061073bce7552692c508a6cdf095009108044,RegisterPage,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/ai_assistant/ai_assistant_page.dart,0112ebbe44817ded48be48bfd95bf7515d18998e6fcd2c9375011bc7157b50eb,AiAssistantPage; _AiCanvasBackdrop; _AiGlowOrb; _HighlightText; _AiFirstGuide; _AiGuideStartButton; _EmptyChatArt; _WelcomeBanner; _UserBubble; _AssistantBubble; _AssistantMarkdown; _AssistantAvatar; _AssistantTextCard; _SummaryCard; _PosterCard; _UserCardRow; _UserImageThumb; _DraftBar; _UserFileRow; _AnalysisCard; _CodeCard; _ThinkingCard; _QuickChipBar; _InputBar; _InputIconButton,"129: void initState() {
+130: super.initState();
+211: void didChangeDependencies() {
+212: super.didChangeDependencies();
+3878: void initState() {
+3879: super.initState();","135: _loadWelcome();
+136: unawaited(_loadSelfAvatar());
+163: Future<void> _loadSelfAvatar() async {
+170: final cached = UserProfileLocalService.instance.readCached(id);
+171: final record = cached ?? await UserProfileLocalService.instance.read(id);
+183: final identity = SessionIdentityService.instance.capture();
+184: final me = await AuthApi.instance.fetchMe();
+196: await UserProfileLocalService.instance.saveMeResult(me);
+217: unawaited(_loadHistory());
+232: Future<void> _loadWelcome() async {
+255: unawaited(_loadOlderHistory());
+258: Future<void> _loadHistory() async {
+263: final page = await AiAssistantApi.instance.history(limit: 100);
+311: Future<void> _loadOlderHistory() async {
+320: final page = await AiAssistantApi.instance.history(
+376: final bytes = await AiAssistantApi.instance.downloadFile(id);
+457: final fromUrl = AiAssistantApi.fileIdFromUrl(message.imageUrl);
+544: await UserProfileLocalService.instance.read(userId);
+579: final record = await GroupLocalStore.instance.read(groupId: groupId);
+728: : (AiAssistantApi.fileIdFromUrl(imageUrl ?? '') ?? '');
+1072: await AiAssistantApi.instance.deleteHistory();
+1631: final saved = await AiAssistantApi.instance.uploadFile(
+1667: await for (final event in AiAssistantApi.instance.stream(
+1728: final id = AiAssistantApi.fileIdFromUrl(imageUrl);
+2181: AiAssistantApi.fileIdFromUrl(
+2193: AiAssistantApi.fileIdFromUrl(
+2203: AiAssistantApi.fileIdFromUrl(
+3008: final id = AiAssistantApi.fileIdFromUrl(raw);",package:tencent_cloud_chat_demo/src/api/ai_assistant_api.dart; package:tencent_cloud_chat_demo/src/api/ai_assistant_upload_mime.dart; package:tencent_cloud_chat_demo/src/api/auth_api.dart,package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/ai_assistant_welcome_store.dart; package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart; package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart; package:tencent_cloud_chat_demo/src/services/system_media_picker.dart; package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart,,,"1103: while (_messageKeys.length < _messages.length) {
+2974: shrinkWrap: true,",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/complaint/complaint_form_page.dart,44b23ff8f74bfb51572826a53a9b520475b9058b2f65d0ef0789161e878e7562,ComplaintFormPage,"60: void initState() {
+61: super.initState();","72: void _refresh() {
+144: await ComplaintApi.instance.submitGroup(
+154: await ComplaintApi.instance.submitC2c(",package:tencent_cloud_chat_demo/src/api/complaint_api.dart,package:tencent_cloud_chat_demo/src/services/system_media_picker.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/complaint/complaint_member_pick_page.dart,431c0c36bf9ef4f7f992a9b0cf788c7612cd0f96222b9beeb4119e623d1fd502,ComplaintMemberPickPage,"52: void initState() {
+53: super.initState();",57: GroupMemberLocalStore.instance.loadAsV2TimMembers(,,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_member_local_store.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/complaint/complaint_reason_page.dart,92e991aa4280c39f46a46de3c733b3803123a211b0b3c0144a5933350759e4a7,ComplaintReasonPage,,,package:tencent_cloud_chat_demo/src/api/complaint_api.dart,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/cross_platform/wide_screen/desktop_side_confirm_page.dart,3866eaafa6f9cbf805bc16e682f7f9013955113967a5e37712fb33f36adb6acb,DesktopSideConfirmPage,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/cross_platform/wide_screen/home_page.dart,3cb03448288b0c1978508cd10a6fce967f1d881c59b5813119abf646145bc3b5,HomePageWideScreen,"50: initState() {
+51: super.initState();","70: AppUpdateService.instance.check(context, manual: false);
+214: final identity = SessionIdentityService.instance.capture();
+219: if (res.code == 0 && SessionIdentityService.instance.isCurrent(identity)) {
+223: SessionIdentityService.instance.isCurrent(identity)) {",,package:tencent_cloud_chat_demo/src/services/conversation_refresh_bus.dart; package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; package:tencent_cloud_chat_demo/src/services/app_update_service.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart,,220: final result = await _sdkInstance.getUsersInfo(userIDList: [res.data!]);,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/customer_service/customer_service_static_page.dart,a812beacdcf4f6dff47de01e6982287258c43da5538e1d0f9215492e47dca5cb,CustomerServiceStaticPage; _CsImagePreviewPage,"165: void initState() {
+166: super.initState();","179: unawaited(_loadOfficialWebsite());
+857: Future<void> _loadOfficialWebsite() async {
+859: final info = await PlatformApi.instance.fetchContact();
+899: final messages = await KefuVisitorApi.instance.listMessages(
+955: final message = await KefuVisitorApi.instance.sendText(
+1132: final message = await KefuVisitorApi.instance.sendAttachments(
+1305: : KefuVisitorApi.instance.resolveMediaUrl(item.remoteUrl);
+1340: final remote = KefuVisitorApi.instance.resolveMediaUrl(item.remoteUrl);
+2002: final thumb = KefuVisitorApi.instance.resolveMediaUrl(item.thumbUrl);
+2073: return KefuVisitorApi.instance.resolveMediaUrl(item.remoteUrl);
+2224: } else if (KefuVisitorApi.instance.resolveMediaUrl(url).isNotEmpty) {
+2226: imageUrl: KefuVisitorApi.instance.resolveMediaUrl(url),
+2396: final remote = KefuVisitorApi.instance.resolveMediaUrl(url);",package:tencent_cloud_chat_demo/src/api/kefu_visitor_api.dart; package:tencent_cloud_chat_demo/src/api/platform_api.dart,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/kefu_visitor_cable.dart; package:tencent_cloud_chat_demo/src/services/kefu_visitor_session.dart; package:tencent_cloud_chat_demo/src/services/system_media_picker.dart,,,"1622: shrinkWrap: true,
+1699: shrinkWrap: true,",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/favorites/favorite_edit_page.dart,dfe6f0123f5d49f467d06ce7f54258bf6060cf52ed35bec49c3e0567d2dd134b,FavoriteEditPage; _TypeSelector; _MediaPickButton,"81: void initState() {
+82: super.initState();",259: ToastUtils.toast(FavoriteMessageApi.errorMessage(e));,package:tencent_cloud_chat_demo/src/api/favorite_message_api.dart,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/system_media_picker.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/favorites/favorite_list_page.dart,3f0f1d73f4539bacef65b6f83f399b0daa67a4f5cfbb1ec3a07df51c8cf47f04,FavoriteListPage; _SectionHeader; _FavoriteListTile; _Thumb; _Content,"157: void initState() {
+158: super.initState();","159: _load();
+162: Future<void> _load() async {
+168: final items = await FavoriteMessageApi.instance.listAll();
+177: _loadError = FavoriteMessageApi.errorMessage(e);
+244: await FavoriteMessageApi.instance.delete(item.id);
+259: ToastUtils.toast(FavoriteMessageApi.errorMessage(e));
+281: await FavoriteMessageApi.instance.deleteMany(ids.toList());
+291: await _load();
+292: ToastUtils.toast(FavoriteMessageApi.errorMessage(e));",package:tencent_cloud_chat_demo/src/api/favorite_message_api.dart,,,,"50: result.sort((a, b) => _newestFirst
+168: final items = await FavoriteMessageApi.instance.listAll();
+171: _items = items..sort((a, b) => b.favoritedAt.compareTo(a.favoritedAt));
+197: _items.sort((a, b) => b.favoritedAt.compareTo(a.favoritedAt));
+257: _items.sort((a, b) => b.favoritedAt.compareTo(a.favoritedAt));",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/favorites/favorite_message_detail_page.dart,04631e4c6302219a308895f1bbed50067007c6c58c98209e1cd258d5d915cc6e,FavoriteMessageDetailPage,"48: void initState() {
+49: super.initState();","172: await FavoriteMessageApi.instance.delete(_item.id);
+185: ToastUtils.toast(FavoriteMessageApi.errorMessage(e));",package:tencent_cloud_chat_demo/src/api/favorite_message_api.dart,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_game/group_game_page.dart,615f0da6b4ed878fb26480e47d9e503d70abc8d4cda21d128dbf344e0594dc30,GroupGamePage,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_game/sangong_agent_dashboard_page.dart,0c5d71c23106b5786db0884ca7a669fceb6691b698f1a49637303425acca77e0,SangongAgentDashboardPage,"41: void initState() {
+42: super.initState();","43: _load();
+46: Future<void> _load() async {
+55: final context = await AgentRebateApi.instance.fetchEntryContext(
+63: final data = await AgentRebateApi.instance.fetchSangongTeamDashboard(",package:tencent_cloud_chat_demo/src/api/agent_rebate_api.dart; package:tencent_cloud_chat_demo/src/api/agent_session_guard.dart; package:tencent_cloud_chat_demo/src/api/sangong_game_http.dart,,,,"269: shrinkWrap: true,
+299: shrinkWrap: true,",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_game/sangong_agent_member_detail_page.dart,e9fa34c6601a002f7c441ced2e968d92e62d5cb53edefbe73fc35f0c6ca37bbf,SangongAgentMemberDetailPage,"39: void initState() {
+40: super.initState();","41: _loadDaily();
+44: Future<void> _loadTeam() async {
+66: await AgentRebateApi.instance.fetchSangongTeamMembers(direct: true);
+94: Future<void> _loadDaily() async {
+113: var daily = await AgentRebateApi.instance.fetchSangongMemberDaily(
+153: final result = await AgentRebateApi.instance.claimSangongRebate();
+157: await _loadDaily();
+313: if (index == 1) _loadDaily();",package:tencent_cloud_chat_demo/src/api/agent_rebate_api.dart; package:tencent_cloud_chat_demo/src/api/agent_session_guard.dart,package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart,,,"220: shrinkWrap: true,
+368: shrinkWrap: true,",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_game/sangong_agent_personal_page.dart,b0d5f8aa53fdf34241fbc6a29bb670c563cafd56aa7b5e84dede76bba797c9ba,SangongAgentPersonalPage,"62: void initState() {
+63: super.initState();","37: final data = await AgentRebateApi.instance.fetchSangongMemberDashboard(imUserId: id);
+64: _load();
+67: Future<void> _load() async {",package:tencent_cloud_chat_demo/src/api/agent_rebate_api.dart; package:tencent_cloud_chat_demo/src/api/agent_session_guard.dart,package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_game/sangong_agent_team_page.dart,db9a4a63514496796449a1c9212195b9e37003d56b69c80a4e9c7a31797886e3,SangongAgentTeamPage,"36: void initState() {
+37: super.initState();","38: _load();
+41: Future<void> _load() async {
+48: final data = await AgentRebateApi.instance.fetchSangongTeamMembers(
+96: final result = await AgentRebateApi.instance.transferToChild(
+136: await _load();
+164: _load();",package:tencent_cloud_chat_demo/src/api/agent_rebate_api.dart; package:tencent_cloud_chat_demo/src/api/agent_session_guard.dart,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_game/sangong_all_users_page.dart,dac8324911e2917acb962246bf59838ce71d921f22199e02d65a667ddf859a51,SangongAllUsersPage,"33: void initState() {
+34: super.initState();","35: _loadFirst();
+44: Future<void> _loadFirst() async {
+54: final result = await SangongAdminApi.instance.fetchUserReports(
+79: Future<void> _loadMore() async {
+85: final result = await SangongAdminApi.instance.fetchUserReports(
+113: _loadMore();
+133: _loadMore();",package:tencent_cloud_chat_demo/src/api/sangong_admin_api.dart,,,,"124: users.sort((a, b) => _pointsDescending",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_game/sangong_daily_report_page.dart,3d279481030bfc781cda76676487c3f77de3c00e9fc48c1a9e4e8f56466ee28f,SangongDailyReportPage,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_game/sangong_game_rules_settings_page.dart,03c5cd5b0a4d4bcfdd6d4c222ac37133942fdde2cbcbb3bf35762ef063b5851e,SangongGameRulesSettingsPage,"76: void initState() {
+77: super.initState();","97: unawaited(_load());
+131: Future<void> _load() async {
+137: final result = await SangongSettingsApi.instance.loadForUi();
+140: session = await SangongAdminApi.instance.fetchSession();
+344: final saved = await SangongSettingsApi.instance.save(payload);
+389: Future<void> _refreshSession() async {
+391: final session = await SangongAdminApi.instance.fetchSession();
+404: final result = await SangongAdminApi.instance.startSession();
+406: await _refreshSession();
+454: final result = await SangongAdminApi.instance.stopSession();
+456: await _refreshSession();",package:tencent_cloud_chat_demo/src/api/sangong_settings_api.dart; package:tencent_cloud_chat_demo/src/api/sangong_admin_api.dart,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_game/sangong_manage_home_page.dart,76e936290980cda1b3e45de0a2f3357fb40911bd669cbc5592da79b01b6a4ca6,SangongManageHomePage,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_game/sangong_members_page.dart,ca55d0d0715f802e30806b0bdf635795e5f28023d21b8752e9d2f1a995b8eb7b,SangongMembersPage,"50: void initState() {
+51: super.initState();","52: unawaited(_load());
+55: Future<void> _load() async {
+61: final members = await SangongAdminApi.instance.fetchMyConfigMembers();
+123: await SangongAdminApi.instance.upsertMyConfigMember(
+131: await _load();
+168: await SangongAdminApi.instance.removeMyConfigMember(
+175: await _load();",package:tencent_cloud_chat_demo/src/api/sangong_admin_api.dart,,,,"69: members.sort((a, b) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_game/sangong_my_config_page.dart,f3fada2c50ae779885c0ee6a56fada3b0158803b2e9f00e82ad5d640c6e64a3c,SangongMyConfigPage,"63: void initState() {
+64: super.initState();","72: unawaited(_load());
+85: Future<void> _load() async {
+103: final config = await SangongMyConfigService.instance.refreshFromNetwork();
+214: final saved = await SangongAdminApi.instance.saveMyConfig(
+227: await SangongMyConfigService.instance.applySaved(normalized);",package:tencent_cloud_chat_demo/src/api/sangong_admin_api.dart; package:tencent_cloud_chat_demo/src/api/sangong_game_http.dart,package:tencent_cloud_chat_demo/src/services/group_game/sangong_my_config_service.dart; package:tencent_cloud_chat_demo/src/services/group_game/privileged_game_user_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_game/sangong_user_detail_page.dart,12dc5038cd57a24aa0c49710940e8a7edd754896fd89e65f77c50e6457f22c86,SangongUserDetailPage,"54: void initState() {
+55: super.initState();","56: _loadProfile();
+57: _loadSessions();
+58: _load();
+61: Future<void> _loadProfile() async {
+63: final detail = await _api.fetchUserDetail(widget.user.imUserId);
+75: Future<void> _loadSessions() async {
+77: final sessions = await _api.fetchReportSessions();
+89: Future<void> _load() async {
+100: final current = await _api.fetchSession();
+103: final sessions = await _api.fetchReportSessions();
+119: _api.fetchUserHierarchyReport(
+123: _api.fetchUserFlow(
+165: _load();
+260: final body = await _api.setUserMaxNegative(
+290: _loadProfile();
+367: _loadProfile();
+368: _load();
+471: _load();
+480: _load();
+492: _load();
+526: _load();",../../api/sangong_admin_api.dart,,,138: await TIMUIKitCore.getSDKInstance().getUsersInfo(userIDList: ids);,118: final results = await Future.wait<Object>([,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_live/group_live_authorize_page.dart,29171a6b656f449f2c7d869e5e7ff93a71d6a9a8f38988ff9e4dfc1e308a17b4,GroupLiveAuthorizePage; _CreateLiveForm; _CreateLabeledField; _CreateCounterField; _CreateAnchorRow; _StartModeCard; _CreateLiveSubmitButton,"110: void initState() {
+111: super.initState();","120: unawaited(_loadRole());
+131: members = await _loadLocalMembers(anchorId);
+154: Future<void> _loadRole() async {
+163: Future<List<RedPacketMember>> _loadLocalMembers(String userId) async {
+169: await GroupMemberLocalStore.instance.readRecordsByUserIds(
+263: final session = await GroupLiveApi.instance.authorize(
+280: await GroupLiveApi.instance.current(groupId: widget.groupId);
+320: final session = await GroupLiveApi.instance.updateSchedule(
+392: await GroupLiveApi.instance.stop(groupId: widget.groupId);
+394: await GroupLiveApi.instance.revoke(groupId: widget.groupId);",package:tencent_cloud_chat_demo/src/api/group_live_api.dart,package:tencent_cloud_chat_demo/src/services/group_local/group_info_resolver.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_member_local_store.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_live/group_live_member_picker_page.dart,cbc302366dfc6d9bffede21b7039e30aec8d4a7af2397b430c5980c082c2d870,GroupLiveMemberPickerPage; _ContactStylePresenceSubtitle,"39: void initState() {
+40: super.initState();","51: .addPostFrameCallback((_) => unawaited(_loadVisiblePresence()));
+54: Future<void> _loadVisiblePresence() async {",,package:tencent_cloud_chat_demo/src/provider/presence_provider.dart,,,56: while (mounted && _presencePending.isNotEmpty) {,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_live/group_live_online_live_scaffold.dart,8e4e440ac2905d320226d13430c6ed8c3fd3f2ef27485fc332c692a8dac22526,GroupLiveOnlineLiveScaffold; GroupLiveOnlineLiveHeader; GroupLiveScheduleHeader; GroupLiveFormSection; GroupLiveFormCard; GroupLiveSettingsCard; GroupLiveCopyField; GroupLivePushQrField; GroupLivePointsUsageSection; GroupLivePrimaryButton; GroupLiveScheduleField; _TrailingIcon; GroupLiveRoomNameField; GroupLiveDescriptionField,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_live/group_live_push_info_page.dart,4b624d5ce96c44ef45dfde5350e10c7f0146761b92973d14d831b5ef434d7ad8,GroupLivePushInfoPage; _PushInfoSettingsCard; _ExpiredScheduleCard,"75: void initState() {
+76: super.initState();","78: unawaited(_load());
+81: Future<void> _load({bool refreshing = false}) async {
+96: final session = await GroupLiveApi.instance.sessionDetail(
+151: final info = await GroupLiveApi.instance.pushInfo(
+275: await GroupLiveApi.instance.stop(groupId: groupId);
+277: await GroupLiveApi.instance.revoke(groupId: groupId);
+448: onPressed: _refreshing ? null : () => unawaited(_load(refreshing: true)),
+549: onPressed: () => unawaited(_load()),",package:tencent_cloud_chat_demo/src/api/group_live_api.dart,package:tencent_cloud_chat_demo/src/services/group_local/group_info_resolver.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/group_live/group_live_room_page.dart,7aabd9190f14e5c9491c6d2568b74785e71ea3df905cad5c80b17a48788b4ab0,GroupLiveRoomPage; _LiveTipBanner; _ErrorBody,"76: void initState() {
+77: super.initState();","79: unawaited(_load());
+87: Future<void> _load() async {
+163: await GroupLiveApi.instance.stop(groupId: groupId);
+218: ? _ErrorBody(message: _error!, onRetry: () => unawaited(_load()))",package:tencent_cloud_chat_demo/src/api/group_live_api.dart; package:tencent_cloud_chat_demo/src/api/wallet_amount.dart,package:tencent_cloud_chat_demo/src/services/livekit_call_session.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_info_resolver.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/life_payment/electricity_payment_page.dart,6a9b86d224c6a7c2003ca1b9be48dd6dc755397f98373827b4728ad584e696e3,ElectricityPaymentPage; _ElectricAccountRecordList; _ElectricAccountRecordTile; _ElectricRechargeAmountSheet; _ElectricAmountTile; _ElectricRecordInfoLine; _ElectricityPaymentForm; ElectricityCitySelectionPage; _ElectricityCityHeaderBlock; _LocationCityChip; _HotCityGrid; _CityListTile,"91: void initState() {
+92: super.initState();
+1408: void initState() {
+1409: super.initState();","93: _loadAccountRecords();
+118: final order = await _repo.getOrder(event.orderNo);
+176: await _loadProviderFromBackend(city.city);
+179: Future<void> _loadProviderFromBackend(String cityName) async {
+182: final providers = await _repo.getProviders(
+255: Future<void> _loadAccountRecords() async {
+369: query = await _repo.getUtilityQuery(queryNo);
+531: var query = await _repo.createUtilityQuery(
+625: Future<void> _refreshQueryResult(_ElectricAccountRecord record) async {
+685: var query = await _repo.createUtilityQuery(
+734: final options = await _repo.getUtilityAmountOptions(
+818: createdOrder = await _repo.createUtilityOrder(",,package:tencent_cloud_chat_demo/src/pages/life_payment/life_payment_repository.dart; package:tencent_cloud_chat_demo/src/pages/wallet/wallet_repository.dart,,,"229: shrinkWrap: true,
+1510: shrinkWrap: true,
+2083: ..sort();
+2469: shrinkWrap: true,",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/life_payment/gas_payment_page.dart,87d825fc4381d5db4014c312a2e8591b80f505e4f5203404c3ef68e0415f86b3,GasProviderSelectionPage; GasPaymentPage; _GasPaymentForm; GasCitySelectionPage; _GasCityHeaderBlock; _GasLocationCityChip; _GasHotCityGrid; _GasCityListTile,"39: void initState() {
+40: super.initState();
+364: void initState() {
+365: super.initState();",,,,,,"910: ..sort();
+1295: shrinkWrap: true,
+1555: result.sort((a, b) {
+1557: initials.contains(a.initial) ? initials.indexOf(a.initial) : 999;
+1559: initials.contains(b.initial) ? initials.indexOf(b.initial) : 999;",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/life_payment/life_payment_detail_page.dart,4041ad41cb20c27172a50461ba2dd2b5825ba65b901cbd6d00bd68a15acf8490,LifePaymentDetailPage; _DetailHeader; _DetailFieldCard; _AmountChip; _DetailTips; _RechargeRegionToggle; _RegionOption; _BindPhonePrompt; _DetailPayBar,"50: void initState() {
+51: super.initState();","53: _loadBoundPhone();
+67: Future<void> _loadBoundPhone() async {
+70: final me = await AuthApi.instance.fetchMe();
+203: await _loadBoundPhone();",package:tencent_cloud_chat_demo/src/api/auth_api.dart,,,,"592: shrinkWrap: true,",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/life_payment/life_payment_page.dart,ef39312577c9dab8c86e05806ea644d7a4db08628a594c2ab793ba6d8b208917,LifePaymentPage; _HeroPanel; _LocationChip; _ServicesSection; _MobileServiceCard; _UtilityServiceCard; _ImageCard; _ArrowButton; _RecentPaymentsSection; _RecentPaymentItem,"52: void initState() {
+53: super.initState();","55: _loadHome();
+60: Future<void> _loadHome() async {
+62: final data = await _repo.getHome();
+198: boundGasProvider = await _loadBoundGasProvider();
+234: Future<GasProviderItem?> _loadBoundGasProvider() async {",,package:tencent_cloud_chat_demo/src/pages/life_payment/life_payment_repository.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/life_payment/mobile_recharge_page.dart,d9f4bbff0f4ae2d32eb20a3fddbd1d07efc29453c9c00fd271abc1aced2df1ca,MobileRechargePage; _MobileHeader; _RechargeTab; _PhoneInputCard; _PhoneInputCursor; _ErrorBadge; _AlipayPhoneKeypad; _AmountGrid; _AmountTile; _PromoBanner; _FooterSection; _OwnerNameVerificationDialog; _OwnerNameVerificationActions,"107: void initState() {
+108: super.initState();
+1061: void initState() {
+1062: super.initState();","133: _loadAmountOptions(phone);
+142: Future<void> _loadAmountOptions(String phone) async {
+146: final items = await _repo.getAmountOptions(phone);
+276: profile = await _repo.getPhoneProfile(phone);
+423: final order = await _repo.createOrder(
+483: order = await _repo.getOrder(orderNo);
+525: await _repo.submitOwnerLastChar(",,package:tencent_cloud_chat_demo/src/pages/life_payment/mobile_recharge_repository.dart; package:tencent_cloud_chat_demo/src/pages/wallet/wallet_repository.dart,,,"1304: shrinkWrap: true,",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/life_payment/water_payment_page.dart,7d56ff507dd4213937661460a3525e9749c3c0f06affd5e03b74dc30b21ac654,WaterProviderSelectionPage; WaterPaymentPage; _WaterPaymentForm; WaterCitySelectionPage; _WaterCityHeaderBlock; _WaterLocationCityChip; _WaterHotCityGrid; _WaterCityListTile,"40: void initState() {
+41: super.initState();
+367: void initState() {
+368: super.initState();",,,,,,"913: ..sort();
+1304: shrinkWrap: true,
+1564: result.sort((a, b) {
+1566: initials.contains(a.initial) ? initials.indexOf(a.initial) : 999;
+1568: initials.contains(b.initial) ? initials.indexOf(b.initial) : 999;
+1582: value.sort((a, b) => a.searchKey.compareTo(b.searchKey));",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/moments/moments_compose_page.dart,ae2028927287f308aad05fd464d4f5ed8ffee9f1f3c19f3417037063d69405cf,MomentsComposePage; _ComposerMetaRow; _AttachmentGrid; _ComposerToolButton,"55: void initState() {
+56: super.initState();",,,package:tencent_cloud_chat_demo/src/services/moments/moments_error_mapper.dart; package:tencent_cloud_chat_demo/src/services/moments/moments_store.dart; package:tencent_cloud_chat_demo/src/services/app_gallery_picker.dart; package:tencent_cloud_chat_demo/src/services/photo_compress_util.dart; package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart,,,"465: shrinkWrap: true,",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/moments/moments_detail_page.dart,0d43d738728263acd3c1949c7eb9e9a0f836caf56593bd56444ea788389434d6,MomentsDetailPage; _CommentComposer; _DetailMomentBody; _DetailMetaRow; _DetailInteractionPanel; _DetailLikesRow; _DetailCommentsRows; _DetailCommentBody; _DetailMediaGrid; _MediaTapSurface,"53: void initState() {
+54: super.initState();","56: _load();
+72: Future<void> _load({bool showLoading = true}) async {
+134: await _load(showLoading: false);",,package:tencent_cloud_chat_demo/src/services/moments/moments_error_mapper.dart; package:tencent_cloud_chat_demo/src/services/moments/moments_store.dart; package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart,,,"712: final index = post.comments.indexOf(item);
+881: shrinkWrap: true,",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/moments/moments_friend_multi_picker_page.dart,6e570cac56fd587ee2c9571957cf4f215d5695c452ab239c274e830246d63a6c,MomentsFriendMultiPickerPage,"42: void initState() {
+43: super.initState();","49: _loadFriends();
+52: Future<void> _loadFriends() async {
+55: final list = await MeFriendApi.instance.loadFriendsForPickers();",package:tencent_cloud_chat_demo/src/api/me_friend_api.dart,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/moments/moments_notifications_page.dart,c81b964b81f746bbf946141c45449947dfcff49f1dfa1f10f1b496af447cfceb,MomentsNotificationsPage; _NotificationTile; _NotificationsErrorState; _LoadMoreFooter; _NotificationContent; _NotificationMessage; _PostPreview,"45: void initState() {
+46: super.initState();","49: _load();
+73: _loadMore();
+77: Future<void> _load() async {
+107: Future<void> _loadMore() async {
+163: await _load();",,package:tencent_cloud_chat_demo/src/services/moments/moments_error_mapper.dart; package:tencent_cloud_chat_demo/src/services/moments/moments_store.dart; package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/moments/moments_page.dart,f416dc51f597e7a639817c4f89131b96efeed99c2e2bc7854d703acb575cb6e3,MomentsPage; _MomentsCoverHeader; _CoverImage; _NotificationIconButton; _HeaderCard; _VisibleRangeHintSection; _TodayComposerEntry; _MomentCard; _ProfileTimelineItem; _TimelineDate; _ProfileTimelineMedia; _MediaGrid; _MomentMediaTile; _EngagementRow; _CommentInlineText; _CommentSheet,"92: void initState() {
+93: super.initState();
+970: void initState() {
+971: super.initState();","106: _load(showRefreshing: true);
+110: _load();
+112: _loadHeaderExtras();
+119: final local = await UserProfileLocalService.instance.read(selfId);
+129: final me = await AuthApi.instance.fetchMe();
+131: await UserProfileLocalService.instance.saveMeResult(me);
+143: final settings = await MomentsSettingsService.instance.hydrateFromLocal();
+152: Future<void> _loadHeaderExtras() async {
+159: MomentsSettingsService.instance.loadSettings(forceRefresh: true)
+201: _loadMore();
+205: Future<void> _load({bool showRefreshing = false}) async {
+211: await _loadHeaderExtras();
+216: Future<void> _loadMore() async {
+310: await _loadHeaderExtras();
+584: await _loadHeaderExtras();
+731: onRefresh: () => _load(showRefreshing: true),",package:tencent_cloud_chat_demo/src/api/auth_api.dart,package:tencent_cloud_chat_demo/src/services/moments/moments_error_mapper.dart; package:tencent_cloud_chat_demo/src/services/moments/moments_feed_controller.dart; package:tencent_cloud_chat_demo/src/services/moments/moments_local_prefs.dart; package:tencent_cloud_chat_demo/src/services/moments/moments_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/moments/moments_settings_service.dart; package:tencent_cloud_chat_demo/src/services/moments/moments_store.dart; package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart; package:tencent_cloud_chat_demo/src/services/peer_profile_refresh_bus.dart; package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart,,,"156: final results = await Future.wait([
+1750: shrinkWrap: true,
+1840: shrinkWrap: true,",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/moments/moments_video_player_page.dart,e410bcab7a4344cc349f0c88074fa0956d00d11933b732ced9bc1b473117158f,MomentsVideoPlayerPage,"69: void initState() {
+70: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/platform_notice/platform_wallet_notice_preview_page.dart,c8f7d8298f384dada053a92a35b3623da568fd3d13e8312ff03690be25904891,PlatformWalletNoticePreviewPage; _DateChip; _NoticeMessageRow; _HintBanner,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/privacy/privacy_policy_page.dart,f37ddd508a03e5edf291fa3382cc77fc3999e711129d0070f758a2e77edee34e,PrivacyPolicyPage,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/privacy/privacy_webview.dart,b073ed5938097a100f08f247cf6679ada76b1117126f537fbd66aee25b255d8f,PrivacyDocument,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/privacy/terms_of_service_page.dart,37228df42ab60f85c87a522ee079fe84129adac49e516873c635d3fb500115cd,TermsOfServicePage,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/privacy/user_agreement_page.dart,2a12f86b9227878ae88fc07509b9bb333989a1996cb6bbf62098685138544b8a,UserAgreementPage,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/about_us_page.dart,b04052859737f1a483f8a1040e1705dc2d47baeeb139777adad49079c956da87,AboutUsPage,"30: void initState() {
+31: super.initState();","34: _loadContact();
+35: _loadVersion();
+39: Future<void> _loadContact() async {
+41: final info = await PlatformApi.instance.fetchContact();
+61: Future<void> _loadVersion() async {",package:tencent_cloud_chat_demo/src/api/platform_api.dart,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/account_security_page.dart,e7319fbd39777701cb32be93651a5cb37d21a894a663e8d3803c9780730edc8c,AccountSecurityPage,"23: void initState() {
+24: super.initState();","25: _loadPhoneBound();
+28: Future<void> _loadPhoneBound() async {
+52: await _loadPhoneBound();",,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/add_friend_privacy_page.dart,fe94e7b2648ac772b88a261c221e06d7461349bb12311e5b09ee5be566a47db0,AddFriendPrivacyPage; _PrivacySwitchCell; _PrivacyLoadingBox; _PrivacyErrorBox,"24: void initState() {
+25: super.initState();","26: _load();
+29: Future<void> _load() async {
+35: final settings = await UserApi.instance.fetchPrivacy();
+75: final saved = await UserApi.instance.updatePrivacy(current);",package:tencent_cloud_chat_demo/src/api/user_api.dart,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/change_password_page.dart,04bf448aac2d7fa103e603a69ec7d0331a5cea623001c652128ba23662f80d39,ChangePasswordPage; _CodeInputRow; _PasswordInputRow,"73: void initState() {
+74: super.initState();","96: void _refresh() {
+104: final me = await AuthApi.instance.fetchMe();
+112: await _loadBoundPhone(me);
+126: Future<void> _loadBoundPhone([MeResult? me]) async {
+128: final profile = me ?? await AuthApi.instance.fetchMe();
+158: await AuthApi.instance.sendSms(phone: _boundPhone, scene: 'RESET');
+238: final identity = SessionIdentityService.instance.capture();
+259: final tokenResult = await AuthApi.instance.resetPassword(
+264: if (!SessionIdentityService.instance.isCurrent(identity)) return;
+280: final tokenResult = await AuthApi.instance.changePassword(
+284: if (!SessionIdentityService.instance.isCurrent(identity)) return;
+290: await LoginCredentialStore.instance.updateSavedPasswordIfRemembered(",package:tencent_cloud_chat_demo/src/api/api_client.dart; package:tencent_cloud_chat_demo/src/api/auth_api.dart,package:tencent_cloud_chat_demo/src/services/login_credential_store.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart,,,"162: _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/change_phone_page.dart,dddf89cb4400a05b1e67e6643b4b85d9bb5e504856cf15207f5cef83b464ab7f,ChangePhonePage; _CodeCell; _StepLabel; _StepIndicator; _StepIndicatorItem,"71: void initState() {
+72: super.initState();","76: _loadCurrentPhone();
+92: void _refresh() {
+136: Future<void> _loadCurrentPhone() async {
+138: final me = await AuthApi.instance.fetchMe();
+169: final ret = await SettingsApi.instance.startPhoneChange();
+218: final ret = await SettingsApi.instance.verifyOldPhone(
+271: final ret = await SettingsApi.instance.sendNewPhoneCode(
+322: final ret = await SettingsApi.instance.confirmPhoneChange(
+373: final ret = await SettingsApi.instance.startPhoneBind(phone: phone);
+423: final ret = await SettingsApi.instance.confirmPhoneBind(",package:tencent_cloud_chat_demo/src/api/auth_api.dart; package:tencent_cloud_chat_demo/src/api/settings_api.dart,,,,"101: oldCodeCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+120: newCodeCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/change_trade_password_page.dart,9239b0c8aff62a7df35f00c44b34c0114052c6f08b9d7fb482e85bdb3af81dfb,ChangeTradePasswordPage; _SettingsLoadingBox; ResetTradePasswordPage; _PinInputCell; _ResetCodeInputRow,"62: void initState() {
+63: super.initState();
+557: void initState() {
+558: super.initState();","81: void _refresh() {
+90: final me = await AuthApi.instance.fetchMe();
+100: await _loadState();
+103: Future<void> _loadState() async {
+105: final me = await WalletApi.instance.getMe();
+148: await SettingsApi.instance.changeTradePassword(
+153: await SettingsApi.instance.setTradePassword(payPin: newPin);
+156: await BiometricPayService.instance.disableAndClear();
+612: await AuthApi.instance.sendSms(
+692: await SettingsApi.instance.resetTradePassword(
+697: await BiometricPayService.instance.disableAndClear();",package:tencent_cloud_chat_demo/src/api/auth_api.dart; package:tencent_cloud_chat_demo/src/api/settings_api.dart; package:tencent_cloud_chat_demo/src/api/wallet_api.dart,package:tencent_cloud_chat_demo/src/services/biometric_pay_service.dart,,,"637: codeCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/display_theme_page.dart,7fd23cd7da627e8fa0cd6c5dbd19963964ecb6d91a9f7bb57a502769f4ed21dc,DisplayThemePage,,,,package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/chat_background_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/feedback_form_view.dart,ee0ee1d77f59cae3515098d77f37bfe7f4657b89eaae4fc0912bf46e26848c21,FeedbackFormView,,,package:tencent_cloud_chat_demo/src/api/feedback_api.dart,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/feedback_page.dart,99f257c3f81063bb95a2839ea7b8dde887cc6dfe97f63734bea5bb40965f99f2,FeedbackPage,"68: void initState() {
+69: super.initState();","80: void _refresh() {
+133: await FeedbackApi.instance.submit(",package:tencent_cloud_chat_demo/src/api/feedback_api.dart,package:tencent_cloud_chat_demo/src/services/system_media_picker.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/feedback_success_view.dart,c1342b30fa96b13415393b6b3c747023496c9a565478d9bf2638159dfd4987c3,FeedbackSuccessView,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/font_size_page.dart,362b2ddded0d5da3f1d63b4838f7f8d67d18b317882aff5f14eb2468de32375b,FontSizePage; _ChatPreviewNavBar; _FontSizeSliderPanel; AppAvatarHeader; _ChatPreviewMessageRow; _ChatPreviewTextBubble,"100: void initState() {
+101: super.initState();","102: _loadBackground();
+105: Future<void> _loadBackground() async {
+106: final path = await ChatBackgroundService.instance.getBackgroundPath(",,package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/chat_background_file_access.dart; package:tencent_cloud_chat_demo/src/services/chat_background_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/friend_permission_page.dart,5803c3e79544c3267379b57c46ce7ca10bf0fddab2ba212856048127c05a54dd,FriendPermissionPage; _ToggleCell,"35: void initState() {
+36: super.initState();","37: _loadFriendAddVerify();
+38: _loadLastActiveVisibility();
+41: Future<void> _loadFriendAddVerify() async {
+47: final settings = await UserApi.instance.fetchFriendAddVerify();
+122: await _loadFriendAddVerify();
+134: final saved = await UserApi.instance.updateFriendAddVerify(
+170: await _loadFriendAddVerify();
+224: Future<void> _loadLastActiveVisibility() async {
+230: final settings = await UserApi.instance.fetchOnlinePrivacyProtection();
+311: await _loadLastActiveVisibility();
+324: final saved = await UserApi.instance.updateOnlinePrivacyProtection(
+360: await _loadLastActiveVisibility();",package:tencent_cloud_chat_demo/src/api/user_api.dart,package:tencent_cloud_chat_demo/src/provider/local_setting.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/help_center_page.dart,bfb4896d7228a53f1e89920f6b84044c54cdfb8a2332fc3fa3cc091def4f5b0d,HelpCenterPage,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/login_devices_page.dart,b6fb4df77bad9468aa7b3cba7729a2397a438987ef4d9cd58be94b4ce146b7a9,LoginDevicesPage; _DeviceMetaLine; _DeviceRow; _DeviceBadge,"31: void initState() {
+32: super.initState();","33: _loadDevices();
+52: Future<void> _loadDevices({bool refresh = false}) async {
+63: final result = await DeviceApi.instance.fetchDevices();
+216: await DeviceApi.instance.kickDevice(device.deviceId);
+281: final result = await DeviceApi.instance.kickOthers(
+424: onPressed: () => _loadDevices(),
+451: onRefresh: () => _loadDevices(refresh: true),",package:tencent_cloud_chat_demo/src/api/api_client.dart; package:tencent_cloud_chat_demo/src/api/device_api.dart,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/message_notification_sound_picker_page.dart,a31d37ef7f38fc98dc32b4cd63f42cc2e90850b75a52190c60c5b14b3f37b2b1,MessageNotificationSoundPickerPage; _SoundOptionCell,,,,package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/services/in_app_notification_sound.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/moments_permission_page.dart,ff726b7a11cc6a5de655a153efed01478b7470f5b31272fba263a431fe37a9b4,MomentsPermissionPage,"25: void initState() {
+26: super.initState();","27: _load();
+30: Future<void> _load() async {
+34: await MomentsSettingsService.instance.loadSettings(forceRefresh: true);
+69: if (mounted) _load();
+212: await MomentsSettingsService.instance.saveVisibleRangeDays(selected);",,package:tencent_cloud_chat_demo/src/services/moments/moments_local_prefs.dart; package:tencent_cloud_chat_demo/src/services/moments/moments_settings_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/moments_privacy_friend_list_page.dart,ac2e1383c30e9c6dbcbfeaab6ab3f9a1e45ad3a1d76b06ef0e5380a9e657f081,MomentsPrivacyFriendListPage; _FriendRow,"39: void initState() {
+40: super.initState();","41: _load();
+44: Future<List<String>> _loadIds() async {
+47: return MomentsSettingsService.instance.loadBlockedViewerIds();
+49: return MomentsSettingsService.instance.loadHiddenAuthorIds();
+56: await MomentsSettingsService.instance.saveBlockedViewerIds(ids);
+59: await MomentsSettingsService.instance.saveHiddenAuthorIds(ids);
+72: Future<void> _load() async {
+75: final ids = await _loadIds();
+76: final friends = await MeFriendApi.instance.loadFriendsForPickers();
+199: await _load();
+210: await _load();",package:tencent_cloud_chat_demo/src/api/me_friend_api.dart,package:tencent_cloud_chat_demo/src/services/moments/moments_settings_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/node_switch_page.dart,219d6d07f78fb7312190a3ba1838515614c59980465b58d468b00ad2d92419b3,NodeSwitchPage; _NodeRow,"83: void initState() {
+84: super.initState();",,,package:tencent_cloud_chat_demo/src/services/api_node_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/notification_settings_page.dart,17fc121b45ffeb18efa86a7a385f65bb04e8566ba6688f2aa0837b7e7c3d513a,NotificationSettingsPage; _SettingsSectionHeader; _NotificationSwitchCell; _NotificationValueCell; _SystemNotificationPermissionBanner,"35: void initState() {
+36: super.initState();
+581: void initState() {
+582: super.initState();","38: _loadRemoteSettings();
+42: Future<void> _loadRemoteSettings() async {
+50: await MeNotificationSettingsSyncService.instance.fetchAndApply(
+584: _refresh();
+596: _refresh();
+600: Future<void> _refresh() async {
+601: final granted = await NotificationPermissionService.instance.isGranted();
+609: await NotificationSettingsService.instance.applyFromSettings();
+614: await NotificationPermissionService.instance.openSystemSettings();
+615: await _refresh();
+617: await NotificationSettingsService.instance.applyFromSettings();
+623: await NotificationPermissionService.instance.requestSystemPermission();
+627: await NotificationSettingsService.instance.applyFromSettings();
+630: if (await NotificationPermissionService.instance.isPermanentlyDenied()) {",,package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/services/me_notification_settings_sync_service.dart; package:tencent_cloud_chat_demo/src/services/notification_permission_service.dart; package:tencent_cloud_chat_demo/src/services/notification_settings_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/profile_info_page.dart,959a6c594b47958bdee5d8dec5e8b21049da6bef1f707a8e1093ec5444b82377,ProfileInfoPage,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/settings_page.dart,44d44d15db612fa31d6e1e5c2429d9a1eab58d2620909f067420fda93eae88bd,SettingsPage,"41: void initState() {
+42: super.initState();","45: _loadVersion();
+49: Future<void> _loadVersion() async {
+63: await AppUpdateService.instance.check(context, manual: true);",,package:tencent_cloud_chat_demo/src/services/app_update_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/settings_widgets.dart,6f7c5697b6c8bf6b1b08c899ae218b2fb00e15b3df7947913245202ee78db470,SettingsScaffold; SettingsGroup; SettingsCell; SettingsInputCell; SettingsPlatformSwitch; SettingsPrimaryButton,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/setup_trade_password_page.dart,24b4f2ec53aff7ecfef9e0119ba6c10ce6b3a36186e1d6a670fa701de277c94a,SetupTradePasswordPage; _PlatformLogo,"68: void initState() {
+69: super.initState();",124: await SettingsApi.instance.setTradePassword(payPin: pin);,package:tencent_cloud_chat_demo/src/api/settings_api.dart,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/storage_page.dart,3af7edc0c7da28a8af9c98b0324a07b88e8dbd14190d3a72735322f8624e712a,StoragePage,"31: void initState() {
+32: super.initState();","33: _refreshUsage();
+36: Future<void> _refreshUsage() async {
+97: await _refreshUsage();",,package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart,,,261: while (value >= 1024 && index < units.length - 1) {,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/settings/test_page.dart,991cfeb8309ccc66f77ab4018568984701886c42776828da53739949e4e3d907,_NumberBall; LotteryLatestPreview; TestPage; _Brand; _ResultTable; _TableRow; _ResultRow; _TableCell,,,../../api/lottery_number_mappings.dart; ../../api/lottery_live_api.dart; ../../api/platform_api.dart,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/skin/skin_page.dart,4686e78cbb49c72e96f99a57f716b14221afba3620a288461be60510b2d3675f,SkinPage; SkinCube,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/sticker/sticker_manage_page.dart,2bb67c84459a252004968c408b8a16ef13e0c35c192f7b25a07db26ee626876d,StickerManagePage,"25: void initState() {
+26: super.initState();",,,package:tencent_cloud_chat_demo/src/provider/custom_sticker_package.dart; package:tencent_cloud_chat_demo/src/provider/user_sticker_provider.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/sticker/sticker_pack_preview_page.dart,a8dda2450b11e3f2157cd5e0cb56c9c80ed114a7a0b0e757b67bac8a1287ab95,StickerPackPreviewPage,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/sticker/sticker_single_preview_page.dart,dcc1a9f3bf17978a848d137cdf44a32749ac81f9452d8ad478e921d24ee2b108,StickerSinglePreviewPage,"48: void initState() {
+49: super.initState();","50: _load();
+53: Future<void> _load() async {",,package:tencent_cloud_chat_demo/src/repository/sticker_repository.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/sticker/sticker_upload_page.dart,9b59df3ab43863efd40c162dcb7ea0c2f353c1f5b2b6e41b3817e2cc58c713c6,StickerUploadPage; _AddTile; _StickerTile,"81: void initState() {
+82: super.initState();",216: final item = await StickerApi.instance.uploadSticker(,package:tencent_cloud_chat_demo/src/api/sticker_api.dart,package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/provider/user_sticker_provider.dart,,,"60: final oldIndex = ids.indexOf(from);
+61: final newIndex = ids.indexOf(to);",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/biometric_pay_enable_page.dart,9ea44dc6c6b900caaa248913faf314fa8ac98f2c2ceac9a451e3711feaa379c1,BiometricPayEnablePage; _BiometricHeroIcon,"62: void initState() {
+63: super.initState();","64: _load();
+67: Future<void> _load() async {
+73: final me = await WalletApi.instance.getMe();
+144: await _load();",package:tencent_cloud_chat_demo/src/api/wallet_api.dart,package:tencent_cloud_chat_demo/src/services/biometric_pay_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/biometric_pay_verify_pin_page.dart,27db32057a073883d40c519e9c10eca86c82744bcfd2c43bfd7a81ce363b54a4,BiometricPayVerifyPinPage; _PinSquareCells; _WechatGridKeypad,,,,package:tencent_cloud_chat_demo/src/services/biometric_pay_service.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/transfer_detail_screen.dart,bd0043180c485363e2ba21c72f774f183c2813dcdd400c53698071e05c2d9acd,TransferDetailScreen; _DetailRow,"105: void initState() {
+106: super.initState();","111: unawaited(_refreshRate(fromInit: true));
+135: Future<void> _refreshRate({bool fromInit = false}) async {
+143: walletMe = await WalletApi.instance.getMe();
+146: currencies = await WalletApi.instance.getCurrencies();",package:tencent_cloud_chat_demo/src/api/wallet_amount.dart; package:tencent_cloud_chat_demo/src/api/wallet_api.dart; package:tencent_cloud_chat_demo/src/api/wallet_models.dart,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/wallet_asset_record_screen.dart,a44b989313510726fa5d07674a58f781865a8fc488be5cd7c427c0120f1bc003,WalletDepositRecordScreen; WalletWithdrawRecordScreen; _WalletAssetRecordScreen; _WithdrawRecordFilterBar; _CoinPickerSheet; _CoinSheetRow; _CoinSheetIcon; _AssetRecordCard; _AssetTypeIcon; _AssetErrorBox,"117: void initState() {
+118: super.initState();","126: _load();
+129: Future<void> _load() async {
+136: ? await _repo.getDepositRecords()
+137: : await _repo.getWithdrawRecords();",package:tencent_cloud_chat_demo/src/api/wallet_time.dart,wallet_repository.dart; wallet_repository_provider.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/wallet_exchange_screen.dart,703f415556faf326b2652897297448457cf33f37be4529358a82e7f4d7d54d5d,WalletExchangeScreen; _SwapPanel; _SwapRow; _SwapCenter; _CoinInfoHeader; _RateRow; _PrimaryButton; _SparkDot; _RouteProviderLabel; _ExchangeRecordCard; _ExchangeErrorBox; _EmptyExchangeBox; _UsdtCoinIcon; _PlatformCoinIcon,"45: void initState() {
+46: super.initState();","47: _load();
+56: Future<void> _load({bool silent = false}) async {
+65: WalletApi.instance.getMe(),
+66: _repo.getExchangeRecords(),
+300: final order = await _repo.exchange(
+309: WalletStore.instance.clear();
+312: await _load(silent: true);",package:tencent_cloud_chat_demo/src/api/wallet_amount.dart; package:tencent_cloud_chat_demo/src/api/wallet_api.dart; package:tencent_cloud_chat_demo/src/api/wallet_models.dart; package:tencent_cloud_chat_demo/src/api/wallet_time.dart,wallet_repository.dart; wallet_repository_provider.dart,,,64: final results = await Future.wait<dynamic>([,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/wallet_receive_screen.dart,ea5a72fddd4ebed10dd9221bc359a9eb67e59da428e76b963ba37438c550e5fd,WalletReceiveScreen; _TokenBadge; _AddressCard; _AddressRichText; _WarnCard; _ShareButton; _SharePreviewSheet; _ShareAction,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/wallet_screen.dart,e49530a0af884843f7e942879efe31b25c39c9ddbf971c078f24514120ebf0a7,WalletScreen; _WalletTabLifecycle; _WalletView; _TopBar; _AssetCard; _AssetProtectionBadge; _ActionBar; _CoinList; _CoinRow; _CoinTag; _InviteFriendCard; _CoinLogo,"189: void initState() {
+190: super.initState();",,,wallet_controller.dart; wallet_repository.dart; package:tencent_cloud_chat_demo/src/services/android_performance_profile.dart,,,"888: coins.sort((a, b) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/wallet_transfer_screen.dart,c327cae37ab3e8f47207a9b9f21a9c6a7a5f6deb6ab4404676f075992995e7c2,WalletTransferScreen; _ReceiverBox; _TransferBody; _CoinPill; _ConfirmBtn,"57: void initState() {
+58: super.initState();","69: unawaited(_loadGroupPrivacy());
+83: Future<void> _loadGroupPrivacy() async {",,transfer_controller.dart; wallet_repository.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/withdraw_address_screen.dart,963cd180178201eb0a7c0239ac205062ab7428f634065cce53ef1874321b7cf4,WithdrawAddressScreen; _AddressAction; _AddressSearchField; _AddressTabs; _AddressTabItem,"53: void initState() {
+54: super.initState();","55: _loadFriends();
+56: _loadWalletAddress();
+138: Future<void> _loadFriends() async {
+140: final list = (await MeFriendApi.instance.loadFriendsForPickers())
+158: Future<void> _loadWalletAddress() async {
+160: final wallet = await WalletStore.instance.getWallet(",package:tencent_cloud_chat_demo/src/api/me_friend_api.dart,package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart; wallet_repository.dart; wallet_repository_provider.dart,,,"143: ..sort((a, b) => _displayName(a).compareTo(_displayName(b)));",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/withdraw_chain_review_screen.dart,60318ea7b7d009af6f072aa6b3261b54dcd5b4477fc029f5ab3a4e7b73818767,WithdrawChainReviewScreen; _Card; _AddressCard; _RowLine; _ReviewTokenMark,"47: void initState() {
+48: super.initState();","49: _loadFromAddress();
+52: Future<void> _loadFromAddress() async {
+54: final wallet = await WalletStore.instance.getWallet(repo: _repo);
+178: final result = await _repo.withdraw(",,wallet_repository.dart; wallet_repository_provider.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/withdraw_coin_picker_screen.dart,defa112e576bfac001167018334229a4d11d86a81d57fe8963a0a9f1f568ab82,WithdrawCoinPickerScreen; _WithdrawCoinPickerView; _CoinRow; _WithdrawCoinIcon,,,,wallet_controller.dart; wallet_repository.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/withdraw_transfer_confirm_screen.dart,409f4349099b320fbb2899f001fa68a75e451e1e373a96dcf481ebe0dc882164,WithdrawTransferConfirmScreen; _WithdrawAmountEntryLayout; _FriendBalancePill; _FriendAmountDisplay; _ChainAmountDisplay; _FriendRecipientCard; _ChainAddressCard; _PercentKey; _FriendNumberPad; _FriendKeyCell; _TokenMark,"55: void initState() {
+56: super.initState();",,,transfer_controller.dart; wallet_repository.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/order/wallet_pending_list_screen.dart,fb59185dbcc16f33127509495d63e426dd94be56f276d6f5868f1902f34acd2a,WalletPendingListScreen; _PendingOrderTile,"36: void initState() {
+37: super.initState();","81: await WalletPendingRecoveryService.instance.recover(
+91: Future<void> _refreshOne(WalletOrderDraft draft) async {
+94: await WalletPendingRecoveryService.instance.recover(
+219: onRefresh: () => _refreshOne(draft),",,,,,"59: ..sort((a, b) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/record/wallet_record_detail_screen.dart,21d8dbc87431d81d4cb77f708b0a6d503dc266c370c277af7429e8ffa2b56ed2,WalletRecordDetailScreen; _AssetDetailCard; _AssetDetailRow; _ClaimDetailRow; _DetailCoinLogo; _CardSendFailBox; _OrderTimeline; _TimelineRow,"55: void initState() {
+56: super.initState();","57: _loadWalletMe();
+58: _loadLocalDraft();
+59: _loadCardFail();
+60: _loadClaims();
+63: Future<void> _loadLocalDraft() async {
+85: Future<void> _refreshOrderStatus() async {
+89: await WalletPendingRecoveryService.instance.recover(
+93: await _loadLocalDraft();
+94: await _loadCardFail();
+105: Future<void> _loadWalletMe() async {
+107: final me = await WalletApi.instance.getMe();
+115: Future<void> _loadClaims() async {
+122: final claims = await WalletApi.instance.getRedPacketClaims(orderId);
+123: final profiles = await _loadClaimProfiles(claims);
+132: Future<Map<String, V2TimUserFullInfo>> _loadClaimProfiles(
+153: Future<void> _loadCardFail() async {
+181: await _loadCardFail();
+196: await _loadCardFail();",package:tencent_cloud_chat_demo/src/api/wallet_amount.dart; package:tencent_cloud_chat_demo/src/api/wallet_api.dart; package:tencent_cloud_chat_demo/src/api/wallet_models.dart; package:tencent_cloud_chat_demo/src/api/wallet_time.dart,,,144: .getUsersInfo(userIDList: ids.toList());,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/record/wallet_record_screen.dart,be85af6d25065f5b59759d96bb08405ec57918772d442f6a384c19f712fb3693,WalletRecordScreen; _RecordCard; _HistoryFilterSheet; _HistoryTag; _HistoryExtraFilterBar; _CoinPickerSheet; _CoinSheetRow; _CoinSheetIcon; _CoinIcon; _ErrorBox,"147: void initState() {
+148: super.initState();","459: final order = await WalletApi.instance.getRedPacketOrder(orderId);
+536: final order = await WalletApi.instance.getRedPacketOrder(orderId);",package:tencent_cloud_chat_demo/src/api/wallet_api.dart; package:tencent_cloud_chat_demo/src/api/wallet_time.dart,package:tencent_cloud_chat_demo/src/services/red_packet_sender_refresh_bus.dart; wallet_record_controller.dart,,419: final result = await TencentImSDKPlugin.v2TIMManager.getUsersInfo(,"646: while (_pendingVisibleDetails.length > 40) {
+658: while (mounted && _pendingVisibleDetails.isNotEmpty) {
+661: await Future.wait([
+1296: shrinkWrap: true,",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart,da18bc79d4328014c2c5b6ab51eefde0da7515ae304211bd3feafd119b7b6bd9,LuckyRedPacketDetailPage; _LuckyDetailBody; _ClaimRow,,,package:tencent_cloud_chat_demo/src/api/wallet_amount.dart,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/red_packet/paged_group_recipient_picker.dart,e81ea785cd8641468ffe5daa9cf59e361d4d88e66cbbbf3a42ca9f69162c040e,PagedGroupRecipientPicker,"239: void initState() {
+240: super.initState();","97: final identity = SessionIdentityService.instance.capture();
+100: if (!SessionIdentityService.instance.isCurrent(identity)) {
+134: final records = await GroupMemberLocalStore.instance.readWindow(
+211: .addPostFrameCallback((_) => unawaited(_loadVisiblePresence()));
+214: Future<void> _loadVisiblePresence() async {",,package:tencent_cloud_chat_demo/src/provider/presence_provider.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_membership_sync_service.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_member_local_store.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart; red_packet_controller.dart,,,216: while (mounted && _presencePending.isNotEmpty) {,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart,5c4a973b49f08d1af42f5b2f3252f1ac6d8ad8617e8d269f529530cee9600e50,RedPacketProjectDetailPage,"74: void initState() {
+75: super.initState();","80: _load();
+83: Future<void> _load() async {
+96: local = await RedPacketLocalStore.instance.getOpened(orderId: orderId);
+98: local = RedPacketLocalStore.instance.peekOpened(orderId: orderId);
+110: unawaited(_refreshClaimState(orderId));
+112: final order = await WalletApi.instance.getRedPacketOrder(orderId);
+120: unawaited(_refreshClaims(orderId, packet));
+121: unawaited(_fetchSenderAvatar(packet).then((avatar) {
+132: if (fallback != null) unawaited(_refreshClaims(orderId, fallback));
+142: _localClaim = RedPacketLocalStore.instance.peekOpened(orderId: orderId);
+169: Future<void> _refreshClaimState(String orderId) async {
+171: final state = await WalletApi.instance.getRedPacketClaimState(orderId);
+186: Future<void> _refreshClaims(
+190: final fetched = await WalletApi.instance.getRedPacketClaims(orderId);
+219: unawaited(_refreshClaimState(orderId));
+220: unawaited(_refreshClaims(orderId, _packet));
+229: _refreshClaimState(orderId),
+230: _refreshClaims(orderId, _packet),
+782: Future<String> _fetchSenderAvatar(Map<String, dynamic> packet) async {",package:tencent_cloud_chat_demo/src/api/wallet_amount.dart; package:tencent_cloud_chat_demo/src/api/wallet_api.dart; package:tencent_cloud_chat_demo/src/api/wallet_time.dart,package:tencent_cloud_chat_demo/src/provider/login_user_Info.dart; package:tencent_cloud_chat_demo/src/services/red_packet_claim_notice_sender.dart; package:tencent_cloud_chat_demo/src/services/red_packet_local_store.dart,,"805: final res = await TencentImSDKPlugin.v2TIMManager.getUsersInfo(
+829: final res = await TencentImSDKPlugin.v2TIMManager.getUsersInfo(","228: await Future.wait([
+845: ..sort((a, b) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/red_packet/red_packet_member_picker_page.dart,fbfb662621dcf37c13f8c42fc1b4062c26ec9c73601087093877e6fc814a6b80,RedPacketMemberPickerPage; _MemberPickerAvatar; _SimpleMemberTile,"74: void initState() {
+75: super.initState();","83: unawaited(_loadPresenceData());
+98: Future<void> _loadPresenceData() async {",,package:tencent_cloud_chat_demo/src/provider/presence_provider.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart,cb2e01cfa38c513091aab6c6512ca7eee43d2d24aac5b312ee1008ec660461dc,RedPacketPreviewPage; _PreviewMaskLayer; _RedPacketCover; _WechatTitleOverlay; _WechatMark; _OpenCoinButton; _OpenFace; _GoldCoinFace; _CloseButton; RedPacketOpenedPreviewPage; _OpenedResultContent,"122: void initState() {
+123: super.initState();
+952: void initState() {
+953: super.initState();",,package:tencent_cloud_chat_demo/src/api/wallet_amount.dart,package:tencent_cloud_chat_demo/src/services/android_performance_profile.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/pages/wallet/red_packet/red_packet_screen.dart,bbb608bbf2594a2dc5b887ebc4e6ddf3b80ff422a0b87593d12c9823454ac9ad,RedPacketScreen; _GroupRedPacketSendLayout; _TypeLine; _CntRow; _ReceiverRow; _AmtRow; _MsgRow; _PayCard; _InputBox; _SendBtn,"68: void initState() {
+69: super.initState();",,,red_packet_controller.dart; ../wallet_repository.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/ui/auth_widgets.dart,54d9643201bb9759311b1e1fc03c1627dce0f034ab8be33fcf9685c1f77dd15e,AuthLightScope; AuthTextField; AuthCompoundField; AuthPrimaryButton; AuthSendCodeButton; AuthEntryScaffold; _WindowsWideAuthCaptionBar; _BackButton; _HeroChip; _WideAuthTabs; AuthTopTabs; AuthScaffold; AuthFieldLabel; AuthLinkText; AuthInfoBanner; AuthAgreementCheck; AuthCustomerServiceButton,"131: void initState() {
+132: super.initState();
+321: void initState() {
+322: super.initState();","145: _refreshClearButton();
+157: _refreshClearButton();
+171: void _refreshClearButton() {
+335: _refreshClearButton();
+347: _refreshClearButton();
+361: void _refreshClearButton() {",,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/widgets/chat_attachment_message_card_io.dart,9b6d480b28f26c69da0904925c26f6db346bb53beadfea4556fcba18f751b8af,ChatAttachmentMessageCard; _AttachmentPreview,"57: void initState() {
+58: super.initState();
+381: void initState() {
+382: super.initState();",413: await ChatAttachmentService.instance.playback(widget.attachment);,package:tencent_cloud_chat_demo/src/api/api_client.dart,package:tencent_cloud_chat_demo/src/services/chat_attachment_service_io.dart,,,"386: _sessionWatch = Timer.periodic(const Duration(seconds: 1), (_) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/widgets/conversation_share_picker_page.dart,53001f5f0e7e0e25e6d87481007a5c16becb504cacef826d593e8b53df776809,ConversationSharePickerPage,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/widgets/desktop_logged_in_layout.dart,b61660cbb237b6450f8eda0c05943d9531c7b57baa8ba351241b3385f07188c7,DesktopLoggedInLayout,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/widgets/forward_pick_pages.dart,dd3cc05d9a3d4bac8356977ca5f0eca343279ae9c8dddbe976fec9f244830c05,ForwardSelectFriendPage; ForwardSelectGroupPage,,,,package:tencent_cloud_chat_demo/src/chat_session/chat_session_controller.dart; package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/provider/presence_provider.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_local_store.dart; package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart; package:tencent_cloud_chat_demo/src/services/im_connect_status_service.dart; package:tencent_cloud_chat_demo/src/services/network_status_service.dart; package:tencent_cloud_chat_demo/src/services/history_coverage.dart; package:tencent_cloud_chat_demo/src/services/message_history_coverage_store.dart; package:tencent_cloud_chat_demo/src/services/im/history_search_coordinator.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/widgets/group_live/group_live_popout_app.dart,acf32cdd079ab534aa6a8aa85177c7245b08f69fe22fbc7583090e10c1387382,GroupLivePopoutApp; _GroupLivePopoutPage,"58: void initState() {
+59: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/widgets/group_live/group_live_video_player.dart,d6c10f78d287f343b2dc826ea1f37568e0d2a6c93c4fd6541acc9b67480054d6,GroupLiveVideoPlayer; _CompactToolbar,"51: void initState() {
+52: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/src/widgets/media_popout/media_popout_app.dart,f4d5c150671ded43f769be0ab6a81a16848a6b372722a98b4e5934303db952c9,MediaPopoutApp; _MediaPopoutMaterialApp; _MediaPopoutPage; _MediaPopoutBody,"88: void initState() {
+89: super.initState();
+240: void initState() {
+241: super.initState();",,,package:tencent_cloud_chat_demo/src/provider/local_setting.dart; package:tencent_cloud_chat_demo/src/provider/presence_provider.dart; package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+lib/utils/webview_page.dart,4ed05b32273908b4038c51654058b708ae86e3790834f07fc044eed15c1ac7b3,WebviewPage,,,,package:tencent_cloud_chat_demo/src/provider/theme.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitAddFriend/tim_uikit_send_application.dart,49e22613d2bb4f6b3c7d7a8b11cd100997ba2ae60ecedd94f924d8c0d78ba306,SendApplication,"76: void initState() {
+77: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitAddGroup/tim_uikit_send_application.dart,58649228fe4b9de82a18a8093331d32c2c216d0314adb91a1ebf1e1558cabe9c,SendJoinGroupApplication,"37: void initState() {
+38: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart,6d73b7aca91bff568a9be4032b4bafd31d18f431700ef8337225a2d8ba1b75ad,TIMUIKitChat; _GroupApplicationBanner; _GroupUpdateListener; TIMUIKitChatProviderScope,"429: void didChangeDependencies() {
+430: super.didChangeDependencies();
+457: void initState() {
+458: super.initState();","483: GroupMemberStore.instance.addListener(_onGroupMemberStoreChanged);
+484: DisplayNameStore.instance.addListener(_onDisplayNameStoreChanged);
+615: GroupMemberStore.instance.removeListener(_onGroupMemberStoreChanged);
+616: DisplayNameStore.instance.removeListener(_onDisplayNameStoreChanged);
+1281: Future<void> _refreshGroupMuteState(String groupId) async {
+1342: unawaited(_refreshGroupMuteState(convId));
+1582: _loadData(
+1618: _refreshLockedFirstUnreadSeq(
+1639: Future<void> _refreshLockedFirstUnreadSeq({
+1702: int _loadedRealMessageCount() {
+1733: if (_loadedRealMessageCount() >= requiredRealCount) return;
+1745: while (_loadedRealMessageCount() < requiredRealCount &&
+1748: final beforeCount = _loadedRealMessageCount();
+1759: final afterLocalCount = _loadedRealMessageCount();
+1769: final afterCloudCount = _loadedRealMessageCount();
+1789: final afterCount = _loadedRealMessageCount();
+1827: void _loadData({",,package:tencent_cloud_chat_uikit/business_logic/services/display_name_store.dart; package:tencent_cloud_chat_uikit/business_logic/services/group_member_store.dart; package:tencent_cloud_chat_uikit/ui/controller/tim_uikit_chat_controller.dart; package:tencent_cloud_chat_demo/src/services/chat_background_service.dart; package:tencent_cloud_chat_demo/src/services/chat_history_recovery_coordinator.dart; package:tencent_cloud_chat_demo/src/services/chat_pipeline_clock.dart; package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart; package:tencent_cloud_chat_demo/src/services/platform_official_account_service.dart,,,1745: while (_loadedRealMessageCount() < requiredRealCount &&,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_at_text.dart,6964a805cfae2f2d2974cce6cf1538e141588cda4e264b061215326bd9d3f89d,AtText,"84: void initState() {
+85: super.initState();","89: GroupMemberLocalStore.instance.loadAsV2TimMembers(
+100: GroupMemberStore.instance.addListener(_syncMembersFromStore);
+128: GroupMemberStore.instance.removeListener(_syncMembersFromStore);
+135: final shared = GroupMemberStore.instance.membersForGroup(groupID);
+160: await _loadPage(groupID: groupID, seq: '0', isFirst: true);
+180: GroupMemberStore.instance.putMembers(groupID, window, notify: false);
+235: Future<void> _loadMoreMembers() async {
+248: await _loadPage(groupID: gid, seq: _nextSeq, isFirst: false);
+255: Future<void> _loadPage({
+277: GroupMemberStore.instance.putMembers(",,package:tencent_cloud_chat_uikit/business_logic/services/group_member_store.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_member_local_store.dart,,"69: /// 仅由本页 getGroupMemberList 写入；勿用聊天 open-shell 的假 seq=0。
+266: final res = await _groupServices.getGroupMemberList(",,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_call_invite_list.dart,89b69f096063d3354352cb4595557c0f7032b1e0c365ae930fd4bdeaa127fc7c,SelectCallInviter,"54: void initState() {
+55: super.initState();","59: GroupMemberLocalStore.instance.loadAsV2TimMembers(
+70: GroupMemberStore.instance.addListener(_syncMembersFromStore);
+82: _loadGroupMemberList(groupID: widget.groupID!);
+90: GroupMemberStore.instance.removeListener(_syncMembersFromStore);
+97: final shared = GroupMemberStore.instance.membersForGroup(groupID);
+154: Future<void> _loadGroupMemberList(
+163: await _loadGroupMemberListFunction(
+172: Future<void> _loadMoreMembers() async {
+185: await _loadGroupMemberList(
+194: Future<String?> _loadGroupMemberListFunction(
+218: GroupMemberStore.instance.putMembers(",,package:tencent_cloud_chat_uikit/business_logic/services/group_member_store.dart; package:tencent_cloud_chat_demo/src/services/group_local/group_member_local_store.dart,,196: final res = await _groupServices.getGroupMemberList(,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart,a3fef2f83408bab1052e9c58a5ea484b16ae3ae63096563e453c0323faf1fb82,MorePanel; _ImageMediaPreviewPage; _VideoMediaPreviewPage,"1419: void initState() {
+1420: super.initState();","985: final backend = await ChatAttachmentService.instance.handles(file.path, 'video');
+1014: _loadVideoDurationSeconds(staged),
+1246: DeviceSyncService.instance.endForegroundMediaWork(
+1280: DeviceSyncService.instance.endForegroundMediaWork(
+1289: DeviceSyncService.instance.beginForegroundMediaWork(
+1315: DeviceSyncService.instance.endForegroundMediaWork(
+1389: Future<int> _loadVideoDurationSeconds(
+1691: : _loadVideoDurationSeconds(filePath),",,package:tencent_cloud_chat_demo/src/services/chat_attachment_service.dart; package:tencent_cloud_chat_demo/src/services/device_sync_service.dart; package:tencent_cloud_chat_demo/src/services/call_launcher.dart,,,"604: batchIndex: imageAssets.indexOf(asset),
+1013: final metadata = await mediaPerf.measure('metadata', () => Future.wait<Object?>([
+1086: while (nextIndex < pending.length) {
+1145: await Future.wait(
+1688: final metadata = await Future.wait<Object?>([
+1909: while (_hasUsableConversation(convID)) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/group_member/tui_add_group_member.dart,62a980db3e2420b409950a92d570d9bfe36bb7187c8484d8acd7f188c61ca90b,AddGroupMemberPage,"103: void initState() {
+104: super.initState();","131: if (mounted) unawaited(_loadInviteMeta());
+162: unawaited(_loadContactMembership());
+188: Future<void> _loadContactMembership() async {
+248: Future<void> _loadInviteMeta() async {
+571: await _refreshPendingAfterInvite(results);
+585: await _refreshPendingAfterInvite(results);
+602: unawaited(_refreshMembersAfterInvite(res));
+617: unawaited(_refreshMembersAfterInvite(res));
+629: unawaited(_refreshMembersAfterInvite(res));
+637: Future<void> _refreshPendingAfterInvite(
+699: Future<void> _refreshMembersAfterInvite(",,package:tencent_cloud_chat_uikit/business_logic/services/group_member_store.dart; package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_directory.dart,,,"214: while (mounted) {
+272: final result = await Future.wait<Object?>([",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/group_member/tui_delete_group_member.dart,b047e9d9f6c612244703e92ed5a501387d8d013e049709ee08119f10147e0006,DeleteGroupMemberPage,"132: void initState() {
+133: super.initState();",,,,,,"110: members.sort((a, b) {",static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/group_member/tui_group_member_list.dart,94c49266594fd1745876232a0d7d3e2097bf49d15a6f4e9471988fe64f3476b0,GroupProfileMemberListPage,"58: void initState() {
+59: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_manage.dart,a6d46591a1922117d7ec4840da729d655d1494af26be52c514699cd359bf4a40,GroupProfileGroupManage; GroupProfileGroupManagePage; GroupProfileSetManagerPage; GroupProfileAddAdmin,"419: void initState() {
+420: super.initState();
+1172: void initState() {
+1173: super.initState();
+1618: void initState() {
+1619: super.initState();","343: !SessionIdentityService.instance.isCurrent(_displayIdentity!))) {
+369: final identity = SessionIdentityService.instance.capture();
+377: !SessionIdentityService.instance.isCurrent(identity)) return false;
+385: !SessionIdentityService.instance.isCurrent(identity)) return false;
+400: final identity = SessionIdentityService.instance.capture();
+408: !SessionIdentityService.instance.isCurrent(identity)) return false;
+426: unawaited(_refreshServerTime());
+427: final identity = SessionIdentityService.instance.capture();
+435: !SessionIdentityService.instance.isCurrent(identity)) return;
+439: !SessionIdentityService.instance.isCurrent(identity)) return;
+441: await _refreshMutedMembers();
+444: Future<void> _refreshServerTime() async {
+518: Future<void> _refreshMutedMembers() async {
+522: final identity = SessionIdentityService.instance.capture();
+532: SessionIdentityService.instance.isCurrent(identity);
+592: final cached = await GroupMemberLocalStore.instance.readByUserIds(
+902: _refreshMutedMembers());
+916: await _refreshMutedMembers();
+1174: unawaited(_loadMemberData());
+1177: Future<void> _loadMemberData() async {
+1632: Future<void> _loadEntry() async {",package:tencent_cloud_chat_demo/src/api/me_group_api.dart,package:tencent_cloud_chat_demo/src/services/group_local/group_member_local_store.dart; package:tencent_cloud_chat_demo/src/services/group_local/muted_member_profile_resolver.dart; package:tencent_cloud_chat_demo/src/services/session_identity.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_conversation_filter_msg_page.dart,2967e5ce76b6f6c36f720abe6d04f5404ebe1f7378beb5898e4875e0aa9274be,TIMUIKitConversationFilterMsgPage,"91: void initState() {
+92: super.initState();","94: _load(reset: true);
+110: void _load({required bool reset}) {
+260: : () => _load(reset: false),",,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_conversation_media_file_page.dart,3075686d4473f31c5b832ca3dbbebe61c0bbd2a8ace1ce1ea06d23ddde6c5d80,TIMUIKitConversationMediaFilePage,"97: void initState() {
+98: super.initState();","103: _load(reset: true);
+163: _load(reset: false);
+167: void _load({required bool reset}) {
+185: _load(reset: true);
+221: _load(reset: false);",,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_conversation_member_picker_page.dart,8d68c03292477200b2c06fc936cebd4ba0b8de2836b92bcde08c44a19090cbee,TIMUIKitConversationMemberPickerPage,"82: void initState() {
+83: super.initState();","85: _loadMembers();
+128: Future<void> _loadMembers() async {
+200: unawaited(_refreshUserStatusInBackground(userIds));
+239: Future<void> _loadMoreSearch() async {
+257: Future<void> _refreshUserStatusInBackground(List<String> userIds) async {
+259: await _loadUserStatus(userIds);
+266: Future<void> _loadUserStatus(List<String> userIds) async {
+374: unawaited(_loadMoreSearch());
+376: unawaited(_loadMembers());",,,,146: final res = await _groupServices.getGroupMemberList(,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_search.dart,877338fa9065d52a3568e86d23b9ad1197316827e13738968bdeb9df7b6d534f,TIMUIKitSearch,"213: void initState() {
+214: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_search_friend_all_page.dart,7959e22b85cc822a0c017bc36c90e77cee0146e8db0844cc1d8c9471e6a21964,TIMUIKitSearchFriendAllPage,"84: void initState() {
+85: super.initState();","144: unawaited(_loadMoreFromStore());
+160: Future<void> _loadMoreFromStore() async {
+253: unawaited(_loadUserStatus(userIds));
+256: Future<void> _loadUserStatus(List<String> userIds) async {",,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_search_group_all_page.dart,b5009d56a4204526daa4517990df40d1d22944ae8a36fb2fbad8b47531b61f95,TIMUIKitSearchGroupAllPage,"58: void initState() {
+59: super.initState();","106: _loadMoreFromStore();
+122: Future<void> _loadMoreFromStore() async {",,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_search_msg_all_page.dart,c398c15944726043c954ecd26f0419d37eab1e15e3d98c762e15baa252284636,TIMUIKitSearchMsgAllPage,"49: void initState() {
+50: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/widgets/avatar.dart,61bcea0b827dc7bfbece82299fe7efeb89e827dff93f4acf9d656516e79215b1,_AvatarNetworkPreviewPage; _AvatarAssetPreviewPage,"597: void initState() {
+598: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_media_gallery_image_page.dart,954f3435387e3d5df48ce50ff79172e7183dbd2d05f2554f86fc0ea7de14dde4,ChatMediaGalleryImagePage,"86: void initState() {
+87: super.initState();",231: final edited = ImagePreviewEditStore.instance.peek(messageId);,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_media_gallery_screen.dart,5245023dd70746f3680d4b03d93e3a29a1d56dd7323f0f02cedb0768fc0dec5c,ChatMediaGalleryScreen,"190: void initState() {
+191: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_video_draft_preview.dart,06bf068bc3c79a15f48f2e65eaa9e52fafd4f0976535edf008db9ab8fd323d2f,ChatVideoDraftPreview,"46: void initState() {
+47: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/widgets/forward_message_screen.dart,e509d78bfe359d5a99c378b8b0ec2356178a81bf76fb3676d896bb04f1a29d53,ForwardMessageScreen; _ForwardSelectFriendPage; _ForwardSelectGroupPage,,,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_screen.dart,cae1178760a1f3ab31b40e154b1105845539d86c8ea713814dd584a824735a31,ImageScreen,"1231: void initState() {
+1232: super.initState();",1459: final edited = ImagePreviewEditStore.instance.peek(messageId);,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/widgets/merger_message_screen.dart,fbc890f35d5b7a02e0d44ac68d5ac50a1f1b78e87c6e3ed3c610d5f3dc839846,MergerMessageScreen,"65: initState() {
+66: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/widgets/message_read_receipt.dart,6fff16ab9ecdfa5331258c127eaa39d12ad9321527f896da7053fcda9964a2bf,MessageReadReceipt,"91: void initState() {
+92: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/widgets/transimit_group_owner_select.dart,1a063b97107852506973e0c5ec17b0f1bc01934b5645b9a00ad2de0ce2761a74,SelectNewGroupOwner,"46: void initState() {
+47: super.initState();",51: GroupMemberLocalStore.instance.loadAsV2TimMembers(,,package:tencent_cloud_chat_demo/src/services/group_local/group_member_local_store.dart,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing
+third_party/tencent_cloud_chat_uikit/lib/ui/widgets/video_screen.dart,4bb1ddb3b5c3997e4cddbe7e76f023efd778ccb06505cbf28d82d0cf9a024ad1,VideoScreen,"221: initState() {
+222: super.initState();",,,,,,,static page/screen candidate; API calls include entry and user actions; indirect calls need service tracing

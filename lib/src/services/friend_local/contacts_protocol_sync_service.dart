@@ -442,12 +442,20 @@ class ContactsProtocolSyncService with WidgetsBindingObserver {
       if (!_isCurrent(identity)) {
         return;
       }
-      for (final event in response.events) {
-        if (!_isCurrent(identity)) {
-          return;
+      final profileChanges = <String>{};
+      await PeerProfileRefreshBus.instance.batch(() async {
+        try {
+          for (final event in response.events) {
+            if (!_isCurrent(identity)) return;
+            await _applyAndProject(identity: identity, owner: owner,
+                event: event, profileChanges: profileChanges);
+          }
+        } finally {
+          // Also publish already committed changes if a later event fails.
+          PeerProfileRefreshBus.instance.notifyMany(profileChanges);
         }
-        await _applyAndProject(identity: identity, owner: owner, event: event);
-      }
+      }, isCurrent: () => _isCurrent(identity));
+      if (!_isCurrent(identity)) return;
       if (response.hasMore) {
         if (response.nextCursor.isEmpty || response.nextCursor == cursor) {
           throw const FormatException(
@@ -487,6 +495,7 @@ class ContactsProtocolSyncService with WidgetsBindingObserver {
     required SessionIdentity identity,
     required String owner,
     required SyncChangeEvent event,
+    required Set<String> profileChanges,
   }) async {
     final id = ChatIdFormat.rawUserUid(event.id);
     if (id.isEmpty) {
@@ -510,7 +519,7 @@ class ContactsProtocolSyncService with WidgetsBindingObserver {
     C2cFriendMessageGuard.invalidate(id, clearTrusted: true);
     if (event.isDelete) {
       ImSdkRelationshipDirectory.instance.applyFriendRemoves([id]);
-      PeerProfileRefreshBus.instance.notify(id);
+      profileChanges.add(id);
       return;
     }
     final afterRows = await FriendLocalStore.instance.readByIds(
@@ -526,7 +535,7 @@ class ContactsProtocolSyncService with WidgetsBindingObserver {
       ImSdkRelationshipReconcileService.friendEntryFromSdk(
           after.toV2TimFriendInfo()),
     ]);
-    PeerProfileRefreshBus.instance.notify(id);
+    if (_friendProjectionChanged(before, after)) profileChanges.add(id);
     final remarkChanged = (before?.remark ?? '') != after.remark;
     final nicknameChanged =
         (before?.friendNickname ?? '') != after.friendNickname;
@@ -544,7 +553,7 @@ class ContactsProtocolSyncService with WidgetsBindingObserver {
     required SessionIdentity identity,
     required List<MeFriendRecord> before,
     required List<MeFriendRecord> after,
-  }) async {
+  }) => PeerProfileRefreshBus.instance.batch(() async {
     if (!_isCurrent(identity)) return;
     final directory = ImSdkRelationshipDirectory.instance;
     final entries = [
@@ -556,22 +565,29 @@ class ContactsProtocolSyncService with WidgetsBindingObserver {
       captureId: directory.beginFriendCapture(),
       entries: entries,
     );
-    for (final id in {
-      ...before.map((r) => r.friendUserId),
-      ...after.map((r) => r.friendUserId)
-    }) {
-      MeFriendApi.instance.invalidateRelation(id);
-      C2cFriendMessageGuard.invalidate(id, clearTrusted: true);
-      PeerProfileRefreshBus.instance.notify(id);
-    }
     final beforeById = <String, MeFriendRecord>{
       for (final record in before)
         ChatIdFormat.rawUserUid(record.friendUserId): record,
     };
+    final afterById = <String, MeFriendRecord>{
+      for (final record in after)
+        ChatIdFormat.rawUserUid(record.friendUserId): record,
+    };
+    final changedIds = <String>{
+      for (final id in beforeById.keys)
+        if (!afterById.containsKey(id)) id,
+      for (final entry in afterById.entries)
+        if (_friendProjectionChanged(beforeById[entry.key], entry.value)) entry.key,
+    }..remove('');
+    for (final id in changedIds) {
+      MeFriendApi.instance.invalidateRelation(id);
+      C2cFriendMessageGuard.invalidate(id, clearTrusted: true);
+    }
+    PeerProfileRefreshBus.instance.notifyMany(changedIds);
     for (final record in after) {
       if (!_isCurrent(identity)) return;
       final id = ChatIdFormat.rawUserUid(record.friendUserId);
-      if (id.isEmpty) {
+      if (!changedIds.contains(id)) {
         continue;
       }
       final previous = beforeById[id];
@@ -587,5 +603,21 @@ class ContactsProtocolSyncService with WidgetsBindingObserver {
         avatarChanged: avatarChanged,
       );
     }
-  }
+  }, isCurrent: () => _isCurrent(identity));
 }
+
+// Protocol revision changes alone are not a profile/relationship change.
+bool _friendProjectionChanged(MeFriendRecord? before, MeFriendRecord after) =>
+    before == null ||
+    before.remark != after.remark ||
+    before.remarkKnown != after.remarkKnown ||
+    before.friendNickname != after.friendNickname ||
+    before.friendAvatarUrl != after.friendAvatarUrl ||
+    before.friendAvatarVersion != after.friendAvatarVersion ||
+    before.peerDeletedMe != after.peerDeletedMe ||
+    before.canMessage != after.canMessage ||
+    before.inMyFriendList != after.inMyFriendList ||
+    before.isFriend != after.isFriend ||
+    before.addedAt != after.addedAt ||
+    before.lastActiveAt != after.lastActiveAt ||
+    before.lastActiveVisibility != after.lastActiveVisibility;

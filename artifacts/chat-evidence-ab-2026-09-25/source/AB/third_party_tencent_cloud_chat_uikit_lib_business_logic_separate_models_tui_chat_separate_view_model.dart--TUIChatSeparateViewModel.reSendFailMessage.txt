@@ -1,0 +1,42 @@
+Future<V2TimValueCallback<V2TimMessage>?> reSendFailMessage({
+    required V2TimMessage message,
+    required String convID,
+    required ConvType convType,
+  }) {
+    final identity = SessionIdentityService.instance.capture();
+    final current = _currentResendMessage(convID, message);
+    if (current == null) return Future.value(null);
+    final key = json.encode([
+      identity.ownerUserId, identity.generation, convType.name,
+      ArchiveHistoryProvider.normalizeConversationKey(convID),
+      current.id?.isNotEmpty == true ? current.id : current.msgID,
+    ]);
+    final existing = _resendTasks[key];
+    if (existing != null) return existing;
+    bool canResend() {
+      if (!SessionIdentityService.instance.isCurrent(identity) ||
+          !canSendCapturedMedia) {
+        return false;
+      }
+      final live = _currentResendMessage(convID, current);
+      return live != null && live.isSelf != false &&
+          globalModel.messageStatusInConversation(
+            convID, clientId: live.id, msgID: live.msgID,
+            fallback: OutgoingSendStatus.unconfirmed,
+            elemType: live.elemType,
+          ) == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL;
+    }
+    if (!canResend()) return Future.value(null);
+    late final Future<V2TimValueCallback<V2TimMessage>?> task;
+    task = Future<V2TimValueCallback<V2TimMessage>?>.microtask(() {
+      if (!canResend()) return null;
+      return _performFailedMessageResend(
+        message: current, convID: convID, convType: convType,
+        canResend: canResend,
+      );
+    }).whenComplete(() {
+      if (identical(_resendTasks[key], task)) _resendTasks.remove(key);
+    });
+    _resendTasks[key] = task;
+    return task;
+  }

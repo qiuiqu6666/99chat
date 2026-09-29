@@ -8,6 +8,11 @@ import vip.ninechat.pro.logging.SilentLog as Log
 class KeepAliveAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         val reason = intent?.getStringExtra(EXTRA_REASON) ?: "alarm"
+        if (!KeepAliveScheduler.isEnabled(context)) {
+            Log.d(TAG, "ignore stale alarm after user stop reason=$reason")
+            KeepAliveScheduler.cancelRestart(context)
+            return
+        }
         Log.d(TAG, "alarm received reason=$reason")
         KeepAliveForegroundService.start(context.applicationContext, "alarm:$reason")
     }

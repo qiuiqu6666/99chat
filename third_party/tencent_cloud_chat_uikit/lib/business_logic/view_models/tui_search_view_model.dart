@@ -63,7 +63,50 @@ enum KeywordListMatchType {
   V2TIM_KEYWORD_LIST_MATCH_TYPE_AND
 }
 
+/// A soft time budget stops the next read; an issued SDK call is never
+/// mistaken for cancelled work. Every local/cloud history read shares it.
+class _HistoryScanBudget {
+  final Stopwatch _clock = Stopwatch()..start();
+  int pages = 0;
+  int messages = 0;
+  bool paused = false;
+
+  bool startRead() {
+    if (pages >= 3 || messages >= 150 || _clock.elapsedMilliseconds >= 250) {
+      paused = true;
+      return false;
+    }
+    pages++;
+    return true;
+  }
+}
+
 class TUISearchViewModel extends ChangeNotifier {
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _conversationFilterGeneration++;
+    _mediaFileGeneration++;
+    _conversationAssetGeneration++;
+    _globalSearchGeneration++;
+    _conversationMediaSearchGeneration++;
+    _globalSearchDebounce?.cancel();
+    _conversationMediaSearchDebounce?.cancel();
+    conversationTextSearch.clear(notify: false);
+    super.dispose();
+  }
+
+  bool Function() _requestOwnerGuard() {
+    final owner = _currentLoginUserId();
+    final accountGeneration = SessionIdentityService.instance.generation;
+    return () =>
+        !_disposed &&
+        owner == _currentLoginUserId() &&
+        accountGeneration == SessionIdentityService.instance.generation;
+  }
+
   final FriendshipServices _friendshipServices =
       serviceLocator<FriendshipServices>();
   final MessageService _messageService = serviceLocator<MessageService>();
@@ -112,6 +155,8 @@ class TUISearchViewModel extends ChangeNotifier {
   List<V2TimMessage> mediaFileMsgListForConversation = [];
   bool mediaFileHasMore = true;
   bool mediaFileLoading = false;
+  bool mediaFileScanPaused = false;
+  String? mediaFileScanError;
   String? _mediaFileLastMsgID;
   String _mediaFileCloudCursor = '';
   bool _mediaFileCloudEnabled = true;
@@ -123,6 +168,8 @@ class TUISearchViewModel extends ChangeNotifier {
   List<V2TimMessage> conversationFileMessages = [];
   bool conversationAssetLoading = false;
   bool conversationAssetHasMore = true;
+  bool conversationAssetScanPaused = false;
+  String? conversationAssetScanError;
   String? _conversationAssetLastMsgID;
   String _conversationAssetCloudCursor = '';
   bool _conversationAssetCloudEnabled = true;
@@ -663,7 +710,10 @@ class TUISearchViewModel extends ChangeNotifier {
     required String? groupID,
     required int count,
     String? lastMsgID,
+    required _HistoryScanBudget budget,
+    required bool Function() isCurrent,
   }) async {
+    if (!isCurrent() || !budget.startRead()) return const [];
     final globalModel = serviceLocator<TUIChatGlobalModel>();
     final localResult = await globalModel.getHistoryMessageListThroughIm06(
       userID: userID,
@@ -673,9 +723,12 @@ class TUISearchViewModel extends ChangeNotifier {
       getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
     );
     final localBatch = localResult?.messageList ?? const <V2TimMessage>[];
+    if (!isCurrent()) return const [];
+    budget.messages += localBatch.length;
     if (localBatch.isNotEmpty) {
       return localBatch;
     }
+    if (!budget.startRead()) return const [];
     final cloudResult = await globalModel.getHistoryMessageListThroughIm06(
       userID: userID,
       groupID: groupID,
@@ -683,7 +736,11 @@ class TUISearchViewModel extends ChangeNotifier {
       lastMsgID: lastMsgID,
       getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
     );
-    return cloudResult?.messageList ?? const <V2TimMessage>[];
+    if (!isCurrent()) return const [];
+    if (cloudResult == null) throw StateError('History read did not complete');
+    final cloudBatch = cloudResult?.messageList ?? const <V2TimMessage>[];
+    budget.messages += cloudBatch.length;
+    return cloudBatch;
   }
 
   bool _mediaFileMatchesKeyword(V2TimMessage message, String keyword) {
@@ -703,6 +760,12 @@ class TUISearchViewModel extends ChangeNotifier {
     required bool reset,
     String keyword = '',
   }) async {
+    if (_disposed) return;
+    final canSearchLocal = _canSearchLocalMessagesForCurrentUser();
+    final ownerCurrent = _requestOwnerGuard();
+    final contextKey = '${_currentLoginUserId()}|'
+        '${SessionIdentityService.instance.generation}|$conversationId|${keyword.trim()}';
+    if (contextKey != _mediaFileContextKey) reset = true;
     if (reset) {
       _mediaFileGeneration++;
       mediaFileLoading = false;
@@ -711,8 +774,8 @@ class TUISearchViewModel extends ChangeNotifier {
       _mediaFileLastMsgID = null;
       _mediaFileCloudCursor = '';
       _mediaFileCloudEnabled = true;
-      _mediaFileContextKey = '$conversationId|${keyword.trim()}';
-    } else if (_mediaFileContextKey != '$conversationId|${keyword.trim()}') {
+      _mediaFileContextKey = contextKey;
+    } else if (_mediaFileContextKey != contextKey) {
       return;
     }
     if (mediaFileLoading) {
@@ -730,9 +793,17 @@ class TUISearchViewModel extends ChangeNotifier {
 
     mediaFileLoading = true;
     final generation = _mediaFileGeneration;
+    mediaFileScanPaused = false;
+    mediaFileScanError = null;
+    bool ownsRequest() => ownerCurrent() && generation == _mediaFileGeneration;
+    bool isCurrent() => ownsRequest();
+    final budget = _HistoryScanBudget();
+    final cursors = <String>{
+      if (_mediaFileLastMsgID != null) _mediaFileLastMsgID!
+    };
     notifyListeners();
     try {
-      if (_mediaFileCloudEnabled && _canSearchLocalMessagesForCurrentUser()) {
+      if (_mediaFileCloudEnabled && canSearchLocal) {
         try {
           final result = await _searchMessagesThroughIm06(
             source: ImHistorySource.cloud,
@@ -748,7 +819,7 @@ class TUISearchViewModel extends ChangeNotifier {
               type: KeywordListMatchType.V2TIM_KEYWORD_LIST_MATCH_TYPE_OR.index,
             ),
           );
-          if (generation != _mediaFileGeneration) return;
+          if (!isCurrent()) return;
           if (result.code == 0 && result.data != null) {
             final item =
                 result.data!.messageSearchResultItems?.firstWhereOrNull(
@@ -771,6 +842,7 @@ class TUISearchViewModel extends ChangeNotifier {
           }
           _mediaFileCloudEnabled = false;
         } catch (_) {
+          if (!isCurrent()) return;
           _mediaFileCloudEnabled = false;
         }
       }
@@ -782,13 +854,20 @@ class TUISearchViewModel extends ChangeNotifier {
       var appendedCount = 0;
       var keepLoading = true;
       while (keepLoading && mediaFileHasMore) {
+        if (!isCurrent()) return;
         final batch = await _loadConversationHistoryBatch(
           userID: targets.userID,
           groupID: targets.groupID,
           count: 50,
           lastMsgID: _mediaFileLastMsgID,
+          budget: budget,
+          isCurrent: isCurrent,
         );
-        if (generation != _mediaFileGeneration) return;
+        if (!isCurrent()) return;
+        if (budget.paused) {
+          mediaFileScanPaused = true;
+          break;
+        }
         if (batch.isEmpty) {
           mediaFileHasMore = false;
           break;
@@ -796,8 +875,9 @@ class TUISearchViewModel extends ChangeNotifier {
         final nextLastMsgId = batch.last.msgID;
         if (nextLastMsgId == null ||
             nextLastMsgId.isEmpty ||
-            nextLastMsgId == _mediaFileLastMsgID) {
-          mediaFileHasMore = false;
+            !cursors.add(nextLastMsgId)) {
+          mediaFileScanPaused = true;
+          mediaFileScanError = '历史记录暂未推进，请重试';
           break;
         }
         _mediaFileLastMsgID = nextLastMsgId;
@@ -824,8 +904,10 @@ class TUISearchViewModel extends ChangeNotifier {
         }
         keepLoading = appendedCount == 0;
       }
+    } catch (_) {
+      if (isCurrent()) mediaFileScanError = '读取暂时失败，请重试';
     } finally {
-      if (generation == _mediaFileGeneration) {
+      if (ownsRequest()) {
         mediaFileLoading = false;
         notifyListeners();
       }
@@ -880,7 +962,15 @@ class TUISearchViewModel extends ChangeNotifier {
     required bool reset,
     String? userID,
     String? groupID,
+    bool Function()? isVisible,
   }) async {
+    if (_disposed) return;
+    final canSearchLocal = _canSearchLocalMessagesForCurrentUser();
+    final ownerCurrent = _requestOwnerGuard();
+    final contextKey = '${_currentLoginUserId()}|'
+        '${SessionIdentityService.instance.generation}|$conversationId';
+    if (contextKey != _conversationAssetContextKey) reset = true;
+    if (!(isVisible?.call() ?? true)) return;
     if (reset) {
       _conversationAssetGeneration++;
       conversationAssetLoading = false;
@@ -890,8 +980,8 @@ class TUISearchViewModel extends ChangeNotifier {
       _conversationAssetLastMsgID = null;
       _conversationAssetCloudCursor = '';
       _conversationAssetCloudEnabled = true;
-      _conversationAssetContextKey = conversationId;
-    } else if (_conversationAssetContextKey != conversationId) {
+      _conversationAssetContextKey = contextKey;
+    } else if (_conversationAssetContextKey != contextKey) {
       return;
     }
     if (conversationAssetLoading) {
@@ -913,10 +1003,18 @@ class TUISearchViewModel extends ChangeNotifier {
 
     conversationAssetLoading = true;
     final generation = _conversationAssetGeneration;
+    conversationAssetScanPaused = false;
+    conversationAssetScanError = null;
+    bool ownsRequest() =>
+        ownerCurrent() && generation == _conversationAssetGeneration;
+    bool isCurrent() => ownsRequest() && (isVisible?.call() ?? true);
+    final budget = _HistoryScanBudget();
+    final cursors = <String>{
+      if (_conversationAssetLastMsgID != null) _conversationAssetLastMsgID!
+    };
     notifyListeners();
     try {
-      if (_conversationAssetCloudEnabled &&
-          _canSearchLocalMessagesForCurrentUser()) {
+      if (_conversationAssetCloudEnabled && canSearchLocal) {
         try {
           final result = await _searchMessagesThroughIm06(
             source: ImHistorySource.cloud,
@@ -929,7 +1027,7 @@ class TUISearchViewModel extends ChangeNotifier {
               type: KeywordListMatchType.V2TIM_KEYWORD_LIST_MATCH_TYPE_OR.index,
             ),
           );
-          if (generation != _conversationAssetGeneration) return;
+          if (!isCurrent()) return;
           if (result.code == 0 && result.data != null) {
             final item =
                 result.data!.messageSearchResultItems?.firstWhereOrNull(
@@ -953,6 +1051,7 @@ class TUISearchViewModel extends ChangeNotifier {
           }
           _conversationAssetCloudEnabled = false;
         } catch (_) {
+          if (!isCurrent()) return;
           _conversationAssetCloudEnabled = false;
         }
       }
@@ -968,13 +1067,20 @@ class TUISearchViewModel extends ChangeNotifier {
       var appendedCount = 0;
       var keepLoading = true;
       while (keepLoading && conversationAssetHasMore) {
+        if (!isCurrent()) return;
         final batch = await _loadConversationHistoryBatch(
           userID: targets.userID,
           groupID: targets.groupID,
           count: 50,
           lastMsgID: _conversationAssetLastMsgID,
+          budget: budget,
+          isCurrent: isCurrent,
         );
-        if (generation != _conversationAssetGeneration) return;
+        if (!isCurrent()) return;
+        if (budget.paused) {
+          conversationAssetScanPaused = true;
+          break;
+        }
         if (batch.isEmpty) {
           conversationAssetHasMore = false;
           break;
@@ -982,8 +1088,9 @@ class TUISearchViewModel extends ChangeNotifier {
         final nextLastMsgId = batch.last.msgID;
         if (nextLastMsgId == null ||
             nextLastMsgId.isEmpty ||
-            nextLastMsgId == _conversationAssetLastMsgID) {
-          conversationAssetHasMore = false;
+            !cursors.add(nextLastMsgId)) {
+          conversationAssetScanPaused = true;
+          conversationAssetScanError = '历史记录暂未推进，请重试';
           break;
         }
         _conversationAssetLastMsgID = nextLastMsgId;
@@ -1014,8 +1121,10 @@ class TUISearchViewModel extends ChangeNotifier {
         }
         keepLoading = appendedCount == 0;
       }
+    } catch (_) {
+      if (isCurrent()) conversationAssetScanError = '读取暂时失败，请重试';
     } finally {
-      if (generation == _conversationAssetGeneration) {
+      if (ownsRequest()) {
         conversationAssetLoading = false;
         notifyListeners();
       }
@@ -1563,6 +1672,8 @@ class TUISearchViewModel extends ChangeNotifier {
   List<V2TimMessage> conversationFilterMessages = [];
   bool conversationFilterLoading = false;
   bool conversationFilterHasMore = true;
+  bool conversationFilterScanPaused = false;
+  String? conversationFilterScanError;
   String? _conversationFilterLastMsgID;
   int _conversationFilterSearchPageIndex = 0;
   String _conversationFilterCloudCursor = '';
@@ -1599,6 +1710,8 @@ class TUISearchViewModel extends ChangeNotifier {
     conversationFilterMessages = [];
     conversationFilterLoading = false;
     conversationFilterHasMore = true;
+    conversationFilterScanPaused = false;
+    conversationFilterScanError = null;
     _conversationFilterLastMsgID = null;
     _conversationFilterSearchPageIndex = 0;
     _conversationFilterCloudCursor = '';
@@ -1630,17 +1743,35 @@ class TUISearchViewModel extends ChangeNotifier {
     String? groupID,
     String? userID,
   }) async {
-    if (reset) {
-      conversationFilterMessages = [];
-      conversationFilterHasMore = true;
-      _conversationFilterLastMsgID = null;
-      _conversationFilterSearchPageIndex = 0;
-      _conversationFilterPreferHistoryScan = false;
+    if (_disposed) return;
+    // Resolve account scope before capturing the request, since this may reset
+    // the previous user's filter state.
+    final canSearchLocal = _canSearchLocalMessagesForCurrentUser();
+    final senderList = (userIDList ?? const <String>[])
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final contextKey = '${_currentLoginUserId()}|'
+        '${SessionIdentityService.instance.generation}|${_conversationFilterKey(
+      conversationId: conversationId.trim(),
+      searchTimePosition: searchTimePosition,
+      searchTimePeriod: searchTimePeriod,
+      senderList: senderList,
+    )}';
+    // Replacement must invalidate the old task before testing its busy flag.
+    if (reset || contextKey != _conversationFilterContextKey) {
+      _resetConversationFilterState();
+      _conversationFilterContextKey = contextKey;
     }
-    if (!conversationFilterHasMore || conversationFilterLoading) {
-      return;
-    }
-
+    if (!conversationFilterHasMore || conversationFilterLoading) return;
+    final generation = _conversationFilterGeneration;
+    final ownerCurrent = _requestOwnerGuard();
+    bool isCurrent() =>
+        ownerCurrent() &&
+        generation == _conversationFilterGeneration &&
+        contextKey == _conversationFilterContextKey;
     final targets = _resolveConversationTargets(
       conversationId: conversationId,
       groupID: groupID,
@@ -1652,10 +1783,6 @@ class TUISearchViewModel extends ChangeNotifier {
       return;
     }
 
-    final senderList = (userIDList ?? const [])
-        .map((id) => id.trim())
-        .where((id) => id.isNotEmpty)
-        .toList(growable: false);
     final hasDateFilter = searchTimePosition > 0 && searchTimePeriod > 0;
     final hasSenderFilter = senderList.isNotEmpty;
     if (!hasDateFilter && !hasSenderFilter) {
@@ -1664,45 +1791,34 @@ class TUISearchViewModel extends ChangeNotifier {
       return;
     }
 
-    final contextKey = _conversationFilterKey(
-      conversationId: conversationId,
-      searchTimePosition: searchTimePosition,
-      searchTimePeriod: searchTimePeriod,
-      senderList: senderList,
-    );
-    if (reset || contextKey != _conversationFilterContextKey) {
-      _conversationFilterGeneration++;
-      _conversationFilterContextKey = contextKey;
-      _conversationFilterCloudCursor = '';
-      _conversationFilterCloudEnabled = true;
-      _conversationFilterPreferHistoryScan = false;
-    }
-    final generation = _conversationFilterGeneration;
-
     conversationFilterLoading = true;
+    conversationFilterScanPaused = false;
+    conversationFilterScanError = null;
     notifyListeners();
     try {
-      final useLocalSearch = !_conversationFilterPreferHistoryScan &&
-          _canSearchLocalMessagesForCurrentUser();
-      if (_conversationFilterCloudEnabled &&
-          _canSearchLocalMessagesForCurrentUser()) {
+      final useLocalSearch =
+          !_conversationFilterPreferHistoryScan && canSearchLocal;
+      if (_conversationFilterCloudEnabled && canSearchLocal) {
         final cloudHandled = await _searchConversationFilterViaCloudMessages(
           conversationId: conversationId,
           searchTimePosition: hasDateFilter ? searchTimePosition : 0,
           searchTimePeriod: hasDateFilter ? searchTimePeriod : 0,
           senderList: senderList,
           generation: generation,
+          isCurrent: isCurrent,
         );
-        if (generation != _conversationFilterGeneration) return;
+        if (!isCurrent()) return;
         if (cloudHandled) return;
       }
-      if (useLocalSearch && generation == _conversationFilterGeneration) {
+      if (useLocalSearch && isCurrent()) {
         final ok = await _searchConversationFilterViaLocalMessages(
           conversationId: conversationId,
           searchTimePosition: hasDateFilter ? searchTimePosition : 0,
           searchTimePeriod: hasDateFilter ? searchTimePeriod : 0,
           senderList: senderList,
+          isCurrent: isCurrent,
         );
+        if (!isCurrent()) return;
         if (ok) {
           return;
         }
@@ -1721,10 +1837,15 @@ class TUISearchViewModel extends ChangeNotifier {
         searchTimePeriod: searchTimePeriod,
         senderList: senderList,
         reset: reset,
+        isCurrent: isCurrent,
       );
+    } catch (_) {
+      if (isCurrent()) conversationFilterScanError = '读取暂时失败，请重试';
     } finally {
-      conversationFilterLoading = false;
-      notifyListeners();
+      if (isCurrent()) {
+        conversationFilterLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -1734,6 +1855,7 @@ class TUISearchViewModel extends ChangeNotifier {
     required int searchTimePeriod,
     required List<String> senderList,
     required int generation,
+    required bool Function() isCurrent,
   }) async {
     try {
       final result = await _searchMessagesThroughIm06(
@@ -1752,7 +1874,7 @@ class TUISearchViewModel extends ChangeNotifier {
           type: KeywordListMatchType.V2TIM_KEYWORD_LIST_MATCH_TYPE_OR.index,
         ),
       );
-      if (generation != _conversationFilterGeneration) {
+      if (!isCurrent() || generation != _conversationFilterGeneration) {
         return false;
       }
       if (result.code != 0) {
@@ -1778,7 +1900,7 @@ class TUISearchViewModel extends ChangeNotifier {
       conversationFilterHasMore = _conversationFilterCloudCursor.isNotEmpty;
       return true;
     } catch (_) {
-      _conversationFilterCloudEnabled = false;
+      if (isCurrent()) _conversationFilterCloudEnabled = false;
       return false;
     }
   }
@@ -1789,6 +1911,7 @@ class TUISearchViewModel extends ChangeNotifier {
     required int searchTimePosition,
     required int searchTimePeriod,
     required List<String> senderList,
+    required bool Function() isCurrent,
   }) async {
     const pageSize = 30;
     final pageIndex = _conversationFilterSearchPageIndex;
@@ -1810,7 +1933,7 @@ class TUISearchViewModel extends ChangeNotifier {
           type: KeywordListMatchType.V2TIM_KEYWORD_LIST_MATCH_TYPE_OR.index,
         ),
       );
-      if (!_canSearchLocalMessagesForCurrentUser()) {
+      if (!isCurrent()) {
         return false;
       }
       if (searchResult.code != 0 || searchResult.data == null) {
@@ -1861,6 +1984,7 @@ class TUISearchViewModel extends ChangeNotifier {
     required int searchTimePeriod,
     required List<String> senderList,
     required bool reset,
+    required bool Function() isCurrent,
   }) async {
     final dateRange = timestampRangeFromSearchParams(
       searchTimePosition: searchTimePosition,
@@ -1879,10 +2003,17 @@ class TUISearchViewModel extends ChangeNotifier {
     final initialCount = conversationFilterMessages.length;
     var reachedBeforeRange = false;
     var lastMsgID = reset ? null : _conversationFilterLastMsgID;
+    final budget = _HistoryScanBudget();
+    final cursors = <String>{if (lastMsgID != null) lastMsgID};
 
     while (conversationFilterMessages.length - initialCount < targetBatchSize &&
         !reachedBeforeRange &&
         conversationFilterHasMore) {
+      if (!isCurrent()) return;
+      if (!budget.startRead()) {
+        conversationFilterScanPaused = true;
+        break;
+      }
       final historyResult = await serviceLocator<TUIChatGlobalModel>()
           .getHistoryMessageListThroughIm06(
         userID: targets.userID,
@@ -1891,13 +2022,25 @@ class TUISearchViewModel extends ChangeNotifier {
         lastMsgID: lastMsgID,
         getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
       );
+      if (!isCurrent()) return;
+      if (historyResult == null) throw StateError('History read did not complete');
       final batch = historyResult?.messageList ?? const <V2TimMessage>[];
+      budget.messages += batch.length;
       if (batch.isEmpty) {
         conversationFilterHasMore = false;
         break;
       }
 
-      lastMsgID = batch.last.msgID;
+      final nextCursor = batch.last.msgID;
+      if (nextCursor == null ||
+          nextCursor.isEmpty ||
+          !cursors.add(nextCursor)) {
+        conversationFilterScanPaused = true;
+        conversationFilterScanError = '历史记录暂未推进，请重试';
+        break;
+      }
+      lastMsgID = nextCursor;
+      _conversationFilterLastMsgID = lastMsgID;
       if (batch.length < fetchCount) {
         conversationFilterHasMore = false;
       }
@@ -1930,7 +2073,7 @@ class TUISearchViewModel extends ChangeNotifier {
       }
     }
 
-    _conversationFilterLastMsgID = lastMsgID;
+    if (isCurrent()) _conversationFilterLastMsgID = lastMsgID;
   }
 
   Future<void> getMsgForConversation(

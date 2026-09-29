@@ -1,0 +1,24 @@
+bool _isOpenHistoryWarm(String convKey) {
+    if (convKey.isEmpty) {
+      return false;
+    }
+    final globalModel = serviceLocator<TUIChatGlobalModel>();
+    if (!globalModel.hasInitialHistoryLoaded(convKey)) {
+      return false;
+    }
+    // removeMessageList 会删掉 map 条目；若只剩残留 loaded 别名，不能当暖窗，
+    // 否则跳过 gate 又无消息 → 整页空灰。
+    final raw = globalModel.rawMessageList(convKey);
+    if (raw == null) {
+      return false;
+    }
+    if (raw.isNotEmpty) {
+      return true;
+    }
+    // 空 list：仅在「会话确实像空」且没有并行 peek 时算 warm。
+    // 冷开并行期间禁止把空占位当成暖窗，否则会跳过 gate + hydrate_keep_empty。
+    if (globalModel.hasOpenHydrateInFlight(convKey)) {
+      return false;
+    }
+    return _conversationLooksEmptyForOpen(convKey);
+  }

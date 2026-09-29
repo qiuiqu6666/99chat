@@ -1,0 +1,56 @@
+Future<V2TimConversation?> clearLocalDraft({
+    required String conversationID,
+    String? ownerUserId,
+  }) async {
+    final id = conversationID.trim();
+    if (id.isEmpty) {
+      return null;
+    }
+    final owner = _resolveOwner(ownerUserId);
+    if (owner.isEmpty) {
+      return null;
+    }
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    if (_useMemoryOnly) {
+      final list = List<V2TimConversation>.from(
+        _memoryByOwner[owner] ?? const [],
+      );
+      final index = list.indexWhere((e) => e.conversationID == id);
+      if (index < 0) {
+        return null;
+      }
+      applyLocalDraftToConversation(list[index], text: '', updatedAtMs: 0);
+      _memoryByOwner[owner] = list;
+      _decorateConversation(list[index]);
+      return list[index];
+    }
+    final db = await _openDb();
+    final rows = await db.diagnosedQuery(
+      _table,
+      where: 'owner_user_id = ? AND conversation_id = ?',
+      whereArgs: [owner, id],
+      limit: 1,
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+    final conversation = _conversationFromRow(rows.first);
+    if (conversation == null) {
+      return null;
+    }
+    applyLocalDraftToConversation(conversation, text: '', updatedAtMs: 0);
+    await db.insert(
+      _table,
+      _rowFromConversation(
+        owner,
+        conversation,
+        nowMs,
+        readClearedAtMs: rows.first['read_cleared_at'] as int? ?? 0,
+        localDraftText: '',
+        localDraftUpdatedAtMs: 0,
+      ),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    _decorateConversation(conversation);
+    return conversation;
+  }

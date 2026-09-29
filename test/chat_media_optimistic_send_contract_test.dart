@@ -436,6 +436,52 @@ void main() {
     expect(worker.contains('await Future.wait'), isTrue);
   });
 
+  test('system picker recovery completes only after durable acceptance of every item', () {
+    final panel = File(
+      'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/'
+      'TIMUIKitTextField/tim_uikit_more_panel.dart',
+    ).readAsStringSync().replaceAll('\r\n', '\n');
+    final model = File(
+      'third_party/tencent_cloud_chat_uikit/lib/business_logic/'
+      'separate_models/tui_chat_separate_view_model.dart',
+    ).readAsStringSync().replaceAll('\r\n', '\n');
+    final attachment = File('lib/src/services/chat_attachment_service_io.dart')
+        .readAsStringSync()
+        .replaceAll('\r\n', '\n');
+    final outbox = File('lib/src/services/im/outgoing_send_coordinator.dart')
+        .readAsStringSync()
+        .replaceAll('\r\n', '\n');
+
+    final dispatchStart = panel.indexOf(
+      'Future<void> _dispatchSystemPickedMedia({',
+    );
+    final dispatchEnd = panel.indexOf(
+      'Future<void> _prepareAndDispatchSystemGalleryVideo({',
+      dispatchStart,
+    );
+    expect(dispatchStart, greaterThanOrEqualTo(0));
+    expect(dispatchEnd, greaterThan(dispatchStart));
+    final dispatch = panel.substring(dispatchStart, dispatchEnd);
+    expect(dispatch.contains('_PickerRecoveryDispatchBatch('), isTrue);
+    expect(dispatch.contains('recoveryBatch.accept(pickedVideo)'), isTrue);
+    expect(dispatch.contains('recoveryBatch.accept(picked)'), isTrue);
+    expect(dispatch.contains('await recovery.completePaths'), isFalse);
+
+    final backendStart = model.indexOf('Future<bool> _trySendBackendAttachment({');
+    final imageStart = model.indexOf('Future<V2TimValueCallback<V2TimMessage>?> sendImageMessage({');
+    final videoStart = model.indexOf('Future<V2TimValueCallback<V2TimMessage>?> sendVideoMessage({');
+    expect(backendStart, greaterThanOrEqualTo(0));
+    expect(imageStart, greaterThan(backendStart));
+    expect(videoStart, greaterThan(imageStart));
+    expect(model.substring(backendStart, imageStart).contains('onDurablyAccepted?.call()'), isTrue);
+    expect(model.substring(imageStart, videoStart).contains('onDispatchGranted: onDurablyAccepted'), isTrue);
+    expect(model.substring(videoStart).contains('onDispatchGranted: onDurablyAccepted'), isTrue);
+
+    expect(attachment.indexOf('await _save(task);'), greaterThanOrEqualTo(0));
+    expect(attachment.indexOf('await _save(task);'), lessThan(attachment.indexOf('onQueued?.call();')));
+    expect(outbox.indexOf('onDispatchGranted?.call();'), greaterThan(outbox.indexOf('expectedState: ImOutboxState.dispatchIntent')));
+  });
+
   test('gallery resolve keeps HEIC iCloud retry and terminal cleanup', () {
     final picker = File(
       'third_party/tencent_cloud_chat_uikit/lib/ui/utils/image_edit/'

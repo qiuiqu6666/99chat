@@ -1,0 +1,221 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge",
+    "name": "ConversationMutationShadowBridge",
+    "kind": "Class",
+    "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart",
+    "startLine": 42,
+    "endLine": 775
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "imports": [
+      {
+        "uid": "File:lib/src/services/conversation_local/conversation_draft_service.dart",
+        "name": "conversation_draft_service.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_local/conversation_sync_service.dart",
+        "name": "conversation_sync_service.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart"
+      },
+      {
+        "uid": "File:test/archived_conversation_cold_page_test.dart",
+        "name": "archived_conversation_cold_page_test.dart",
+        "filePath": "test/archived_conversation_cold_page_test.dart"
+      },
+      {
+        "uid": "File:test/conversation_force_delete_after_history_clear_test.dart",
+        "name": "conversation_force_delete_after_history_clear_test.dart",
+        "filePath": "test/conversation_force_delete_after_history_clear_test.dart"
+      },
+      {
+        "uid": "File:test/conversation_mutation_shadow_bridge_test.dart",
+        "name": "conversation_mutation_shadow_bridge_test.dart",
+        "filePath": "test/conversation_mutation_shadow_bridge_test.dart"
+      },
+      {
+        "uid": "File:test/conversation_preview_after_clear_send_test.dart",
+        "name": "conversation_preview_after_clear_send_test.dart",
+        "filePath": "test/conversation_preview_after_clear_send_test.dart"
+      },
+      {
+        "uid": "File:test/conversation_preview_monotonic_projection_test.dart",
+        "name": "conversation_preview_monotonic_projection_test.dart",
+        "filePath": "test/conversation_preview_monotonic_projection_test.dart"
+      },
+      {
+        "uid": "File:test/friend_accept_c2c_list_row_test.dart",
+        "name": "friend_accept_c2c_list_row_test.dart",
+        "filePath": "test/friend_accept_c2c_list_row_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.ConversationMutationShadowBridge#0",
+        "name": "ConversationMutationShadowBridge",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Constructor:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._",
+        "name": "_",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._conversationType#1",
+        "name": "_conversationType",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._conversationTypeFromId#1",
+        "name": "_conversationTypeFromId",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._enqueue#1",
+        "name": "_enqueue",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._ensureOwner#1",
+        "name": "_ensureOwner",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._eventIdForFieldPatch#3",
+        "name": "_eventIdForFieldPatch",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._messageContentFingerprint#1",
+        "name": "_messageContentFingerprint",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._messageVersion#2",
+        "name": "_messageVersion",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._submitSdkConversationForDatabaseCommit#5",
+        "name": "_submitSdkConversationForDatabaseCommit",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.admitSdkConversationsForCommit#4",
+        "name": "admitSdkConversationsForCommit",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.admitSdkDeletedForCommit#2",
+        "name": "admitSdkDeletedForCommit",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.clearSession#0",
+        "name": "clearSession",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.compareLegacyProjection#2",
+        "name": "compareLegacyProjection",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.flush#0",
+        "name": "flush",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.observeSdkConversations#4",
+        "name": "observeSdkConversations",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.observeSdkDeleted#2",
+        "name": "observeSdkDeleted",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.prepareFieldPatchCommit#6",
+        "name": "prepareFieldPatchCommit",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.prepareLocalIntentCommit#5",
+        "name": "prepareLocalIntentCommit",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.prepareSdkConversationCommits#5",
+        "name": "prepareSdkConversationCommits",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.prepareSdkDeleteCommits#2",
+        "name": "prepareSdkDeleteCommits",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.resetForTest#0",
+        "name": "resetForTest",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.restoreDurableConversationState#4",
+        "name": "restoreDurableConversationState",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._activeOwner",
+        "name": "_activeOwner",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._conversationGenerations",
+        "name": "_conversationGenerations",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._coordinator",
+        "name": "_coordinator",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._eventSequence",
+        "name": "_eventSequence",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._lastDifferences",
+        "name": "_lastDifferences",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._ownerGeneration",
+        "name": "_ownerGeneration",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge._pending",
+        "name": "_pending",
+        "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart"
+      }
+    ]
+  },
+  "typed_properties": [
+    {
+      "uid": "Property:lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart:ConversationMutationShadowBridge.instance",
+      "name": "instance",
+      "filePath": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart",
+      "declaredType": "ConversationMutationShadowBridge"
+    }
+  ],
+  "processes": []
+}

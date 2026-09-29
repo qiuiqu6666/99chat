@@ -1,0 +1,1847 @@
+diff --git a/lib/src/services/im/im05_contracts.dart b/lib/src/services/im/im05_contracts.dart
+--- a/lib/src/services/im/im05_contracts.dart
++++ b/lib/src/services/im/im05_contracts.dart
+@@ -435,7 +435,8 @@ bool isValidImOutboxRecoveryTransition(
+       (expected == ImOutboxCopyState.outcomeUnknown &&
+           next == ImOutboxCopyState.reconciled) ||
+       (expected == ImOutboxCopyState.reconciled &&
+-          next == ImOutboxCopyState.gcEligible);
++          (next == ImOutboxCopyState.gcEligible ||
++              next == ImOutboxCopyState.reconciled));
+ }
+ 
+ bool isValidImEffectTransition(
+@@ -461,6 +462,7 @@ bool isValidImOutboxTransition(ImOutboxState expected, ImOutboxState next) {
+           next == ImOutboxState.pausedByLogout;
+     case ImOutboxState.dispatchIntent:
+       return next == ImOutboxState.sending ||
++          next == ImOutboxState.acknowledged ||
+           next == ImOutboxState.outcomeUnknown;
+     case ImOutboxState.sending:
+       return next == ImOutboxState.acknowledged ||
+@@ -480,10 +482,13 @@ bool isValidImOutboxTransition(ImOutboxState expected, ImOutboxState next) {
+       return next == ImOutboxState.prepared ||
+           next == ImOutboxState.abandonedByUser;
+     case ImOutboxState.completed:
+-    case ImOutboxState.failedTerminal:
+     case ImOutboxState.manualRequired:
+-    case ImOutboxState.abandonedByUser:
+       return false;
++    case ImOutboxState.failedTerminal:
++    case ImOutboxState.abandonedByUser:
++      // Only exact provider evidence in Im05Persistence may take this edge.
++      // It settles delivery; message deletion/revoke remains a separate rule.
++      return next == ImOutboxState.acknowledged;
+   }
+ }
+ 
+diff --git a/lib/src/services/im/im05_persistence.dart b/lib/src/services/im/im05_persistence.dart
+--- a/lib/src/services/im/im05_persistence.dart
++++ b/lib/src/services/im/im05_persistence.dart
+@@ -1,6 +1,80 @@
+ import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store.dart';
+ 
++enum ImOutboxResultDecision {
++  accepted,
++  duplicate,
++  superseded,
++  staleAttempt,
++  deferred,
++  identityConflict,
++  missing,
++  fencingRejected,
++  current,
++}
++
++/// Snapshot of the existing Outbox transaction, not a second send state machine.
++class ImOutboxResultVerdict {
++  factory ImOutboxResultVerdict.fromDispatchAssessment(
++      ImOutboxDispatchAssessment assessment) {
++    final decision = switch (assessment.decision) {
++      ImOutboxDispatchDecision.ready ||
++      ImOutboxDispatchDecision.mainNotPrepared ||
++      ImOutboxDispatchDecision.outcomeUnknown =>
++        ImOutboxResultDecision.current,
++      ImOutboxDispatchDecision.fencingRejected =>
++        ImOutboxResultDecision.fencingRejected,
++      ImOutboxDispatchDecision.mainMissing ||
++      ImOutboxDispatchDecision.recoveryCopyMissing =>
++        ImOutboxResultDecision.missing,
++      _ => ImOutboxResultDecision.identityConflict,
++    };
++    return ImOutboxResultVerdict(
++        decision: decision,
++        main: assessment.main,
++        recoveryCopy: assessment.recoveryCopy,
++        reason: 'dispatch_${assessment.decision.name}');
++  }
++
++  const ImOutboxResultVerdict(
++      {required this.decision,
++      this.main,
++      this.recoveryCopy,
++      this.eventAttemptId,
++      required this.reason});
++  final ImOutboxResultDecision decision;
++  final ImOutboxRecord? main;
++  final ImOutboxRecoveryRecord? recoveryCopy;
++  final String? eventAttemptId;
++  final String reason;
++  ImOutboxState? get currentState => main?.state;
++  int get stateVersion => recoveryCopy?.recoveryRevision ?? 0;
++  bool get hasTrustedSnapshot =>
++      main != null &&
++      recoveryCopy != null &&
++      decision != ImOutboxResultDecision.identityConflict &&
++      decision != ImOutboxResultDecision.fencingRejected &&
++      decision != ImOutboxResultDecision.missing;
++  bool get deliveryConfirmed =>
++      hasTrustedSnapshot &&
++      (currentState == ImOutboxState.acknowledged ||
++          currentState == ImOutboxState.completed);
++  bool get canRetry =>
++      hasTrustedSnapshot &&
++      (currentState == ImOutboxState.failedTerminal ||
++          currentState == ImOutboxState.retryable);
++  bool get accepted =>
++      decision == ImOutboxResultDecision.accepted ||
++      decision == ImOutboxResultDecision.duplicate;
++}
++
++/// Only live consumers retain this view. Published values come from committed
++/// transactions and are ordered by the durable recovery revision.
++class ImOutboxResultView {
++  ImOutboxResultVerdict? _current;
++  ImOutboxResultVerdict? get current => _current;
++}
++
+ /// First-round persistence coordinator for Commit Journal, Projection
+ /// Checkpoint, Effect Ledger, and the two-sided Outbox prepare boundary.
+ ///
+@@ -10,6 +84,86 @@ class Im05Persistence {
+   Im05Persistence({required ImIngressStore store}) : _store = store;
+ 
+   final ImIngressStore _store;
++  static final _resultViews =
++      Expando<Map<String, WeakReference<ImOutboxResultView>>>();
++
++  ImOutboxResultView watchOutboxResult(String ownerUserId, String operationId) {
++    final views = _resultViews[_store] ??= {};
++    views.removeWhere((_, reference) => reference.target == null);
++    final key = '$ownerUserId|$operationId';
++    final view = views[key]?.target ?? ImOutboxResultView();
++    views[key] = WeakReference(view);
++    return view;
++  }
++
++  ImOutboxResultVerdict _publishResult(ImOutboxResultVerdict result) {
++    final main = result.main;
++    if (main == null ||
++        result.recoveryCopy == null ||
++        result.decision == ImOutboxResultDecision.identityConflict ||
++        result.decision == ImOutboxResultDecision.fencingRejected) {
++      return result;
++    }
++    final view = _resultViews[_store]
++            ?['${main.ownerUserId}|${main.operationId}']
++        ?.target;
++    if (view != null &&
++        (view.current == null ||
++            result.stateVersion >= view.current!.stateVersion)) {
++      view._current = result;
++    }
++    return result;
++  }
++
++  Future<ImOutboxResultVerdict> readOutboxResult({
++    required String ownerUserId,
++    required String operationId,
++  }) async {
++    final result = await _store.transaction<ImOutboxResultVerdict>((tx) async {
++      final main = await tx.findOutbox(
++          ownerUserId: ownerUserId, operationId: operationId);
++      final copy = await tx.findOutboxRecovery(
++          ownerUserId: ownerUserId, operationId: operationId);
++      if (main == null || copy == null) {
++        return const ImOutboxResultVerdict(
++            decision: ImOutboxResultDecision.missing, reason: 'outbox_missing');
++      }
++      return ImOutboxResultVerdict(
++          decision: _sameOutboxIdentity(main, copy)
++              ? ImOutboxResultDecision.current
++              : ImOutboxResultDecision.identityConflict,
++          main: main,
++          recoveryCopy: copy,
++          reason: 'durable_snapshot');
++    });
++    return _publishResult(result);
++  }
++
++  Future<ImOutboxResultVerdict> adjudicateOutboxSdkResult({
++    required String ownerUserId,
++    required String operationId,
++    required String expectedAttemptId,
++    required bool succeeded,
++    required String leaseOwnerId,
++    required int fencingToken,
++    required int nowMs,
++    String? sdkLocalId,
++    String? serverMsgId,
++    String? resultCode,
++  }) =>
++      _recordOutboxSdkResult(
++          ownerUserId: ownerUserId,
++          operationId: operationId,
++          expectedAttemptId: expectedAttemptId,
++          leaseOwnerId: leaseOwnerId,
++          fencingToken: fencingToken,
++          nowMs: nowMs,
++          nextMainState: succeeded
++              ? ImOutboxState.acknowledged
++              : ImOutboxState.failedTerminal,
++          sdkLocalId: sdkLocalId,
++          serverMsgId: serverMsgId,
++          resultCode: resultCode);
+ 
+   Future<List<ImOutboxRecord>> listOutboxesForRecovery({
+     required String ownerUserId,
+@@ -598,7 +752,7 @@ class Im05Persistence {
+     required String leaseOwnerId,
+     required int fencingToken,
+     required int nowMs,
+-  }) {
++  }) async {
+     if (dispatchAttemptId.trim().isEmpty) {
+       throw ArgumentError.value(
+         dispatchAttemptId,
+@@ -606,7 +760,8 @@ class Im05Persistence {
+         'must not be empty',
+       );
+     }
+-    return _store.transaction<ImOutboxDispatchAssessment>((transaction) async {
++    final result = await _store
++        .transaction<ImOutboxDispatchAssessment>((transaction) async {
+       final assessment = _assess(
+         main: await transaction.findOutbox(
+           ownerUserId: ownerUserId,
+@@ -678,6 +833,14 @@ class Im05Persistence {
+         recoveryCopy: intentCopy,
+       );
+     });
++    if (result.canDispatch) {
++      _publishResult(ImOutboxResultVerdict(
++          decision: ImOutboxResultDecision.current,
++          main: result.main,
++          recoveryCopy: result.recoveryCopy,
++          reason: 'dispatch_intent_committed'));
++    }
++    return result;
+   }
+ 
+   /// Marks a recorded Intent as unknown on both ledgers. This is the only
+@@ -936,7 +1099,7 @@ class Im05Persistence {
+       sdkLocalId: sdkLocalId,
+       serverMsgId: serverMsgId,
+       resultCode: resultCode,
+-    );
++    ).then((result) => result.accepted);
+   }
+ 
+   /// Adopts authoritative provider evidence for an outgoing operation.
+@@ -957,99 +1120,23 @@ class Im05Persistence {
+     required int nowMs,
+     String? sdkLocalId,
+     String? serverMsgId,
+-  }) {
+-    return _store.transaction<bool>((transaction) async {
+-      if (!await _hasCurrentLease(
+-          transaction, ownerUserId, leaseOwnerId, fencingToken, nowMs)) {
+-        return false;
+-      }
+-      final main = await transaction.findOutbox(
+-        ownerUserId: ownerUserId,
+-        operationId: operationId,
+-      );
+-      final copy = await transaction.findOutboxRecovery(
+-        ownerUserId: ownerUserId,
+-        operationId: operationId,
+-      );
+-      if (main == null || copy == null || !_sameOutboxIdentity(main, copy)) {
+-        return false;
+-      }
+-      if (main.ownerUserId != ownerUserId ||
+-          main.clientCorrelationId != clientCorrelationId ||
+-          main.conversationId != conversationId ||
+-          main.payloadHash != payloadHash) {
+-        return false;
+-      }
+-      if (main.dispatchAttemptId != null &&
+-          copy.dispatchAttemptId != null &&
+-          main.dispatchAttemptId != copy.dispatchAttemptId) {
+-        return false;
+-      }
+-      if (main.state == ImOutboxState.completed &&
+-          copy.state == ImOutboxCopyState.reconciled) {
+-        return true;
+-      }
+-      if (main.state == ImOutboxState.acknowledged &&
+-          (copy.state == ImOutboxCopyState.resultRecorded ||
+-              copy.state == ImOutboxCopyState.reconciled)) {
+-        return true;
+-      }
+-
+-      final ImOutboxCopyState nextCopyState;
+-      if (main.state == ImOutboxState.sending &&
+-          copy.state == ImOutboxCopyState.dispatchIntent) {
+-        nextCopyState = ImOutboxCopyState.resultRecorded;
+-      } else if (main.state == ImOutboxState.outcomeUnknown &&
+-          copy.state == ImOutboxCopyState.outcomeUnknown) {
+-        nextCopyState = ImOutboxCopyState.reconciled;
+-      } else {
+-        return false;
+-      }
+-
+-      final providerCopy = ImOutboxRecoveryRecord(
+-        ownerUserId: copy.ownerUserId,
+-        operationId: copy.operationId,
+-        clientCorrelationId: copy.clientCorrelationId,
+-        conversationId: copy.conversationId,
+-        messageType: copy.messageType,
+-        recoveryRevision: copy.recoveryRevision + 1,
+-        state: nextCopyState,
+-        dispatchAttemptId: copy.dispatchAttemptId,
+-        dispatchIntentAtMs: copy.dispatchIntentAtMs,
+-        payloadReferenceOrCiphertext: copy.payloadReferenceOrCiphertext,
+-        payloadHash: copy.payloadHash,
+-        checksum: copy.checksum,
+-        sdkLocalId: copy.sdkLocalId ?? sdkLocalId,
+-        serverMsgId: serverMsgId ?? copy.serverMsgId,
+-        resultCode: 'provider_observed',
+-        updatedAtMs: nowMs,
+-      );
+-      final copyChanged = await transaction.updateOutboxRecoveryIfCurrent(
+-        record: providerCopy,
+-        expectedState: copy.state,
+-        leaseOwnerId: leaseOwnerId,
+-        fencingToken: fencingToken,
+-        nowMs: nowMs,
+-      );
+-      if (!copyChanged) return false;
+-
+-      final providerMain = main.copyWith(
+-        state: ImOutboxState.acknowledged,
+-        sdkMessageId: main.sdkMessageId ?? sdkLocalId,
+-        serverMsgId: serverMsgId,
+-        resultCode: 'provider_observed',
+-        updatedAtMs: nowMs,
+-        leaseOwnerId: leaseOwnerId,
+-        fencingToken: fencingToken,
+-      );
+-      return transaction.updateOutboxIfCurrent(
+-        record: providerMain,
+-        expectedState: main.state,
+-        leaseOwnerId: leaseOwnerId,
+-        fencingToken: fencingToken,
+-        nowMs: nowMs,
+-      );
+-    });
++  }) async {
++    final result = await _recordOutboxSdkResult(
++      ownerUserId: ownerUserId,
++      operationId: operationId,
++      leaseOwnerId: leaseOwnerId,
++      fencingToken: fencingToken,
++      nowMs: nowMs,
++      nextMainState: ImOutboxState.acknowledged,
++      providerEvidence: true,
++      expectedCorrelationId: clientCorrelationId,
++      expectedConversationId: conversationId,
++      expectedPayloadHash: payloadHash,
++      sdkLocalId: sdkLocalId,
++      serverMsgId: serverMsgId,
++      resultCode: 'provider_observed',
++    );
++    return result.accepted && result.deliveryConfirmed;
+   }
+ 
+   Future<bool> recordOutboxSdkFailed({
+@@ -1072,7 +1159,7 @@ class Im05Persistence {
+       sdkLocalId: sdkLocalId,
+       serverMsgId: serverMsgId,
+       resultCode: resultCode,
+-    );
++    ).then((result) => result.accepted);
+   }
+ 
+   Future<bool> completeOutboxProjection({
+@@ -1158,7 +1245,7 @@ class Im05Persistence {
+     });
+   }
+ 
+-  Future<bool> _recordOutboxSdkResult({
++  Future<ImOutboxResultVerdict> _recordOutboxSdkResult({
+     required String ownerUserId,
+     required String operationId,
+     required String leaseOwnerId,
+@@ -1168,104 +1255,144 @@ class Im05Persistence {
+     String? sdkLocalId,
+     String? serverMsgId,
+     String? resultCode,
+-  }) {
++    String? expectedAttemptId,
++    bool providerEvidence = false,
++    String? expectedCorrelationId,
++    String? expectedConversationId,
++    String? expectedPayloadHash,
++  }) async {
+     if (nextMainState != ImOutboxState.acknowledged &&
+         nextMainState != ImOutboxState.failedTerminal) {
+       throw ArgumentError.value(nextMainState, 'nextMainState');
+     }
+-    return _store.transaction<bool>((transaction) async {
++    final result =
++        await _store.transaction<ImOutboxResultVerdict>((transaction) async {
+       if (!await _hasCurrentLease(
+           transaction, ownerUserId, leaseOwnerId, fencingToken, nowMs)) {
+-        return false;
++        return const ImOutboxResultVerdict(
++            decision: ImOutboxResultDecision.fencingRejected,
++            reason: 'writer_lease_rejected');
+       }
+       final main = await transaction.findOutbox(
+-        ownerUserId: ownerUserId,
+-        operationId: operationId,
+-      );
++          ownerUserId: ownerUserId, operationId: operationId);
+       final copy = await transaction.findOutboxRecovery(
+-        ownerUserId: ownerUserId,
+-        operationId: operationId,
+-      );
+-      if (main == null || copy == null || !_sameOutboxIdentity(main, copy)) {
+-        return false;
++          ownerUserId: ownerUserId, operationId: operationId);
++      ImOutboxResultVerdict verdict(
++              ImOutboxResultDecision decision, String reason) =>
++          ImOutboxResultVerdict(
++              decision: decision,
++              main: main,
++              recoveryCopy: copy,
++              eventAttemptId: expectedAttemptId,
++              reason: reason);
++      if (main == null || copy == null) {
++        return verdict(ImOutboxResultDecision.missing, 'outbox_missing');
+       }
+-      if (main.dispatchAttemptId != null &&
+-          copy.dispatchAttemptId != null &&
+-          main.dispatchAttemptId != copy.dispatchAttemptId) {
+-        return false;
++      if (!_sameOutboxIdentity(main, copy) ||
++          (main.dispatchAttemptId != null &&
++              copy.dispatchAttemptId != null &&
++              main.dispatchAttemptId != copy.dispatchAttemptId) ||
++          (providerEvidence &&
++              (main.clientCorrelationId != expectedCorrelationId ||
++                  main.conversationId != expectedConversationId ||
++                  main.payloadHash != expectedPayloadHash))) {
++        return verdict(ImOutboxResultDecision.identityConflict,
++            'outbox_identity_conflict');
+       }
+-      if (main.state == ImOutboxState.completed &&
+-          copy.state == ImOutboxCopyState.reconciled) {
+-        return true;
++      if (!providerEvidence &&
++          expectedAttemptId != null &&
++          main.dispatchAttemptId != expectedAttemptId) {
++        return verdict(
++            ImOutboxResultDecision.staleAttempt, 'stale_dispatch_attempt');
++      }
++      if (main.state == ImOutboxState.acknowledged ||
++          main.state == ImOutboxState.completed) {
++        return verdict(
++            nextMainState == ImOutboxState.acknowledged
++                ? ImOutboxResultDecision.duplicate
++                : ImOutboxResultDecision.superseded,
++            'delivery_already_confirmed');
+       }
+       if (main.state == nextMainState &&
+           (copy.state == ImOutboxCopyState.resultRecorded ||
+               copy.state == ImOutboxCopyState.reconciled)) {
+-        return true;
++        return verdict(
++            ImOutboxResultDecision.duplicate, 'result_already_recorded');
+       }
+-      // IM-08: a late SDK success/failure callback must never silently
+-      // overwrite an already-resolved OutcomeUnknown. The single Writer
+-      // keeps OutcomeUnknown open until history, realtime or an explicit
+-      // recovery query adopts the operation; transitioning it from the
+-      // dispatch path would resurrect or fail UI bubbles that the user
+-      // is still waiting on.
+-      if (main.state != ImOutboxState.sending) {
+-        return false;
++      // A late dispatch callback is never a recovery query. Exact provider
++      // evidence may settle an older attempt of the SAME business operation.
++      final providerCanSettle = providerEvidence &&
++          <ImOutboxState>{
++            ImOutboxState.sending,
++            ImOutboxState.dispatchIntent,
++            ImOutboxState.outcomeUnknown,
++            ImOutboxState.failedTerminal,
++            ImOutboxState.abandonedByUser,
++          }.contains(main.state);
++      if (!providerCanSettle && main.state != ImOutboxState.sending) {
++        return verdict(ImOutboxResultDecision.deferred,
++            'state_requires_recovery_evidence');
+       }
+-
+-      if (copy.state == ImOutboxCopyState.dispatchIntent ||
+-          copy.state == ImOutboxCopyState.outcomeUnknown) {
+-        final nextCopyState = copy.state == ImOutboxCopyState.dispatchIntent
++      if (!<ImOutboxCopyState>{
++        ImOutboxCopyState.dispatchIntent,
++        ImOutboxCopyState.outcomeUnknown,
++        ImOutboxCopyState.resultRecorded,
++        ImOutboxCopyState.reconciled
++      }.contains(copy.state)) {
++        return verdict(
++            ImOutboxResultDecision.identityConflict, 'recovery_state_conflict');
++      }
++      final resultCopy = ImOutboxRecoveryRecord(
++        ownerUserId: copy.ownerUserId,
++        operationId: copy.operationId,
++        clientCorrelationId: copy.clientCorrelationId,
++        conversationId: copy.conversationId,
++        messageType: copy.messageType,
++        recoveryRevision: copy.recoveryRevision + 1,
++        state: copy.state == ImOutboxCopyState.dispatchIntent
+             ? ImOutboxCopyState.resultRecorded
+-            : ImOutboxCopyState.reconciled;
+-        final resultCopy = ImOutboxRecoveryRecord(
+-          ownerUserId: copy.ownerUserId,
+-          operationId: copy.operationId,
+-          clientCorrelationId: copy.clientCorrelationId,
+-          conversationId: copy.conversationId,
+-          messageType: copy.messageType,
+-          recoveryRevision: copy.recoveryRevision + 1,
+-          state: nextCopyState,
+-          dispatchAttemptId: copy.dispatchAttemptId,
+-          dispatchIntentAtMs: copy.dispatchIntentAtMs,
+-          payloadReferenceOrCiphertext: copy.payloadReferenceOrCiphertext,
+-          payloadHash: copy.payloadHash,
+-          checksum: copy.checksum,
+-          sdkLocalId: sdkLocalId ?? copy.sdkLocalId,
+-          serverMsgId: serverMsgId ?? copy.serverMsgId,
+-          resultCode: resultCode ?? copy.resultCode,
+-          updatedAtMs: nowMs,
+-        );
+-        final copyChanged = await transaction.updateOutboxRecoveryIfCurrent(
++            : ImOutboxCopyState.reconciled,
++        dispatchAttemptId: copy.dispatchAttemptId,
++        dispatchIntentAtMs: copy.dispatchIntentAtMs,
++        payloadReferenceOrCiphertext: copy.payloadReferenceOrCiphertext,
++        payloadHash: copy.payloadHash,
++        checksum: copy.checksum,
++        sdkLocalId: copy.sdkLocalId ?? sdkLocalId,
++        serverMsgId: serverMsgId ?? copy.serverMsgId,
++        resultCode: resultCode ?? copy.resultCode,
++        updatedAtMs: nowMs,
++      );
++      final changedCopy = await transaction.updateOutboxRecoveryIfCurrent(
+           record: resultCopy,
+           expectedState: copy.state,
+           leaseOwnerId: leaseOwnerId,
+           fencingToken: fencingToken,
+-          nowMs: nowMs,
+-        );
+-        if (!copyChanged) return false;
+-      } else if (copy.state != ImOutboxCopyState.resultRecorded &&
+-          copy.state != ImOutboxCopyState.reconciled) {
+-        return false;
+-      }
+-
++          nowMs: nowMs);
++      if (!changedCopy) throw StateError('Outbox result copy CAS rejected');
+       final resultMain = main.copyWith(
+-        state: nextMainState,
+-        sdkMessageId: sdkLocalId,
+-        serverMsgId: serverMsgId,
+-        resultCode: resultCode,
+-        updatedAtMs: nowMs,
+-        leaseOwnerId: leaseOwnerId,
+-        fencingToken: fencingToken,
+-      );
+-      return transaction.updateOutboxIfCurrent(
+-        record: resultMain,
+-        expectedState: main.state,
+-        leaseOwnerId: leaseOwnerId,
+-        fencingToken: fencingToken,
+-        nowMs: nowMs,
+-      );
++          state: nextMainState,
++          sdkMessageId: main.sdkMessageId ?? sdkLocalId,
++          serverMsgId: serverMsgId,
++          resultCode: resultCode,
++          updatedAtMs: nowMs,
++          leaseOwnerId: leaseOwnerId,
++          fencingToken: fencingToken);
++      final changedMain = await transaction.updateOutboxIfCurrent(
++          record: resultMain,
++          expectedState: main.state,
++          leaseOwnerId: leaseOwnerId,
++          fencingToken: fencingToken,
++          nowMs: nowMs);
++      // Throw, rather than committing only one side of the transaction.
++      if (!changedMain) throw StateError('Outbox result main CAS rejected');
++      return ImOutboxResultVerdict(
++          decision: ImOutboxResultDecision.accepted,
++          main: resultMain,
++          recoveryCopy: resultCopy,
++          eventAttemptId: expectedAttemptId,
++          reason: providerEvidence ? 'provider_observed' : 'sdk_result');
+     });
++    return _publishResult(result);
+   }
+ 
+   Future<ImOutboxDispatchAssessment> recoverOutbox({
+diff --git a/lib/src/services/im/outgoing_send_coordinator.dart b/lib/src/services/im/outgoing_send_coordinator.dart
+--- a/lib/src/services/im/outgoing_send_coordinator.dart
++++ b/lib/src/services/im/outgoing_send_coordinator.dart
+@@ -24,25 +24,99 @@ import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.
+ 
+ class ImCoordinatedSendResult {
+   const ImCoordinatedSendResult({
+-    required this.sdkResult,
++    required V2TimValueCallback<V2TimMessage> sdkResult,
+     required this.usedOutbox,
+     this.identity,
+     this.accountGeneration,
+     this.domainGeneration,
+     this.dispatchDecision,
+-    this.outcomeUnknown = false,
+-  });
++    bool outcomeUnknown = false,
++    this.outboxResult,
++    this.resultView,
++    this.localStatePending = false,
++  })  : _sdkResult = sdkResult,
++        _outcomeUnknown = outcomeUnknown;
+ 
+-  final V2TimValueCallback<V2TimMessage> sdkResult;
++  final V2TimValueCallback<V2TimMessage> _sdkResult;
+   final bool usedOutbox;
+   final OutgoingIdentityContract? identity;
+   final int? accountGeneration;
+   final int? domainGeneration;
+   final ImOutboxDispatchDecision? dispatchDecision;
+-  final bool outcomeUnknown;
++  final bool _outcomeUnknown;
++  final ImOutboxResultVerdict? outboxResult;
++  final ImOutboxResultView? resultView;
++  final bool localStatePending;
++
++  bool get isCurrentSession =>
++      identity == null ||
++      accountGeneration == null ||
++      SessionIdentityService.instance.isCurrent(SessionIdentity(
++          ownerUserId: identity!.scope.ownerUserId,
++          generation: accountGeneration!));
++
++  ImOutboxResultVerdict? get currentOutboxResult {
++    final published = resultView?.current;
++    if (published != null &&
++        published.stateVersion >= (outboxResult?.stateVersion ?? 0)) {
++      return published;
++    }
++    return outboxResult;
++  }
++
++  bool get outcomeUnknown {
++    if (!isCurrentSession) return true;
++    if (currentOutboxResult?.deliveryConfirmed == true) return false;
++    if (localStatePending) return _sdkResult.code != 0;
++    final result = currentOutboxResult;
++    if (result != null) return !result.deliveryConfirmed && !result.canRetry;
++    return _outcomeUnknown;
++  }
++
++  /// Downstream consumers receive the adjudicated state, never an old SDK code
++  /// that contradicts newer durable evidence for this operation.
++  V2TimValueCallback<V2TimMessage> get sdkResult {
++    if (!isCurrentSession) {
++      return V2TimValueCallback<V2TimMessage>(
++          code: -2,
++          desc: 'send belongs to an earlier session',
++          data: _sdkResult.data);
++    }
++    final result = currentOutboxResult;
++    if (localStatePending &&
++        _sdkResult.code == 0 &&
++        result?.deliveryConfirmed != true) {
++      return _sdkResult;
++    }
++    if (result == null) return _sdkResult;
++    final code = result.deliveryConfirmed
++        ? 0
++        : result.canRetry
++            ? (int.tryParse(result.main?.resultCode ?? '') ?? -1)
++            : -2;
++    var message = _sdkResult.data;
++    final serverId = result.main?.serverMsgId;
++    if (message != null && serverId != null && serverId.isNotEmpty) {
++      message = _cloneMessageForOutbox(message) ?? message;
++      message.msgID = serverId;
++      message.id = result.main?.sdkMessageId ?? message.id;
++    }
++    return V2TimValueCallback<V2TimMessage>(
++        code: code,
++        desc: result.deliveryConfirmed
++            ? 'delivery confirmed'
++            : result.canRetry
++                ? _sdkResult.desc
++                : 'delivery pending reconciliation',
++        data: message);
++  }
+ 
+   bool get canCompleteProjection =>
+-      usedOutbox && identity != null && sdkResult.code == 0;
++      isCurrentSession &&
++      usedOutbox &&
++      (!localStatePending || currentOutboxResult?.deliveryConfirmed == true) &&
++      identity != null &&
++      sdkResult.code == 0;
+ }
+ 
+ class ImOutgoingSendCoordinator {
+@@ -307,6 +381,12 @@ class ImOutgoingSendCoordinator {
+       sdkLocalId: sendLocalId,
+     );
+     final sendGeneration = ++_sendOperationGeneration;
++    final dispatchAttemptId =
++        'attempt:${identity.operationId}:$sendGeneration:$nowMs';
++    final resultView = persistOutbox
++        ? persistence.watchOutboxResult(
++            context.ownerUserId, identity.operationId)
++        : null;
+ 
+     if (persistOutbox) {
+       final main = ImOutboxRecord(
+@@ -364,6 +444,10 @@ class ImOutgoingSendCoordinator {
+           identity: identity,
+           usedOutbox: true,
+           decision: prepared.decision,
++          outboxResult: ImOutboxResultVerdict.fromDispatchAssessment(prepared),
++          resultView: resultView,
++          accountGeneration: context.accountGeneration,
++          domainGeneration: context.domainGeneration,
+           outcomeUnknown: prepared.requiresOutcomeQuery,
+           desc: 'outbox dispatch rejected: ${prepared.decision.name}',
+         );
+@@ -371,8 +455,7 @@ class ImOutgoingSendCoordinator {
+       final dispatch = await persistence.recordDispatchIntent(
+         ownerUserId: context.ownerUserId,
+         operationId: identity.operationId,
+-        dispatchAttemptId:
+-            'attempt:${identity.operationId}:$sendGeneration:$nowMs',
++        dispatchAttemptId: dispatchAttemptId,
+         leaseOwnerId: context.lease.leaseOwnerId,
+         fencingToken: context.lease.fencingToken,
+         nowMs: nowMs,
+@@ -383,6 +466,10 @@ class ImOutgoingSendCoordinator {
+           identity: identity,
+           usedOutbox: true,
+           decision: dispatch.decision,
++          outboxResult: ImOutboxResultVerdict.fromDispatchAssessment(dispatch),
++          resultView: resultView,
++          accountGeneration: context.accountGeneration,
++          domainGeneration: context.domainGeneration,
+           outcomeUnknown: dispatch.requiresOutcomeQuery,
+           desc: 'outbox dispatch rejected: ${dispatch.decision.name}',
+         );
+@@ -403,11 +490,28 @@ class ImOutgoingSendCoordinator {
+           identity: identity,
+           usedOutbox: true,
+           decision: ImOutboxDispatchDecision.fencingRejected,
++          resultView: resultView,
++          accountGeneration: context.accountGeneration,
++          domainGeneration: context.domainGeneration,
+           desc: 'outbox sending transition rejected',
+         );
+       }
+     }
+ 
++    if (!SessionIdentityService.instance.isCurrent(SessionIdentity(
++        ownerUserId: context.ownerUserId,
++        generation: context.accountGeneration))) {
++      return ImCoordinatedSendResult(
++          sdkResult: V2TimValueCallback<V2TimMessage>(
++              code: -2,
++              desc: 'session changed before SDK dispatch',
++              data: fallbackMessage),
++          usedOutbox: persistOutbox,
++          identity: identity,
++          accountGeneration: context.accountGeneration,
++          domainGeneration: context.domainGeneration,
++          outcomeUnknown: true);
++    }
+     final adapter = TencentMessageAdapter(
+       port: TUIKitMessageServicePort(messageService),
+       platform: ImPlatform.unknown,
+@@ -445,71 +549,55 @@ class ImOutgoingSendCoordinator {
+       desc: sdk.resultDesc ?? '',
+       data: sdk.data?.message ?? sendMessage ?? fallbackMessage,
+     );
+-    var providerConfirmed = false;
++    ImOutboxResultVerdict? verdict;
++    var localStatePending = false;
+     if (persistOutbox) {
+       final now = DateTime.now().millisecondsSinceEpoch;
+-      if (sdk.isSuccess) {
+-        await persistence.recordOutboxSdkSucceeded(
+-          ownerUserId: context.ownerUserId,
+-          operationId: identity.operationId,
+-          leaseOwnerId: context.lease.leaseOwnerId,
+-          fencingToken: context.lease.fencingToken,
+-          nowMs: now,
+-          sdkLocalId: sendLocalId,
+-          serverMsgId: formalIdentity.serverMsgId,
+-          resultCode: '${callback.code}',
+-        );
+-      } else if (sdk.isOutcomeUnknown) {
+-        final recorded = await persistence.recordOutcomeUnknown(
+-          ownerUserId: context.ownerUserId,
+-          operationId: identity.operationId,
+-          leaseOwnerId: context.lease.leaseOwnerId,
+-          fencingToken: context.lease.fencingToken,
+-          nowMs: now,
+-          resultCode: '${callback.code}',
+-        );
+-        if (!recorded) {
+-          providerConfirmed = await _providerAlreadyConfirmed(
+-            persistence,
++      try {
++        if (sdk.isOutcomeUnknown) {
++          await persistence.recordOutcomeUnknown(
+             ownerUserId: context.ownerUserId,
+             operationId: identity.operationId,
++            leaseOwnerId: context.lease.leaseOwnerId,
++            fencingToken: context.lease.fencingToken,
++            nowMs: now,
++            resultCode: callback.code.toString(),
+           );
+-        }
+-      } else {
+-        unawaited(() async {
+-          try {
+-            await persistence.recordOutboxSdkFailed(
++          verdict = await persistence.readOutboxResult(
+               ownerUserId: context.ownerUserId,
+-              operationId: identity.operationId,
+-              leaseOwnerId: context.lease.leaseOwnerId,
+-              fencingToken: context.lease.fencingToken,
+-              nowMs: now,
+-              sdkLocalId: sendLocalId,
+-              serverMsgId: formalIdentity.serverMsgId,
+-              resultCode: '${callback.code}',
+-            );
+-          } catch (error) {
+-            debugPrint(
+-              '[IM_SEND_COORDINATOR] recordOutboxSdkFailed error=$error',
+-            );
+-          }
+-        }());
++              operationId: identity.operationId);
++        } else {
++          verdict = await persistence.adjudicateOutboxSdkResult(
++            ownerUserId: context.ownerUserId,
++            operationId: identity.operationId,
++            expectedAttemptId: dispatchAttemptId,
++            succeeded: sdk.isSuccess,
++            leaseOwnerId: context.lease.leaseOwnerId,
++            fencingToken: context.lease.fencingToken,
++            nowMs: now,
++            sdkLocalId: sendLocalId,
++            serverMsgId: formalIdentity.serverMsgId,
++            resultCode: callback.code.toString(),
++          );
++        }
++      } catch (error) {
++        // A valid SDK success remains success. A failed local transaction is
++        // pending repair, never permission to dispatch this operation again.
++        localStatePending = true;
++        debugPrint(
++            '[IM_SEND_COORDINATOR] result persistence pending: ${error.runtimeType}');
+       }
+     }
+-    if (providerConfirmed) {
+-      callback = V2TimValueCallback<V2TimMessage>(
+-        code: 0,
+-        desc: 'provider evidence confirmed delivery',
+-        data: sdk.data?.message ?? fallbackMessage,
+-      );
+-    }
+     return ImCoordinatedSendResult(
+       sdkResult: callback,
+       usedOutbox: persistOutbox,
+       identity: formalIdentity,
+       accountGeneration: context.accountGeneration,
+       domainGeneration: context.domainGeneration,
+-      outcomeUnknown: sdk.isOutcomeUnknown && !providerConfirmed,
++      outcomeUnknown: sdk.isOutcomeUnknown,
++      outboxResult: verdict,
++      resultView: resultView,
++      localStatePending: localStatePending,
+     );
+   }
+ 
+@@ -518,32 +606,38 @@ class ImOutgoingSendCoordinator {
+   ) async {
+     final identity = result.identity;
+     if (!result.canCompleteProjection || identity == null) return false;
+-    final context = await ConversationSyncService.instance
+-        .messageCoreLeaseForOutgoingSend();
+-    if (context == null ||
+-        context.ownerUserId != identity.scope.ownerUserId ||
+-        context.accountGeneration != result.accountGeneration ||
+-        context.domainGeneration != result.domainGeneration) {
+-      return false;
+-    }
+-    final persistence = Im05Persistence(store: context.store);
+-    final assessment = await persistence.recoverOutbox(
+-      ownerUserId: context.ownerUserId,
+-      operationId: identity.operationId,
+-    );
+-    final completed = await persistence.completeOutboxProjection(
+-      ownerUserId: context.ownerUserId,
+-      operationId: identity.operationId,
+-      leaseOwnerId: context.lease.leaseOwnerId,
+-      fencingToken: context.lease.fencingToken,
+-      nowMs: DateTime.now().millisecondsSinceEpoch,
+-    );
+-    if (completed) {
+-      await OutgoingMediaStager.instance.cleanup(
+-        assessment.main?.mediaLocalRef,
++    try {
++      final context = await ConversationSyncService.instance
++          .messageCoreLeaseForOutgoingSend();
++      if (context == null ||
++          context.ownerUserId != identity.scope.ownerUserId ||
++          context.accountGeneration != result.accountGeneration ||
++          context.domainGeneration != result.domainGeneration) {
++        return false;
++      }
++      final persistence = Im05Persistence(store: context.store);
++      final assessment = await persistence.recoverOutbox(
++        ownerUserId: context.ownerUserId,
++        operationId: identity.operationId,
++      );
++      final completed = await persistence.completeOutboxProjection(
++        ownerUserId: context.ownerUserId,
++        operationId: identity.operationId,
++        leaseOwnerId: context.lease.leaseOwnerId,
++        fencingToken: context.lease.fencingToken,
++        nowMs: DateTime.now().millisecondsSinceEpoch,
+       );
++      if (completed) {
++        await OutgoingMediaStager.instance.cleanup(
++          assessment.main?.mediaLocalRef,
++        );
++      }
++      return completed;
++    } catch (error) {
++      debugPrint(
++          '[IM_SEND_COORDINATOR] projection checkpoint pending: ${error.runtimeType}');
++      return false;
+     }
+-    return completed;
+   }
+ 
+   /// Reconciles durable unknown sends from an already-committed history page.
+@@ -559,6 +653,11 @@ class ImOutgoingSendCoordinator {
+     var adoptedCount = 0;
+     for (final message in messages) {
+       if (message.isSelf != true) continue;
++      final sender = message.sender?.trim() ?? '';
++      if (sender != context.ownerUserId ||
++          (message.msgID?.trim().isEmpty ?? true)) {
++        continue;
++      }
+       final conversationId = MessageConversationId.fromMessage(
+         message,
+         loginUserId: context.ownerUserId,
+@@ -614,25 +713,16 @@ class ImOutgoingSendCoordinator {
+   int _nextTransientIngressSequence() => ++_transientIngressSequence;
+ }
+ 
+-Future<bool> _providerAlreadyConfirmed(
+-  Im05Persistence persistence, {
+-  required String ownerUserId,
+-  required String operationId,
+-}) async {
+-  final assessment = await persistence.recoverOutbox(
+-    ownerUserId: ownerUserId,
+-    operationId: operationId,
+-  );
+-  return assessment.main?.state == ImOutboxState.acknowledged ||
+-      assessment.main?.state == ImOutboxState.completed;
+-}
+-
+ ImCoordinatedSendResult _blocked({
+   required V2TimMessage? fallbackMessage,
+   OutgoingIdentityContract? identity,
+   bool usedOutbox = false,
+   ImOutboxDispatchDecision? decision,
+   bool outcomeUnknown = false,
++  ImOutboxResultVerdict? outboxResult,
++  ImOutboxResultView? resultView,
++  int? accountGeneration,
++  int? domainGeneration,
+   required String desc,
+ }) {
+   return ImCoordinatedSendResult(
+@@ -645,6 +735,10 @@ ImCoordinatedSendResult _blocked({
+     identity: identity,
+     dispatchDecision: decision,
+     outcomeUnknown: outcomeUnknown,
++    outboxResult: outboxResult,
++    resultView: resultView,
++    accountGeneration: accountGeneration,
++    domainGeneration: domainGeneration,
+   );
+ }
+ 
+diff --git a/lib/src/services/chat_failed_message_retry_service.dart b/lib/src/services/chat_failed_message_retry_service.dart
+--- a/lib/src/services/chat_failed_message_retry_service.dart
++++ b/lib/src/services/chat_failed_message_retry_service.dart
+@@ -3,7 +3,6 @@ import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/contracts/account_scoped_conversation_key.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/contracts/outgoing_identity_contract.dart';
+-import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/im/im05_persistence.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+ import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
+@@ -11,7 +10,7 @@ import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
+ 
+ /// 发送失败消息策略：
+ /// - 已失败（SEND_FAIL）→ 显示红色感叹号，**不**在进会话/恢复时自动重发
+-/// - 卡住的发送中（SENDING）→ 落成 SEND_FAIL，交给用户手动点感叹号重发
++/// - 卡住的发送中（SENDING）→ 仅在 Outbox 已确认失败时展示失败
+ class ChatFailedMessageRetryService {
+   ChatFailedMessageRetryService._();
+ 
+@@ -35,10 +34,9 @@ class ChatFailedMessageRetryService {
+     return null;
+   }
+ 
+-  /// Routes a stuck sending message through the Outbox failure path before
+-  /// the UI projection is updated. Returns false only when the durable state
+-  /// is OutcomeUnknown, which must remain sending until provider evidence or
+-  /// an explicit user action resolves it.
++  /// A timer is not failure evidence. A known Outbox operation may expose a
++  /// retry only when its current durable verdict allows one. Missing legacy
++  /// operations retain the previous UI-only fallback.
+   @visibleForTesting
+   Future<bool> recordOutboxFailureForStuckMessage({
+     required String storageKey,
+@@ -51,7 +49,7 @@ class ChatFailedMessageRetryService {
+     final type = detectConversationType(storageKey);
+     if (type == null) return true;
+     final identity = SessionIdentityService.instance.capture();
+-    if (identity.ownerUserId.isEmpty) return true;
++    if (identity.ownerUserId.isEmpty) return false;
+     final scope = AccountScopedConversationKey.tryParse(
+       ownerUserId: identity.ownerUserId,
+       conversationType: type,
+@@ -60,8 +58,12 @@ class ChatFailedMessageRetryService {
+     if (scope == null) return true;
+     final leaseContext = await ConversationSyncService.instance
+         .messageCoreLeaseForOutgoingSend();
+-    if (leaseContext == null) return true;
+-    final nowMs = DateTime.now().millisecondsSinceEpoch;
++    if (leaseContext == null ||
++        !SessionIdentityService.instance.isCurrent(identity) ||
++        leaseContext.ownerUserId != identity.ownerUserId ||
++        leaseContext.accountGeneration != identity.generation) {
++      return false;
++    }
+     final persistence = Im05Persistence(store: leaseContext.store);
+     final resolved = await persistence.findOutboxBySdkLocalId(
+       ownerUserId: identity.ownerUserId,
+@@ -70,25 +72,11 @@ class ChatFailedMessageRetryService {
+     );
+     final operationId = resolved?.operationId ??
+         hashOutgoingOperationId(scope: scope, sdkLocalId: localId);
+-    final current = resolved ??
+-        await leaseContext.store.transaction(
+-          (transaction) => transaction.findOutbox(
+-            ownerUserId: identity.ownerUserId,
+-            operationId: operationId,
+-          ),
+-        );
+-    if (current?.state == ImOutboxState.outcomeUnknown) return false;
+-    await persistence.recordOutboxSdkFailed(
+-      ownerUserId: identity.ownerUserId,
+-      operationId: operationId,
+-      leaseOwnerId: leaseContext.lease.leaseOwnerId,
+-      fencingToken: leaseContext.lease.fencingToken,
+-      nowMs: nowMs,
+-      sdkLocalId: localId,
+-      serverMsgId: serverMsgId,
+-      resultCode: resultCode,
+-    );
+-    return true;
++    final verdict = await persistence.readOutboxResult(
++        ownerUserId: identity.ownerUserId, operationId: operationId);
++    if (!SessionIdentityService.instance.isCurrent(identity)) return false;
++    return verdict.decision == ImOutboxResultDecision.missing ||
++        verdict.canRetry;
+   }
+ 
+   /// 将卡住的「发送中」落成发送失败（红感叹号），不自动重发。
+@@ -98,6 +86,7 @@ class ChatFailedMessageRetryService {
+     Duration stuckLongerThan = const Duration(seconds: 15),
+   }) async {
+     final globalModel = serviceLocator<TUIChatGlobalModel>();
++    final identity = SessionIdentityService.instance.capture();
+     final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+     final stuckBefore = nowSeconds - stuckLongerThan.inSeconds;
+     final filterId = conversationID?.trim() ?? '';
+@@ -122,14 +111,25 @@ class ChatFailedMessageRetryService {
+         if (ts > 0 && ts > stuckBefore) {
+           continue;
+         }
+-        // 先把失败写进 Outbox 主记录（如果能定位 scope）；Outbox 不可达
+-        // 时仍然更新 UI 投影，保证原有的兜底体验不丢。
+-        final shouldSettleAsFailed = await recordOutboxFailureForStuckMessage(
+-          storageKey: convID,
+-          sdkLocalId: message.id ?? '',
+-          serverMsgId: message.msgID,
+-          resultCode: 'stuck_sending',
+-        );
++        final storageKey = detectConversationType(convID) != null
++            ? convID
++            : (message.groupID?.isNotEmpty == true ||
++                    conversationType == ConvType.group)
++                ? 'group_$convID'
++                : 'c2c_$convID';
++        final bool shouldSettleAsFailed;
++        try {
++          shouldSettleAsFailed = await recordOutboxFailureForStuckMessage(
++            storageKey: storageKey,
++            sdkLocalId: message.id ?? '',
++            serverMsgId: message.msgID,
++            resultCode: 'stuck_sending',
++          );
++        } catch (_) {
++          // Local persistence unavailable is not proof the SDK send failed.
++          continue;
++        }
++        if (!SessionIdentityService.instance.isCurrent(identity)) return;
+         if (!shouldSettleAsFailed) continue;
+         globalModel.markOutgoingSendFailedByIdentity(
+           conversationID: convID,
+diff --git a/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart b/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart
+--- a/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart
++++ b/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart
+@@ -3674,13 +3674,24 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+     String clientId,
+     ConvType convType,
+     GroupReceiptAllowType? groupType,
+-    ValueChanged<String>? setInputField,
+-  ) {
++    ValueChanged<String>? setInputField, {
++    ImCoordinatedSendResult? coordinatedResult,
++  }) {
++    if (coordinatedResult != null) {
++      final identity = coordinatedResult.identity;
++      if (identity != null && coordinatedResult.accountGeneration != null &&
++          !SessionIdentityService.instance.isCurrent(SessionIdentity(
++              ownerUserId: identity.scope.ownerUserId,
++              generation: coordinatedResult.accountGeneration!))) return false;
++      if (coordinatedResult.outcomeUnknown) return false;
++      sendMsgRes = coordinatedResult.sdkResult;
++    }
+     final dataMsgID = sendMsgRes.data?.msgID;
+     if (isOutgoingMediaCancelled(clientId) ||
+         isOutgoingMediaCancelled(dataMsgID)) {
+       return false;
+     }
++    if (!_mayProjectOutgoingResult(convID, clientId, sendMsgRes)) return false;
+     try {
+       updateMessage(
+         sendMsgRes,
+@@ -3715,6 +3726,35 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+     }
+   }
+ 
++  bool _mayProjectOutgoingResult(String conversationID, String clientId,
++      V2TimValueCallback<V2TimMessage> result) {
++    final storageKey = _resolveMessageListStorageKey(conversationID);
++    final tombstones = _messageReconciliationWriter.tombstonesFor(storageKey);
++    final message = result.data;
++    final ids = <String>{clientId, message?.id ?? '', message?.msgID ?? '',
++        readOutgoingStableId(message) ?? ''}..remove('');
++    if (ids.any(tombstones.contains)) return false;
++    final list = _mergedAliasMessageList(storageKey);
++    final index = message == null
++        ? list.indexWhere((row) => row.id == clientId)
++        : _findMessageIndexForUpdate(list, clientId, message);
++    if (index < 0) return true;
++    final previous = list[index];
++    if (previous.status == MessageStatus.V2TIM_MSG_STATUS_LOCAL_REVOKED) return false;
++    // This is an existing confirmed row, not merely a nonempty sync msgID.
++    return result.code == 0 ||
++        previous.status != MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC;
++  }
++
++  /// Recheck after awaits, before publishing previews or lifecycle effects.
++  /// Delivery evidence may settle Outbox without reviving removed content.
++  bool mayPublishOutgoingSendCompletion(String conversationID, String clientId,
++      ImCoordinatedSendResult result) =>
++      result.isCurrentSession && !result.outcomeUnknown &&
++      !isOutgoingMediaCancelled(clientId) &&
++      !isOutgoingMediaCancelled(result.sdkResult.data?.msgID) &&
++      _mayProjectOutgoingResult(conversationID, clientId, result.sdkResult);
++
+   void insertPeerRejectedLocalTip(
+     String conversationID,
+     int code, {
+@@ -10248,6 +10296,14 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+       ingressSequence: ingressSequence,
+       projectMessageList: projectMessageList,
+     );
++    if (message.isSelf == true) {
++      unawaited(ImOutgoingSendCoordinator.instance
++          .adoptProviderHistory(<V2TimMessage>[message])
++          .catchError((Object error) {
++        debugPrint('[IM_SEND_COORDINATOR] realtime result repair pending: ${error.runtimeType}');
++        return 0;
++      }));
++    }
+   }
+ 
+   Future<void> applyAppMessageModified(
+@@ -10833,7 +10889,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+       },
+     );
+     onCoordinatedResult?.call(coordinatedSend);
+-    final sendMsgRes = coordinatedSend.sdkResult;
++    var sendMsgRes = coordinatedSend.sdkResult;
+     // IM-08: when the SDK Future resolves OutcomeUnknown, the dispatch path
+     // cannot prove the provider accepted or rejected the operation. The
+     // Outbox main + recovery copy already record OutcomeUnknown; the
+@@ -10850,11 +10906,12 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+         convType,
+         receiptGroupType,
+         setInputField,
++        coordinatedResult: coordinatedSend,
+       );
+     } else if (coordinatedSend.outcomeUnknown) {
+       projectionCommitted = false;
+     }
+-    if (!coordinatedSend.outcomeUnknown) {
++    if (mayPublishOutgoingSendCompletion(convID, id, coordinatedSend)) {
+       insertPeerRejectedLocalTip(
+         convID,
+         sendMsgRes.code,
+@@ -10866,7 +10923,9 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+         coordinatedSend,
+       );
+     }
+-    if (_lifeCycle?.messageDidSend != null) {
++    sendMsgRes = coordinatedSend.sdkResult;
++    if (_lifeCycle?.messageDidSend != null &&
++        mayPublishOutgoingSendCompletion(convID, id, coordinatedSend)) {
+       _lifeCycle!.messageDidSend(sendMsgRes);
+     }
+ 
+@@ -12197,6 +12256,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+     GroupReceiptAllowType? groupType,
+     ValueChanged<String>? setInputField,
+   ) {
++    if (!_mayProjectOutgoingResult(convID, id, sendMsgRes)) return;
+     final storageConvID = _resolveMessageListStorageKey(convID);
+     List<V2TimMessage> currentHistoryMsgList =
+         _messageListMap[storageConvID] ?? _collectAuthoritativeMessages(convID);
+@@ -12445,6 +12505,8 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+       return false;
+     }
+     final previous = list[index];
++    if (previous.status == MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC ||
++        previous.status == MessageStatus.V2TIM_MSG_STATUS_LOCAL_REVOKED) return false;
+     final failed = _cloneMessage(previous);
+     failed.status = MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL;
+     if (localCustomData != null) {
+diff --git a/third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart b/third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart
+--- a/third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart
++++ b/third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart
+@@ -5579,7 +5579,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
+         globalModel.bindOutgoingSyncMsgId(convID, id, syncMsgID);
+       },
+     );
+-    final sendMsgRes = coordinatedSend.sdkResult;
++    var sendMsgRes = coordinatedSend.sdkResult;
+     if (!canSendCapturedMedia) return sendMsgRes;
+     debugPrint(
+       '[IM_SEND_COORDINATOR_RESULT] conv=$convID clientId=$id '
+@@ -5659,11 +5659,12 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
+         convType,
+         groupType,
+         setInputField,
++        coordinatedResult: coordinatedSend,
+       );
+     } else if (coordinatedSend.outcomeUnknown) {
+       projectionCommitted = false;
+     }
+-    if (!coordinatedSend.outcomeUnknown) {
++    if (globalModel.mayPublishOutgoingSendCompletion(convID, id, coordinatedSend)) {
+       globalModel.insertPeerRejectedLocalTip(
+         convID,
+         sendMsgRes.code,
+@@ -5675,7 +5676,9 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
+         coordinatedSend,
+       );
+     }
+-    if (lifeCycle?.messageDidSend != null) {
++    sendMsgRes = coordinatedSend.sdkResult;
++    if (lifeCycle?.messageDidSend != null &&
++        globalModel.mayPublishOutgoingSendCompletion(convID, id, coordinatedSend)) {
+       lifeCycle!.messageDidSend(sendMsgRes);
+     }
+ 
+diff --git a/test/outgoing_result_arbitration_test.dart b/test/outgoing_result_arbitration_test.dart
+new file mode 100644
+--- /dev/null
++++ b/test/outgoing_result_arbitration_test.dart
+@@ -0,0 +1,501 @@
++import 'dart:io';
++
++import 'package:flutter_test/flutter_test.dart';
++import 'package:path/path.dart' as p;
++import 'package:shared_preferences/shared_preferences.dart';
++import 'package:sqflite_common_ffi/sqflite_ffi.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/contracts/account_scoped_conversation_key.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/contracts/outgoing_identity_contract.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im05_contracts.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im05_persistence.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/message_core_store.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_send_coordinator.dart';
++import 'package:tencent_cloud_chat_demo/src/services/im/writer_lease.dart';
++import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_callback.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart';
++import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
++import 'package:tencent_cloud_chat_uikit/business_logic/view_models/message_delta.dart';
++import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.dart';
++import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++  setUp(() => SharedPreferences.setMockInitialValues({}));
++
++  test('acknowledged and completed reject late failure without ambiguous bool',
++      () async {
++    final f = await _SendFixture.create();
++    final success = await f.sdk(true);
++    final failure = await f.sdk(false);
++    expect(failure.decision, ImOutboxResultDecision.superseded);
++    expect(failure.currentState, ImOutboxState.acknowledged);
++    expect(failure.stateVersion, success.stateVersion);
++    expect(failure.canRetry, isFalse);
++    await f.complete();
++    final completed = await f.sdk(false);
++    expect(completed.currentState, ImOutboxState.completed);
++    expect(completed.accepted, isFalse);
++    expect(completed.canRetry, isFalse);
++    expect(completed.stateVersion, greaterThan(success.stateVersion));
++    expect(
++        await f.persistence.recordOutboxSdkFailed(
++            ownerUserId: 'alice',
++            operationId: 'op',
++            leaseOwnerId: 'writer',
++            fencingToken: f.lease.fencingToken,
++            nowMs: 30),
++        isFalse);
++  });
++
++  test(
++      'a durable provider success supersedes an already-created failure verdict',
++      () async {
++    final f = await _SendFixture.create();
++    final view = f.persistence.watchOutboxResult('alice', 'op');
++    final failed = await f.sdk(false);
++    final delivered = ImCoordinatedSendResult(
++        sdkResult: f.callback(6012),
++        usedOutbox: true,
++        identity: f.identity,
++        outboxResult: failed,
++        resultView: view);
++    expect(delivered.sdkResult.code, 6012);
++    expect(await f.provider(), isTrue);
++    expect(delivered.currentOutboxResult!.stateVersion,
++        greaterThan(failed.stateVersion));
++    expect(delivered.sdkResult.code, 0);
++    expect(delivered.sdkResult.data!.msgID, 'server');
++    expect(delivered.currentOutboxResult!.canRetry, isFalse);
++    expect(delivered.outcomeUnknown, isFalse);
++    expect(delivered.canCompleteProjection, isTrue);
++  });
++
++  test(
++      'stale attempt failure is rejected; exact provider success may settle the operation',
++      () async {
++    final f = await _SendFixture.create();
++    final stale = await f.sdk(false, attempt: 'old-attempt');
++    expect(stale.decision, ImOutboxResultDecision.staleAttempt);
++    expect(stale.currentState, ImOutboxState.sending);
++    expect(await f.provider(), isTrue);
++    expect((await f.read()).deliveryConfirmed, isTrue);
++  });
++
++  test('unknown dispatch callbacks stay unknown until exact provider evidence',
++      () async {
++    final f = await _SendFixture.create();
++    await f.persistence.recordOutcomeUnknown(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        leaseOwnerId: 'writer',
++        fencingToken: f.lease.fencingToken,
++        nowMs: 20);
++    expect((await f.sdk(true)).currentState, ImOutboxState.outcomeUnknown);
++    expect((await f.sdk(false)).currentState, ImOutboxState.outcomeUnknown);
++    expect(await f.provider(hash: 'wrong'), isFalse);
++    expect((await f.read()).currentState, ImOutboxState.outcomeUnknown);
++    expect(await f.provider(), isTrue);
++    expect((await f.read()).deliveryConfirmed, isTrue);
++  });
++
++  test(
++      'rejecting an old event does not erase the current attempt retry verdict',
++      () async {
++    final f = await _SendFixture.create();
++    final failed = await f.sdk(false);
++    final stale = await f.sdk(false, attempt: 'old-attempt');
++    expect(stale.decision, ImOutboxResultDecision.staleAttempt);
++    expect(stale.accepted, isFalse);
++    expect(stale.stateVersion, failed.stateVersion);
++    expect(stale.canRetry, isTrue);
++  });
++
++  test('abandonment does not discard later delivery evidence', () async {
++    final f = await _SendFixture.create();
++    await f.persistence.recordOutcomeUnknown(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        leaseOwnerId: 'writer',
++        fencingToken: f.lease.fencingToken,
++        nowMs: 20);
++    await f.persistence.abandonOutcomeUnknown(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        leaseOwnerId: 'writer',
++        fencingToken: f.lease.fencingToken,
++        nowMs: 21);
++    expect(await f.provider(), isTrue);
++    expect((await f.read()).deliveryConfirmed, isTrue);
++  });
++
++  test(
++      'persistence failure cannot turn valid SDK success into retryable failure',
++      () {
++    final pending = ImCoordinatedSendResult(
++        sdkResult: V2TimValueCallback<V2TimMessage>(code: 0, desc: 'ok'),
++        usedOutbox: true,
++        localStatePending: true);
++    expect(pending.sdkResult.code, 0);
++    expect(pending.outcomeUnknown, isFalse);
++    expect(pending.canCompleteProjection, isFalse);
++    final failure = ImCoordinatedSendResult(
++        sdkResult:
++            V2TimValueCallback<V2TimMessage>(code: 6012, desc: 'failure'),
++        usedOutbox: true,
++        localStatePending: true);
++    expect(failure.outcomeUnknown, isTrue);
++    expect(failure.canCompleteProjection, isFalse);
++  });
++
++  test('provider-confirmed UI row survives a late explicit failure', () async {
++    final global = await _global();
++    final message = _message()
++      ..status = MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC;
++    global.setMessageList('bob', [message], replace: true);
++    expect(
++        global.applyOutgoingSendResult(
++            V2TimValueCallback<V2TimMessage>(
++                code: 6012, desc: 'late', data: message),
++            'bob',
++            'local',
++            ConvType.c2c,
++            null,
++            null),
++        isFalse);
++    expect(global.rawMessageList('bob')!.single.status,
++        MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC);
++    expect(
++        global.mayPublishOutgoingSendCompletion(
++            'bob',
++            'local',
++            ImCoordinatedSendResult(
++                sdkResult: V2TimValueCallback<V2TimMessage>(
++                    code: 6012, desc: 'late', data: message),
++                usedOutbox: false)),
++        isFalse);
++    expect(
++        global.markOutgoingSendFailedByIdentity(
++            conversationID: 'bob', clientId: 'local'),
++        isFalse);
++    global.removeMessageList('bob');
++  });
++
++  test('a sync msgID alone does not suppress a real sending failure', () async {
++    final global = await _global();
++    final message = _message()..status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
++    global.setMessageList('bob', [message], replace: true);
++    global.applyOutgoingSendResult(
++        V2TimValueCallback<V2TimMessage>(
++            code: 6012, desc: 'failed', data: message),
++        'bob',
++        'local',
++        ConvType.c2c,
++        null,
++        null);
++    expect(global.rawMessageList('bob')!.single.status,
++        MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL);
++    global.removeMessageList('bob');
++  });
++
++  test('a revoked row cannot be revived by a late success result', () async {
++    final global = await _global();
++    final revoked = _message()
++      ..status = MessageStatus.V2TIM_MSG_STATUS_LOCAL_REVOKED;
++    global.setMessageList('bob', [revoked], replace: true);
++    expect(
++        global.applyOutgoingSendResult(
++            V2TimValueCallback<V2TimMessage>(
++                code: 0, desc: 'late success', data: _message()),
++            'bob',
++            'local',
++            ConvType.c2c,
++            null,
++            null),
++        isFalse);
++    expect(global.rawMessageList('bob')!.single.status,
++        MessageStatus.V2TIM_MSG_STATUS_LOCAL_REVOKED);
++    expect(
++        global.mayPublishOutgoingSendCompletion(
++            'bob',
++            'local',
++            ImCoordinatedSendResult(
++                sdkResult: V2TimValueCallback<V2TimMessage>(
++                    code: 0, desc: 'late', data: _message()),
++                usedOutbox: false)),
++        isFalse);
++    global.removeMessageList('bob');
++  });
++
++  test('a deleted row and its preview are not recreated by late success',
++      () async {
++    final global = await _global();
++    const key = 'c2c_deleted';
++    global.setMessageList(key, [_message()], replace: true);
++    global.commitMessageDelta(MessageDelta<V2TimMessage>(
++      conversationKey: key,
++      eventID: 'delete-result-test',
++      kind: MessageDeltaKind.delete,
++      source: MessageDeltaSource.sdkRealtime,
++      generation: global.messageDeltaGenerationFor(key),
++      clearEpoch: global.messageDeltaClearEpochFor(key),
++      tombstones: const {'server', 'local'},
++    ));
++    final result = ImCoordinatedSendResult(
++        sdkResult: V2TimValueCallback<V2TimMessage>(
++            code: 0, desc: 'late', data: _message()),
++        usedOutbox: false);
++    expect(
++        global.applyOutgoingSendResult(
++            result.sdkResult, key, 'local', ConvType.c2c, null, null,
++            coordinatedResult: result),
++        isFalse);
++    expect(
++        global.mayPublishOutgoingSendCompletion(key, 'local', result), isFalse);
++    expect(global.rawMessageList(key) ?? [], isEmpty);
++    global.removeMessageList(key);
++  });
++
++  test(
++      'provider evidence must match operation, owner, correlation, conversation and payload',
++      () async {
++    final f = await _SendFixture.create();
++    for (final mismatch in [
++      'owner',
++      'operation',
++      'correlation',
++      'conversation',
++      'payload'
++    ]) {
++      expect(
++          await f.persistence.adoptOutboxProviderSucceeded(
++              ownerUserId: mismatch == 'owner' ? 'other' : 'alice',
++              operationId: mismatch == 'operation' ? 'other' : 'op',
++              clientCorrelationId: mismatch == 'correlation' ? 'other' : 'corr',
++              conversationId: mismatch == 'conversation'
++                  ? 'alice|c2c_other'
++                  : 'alice|c2c_bob',
++              payloadHash: mismatch == 'payload' ? 'other' : 'hash',
++              leaseOwnerId: 'writer',
++              fencingToken: f.lease.fencingToken,
++              nowMs: 26,
++              serverMsgId: 'server'),
++          isFalse,
++          reason: mismatch);
++      expect((await f.read()).currentState, ImOutboxState.sending);
++    }
++  });
++
++  test('conflicted verdicts cannot publish success or enable retry', () async {
++    final f = await _SendFixture.create();
++    final accepted = await f.sdk(true);
++    final conflict = ImOutboxResultVerdict(
++        decision: ImOutboxResultDecision.identityConflict,
++        main: accepted.main,
++        recoveryCopy: accepted.recoveryCopy,
++        reason: 'test_conflict');
++    final result = ImCoordinatedSendResult(
++        sdkResult: f.callback(0), usedOutbox: true, outboxResult: conflict);
++    expect(conflict.deliveryConfirmed, isFalse);
++    expect(conflict.canRetry, isFalse);
++    expect(result.outcomeUnknown, isTrue);
++    expect(result.sdkResult.code, -2);
++  });
++
++  test('an already completed dispatch refusal reports the confirmed result',
++      () async {
++    final f = await _SendFixture.create();
++    await f.sdk(true);
++    await f.complete();
++    final assessment = await f.persistence.assessOutboxForDispatch(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        leaseOwnerId: 'writer',
++        fencingToken: f.lease.fencingToken,
++        nowMs: 28);
++    expect(assessment.canDispatch, isFalse);
++    final result = ImCoordinatedSendResult(
++        sdkResult: f.callback(-1),
++        usedOutbox: true,
++        outboxResult: ImOutboxResultVerdict.fromDispatchAssessment(assessment));
++    expect(result.sdkResult.code, 0);
++    expect(result.outcomeUnknown, isFalse);
++    expect(result.currentOutboxResult!.canRetry, isFalse);
++  });
++
++  test(
++      'SQLite result transaction rolls back both copies and version survives reopen',
++      () async {
++    sqfliteFfiInit();
++    databaseFactory = databaseFactoryFfi;
++    final original = await getDatabasesPath();
++    final dir = await Directory.systemTemp.createTemp('outgoing-verdict-test-');
++    final core = MessageCoreStore.instance;
++    await core.closeIfOpen();
++    await databaseFactory.setDatabasesPath(dir.path);
++    try {
++      final f = await _SendFixture.create(
++          store: ConversationLocalImIngressStore(core: core));
++      final before = await f.read();
++      await core.runTransaction((db) => db.execute(
++          "CREATE TRIGGER fail_result BEFORE UPDATE ON message_outbox "
++          "WHEN NEW.state = 'acknowledged' BEGIN SELECT RAISE(ABORT, 'injected write failure'); END"));
++      await expectLater(f.sdk(true), throwsA(anything));
++      final after = await f.read();
++      expect(after.currentState, ImOutboxState.sending);
++      expect(after.stateVersion, before.stateVersion);
++      expect(after.recoveryCopy!.state, before.recoveryCopy!.state);
++      await core.runTransaction((db) => db.execute('DROP TRIGGER fail_result'));
++      final committed = await f.sdk(true);
++      await core.closeIfOpen();
++      final reopened =
++          Im05Persistence(store: ConversationLocalImIngressStore(core: core));
++      final restored = await reopened.readOutboxResult(
++          ownerUserId: 'alice', operationId: 'op');
++      expect(restored.deliveryConfirmed, isTrue);
++      expect(restored.stateVersion, committed.stateVersion);
++      expect(restored.main!.dispatchAttemptId, 'attempt-1');
++    } finally {
++      await core.closeIfOpen();
++      await databaseFactory
++          .deleteDatabase(p.join(dir.path, MessageCoreStore.dbName));
++      await databaseFactory.setDatabasesPath(original);
++      await dir.delete();
++    }
++  });
++}
++
++V2TimMessage _message() =>
++    V2TimMessage.fromJson({'message_risk_type_identified': 0})
++      ..id = 'local'
++      ..msgID = 'server'
++      ..isSelf = true
++      ..sender = 'alice'
++      ..elemType = 1
++      ..timestamp = 1700000000;
++
++Future<TUIChatGlobalModel> _global() async {
++  setupServiceLocator();
++  await serviceLocator.unregister<MessageService>();
++  serviceLocator.registerSingleton<MessageService>(_LocalMetadataService());
++  return serviceLocator<TUIChatGlobalModel>();
++}
++
++class _LocalMetadataService implements MessageService {
++  @override
++  Future<V2TimCallback> setLocalCustomData(
++          {required String msgID, required String localCustomData}) async =>
++      V2TimCallback(code: 0, desc: '');
++  @override
++  dynamic noSuchMethod(Invocation invocation) =>
++      throw StateError('Unexpected SDK call ${invocation.memberName}');
++}
++
++class _SendFixture {
++  _SendFixture(this.store, this.persistence, this.lease);
++  final ImIngressStore store;
++  final Im05Persistence persistence;
++  final ImWriterLease lease;
++  static Future<_SendFixture> create({ImIngressStore? store}) async {
++    store ??= InMemoryImIngressStore();
++    final lease = (await ImWriterLeaseService(store: store).acquire(
++        ownerUserId: 'alice',
++        leaseOwnerId: 'writer',
++        nowMs: 10,
++        ttlMs: 100000))!;
++    final persistence = Im05Persistence(store: store);
++    await persistence.prepareOutbox(
++        main: const ImOutboxRecord(
++            operationId: 'op',
++            ownerUserId: 'alice',
++            conversationId: 'alice|c2c_bob',
++            clientCorrelationId: 'corr',
++            messageType: 1,
++            payloadReference: 'encrypted',
++            payloadHash: 'hash',
++            state: ImOutboxState.prepared,
++            createdAtMs: 10,
++            updatedAtMs: 10,
++            sdkMessageId: 'local'),
++        recoveryCopy: const ImOutboxRecoveryRecord(
++            ownerUserId: 'alice',
++            operationId: 'op',
++            clientCorrelationId: 'corr',
++            conversationId: 'alice|c2c_bob',
++            messageType: 1,
++            recoveryRevision: 1,
++            state: ImOutboxCopyState.copyPrepared,
++            payloadReferenceOrCiphertext: 'encrypted',
++            payloadHash: 'hash',
++            checksum: 'hash',
++            updatedAtMs: 10,
++            sdkLocalId: 'local'),
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: 10);
++    final intent = await persistence.recordDispatchIntent(
++        ownerUserId: 'alice',
++        operationId: 'op',
++        dispatchAttemptId: 'attempt-1',
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: 11);
++    await persistence.transitionOutbox(
++        next: intent.main!.copyWith(state: ImOutboxState.sending),
++        expectedState: ImOutboxState.dispatchIntent,
++        leaseOwnerId: 'writer',
++        fencingToken: lease.fencingToken,
++        nowMs: 12);
++    return _SendFixture(store, persistence, lease);
++  }
++
++  OutgoingIdentityContract get identity => OutgoingIdentityContract(
++      scope: AccountScopedConversationKey.tryParse(
++          ownerUserId: 'alice',
++          conversationType: ImConversationType.c2c,
++          conversationId: 'c2c_bob')!,
++      operationId: 'op',
++      clientCorrelationId: 'corr',
++      messageKind: OutgoingMessageKind.text,
++      payloadFingerprint: 'hash',
++      createdAtMs: 10,
++      sdkLocalId: 'local');
++  V2TimValueCallback<V2TimMessage> callback(int code) =>
++      V2TimValueCallback<V2TimMessage>(
++          code: code, desc: 'sdk result', data: _message());
++  Future<ImOutboxResultVerdict> sdk(bool success,
++          {String attempt = 'attempt-1'}) =>
++      persistence.adjudicateOutboxSdkResult(
++          ownerUserId: 'alice',
++          operationId: 'op',
++          expectedAttemptId: attempt,
++          succeeded: success,
++          leaseOwnerId: 'writer',
++          fencingToken: lease.fencingToken,
++          nowMs: 25,
++          sdkLocalId: 'local',
++          serverMsgId: 'server',
++          resultCode: success ? '0' : '6012');
++  Future<bool> provider({String hash = 'hash'}) =>
++      persistence.adoptOutboxProviderSucceeded(
++          ownerUserId: 'alice',
++          operationId: 'op',
++          clientCorrelationId: 'corr',
++          conversationId: 'alice|c2c_bob',
++          payloadHash: hash,
++          leaseOwnerId: 'writer',
++          fencingToken: lease.fencingToken,
++          nowMs: 26,
++          sdkLocalId: 'local',
++          serverMsgId: 'server');
++  Future<bool> complete() => persistence.completeOutboxProjection(
++      ownerUserId: 'alice',
++      operationId: 'op',
++      leaseOwnerId: 'writer',
++      fencingToken: lease.fencingToken,
++      nowMs: 27);
++  Future<ImOutboxResultVerdict> read() =>
++      persistence.readOutboxResult(ownerUserId: 'alice', operationId: 'op');
++}
+diff --git a/test/chat_reliability_regression_test.dart b/test/chat_reliability_regression_test.dart
+--- a/test/chat_reliability_regression_test.dart
++++ b/test/chat_reliability_regression_test.dart
+@@ -73,7 +73,7 @@ void main() {
+     ).readAsStringSync();
+     expect(persistence, contains('adoptOutboxProviderSucceeded'));
+     expect(persistence, contains('main.clientCorrelationId !='));
+-    expect(persistence, contains('main.payloadHash != payloadHash'));
++    expect(persistence, contains('main.payloadHash != expectedPayloadHash'));
+     expect(coordinator, contains('adoptProviderHistory'));
+   });
+ 
+@@ -101,15 +101,6 @@ void main() {
+     }
+   });
+ 
+-  test('provider confirmation wins a late SDK failure or timeout race', () {
+-    final source = File(
+-      'lib/src/services/im/outgoing_send_coordinator.dart',
+-    ).readAsStringSync();
+-    expect(source, contains('_providerAlreadyConfirmed'));
+-    expect(source, contains('provider evidence confirmed delivery'));
+-    expect(
+-      source,
+-      contains('sdk.isOutcomeUnknown && !providerConfirmed'),
+-    );
+-  });
++  // Provider/callback ordering is exercised against real persistence and UI
++  // projections in outgoing_result_arbitration_test.dart.
+ }

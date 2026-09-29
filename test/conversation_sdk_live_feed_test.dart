@@ -87,7 +87,9 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: feed(1)));
     final feedRev = session.feedRevision.value;
     final otherRev = session.rowRevisionOf('c2c_live1').value;
-    store.applyPatches([row(1, 0, unread: 7)], reason: 'sdk_realtime');
+    // SDK counts are authoritative; a generic preview/metadata patch is not.
+    store.applyPatches([row(1, 0, unread: 7)],
+        reason: 'sdk_realtime', explicitUnreadIds: {'c2c_live0'});
     await tester.pump(const Duration(milliseconds: 60));
     expect(find.text('c2c_live0: 7'), findsOneWidget);
     expect(session.feedRevision.value, feedRev);
@@ -106,7 +108,9 @@ void main() {
         forceAdmitIds: {'c2c_live1'},
         preserveOrder: true);
     store.applyPatches([row(1, 1, unread: 9)],
-        reason: 'content_test', preserveOrder: true);
+        reason: 'content_test',
+        preserveOrder: true,
+        explicitUnreadIds: {'c2c_live1'});
     expect(session.feedRevision.value, before);
     session.endSuppressNotify();
     await tester.pump(const Duration(milliseconds: 120));

@@ -1,0 +1,223 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore",
+    "name": "ConversationLocalImIngressStore",
+    "kind": "Class",
+    "filePath": "lib/src/services/im/im_ingress_store.dart",
+    "startLine": 208,
+    "endLine": 240
+  },
+  "epistemic": "lower-bound",
+  "boundaries": [
+    "ImIngressStore is an interface with 4 implementations; callers that bind via the interface (e.g. a DI container or dynamic dispatch) are not traced to the concrete symbol — actual impact may be higher."
+  ],
+  "causes": {
+    "scopeExtractionFiles": 0,
+    "receiverTyping": 0,
+    "dispatchBoundary": 4,
+    "externalBoundary": 0,
+    "undecidedSatisfaction": 0,
+    "callableValueReferences": 0
+  },
+  "incoming": {
+    "calls": [
+      {
+        "uid": "Function:lib/src/services/im/im_ingress_store_platform_stub.dart:createPlatformImIngressStore",
+        "name": "createPlatformImIngressStore",
+        "filePath": "lib/src/services/im/im_ingress_store_platform_stub.dart"
+      },
+      {
+        "uid": "Function:test/chat_runtime_ingress_sqlite_test.dart:main",
+        "name": "main",
+        "filePath": "test/chat_runtime_ingress_sqlite_test.dart"
+      },
+      {
+        "uid": "Function:test/im05_persistence_test.dart:main",
+        "name": "main",
+        "filePath": "test/im05_persistence_test.dart"
+      },
+      {
+        "uid": "Function:test/im_contracts_test.dart:main",
+        "name": "main",
+        "filePath": "test/im_contracts_test.dart"
+      },
+      {
+        "uid": "Function:test/im_inbox_recovery_index_test.dart:main",
+        "name": "main",
+        "filePath": "test/im_inbox_recovery_index_test.dart"
+      },
+      {
+        "uid": "Function:test/outgoing_result_arbitration_test.dart:main",
+        "name": "main",
+        "filePath": "test/outgoing_result_arbitration_test.dart"
+      },
+      {
+        "uid": "Function:test/receipt_rollback_compat_test.dart:main",
+        "name": "main",
+        "filePath": "test/receipt_rollback_compat_test.dart"
+      },
+      {
+        "uid": "Method:test/chat_runtime_commit_test.dart:_Fixture.open#0",
+        "name": "open",
+        "filePath": "test/chat_runtime_commit_test.dart"
+      }
+    ],
+    "imports": [
+      {
+        "uid": "File:lib/src/services/conversation_local/conversation_sync_service.dart",
+        "name": "conversation_sync_service.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/durable_ingress_gateway.dart",
+        "name": "durable_ingress_gateway.dart",
+        "filePath": "lib/src/services/im/durable_ingress_gateway.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im.dart",
+        "name": "im.dart",
+        "filePath": "lib/src/services/im/im.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im05_contracts.dart",
+        "name": "im05_contracts.dart",
+        "filePath": "lib/src/services/im/im05_contracts.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im05_persistence.dart",
+        "name": "im05_persistence.dart",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im_ingress_store_platform_stub.dart",
+        "name": "im_ingress_store_platform_stub.dart",
+        "filePath": "lib/src/services/im/im_ingress_store_platform_stub.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im_ingress_store_platform_web.dart",
+        "name": "im_ingress_store_platform_web.dart",
+        "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im_recovery_worker.dart",
+        "name": "im_recovery_worker.dart",
+        "filePath": "lib/src/services/im/im_recovery_worker.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/runtime_ingress_processor.dart",
+        "name": "runtime_ingress_processor.dart",
+        "filePath": "lib/src/services/im/runtime_ingress_processor.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/tencent_advanced_message_adapter.dart",
+        "name": "tencent_advanced_message_adapter.dart",
+        "filePath": "lib/src/services/im/tencent_advanced_message_adapter.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/writer_lease.dart",
+        "name": "writer_lease.dart",
+        "filePath": "lib/src/services/im/writer_lease.dart"
+      },
+      {
+        "uid": "File:test/chat_runtime_commit_test.dart",
+        "name": "chat_runtime_commit_test.dart",
+        "filePath": "test/chat_runtime_commit_test.dart"
+      },
+      {
+        "uid": "File:test/chat_runtime_ingress_commit_order_test.dart",
+        "name": "chat_runtime_ingress_commit_order_test.dart",
+        "filePath": "test/chat_runtime_ingress_commit_order_test.dart"
+      },
+      {
+        "uid": "File:test/chat_runtime_ingress_sqlite_test.dart",
+        "name": "chat_runtime_ingress_sqlite_test.dart",
+        "filePath": "test/chat_runtime_ingress_sqlite_test.dart"
+      },
+      {
+        "uid": "File:test/im05_persistence_test.dart",
+        "name": "im05_persistence_test.dart",
+        "filePath": "test/im05_persistence_test.dart"
+      },
+      {
+        "uid": "File:test/im08_outgoing_send_coordinator_test.dart",
+        "name": "im08_outgoing_send_coordinator_test.dart",
+        "filePath": "test/im08_outgoing_send_coordinator_test.dart"
+      },
+      {
+        "uid": "File:test/im_contracts_test.dart",
+        "name": "im_contracts_test.dart",
+        "filePath": "test/im_contracts_test.dart"
+      },
+      {
+        "uid": "File:test/im_inbox_recovery_index_test.dart",
+        "name": "im_inbox_recovery_index_test.dart",
+        "filePath": "test/im_inbox_recovery_index_test.dart"
+      },
+      {
+        "uid": "File:test/im_progress_lane_test.dart",
+        "name": "im_progress_lane_test.dart",
+        "filePath": "test/im_progress_lane_test.dart"
+      },
+      {
+        "uid": "File:test/im_startup_lease_backoff_test.dart",
+        "name": "im_startup_lease_backoff_test.dart",
+        "filePath": "test/im_startup_lease_backoff_test.dart"
+      },
+      {
+        "uid": "File:test/inbox_recovery_due_query_test.dart",
+        "name": "inbox_recovery_due_query_test.dart",
+        "filePath": "test/inbox_recovery_due_query_test.dart"
+      },
+      {
+        "uid": "File:test/outgoing_result_arbitration_test.dart",
+        "name": "outgoing_result_arbitration_test.dart",
+        "filePath": "test/outgoing_result_arbitration_test.dart"
+      },
+      {
+        "uid": "File:test/receipt_rollback_compat_test.dart",
+        "name": "receipt_rollback_compat_test.dart",
+        "filePath": "test/receipt_rollback_compat_test.dart"
+      },
+      {
+        "uid": "File:test/sdk_realtime_delivery_test.dart",
+        "name": "sdk_realtime_delivery_test.dart",
+        "filePath": "test/sdk_realtime_delivery_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "implements": [
+      {
+        "uid": "Class:lib/src/services/im/im_ingress_store.dart:ImIngressStore",
+        "name": "ImIngressStore",
+        "filePath": "lib/src/services/im/im_ingress_store.dart"
+      }
+    ],
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore.ConversationLocalImIngressStore#2",
+        "name": "ConversationLocalImIngressStore",
+        "filePath": "lib/src/services/im/im_ingress_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore.transaction#2",
+        "name": "transaction",
+        "filePath": "lib/src/services/im/im_ingress_store.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore._core",
+        "name": "_core",
+        "filePath": "lib/src/services/im/im_ingress_store.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore._legacyOwner",
+        "name": "_legacyOwner",
+        "filePath": "lib/src/services/im/im_ingress_store.dart"
+      }
+    ]
+  },
+  "processes": []
+}

@@ -1,0 +1,27 @@
+void _markChatOpenHistoryReady() {
+    if (!_openLifecycle.markHistoryReady(_chatOpenPhaseGeneration)) {
+      return;
+    }
+    ChatOpenPerfLog.mark(
+      'chat_open_phase_history_ready_ms',
+      extras: <String, Object?>{
+        'durationMs': _chatOpenInitStopwatch.elapsedMilliseconds,
+        'count': 1,
+      },
+    );
+    final generation = _chatOpenPhaseGeneration;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || generation != _chatOpenPhaseGeneration) return;
+      if (_openLifecycle.markInteractive(generation)) {
+        ChatOpenPerfLog.mark(
+          'chat_open_phase_interactive_ms',
+          extras: <String, Object?>{
+            'durationMs': _chatOpenInitStopwatch.elapsedMilliseconds,
+            'count': 1,
+          },
+        );
+        _tryMarkChatOpenEnriched();
+      }
+    });
+    _scheduleDeferredHistoryVerification(generation);
+  }

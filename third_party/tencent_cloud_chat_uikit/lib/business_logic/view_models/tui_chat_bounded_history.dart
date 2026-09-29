@@ -1,5 +1,16 @@
 part of 'tui_chat_global_model.dart';
 
+enum VisibleHistoryAckStatus { changed, noChange, stale, retryableFailure }
+
+class VisibleHistoryAckResult {
+  const VisibleHistoryAckResult(this.status, {this.error, this.stackTrace});
+  final VisibleHistoryAckStatus status;
+  final Object? error;
+  final StackTrace? stackTrace;
+  bool get processed => status == VisibleHistoryAckStatus.changed ||
+      status == VisibleHistoryAckStatus.noChange;
+}
+
 class _BoundedHistorySession {
   _BoundedHistorySession(this.scope);
   final HistoryWindowScope scope;
@@ -15,6 +26,9 @@ class _BoundedHistoryState {
   int mutationSequence = 0;
   final pendingProjections = <String, Set<String>>{};
   final completedProjections = <String>{};
+  // One physical completion per exact command token. A UI timeout never
+  // releases this slot or starts another SQL operation over the pending one.
+  final completions = <String, Future<String>>{};
   final nonce = DateTime.now().microsecondsSinceEpoch;
 }
 
@@ -214,6 +228,9 @@ extension BoundedChatHistory on TUIChatGlobalModel {
           ?.isNotEmpty ??
       false;
 
+  /// Captured completions return null when the UI deadline expires; their
+  /// exact-token worker remains retained. Projection workers explicitly await
+  /// actual completion and own a separate bounded UI wait around the whole job.
   Future<String?> recordHistoryWindowMutation({
     String? conversationID,
     required String msgID,
@@ -224,6 +241,9 @@ extension BoundedChatHistory on TUIChatGlobalModel {
     String? restoreMutationToken,
     HistoryWindowScope? capturedScope,
     bool pending = false,
+    Duration? preparationTimeout,
+    bool Function()? commandIsCurrent,
+    bool awaitActualCompletion = false,
   }) async {
     final repository = HistoryWindowRepositoryProvider.repository;
     final writer = _messageReconciliationWriter.configuredScope;
@@ -249,39 +269,42 @@ extension BoundedChatHistory on TUIChatGlobalModel {
           kind: kind,
           message: message,
           restoreMutationToken: restoreMutationToken);
-      while (true) {
-        await SqfliteLifecycleHost.waitUntilWritesAllowed();
-        try {
-          await repository.recordMutation(completion);
-          break;
-        } on SqfliteClosedForBackground {
-          // A pause can race the foreground gate. Keep the exact completion
-          // token until resume; no new command is admitted by this retry.
-        } on HistoryWindowStaleScope {
-          // Captured completions carry no live session authorization. Their
-          // remaining permanent fence is a newer conversation clear epoch,
-          // which has already removed the old pending command atomically.
-          break;
+      final completionKey = jsonEncode([
+        _historyMutationProjectionKey(capturedScope),
+        restoreMutationToken,
+        kind.name,
+      ]);
+      final completions = _boundedHistory.completions;
+      final actual = completions.putIfAbsent(
+          completionKey,
+          () => _completeHistoryWindowMutation(
+              repository, completion, capturedScope, restoreMutationToken));
+      // Observe failures even after the bounded caller has returned. Retain a
+      // failed slot: later foreground events must not reset its retry budget.
+      unawaited(actual.then((_) {
+        if (identical(completions[completionKey], actual)) {
+          completions.remove(completionKey);
         }
-      }
-      if (_boundedHistory
-              .pendingProjections[_historyMutationProjectionKey(capturedScope)]
-              ?.contains(restoreMutationToken) ==
-          true) {
-        _boundedHistory.completedProjections.add(restoreMutationToken);
-      }
-      if (kind == HistoryWindowMutationKind.settle) {
-        finishHistoryWindowMutationProjection(
-            scope: capturedScope, token: restoreMutationToken);
-      }
-      return token;
+      }, onError: (Object _, StackTrace __) {}));
+      if (awaitActualCompletion) return actual;
+      return actual.then<String?>((value) => value).timeout(
+          const Duration(seconds: 2), onTimeout: () {
+        ChatRecoveryTrace.log('mutation_completion_deferred',
+            conversationID: capturedScope.conversationID,
+            messageID: msgID,
+            fields: {'kind': kind.name});
+        return null;
+      });
     }
     if (writer == null) return null;
     final key = (conversationID?.trim().isNotEmpty ?? false)
         ? TUIChatGlobalModel.canonicalHistoryStorageKey(conversationID!)
         : null;
     final scope = key == null ? null : historyWindowScopeFor(key);
+    var preparationExpired = false;
     bool isCurrent() =>
+        !preparationExpired &&
+        (commandIsCurrent?.call() ?? true) &&
         _messageReconciliationWriter.configuredScope == writer &&
         (scope == null || isHistoryWindowScopeCurrent(scope));
     final localSequence = ++_boundedHistory.mutationSequence;
@@ -294,8 +317,9 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       (_boundedHistory.pendingProjections[projectionKey] ??= <String>{})
           .add(token);
     }
+    Future<void>? write;
     try {
-      await repository.recordMutation(HistoryWindowMutation(
+      write = repository.recordMutation(HistoryWindowMutation(
         ownerUserID: writer.normalizedOwnerUserID,
         conversationID: key,
         clearEpoch: key == null ? 0 : messageDeltaClearEpochFor(key),
@@ -314,13 +338,32 @@ extension BoundedChatHistory on TUIChatGlobalModel {
                 ? 'ingress:${writer.accountGeneration}:${writer.domainGeneration}'
                 : null,
       ));
+      if (pending) {
+        await write.timeout(preparationTimeout ?? const Duration(seconds: 2));
+      } else {
+        await write;
+      }
     } catch (_) {
+      preparationExpired = true;
       if (projectionKey != null) {
         final tokens = _boundedHistory.pendingProjections[projectionKey];
         tokens?.remove(token);
         if (tokens?.isEmpty == true) {
           _boundedHistory.pendingProjections.remove(projectionKey);
         }
+      }
+      // No optimistic row has been published by this caller yet. Release its
+      // projection guard now; fence a queued SQL write and compensate an exact
+      // token if a transaction had already committed when the deadline fired.
+      if (pending && scope != null && write != null) {
+        unawaited(write.then((_) async {
+          await recordHistoryWindowMutation(
+              conversationID: key,
+              msgID: msgID,
+              kind: HistoryWindowMutationKind.restore,
+              restoreMutationToken: token,
+              capturedScope: scope);
+        }).catchError((Object _) {}));
       }
       rethrow;
     }
@@ -330,6 +373,51 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       throw const HistoryWindowStaleScope();
     }
     return token;
+  }
+
+  Future<String> _completeHistoryWindowMutation(
+      HistoryWindowRepository repository,
+      HistoryWindowMutation completion,
+      HistoryWindowScope scope,
+      String pendingToken) async {
+    for (var attempt = 1; attempt <= 2; attempt++) {
+      // This is the retained durable worker, never the UI wait. Foreground
+      // recovery follows the Host's actual close fence, not a timeout signal.
+      await SqfliteLifecycleHost.waitUntilWritesAllowed();
+      if (!identical(repository, HistoryWindowRepositoryProvider.repository)) {
+        throw StateError('history completion repository replaced');
+      }
+      try {
+        await repository.recordMutation(completion);
+        break;
+      } on HistoryWindowStaleScope {
+        // A newer clear atomically removed this exact pending token already.
+        break;
+      } catch (error) {
+        ChatRecoveryTrace.log(
+            attempt == 1
+                ? 'mutation_completion_retry'
+                : 'mutation_completion_exhausted',
+            conversationID: scope.conversationID,
+            messageID: completion.msgID,
+            fields: {
+              'kind': completion.kind.name,
+              'attempt': attempt,
+              'errorType': error.runtimeType
+            });
+        if (attempt == 2) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+    }
+    if (_boundedHistory.pendingProjections[_historyMutationProjectionKey(scope)]
+            ?.contains(pendingToken) ==
+        true) {
+      _boundedHistory.completedProjections.add(pendingToken);
+    }
+    if (completion.kind == HistoryWindowMutationKind.settle) {
+      finishHistoryWindowMutationProjection(scope: scope, token: pendingToken);
+    }
+    return completion.eventID;
   }
 
   Future<void> clearHistoryWindowData(
@@ -782,6 +870,19 @@ extension BoundedChatHistory on TUIChatGlobalModel {
     String conversationID,
     Iterable<V2TimMessage> visibleMessages, {
     required bool Function() isCurrent,
+  }) async {
+    final result = await acknowledgeVisibleHistoryMessagesDetailed(
+        conversationID, visibleMessages, isCurrent: isCurrent);
+    if (result.error != null) {
+      Error.throwWithStackTrace(result.error!, result.stackTrace ?? StackTrace.current);
+    }
+    return result.status == VisibleHistoryAckStatus.changed;
+  }
+
+  Future<VisibleHistoryAckResult> acknowledgeVisibleHistoryMessagesDetailed(
+    String conversationID,
+    Iterable<V2TimMessage> visibleMessages, {
+    required bool Function() isCurrent,
   }) {
     final state = _inboundUnreadStateFor(conversationID, create: false);
     final visit = state.unreadVisitGeneration;
@@ -798,7 +899,12 @@ extension BoundedChatHistory on TUIChatGlobalModel {
         identical(_inboundUnreadStateFor(conversationID, create: false), state) &&
         state.unreadVisitGeneration == visit;
     bool current() => isCurrent() && ownerAndVisitCurrent();
-    if (ids.isEmpty || !current()) return Future<bool>.value(false);
+    if (!current()) return Future.value(
+        const VisibleHistoryAckResult(VisibleHistoryAckStatus.stale));
+    if (ids.isEmpty) return Future.value(
+        const VisibleHistoryAckResult(VisibleHistoryAckStatus.noChange));
+    VisibleHistoryAckResult completed(bool changed) => VisibleHistoryAckResult(
+        changed ? VisibleHistoryAckStatus.changed : VisibleHistoryAckStatus.noChange);
     var consumedHot = false;
     void consumeVisibleHot() {
       final visibleHot = ids.where(state.revealedUnreadMessageIDs.contains).toSet();
@@ -825,17 +931,19 @@ extension BoundedChatHistory on TUIChatGlobalModel {
     }
     if (!state.durableDeferred && state.pendingLegacyMessages.isEmpty &&
         state.pendingDurableAdmissions == 0 && !state.unreadVisitBaselinePending) {
-      return Future<bool>.value(consumedHot);
+      return Future.value(completed(consumedHot));
     }
-    return _serializeHistoryDeferred(conversationID, (state) async {
-      if (!current()) return false;
+    return _serializeHistoryDeferred<VisibleHistoryAckResult>(conversationID, (state) async {
+      if (!current()) return const VisibleHistoryAckResult(VisibleHistoryAckStatus.stale);
       await _ensureHistoryUnreadVisitBaseline(conversationID, state, visit);
       final scope = historyWindowScopeFor(conversationID);
       final repository = HistoryWindowRepositoryProvider.repository;
-      if (!current() || scope == null || repository == null) return false;
+      if (!current()) return const VisibleHistoryAckResult(VisibleHistoryAckStatus.stale);
+      if (scope == null || repository == null) return const VisibleHistoryAckResult(
+          VisibleHistoryAckStatus.retryableFailure);
       await _persistCoalescedHistoryDeferred(
           conversationID, state, scope, repository);
-      if (!current()) return false;
+      if (!current()) return const VisibleHistoryAckResult(VisibleHistoryAckStatus.stale);
       consumeVisibleHot();
       final receipt = await repository.acknowledgeVisibleDeferred(
           scope: scope,
@@ -844,9 +952,12 @@ extension BoundedChatHistory on TUIChatGlobalModel {
           isCurrent: current);
       // The transaction has committed. Publish its result for this owner/visit
       // even if the viewport moved while its Future was completing.
-      if (!ownerAndVisitCurrent()) return false;
+      if (!ownerAndVisitCurrent()) return const VisibleHistoryAckResult(VisibleHistoryAckStatus.stale);
       final consumed = receipt.acknowledgedMessageIDs;
-      if (consumed.isEmpty) return consumedHot;
+      if (consumed.isEmpty) {
+        if (!current()) return const VisibleHistoryAckResult(VisibleHistoryAckStatus.stale);
+        return completed(consumedHot);
+      }
       state.remainingLiveIncomingIds.removeAll(consumed);
       state.seenLiveIncomingIds.addAll(consumed);
       state.receivedCount = max(0, state.receivedCount - consumed.length);
@@ -859,7 +970,11 @@ extension BoundedChatHistory on TUIChatGlobalModel {
         ..addAll(state.bufferedMessages.map(TUIChatGlobalModel.messageDedupKey));
       _publishHistoryDeferredState(conversationID, state, receipt.state);
       _markNeedsNotify();
-      return true;
+      return completed(true);
+    }).catchError((Object error, StackTrace stack) {
+      if (!ownerAndVisitCurrent()) return const VisibleHistoryAckResult(VisibleHistoryAckStatus.stale);
+      return VisibleHistoryAckResult(VisibleHistoryAckStatus.retryableFailure,
+          error: error, stackTrace: stack);
     });
   }
 
@@ -1117,13 +1232,15 @@ extension BoundedChatHistory on TUIChatGlobalModel {
           : row.id?.trim() ?? '';
 
   Future<int?> beginHistoryWindowReturnToLatest(String conversationID,
-      {bool replaceWindow = true}) async {
+      {bool replaceWindow = true, bool Function()? isCurrent}) async {
     if (historyWindowScopeFor(conversationID) == null) return null;
     final visitGeneration =
         _inboundUnreadStateFor(conversationID).unreadVisitGeneration;
     return _serializeHistoryDeferred(conversationID, (state) async {
+      if (isCurrent?.call() == false) throw const HistoryWindowStaleScope();
       await _ensureHistoryUnreadVisitBaseline(
           conversationID, state, visitGeneration);
+      if (isCurrent?.call() == false) throw const HistoryWindowStaleScope();
       final scope = historyWindowScopeFor(conversationID);
       if (scope == null) throw const HistoryWindowStaleScope();
       final session = _boundedHistory.sessions[scope.conversationID]!;
@@ -1140,7 +1257,7 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       final tail = counts.receivedCount > 0
           ? await repository.readDeferredTail(scope: scope, limit: 120)
           : const <V2TimMessage>[];
-      if (!isHistoryWindowScopeCurrent(scope))
+      if (isCurrent?.call() == false || !isHistoryWindowScopeCurrent(scope))
         throw const HistoryWindowStaleScope();
       state.returnDeferredWatermark = counts.lastIngressSequence;
       V2TimMessage? newestPending = tail.isEmpty ? null : tail.first;
@@ -1188,6 +1305,31 @@ extension BoundedChatHistory on TUIChatGlobalModel {
     if (anchorID == null || anchorID.isEmpty) return false;
     final anchorSeq = state.returnDeferredSeq;
     final anchorTime = state.returnDeferredTimestamp;
+    if (visibleMessages != null) {
+      final raw = rawMessageList(conversationID) ?? const <V2TimMessage>[];
+      final hiddenBoundaryLoaded = raw.any((row) =>
+          (row.msgID == anchorID || row.id == anchorID) &&
+          isPermanentlyHiddenHistoryMessage(row));
+      if (hiddenBoundaryLoaded) {
+        // The raw synchronization boundary is present, but deliberately has
+        // no painted row. Its preceding displayable tip must still be part of
+        // the caller's measured latest-window proof; an older/partial page or
+        // a temporarily unmounted row is not sufficient.
+        final newestVisible = newestDisplayableConfirmedMessage(conversationID);
+        if (newestVisible != null &&
+            visibleMessages.any((row) =>
+                TUIChatGlobalModel.liveIncomingIdentity(row) ==
+                TUIChatGlobalModel.liveIncomingIdentity(newestVisible))) {
+          return true;
+        }
+        if (newestVisible == null &&
+            raw.where(TUIChatGlobalModel.isConfirmedProjectionMessage)
+                .every(isPermanentlyHiddenHistoryMessage) &&
+            !visibleMessages.any(TUIChatGlobalModel.isConfirmedProjectionMessage)) {
+          return true;
+        }
+      }
+    }
     for (final row in visibleMessages ??
         rawMessageList(conversationID) ??
         const <V2TimMessage>[]) {
@@ -1222,8 +1364,10 @@ extension BoundedChatHistory on TUIChatGlobalModel {
 
   /// A successful newest reload starts a fresh opaque history snapshot.
   /// Preserve pending receipts until the restored viewport confirms them.
-  Future<void> resetHistoryWindowAfterLatest(String conversationID) async {
+  Future<void> resetHistoryWindowAfterLatest(String conversationID,
+      {bool Function()? isCurrent}) async {
     await _serializeHistoryDeferred(conversationID, (_) async {
+      if (isCurrent?.call() == false) throw const HistoryWindowStaleScope();
       final key = TUIChatGlobalModel.canonicalHistoryStorageKey(conversationID);
       final old = _boundedHistory.sessions.remove(key);
       if (old == null) return;
@@ -1243,10 +1387,11 @@ extension BoundedChatHistory on TUIChatGlobalModel {
 
   Future<void> acknowledgeHistoryWindowReturnToLatest(
       String conversationID, int? throughSequence,
-      {bool onlyIfAuthoritativelyDeleted = false}) async {
+      {bool onlyIfAuthoritativelyDeleted = false, bool Function()? isCurrent}) async {
     if (throughSequence == null ||
         historyWindowScopeFor(conversationID) == null) return;
     await _serializeHistoryDeferred(conversationID, (state) async {
+      if (isCurrent?.call() == false) throw const HistoryWindowStaleScope();
       final scope = historyWindowScopeFor(conversationID);
       if (scope == null) throw const HistoryWindowStaleScope();
       final repository = HistoryWindowRepositoryProvider.repository!;
@@ -1257,6 +1402,7 @@ extension BoundedChatHistory on TUIChatGlobalModel {
       }
       final before = await repository.deferredState(scope);
       final beforeIDs = await repository.readDeferredMessageIDs(scope: scope);
+      if (isCurrent?.call() == false) throw const HistoryWindowStaleScope();
       await repository.acknowledgeDeferred(
           scope: scope, throughIngressSequence: throughSequence);
       final counts = await repository.deferredState(scope);

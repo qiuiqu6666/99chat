@@ -1,0 +1,115 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._beginAssistantReply#1",
+    "name": "_beginAssistantReply",
+    "kind": "Method",
+    "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+    "startLine": 1583,
+    "endLine": 1583
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState",
+        "name": "_AiAssistantPageState",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._sendComposer#0",
+        "name": "_sendComposer",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Class:lib/src/api/ai_assistant_api.dart:AiAssistantException",
+        "name": "AiAssistantException",
+        "filePath": "lib/src/api/ai_assistant_api.dart"
+      },
+      {
+        "uid": "Class:lib/src/pages/ai_assistant/ai_assistant_models.dart:AiAssistantFileRef",
+        "name": "AiAssistantFileRef",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_models.dart"
+      },
+      {
+        "uid": "Class:lib/src/pages/ai_assistant/ai_assistant_models.dart:AiAssistantMessage",
+        "name": "AiAssistantMessage",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_models.dart"
+      },
+      {
+        "uid": "Method:lib/src/api/ai_assistant_api.dart:AiAssistantApi.fileIdFromUrl#1",
+        "name": "fileIdFromUrl",
+        "filePath": "lib/src/api/ai_assistant_api.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._bindServerIds#2",
+        "name": "_bindServerIds",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._ensureFileBytes#2",
+        "name": "_ensureFileBytes",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._failLastAssistant#1",
+        "name": "_failLastAssistant",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._isActiveToken#1",
+        "name": "_isActiveToken",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart"
+      }
+    ],
+    "accesses": [
+      {
+        "uid": "Property:lib/src/api/ai_assistant_api.dart:AiAssistantException.cancelled",
+        "name": "cancelled",
+        "filePath": "lib/src/api/ai_assistant_api.dart"
+      },
+      {
+        "uid": "Property:lib/src/api/ai_assistant_api.dart:AiAssistantException.cancelled",
+        "name": "cancelled",
+        "filePath": "lib/src/api/ai_assistant_api.dart"
+      },
+      {
+        "uid": "Property:lib/src/api/ai_assistant_api.dart:AiAssistantException.code",
+        "name": "code",
+        "filePath": "lib/src/api/ai_assistant_api.dart"
+      },
+      {
+        "uid": "Property:lib/src/pages/ai_assistant/ai_assistant_capability.dart:AiAssistantSendPlan.analyze",
+        "name": "analyze",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_capability.dart"
+      },
+      {
+        "uid": "Property:lib/src/pages/ai_assistant/ai_assistant_capability.dart:AiAssistantSendPlan.capability",
+        "name": "capability",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_capability.dart"
+      },
+      {
+        "uid": "Property:lib/src/pages/ai_assistant/ai_assistant_capability.dart:AiAssistantSendPlan.capability",
+        "name": "capability",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_capability.dart"
+      },
+      {
+        "uid": "Property:lib/src/pages/ai_assistant/ai_assistant_capability.dart:AiAssistantSendPlan.capability",
+        "name": "capability",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_capability.dart"
+      },
+      {
+        "uid": "Property:lib/src/pages/ai_assistant/ai_assistant_capability.dart:AiAssistantSendPlan.capability",
+        "name": "capability",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_capability.dart"
+      }
+    ]
+  },
+  "processes": []
+}

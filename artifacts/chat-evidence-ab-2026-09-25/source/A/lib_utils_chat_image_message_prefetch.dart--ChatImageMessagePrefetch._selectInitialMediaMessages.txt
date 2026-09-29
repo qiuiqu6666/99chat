@@ -1,0 +1,21 @@
+static List<V2TimMessage> _selectInitialMediaMessages(
+    Iterable<V2TimMessage?> messages,
+  ) {
+    final list = messages.whereType<V2TimMessage>().toList(growable: false);
+    final selected = <V2TimMessage>[];
+    // History windows are chronological here; walk from newest to oldest so
+    // the bottom viewport gets first access to both URL and image cache.
+    for (var index = list.length - 1;
+        index >= 0 && selected.length < _maxInitialMediaMessages;
+        index--) {
+      final message = list[index];
+      if (message.elemType != MessageElemType.V2TIM_ELEM_TYPE_IMAGE &&
+          message.imageElem == null && message.videoElem == null) {
+        continue;
+      }
+      selected.add(message);
+    }
+    // Keep the public list chronological so the existing reverse walkers in
+    // URL resolution and image warming still prioritize the newest row.
+    return selected.reversed.toList(growable: false);
+  }

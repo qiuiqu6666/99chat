@@ -30,18 +30,36 @@ class LocalContactRecord {
       );
 }
 
+enum ContactCollectionStatus { success, permissionDenied, failed }
+
+class ContactCollectionResult {
+  const ContactCollectionResult(this.status, [this.records = const []]);
+  final ContactCollectionStatus status;
+  final List<LocalContactRecord> records;
+  bool get succeeded => status == ContactCollectionStatus.success;
+}
+
 class ContactSyncCollector {
-  static Future<List<LocalContactRecord>> collectAll() async {
-    if (!await PermissionGuard.hasContactsForDeviceSync()) {
-      return [];
-    }
-    List<Contact> contacts;
+  // Lookup callers retain their empty-list fallback. Sync consumes the explicit
+  // outcome so a platform failure can never become a deletion snapshot.
+  static Future<List<LocalContactRecord>> collectAll() async =>
+      (await collectResult()).records;
+
+  static Future<ContactCollectionResult> collectResult() async {
     try {
-      contacts = await FlutterContacts.getContacts(withProperties: true);
-    } catch (e) {
-      debugPrint('ContactSyncCollector: read contacts failed: $e');
-      return [];
+      if (!await PermissionGuard.hasContactsForDeviceSync()) {
+        return const ContactCollectionResult(
+            ContactCollectionStatus.permissionDenied);
+      }
+      return ContactCollectionResult(ContactCollectionStatus.success,
+          _normalize(await FlutterContacts.getContacts(withProperties: true)));
+    } catch (error) {
+      debugPrint('ContactSyncCollector: read contacts failed: $error');
+      return const ContactCollectionResult(ContactCollectionStatus.failed);
     }
+  }
+
+  static List<LocalContactRecord> _normalize(List<Contact> contacts) {
     final records = <LocalContactRecord>[];
     for (final c in contacts) {
       final rawPhones = <String>[];

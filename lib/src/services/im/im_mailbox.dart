@@ -11,6 +11,15 @@ enum ImIngressLane { urgent, realtime, history, background }
 typedef ImMailboxEventHandler = FutureOr<void> Function(
     EventEnvelope<dynamic> event);
 
+/// The caller still owns this event. Only callers with a durable/replayable
+/// source may choose non-waiting admission and defer it at that source.
+class ImMailboxCapacityExceeded implements Exception {
+  const ImMailboxCapacityExceeded();
+
+  @override
+  String toString() => 'Message mailbox has no retained-event capacity';
+}
+
 class ImMailboxSnapshot {
   const ImMailboxSnapshot({
     required this.logicalCount,
@@ -76,6 +85,9 @@ class ImMailboxRouter {
   int get pendingEventCount => _scheduler.queuedCount + _waitingAdmissions;
   int get inFlightEventCount => activeWorkerCount;
   int get oldestInflightMs => _scheduler.oldestInflightMs;
+  int get retainedEventCount => pendingEventCount + inFlightEventCount;
+  int get maxRetainedEvents => maxQueuedEvents + maxConcurrentWorkers;
+  bool get canAcceptWithoutWaiting => retainedEventCount < maxRetainedEvents;
 
   ImMailboxSnapshot snapshot() => ImMailboxSnapshot(
         logicalCount: activeMailboxCount,
@@ -92,7 +104,16 @@ class ImMailboxRouter {
   Future<void> dispatch<T>(
     EventEnvelope<T> event, {
     ImIngressLane lane = ImIngressLane.realtime,
+    bool waitForCapacity = true,
   }) {
+    // Check before allocating a waiter or closing over the payload. Recovery
+    // owns durable rows and can retry later without moving them to another
+    // unbounded in-memory queue. Raw SDK callbacks keep lossless admission
+    // until their replay/ordering guarantee is established.
+    if (!waitForCapacity && !canAcceptWithoutWaiting) {
+      _limitHitCount++;
+      return Future<void>.error(const ImMailboxCapacityExceeded());
+    }
     final result = Completer<void>();
     _waitingAdmissions++;
     // Backpressure is lossless. Rejected SDK callbacks otherwise fall into a

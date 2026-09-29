@@ -1,0 +1,93 @@
+{
+  "capturedAt": "2026-09-27T19:56:30.860128+00:00",
+  "files": [
+    {
+      "path": "lib/src/services/friend_realtime_service.dart",
+      "sha256": "dd1c84e0a45e2c87f91dbfa88d2220460e89e72efba04aa6060514998e4404ad"
+    },
+    {
+      "path": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart",
+      "sha256": "1a2930a3cf61597f0faa739a3fb1ce4f8574f84a918a8a59306d39f0bbc3f9d7"
+    },
+    {
+      "path": "lib/src/services/livekit_call_session.dart",
+      "sha256": "a3ca503148afe40d8463b59afa503178428d81f65dad3b6fa2920bd55cdeb56f"
+    },
+    {
+      "path": "lib/src/services/history_window_store.dart",
+      "sha256": "333bd8b315c5f4eb8ba0d138f545caf7478da6d02e8680004458224d92981f1a"
+    },
+    {
+      "path": "lib/src/services/im_sdk_relationship_directory.dart",
+      "sha256": "f838aefca4ee3626622163d8f815b058996c99cce3c45d04e6ccb69d54ac0a33"
+    },
+    {
+      "path": "lib/src/services/friend_local/contacts_protocol_sync_service.dart",
+      "sha256": "d8c028c1781b7068495ba883adc5e79cf519c916d74db8b8db2b088621a095b8"
+    },
+    {
+      "path": "lib/src/services/friend_local/friend_local_store.dart",
+      "sha256": "e9707a359b9c45557277961ad95f766e742be13f557c6a1af2446a0fdc1ae2dc"
+    },
+    {
+      "path": "lib/src/services/peer_profile_refresh_bus.dart",
+      "sha256": "15de75f35d5348eb3a89d6b9e950a0fc9a0512e64527ae0d08393801f72e169f"
+    },
+    {
+      "path": "lib/src/services/im/message_persist_coordinator.dart",
+      "sha256": "5d090f230a75b8e5984c9ab2e804217010e1b76325ce6f5b5d9451b7d5476f38"
+    },
+    {
+      "path": "lib/src/services/chat_recovery_diagnostics.dart",
+      "sha256": "33a5ed8363c98c8c2c2115f69c081136feb2ecc287fa393580d6a3015a1a96ec"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "sha256": "bb56a4548303504b2d648c4b97da3ffd4cb9fb8b72c355a49f7715fc03d4790d"
+    },
+    {
+      "path": "test/presence_request_recovery_test.dart",
+      "sha256": "562dfe0f7fd4e92de9dacbd4ba47be6dec3a355142311418afc16c3b9ee5e43e"
+    },
+    {
+      "path": "test/livekit_call_recovery_scope_test.dart",
+      "sha256": "475489041aeae0091ce431a6a624c12291fa1e5b8b5844b4ac2860706e6b2ecc"
+    },
+    {
+      "path": "test/message_persist_diagnostics_test.dart",
+      "sha256": "727e98d32407128c6336b53d298063a6086b262b74a3267e2acc2205720dc4fb"
+    },
+    {
+      "path": "test/history_preparation_recovery_test.dart",
+      "sha256": "07ba0da78c9221ffca75ed667cf6a509fed6abd6e2791f0ba96332eeba7a43e6"
+    },
+    {
+      "path": "test/relationship_delta_scaling_test.dart",
+      "sha256": "f24a914e6a84fff91798f899f8ba872d94c7ae99e865ba27c1c285727970a1dd"
+    },
+    {
+      "path": "test/contacts_projection_notifications_test.dart",
+      "sha256": "d45897c6520c72b894f9d327e366192e55fb705d2d41fcd108f8321e15e7c6e1"
+    },
+    {
+      "path": "test/persistence_diagnostic_export_test.dart",
+      "sha256": "d374cf246532ff7eb553edfcd225f307e5478d06bdcb4ecd1fd1481e4337182d"
+    },
+    {
+      "path": "test/profile_notification_batch_test.dart",
+      "sha256": "f00b09f647b42fa3d1c439152e6b3e867ebc2a0db173550c581ff14538436df6"
+    },
+    {
+      "path": "test/realtime_liveness_recovery_test.dart",
+      "sha256": "824126fb0f2c1057f339e1cd216d862351df5212a936fc1a19d23c0ea488cea4"
+    },
+    {
+      "path": "test/chat_open_remark_regression_test.dart",
+      "sha256": "3d5c9d35fd02fa222208b8eacc641ae472a7c315e8bbb591e9f78c8575b98e83"
+    },
+    {
+      "path": "test/history_window_pagination_integration_test.dart",
+      "sha256": "6959dcd8a006d8296b24c99a0f409ca5bb1a0830bf4b693184b949f398664d8e"
+    }
+  ]
+}

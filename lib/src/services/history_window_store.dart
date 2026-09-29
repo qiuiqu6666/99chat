@@ -465,23 +465,39 @@ class HistoryWindowStore implements HistoryWindowRepository {
 
   @override
   Future<void> savePages(List<HistoryWindowPage> pages) async {
+    final lifecycle = _lifecycle;
     for (final page in pages) {
+      if (page.messages.length > math.min(maxRows, maxPageRows)) {
+        throw StateError('History page exceeds cache row budget');
+      }
+      // CPU/isolate work must not occupy either the shared writer or a SQLite
+      // transaction. Freeze payloads and IDs together before queue admission.
+      final prepared = await compute(_encodeHistoryPage, page.messages,
+          debugLabel: 'history-page-encode');
+      if (lifecycle != _lifecycle) throw const SqfliteClosedForBackground();
       await MessagePersistCoordinator.instance.enqueue<void>(
         priority: MessagePersistPriority.userHistory,
         source: MessagePersistSource.userHistory,
         conversationId: page.scope.conversationID,
         accountGeneration: page.scope.accountGeneration,
-        itemCount: page.messages.isEmpty ? 1 : page.messages.length,
-        run: () => _persistOnePage(page),
+        itemCount: prepared.isEmpty ? 1 : prepared.length,
+        run: () {
+          if (lifecycle != _lifecycle) throw const SqfliteClosedForBackground();
+          return _persistOnePage(page, prepared);
+        },
       );
     }
   }
 
-  Future<void> _persistOnePage(HistoryWindowPage page) => _runSerial(
+  Future<void> _persistOnePage(
+          HistoryWindowPage page, List<_EncodedHistoryRow> prepared) =>
+      _runSerial(
       (db) => db.transaction((tx) async {
             final touched = <String>{};
             for (final current in [page]) {
-              if (current.pageKey.isEmpty) throw ArgumentError('Empty page key');
+              if (current.pageKey.isEmpty) {
+                throw ArgumentError('Empty page key');
+              }
               final scope = _scopeKey(current.scope);
               if (touched.add(scope)) {
                 await _touchSession(tx, current.scope);
@@ -512,15 +528,18 @@ class HistoryWindowStore implements HistoryWindowRepository {
               final isRoot = page.isReplayRoot ||
                   (sameSnapshot && _int(previous['is_root']) == 1);
               final requestCursor = page.requestCursor ??
-                  (sameSnapshot ? previous['request_cursor'] as String? : null);
+                      (sameSnapshot
+                          ? previous['request_cursor'] as String?
+                          : null);
               final nextCursor = page.nextOlderCursor ??
-                  (sameSnapshot ? previous['next_cursor'] as String? : null);
-              final mergedMessages = await _retainAuthoritativeHistory(
-                tx, current.scope,
-                current.messages,
+                      (sameSnapshot
+                          ? previous['next_cursor'] as String?
+                          : null);
+                  final encoded = await _retainAuthoritativeHistory(
+                    tx,
+                    current.scope,
+                    prepared,
               );
-              final encoded = await compute(_encodeHistoryPage, mergedMessages,
-                  debugLabel: 'history-page-encode');
               final payload = encoded.$1;
               final bytes = encoded.$2 +
                   utf8
@@ -543,7 +562,7 @@ class HistoryWindowStore implements HistoryWindowRepository {
                           utf8.encode(_scopeKey(page.scope)).length +
                           utf8.encode(page.pageKey).length +
                           96);
-              if (mergedMessages.length > math.min(maxRows, maxPageRows) ||
+                  if (prepared.length > math.min(maxRows, maxPageRows) ||
                   bytes > maxBytes) {
                 throw StateError(
                     'History page exceeds cache budget; retain the live window');
@@ -553,8 +572,8 @@ class HistoryWindowStore implements HistoryWindowRepository {
                 await tx.update('hw_pages', {'is_root': 0},
                     where: 'scope=?', whereArgs: [scope]);
               }
-              final sameBody =
-                  existing.isNotEmpty && existing.first['payload'] == payload;
+                  final sameBody = existing.isNotEmpty &&
+                      existing.first['payload'] == payload;
               if (sameBody) {
                 await tx.update(
                     'hw_pages',
@@ -585,7 +604,7 @@ class HistoryWindowStore implements HistoryWindowRepository {
                       'checksum': page.pageChecksum,
                       'is_root': isRoot ? 1 : 0,
                       'payload': payload,
-                      'row_count': mergedMessages.length,
+                          'row_count': prepared.length,
                       'byte_count': bytes,
                       'access': _tick,
                     },
@@ -594,7 +613,7 @@ class HistoryWindowStore implements HistoryWindowRepository {
                     where: 'scope=? AND page_key=?',
                     whereArgs: [scope, page.pageKey]);
                 final batch = tx.batch();
-                for (var i = 0; i < mergedMessages.length; i++) {
+                    for (var i = 0; i < prepared.length; i++) {
                   final id = encoded.$3[i];
                   if (id.isNotEmpty) {
                     batch.insert('hw_page_ids', {
@@ -1212,19 +1231,24 @@ class HistoryWindowStore implements HistoryWindowRepository {
     );
   }
 
-  Future<List<V2TimMessage>> _retainAuthoritativeHistory(
-    DatabaseExecutor db, HistoryWindowScope scope,
-    List<V2TimMessage> messages,
+  Future<(String, int, List<String>)> _retainAuthoritativeHistory(
+    DatabaseExecutor db,
+    HistoryWindowScope scope,
+    List<_EncodedHistoryRow> messages,
   ) async {
     final conversationId = scope.conversationID;
     final coordinator = MessagePersistCoordinator.instance;
     final kinds = <String, MessagePersistAuthorityKind>{};
     final missing = <String>{};
     for (final message in messages) {
-      final id = _identity(message);
-      final cached = coordinator.authorityFor(conversationId: conversationId, messageId: id);
-      if (cached != null) { kinds[id] = cached; }
-      else if (id.isNotEmpty) { missing.add(id); }
+      final id = message.id;
+      final cached = coordinator.authorityFor(
+          conversationId: conversationId, messageId: id);
+      if (cached != null) {
+        kinds[id] = cached;
+      } else if (id.isNotEmpty) {
+        missing.add(id);
+      }
     }
     // UI authority is only a bounded hot cache. Old durable facts must survive
     // its eviction, including completed optimistic commands.
@@ -1242,16 +1266,16 @@ class HistoryWindowStore implements HistoryWindowRepository {
         else { kinds.putIfAbsent(id, () => MessagePersistAuthorityKind.sendState); }
       }
     }
-    final out = <V2TimMessage>[];
+    final bodies = <String>[];
+    final indexIds = <String>[];
+    var bytes = messages.isEmpty ? 2 : messages.length + 1; // brackets and commas
     for (final message in messages) {
-      final id = _identity(message);
-      final kind = kinds[id];
-      if (kind == MessagePersistAuthorityKind.revoke) {
-        message.status = MessageStatus.V2TIM_MSG_STATUS_LOCAL_REVOKED;
+      final revoked = kinds[message.id] == MessagePersistAuthorityKind.revoke;
+      bodies.add(revoked ? message.revokedBody : message.body);
+      bytes += revoked ? message.revokedBytes : message.bytes;
+      indexIds.add(message.id);
       }
-      out.add(message);
-    }
-    return out;
+    return ('[${bodies.join(',')}]', bytes, indexIds);
   }
 
   Future<int> _nextAuthorityRevision(DatabaseExecutor tx) async {
@@ -2014,10 +2038,27 @@ V2TimMessage _decodeMessage(String raw) =>
 
 // Top-level compute entry points: no store, database, or route closure crosses
 // the isolate boundary. Payload and its index IDs come from the same snapshot.
-(String, int, List<String>) _encodeHistoryPage(List<V2TimMessage> messages) {
-  final payload = jsonEncode(messages.map(_messageJson).toList());
-  return (payload, utf8.encode(payload).length,
-      messages.map(_identity).toList(growable: false));
+class _EncodedHistoryRow {
+  const _EncodedHistoryRow(
+      this.id, this.body, this.bytes, this.revokedBody, this.revokedBytes);
+  final String id, body, revokedBody;
+  final int bytes, revokedBytes;
+}
+
+List<_EncodedHistoryRow> _encodeHistoryPage(List<V2TimMessage> messages) {
+  return messages.map((message) {
+    final wire = _messageJson(message);
+    final body = jsonEncode(wire);
+    // Prepare the revoke variant too: fresh authority can arrive while this
+    // page waits in the queue. Selecting it in the transaction needs no JSON
+    // work, no second isolate, and never mutates the live SDK message object.
+    // These keys match the native UI-only status setter / web model toJson.
+    wire[kIsWeb ? 'status' : 'ui_status'] =
+        MessageStatus.V2TIM_MSG_STATUS_LOCAL_REVOKED;
+    final revoked = jsonEncode(wire);
+    return _EncodedHistoryRow(_identity(message), body,
+        utf8.encode(body).length, revoked, utf8.encode(revoked).length);
+  }).toList(growable: false);
 }
 
 // Element fromJson (image/sound/video/file) resolves local paths through

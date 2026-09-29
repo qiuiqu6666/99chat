@@ -1,0 +1,121 @@
+{
+  "target": {
+    "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.beginOpen#3",
+    "name": "beginOpen",
+    "type": "Method",
+    "filePath": "lib/src/services/chat_open_perf_log.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 7,
+  "risk": "HIGH",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 1,
+    "processes_affected": 0,
+    "modules_affected": 4
+  },
+  "byDepthCounts": {
+    "1": 1,
+    "2": 3,
+    "3": 3
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Services",
+      "hits": 3,
+      "impact": "indirect"
+    },
+    {
+      "name": "Conversation_feed",
+      "hits": 2,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_1456",
+      "hits": 1,
+      "impact": "direct"
+    },
+    {
+      "name": "Cluster_1464",
+      "hits": 1,
+      "impact": "indirect"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._handleOnConvItemTaped#1",
+        "name": "_handleOnConvItemTaped",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationBody#5",
+        "name": "_buildConversationBody",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationPeekActions#2",
+        "name": "_buildConversationPeekActions",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationRow#4",
+        "name": "_buildConversationRow",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationRowBound#1",
+        "name": "_buildConversationRowBound",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._showConversationPeek#1",
+        "name": "_showConversationPeek",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState.build#1",
+        "name": "build",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}

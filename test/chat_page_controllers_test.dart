@@ -254,7 +254,7 @@ void main() {
   });
 
   group('HistoryPaginationController', () {
-    test('resetForConversationInit only clears archive triple', () {
+    test('resetForConversationInit retires old pagination ownership', () {
       final p = HistoryPaginationController()
         ..haveMoreData = true
         ..archiveOlderActive = true
@@ -269,8 +269,9 @@ void main() {
       expect(p.suppressArchiveUntilSdkHistory, isFalse);
       expect(p.olderAvailability, HistoryAvailability.unknown);
       expect(p.haveMoreData, isFalse);
-      expect(p.previousPaginationInFlight, isTrue);
-      expect(p.historyLoadingKeys, contains('k'));
+      expect(p.previousPaginationInFlight, isFalse);
+      expect(p.historyLoadingKeys, isEmpty);
+      expect(p.generation, 1);
       expect(p.archiveHistoryNotice, isNull);
     });
 
@@ -328,9 +329,18 @@ void main() {
   });
 
   group('extracted enums', () {
-    test('record and media states expose expected values', () {
-      expect(RecordInputState.values.length, 6);
-      expect(MediaWorkState.sending.index, greaterThan(0));
+    test('recording rejects reentry and can recover after send or failure', () {
+      expect(RecordInputState.idle.canStartRecording, isTrue);
+      for (final state in RecordInputState.values.where((s) => s != RecordInputState.idle)) {
+        expect(state.canStartRecording, isFalse, reason: state.name);
+      }
+      expect(RecordInputState.preparing.canTransitionTo(RecordInputState.cancelling), isTrue);
+      expect(RecordInputState.cancelling.canTransitionTo(RecordInputState.cancelled), isTrue);
+      for (final state in [RecordInputState.cancelled, RecordInputState.error,
+        RecordInputState.sendingVoice, RecordInputState.sendingText]) {
+        expect(state.canTransitionTo(RecordInputState.idle), isTrue);
+      }
+      expect(MediaWorkState.values, containsAll([MediaWorkState.idle, MediaWorkState.sending, MediaWorkState.failed]));
     });
   });
 }

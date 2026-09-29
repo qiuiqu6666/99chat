@@ -1,0 +1,11 @@
+{
+  "lib/src/api/me_group_api.dart": "711cb37d55e6a0ec733fe83bf238c645d8da70169d3f3e2fa3ab37e7876a1f08",
+  "lib/src/group_profile.dart": "0d10a2187243a62aa22ec6627ec1f28e86dea0c6ccb4851690dbe7cdc11e227e",
+  "lib/src/pages/profile_nickname_edit_page.dart": "77f8a9faa3234e1c68244975a08c69c1cffa811fee763fe208ce32f326529ba5",
+  "lib/src/services/group_local/group_membership_sync_service.dart": "b7818cdc10c175fa2c20d7af63f4dd66f2d6e8fd2f75c6f84453685162be0c12",
+  "lib/utils/group_name_card_policy.dart": "2c5fe502b7d5058e7d1b83848bf38637fc37bd4f2646fed9b3cc49f84197e86f",
+  "lib/utils/group_name_card_save_failure.dart": "e3b70661b998ecb9ffe09ac4ffc5c29443c384af4aaf12db3ab124be86d01a2a",
+  "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_group_profile_model.dart": "90df9cef7be0e89b9a3710716f04386d1b0d18148c4075fa0a7097b181e702d5",
+  "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitGroupProfile/widgets/tim_uikit_group_name_card.dart": "e2eb7985c9df5b9ba739ad24c157d66d1fb68777d29cc5a9319516e984a850a2",
+  "test/group_name_card_recovery_test.dart": "e2579ee728b8ceb83da169390aefdb165042402a796206873c30388b9fa892c6"
+}

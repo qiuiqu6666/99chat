@@ -22,11 +22,11 @@ class _DeferredSearchModel extends TUIChatSeparateViewModel {
       {bool notify = true, bool force = false}) async {}
 
   @override
-  void initForEachConversation(ConvType convType, String convID,
+  Future<void> initForEachConversation(ConvType convType, String convID,
       ValueChanged<String>? onChangeInputField,
       {String? groupID,
       String? groupType,
-      List<V2TimGroupMemberFullInfo?>? preGroupMemberList}) {
+      List<V2TimGroupMemberFullInfo?>? preGroupMemberList}) async {
     // Production init strips the UI conversation prefix before SDK calls.
     conversationID = convID.startsWith('c2c_') ? convID.substring(4) : convID;
     conversationType = convType;

@@ -1,0 +1,29 @@
+@override
+  Future<bool> updateOutboxIfCurrent({
+    required ImOutboxRecord record,
+    required ImOutboxState expectedState,
+    required String leaseOwnerId,
+    required int fencingToken,
+    required int nowMs,
+  }) async {
+    if (!isValidImOutboxTransition(expectedState, record.state) ||
+        !await _hasCurrentLease(
+          record.ownerUserId,
+          leaseOwnerId,
+          fencingToken,
+          nowMs,
+        )) {
+      return false;
+    }
+    final changed = await _db.update(
+      _outboxTable,
+      imOutboxToStorageMap(record),
+      where: 'owner_user_id = ? AND operation_id = ? AND state = ?',
+      whereArgs: <Object?>[
+        record.ownerUserId,
+        record.operationId,
+        expectedState.name,
+      ],
+    );
+    return changed == 1;
+  }

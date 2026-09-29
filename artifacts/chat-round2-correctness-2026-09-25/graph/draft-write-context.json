@@ -1,0 +1,95 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._write#3",
+    "name": "_write",
+    "kind": "Method",
+    "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+    "startLine": 118,
+    "endLine": 119
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService",
+        "name": "ConversationDraftService",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.beginEditing#1",
+        "name": "beginEditing",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.clearDraft#2",
+        "name": "clearDraft",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.persistDraft#3",
+        "name": "persistDraft",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Class:lib/src/services/conversation_local/conversation_draft_service.dart:DraftMirrorWriteException",
+        "name": "DraftMirrorWriteException",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/api/group_live_api.dart:GroupLiveApi.current#2",
+        "name": "current",
+        "filePath": "lib/src/api/group_live_api.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_leave_trace.dart:ConversationDraftLeaveTrace.stage#4",
+        "name": "stage",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_leave_trace.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_leave_trace.dart:ConversationDraftLeaveTrace.stage#4",
+        "name": "stage",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_leave_trace.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._commitDraft#3",
+        "name": "_commitDraft",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._notifyList#1",
+        "name": "_notifyList",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._sdkId#1",
+        "name": "_sdkId",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.isCurrentEdit#1",
+        "name": "isCurrentEdit",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      }
+    ],
+    "accesses": [
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftEdit.conversationID",
+        "name": "conversationID",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftEdit.identity",
+        "name": "identity",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      }
+    ]
+  },
+  "processes": []
+}

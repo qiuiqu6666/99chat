@@ -1,12 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
+
+class _ProfileNotificationBatch {
+  _ProfileNotificationBatch(this.isCurrent);
+  final bool Function() isCurrent;
+  final ids = <String>{};
+  bool collecting = true;
+}
 
 /// 好友关系或用户资料（头像/昵称）变更时通知已打开的 Profile / Chat / 建群页刷新。
 class PeerProfileRefreshBus {
   PeerProfileRefreshBus._();
 
   static final PeerProfileRefreshBus instance = PeerProfileRefreshBus._();
+  static const _batchZoneKey = #peerProfileNotificationBatch;
 
   final ValueNotifier<int> revision = ValueNotifier<int>(0);
 
@@ -25,11 +35,34 @@ class PeerProfileRefreshBus {
   Set<String> get latestChangedUserIds =>
       Set<String>.unmodifiable(_latestChangedUserIds);
 
+  /// Scope batching to this async operation. Concurrent profile edits remain
+  /// immediate; finally releases the batch even when part of a sync fails.
+  Future<T> batch<T>(Future<T> Function() work,
+      {required bool Function() isCurrent}) async {
+    final batch = _ProfileNotificationBatch(isCurrent);
+    try {
+      return await runZoned(work, zoneValues: {_batchZoneKey: batch});
+    } finally {
+      batch.collecting = false;
+      if (isCurrent()) notifyMany(batch.ids);
+    }
+  }
+
+  bool _collectInBatch(String id) {
+    final batch = Zone.current[_batchZoneKey] as _ProfileNotificationBatch?;
+    if (batch == null) return false;
+    if (!batch.isCurrent()) return true;
+    if (!batch.collecting) return false;
+    batch.ids.add(id);
+    return true;
+  }
+
   void notify(String userId) {
     final id = ChatIdFormat.rawUserUid(userId);
     if (id.isEmpty) {
       return;
     }
+    if (_collectInBatch(id)) return;
     _changedUserIds.add(id);
     _latestChangedUserIds = <String>{id};
     revision.value++;
@@ -43,6 +76,7 @@ class PeerProfileRefreshBus {
       if (id.isEmpty) {
         continue;
       }
+      if (_collectInBatch(id)) continue;
       _changedUserIds.add(id);
       latest.add(id);
     }

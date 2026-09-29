@@ -24,12 +24,14 @@ class PreparedPhotoUpload {
     this.width,
     this.height,
     this.durationSeconds,
+    this.permanentSkipReason,
   });
 
   final String localAssetId;
   final File uploadFile;
   final bool deleteAfterUpload;
   final String contentHash;
+  final String? permanentSkipReason;
   final int sizeBytes;
 
   /// Backend enum value: IMAGE | VIDEO.
@@ -80,6 +82,7 @@ class PhotoSyncCollector {
 
   /// Each page is small to avoid blocking the UI thread on large albums.
   static const int pageSize = 24;
+  static const int maxVideoUploadBytes = 104857600;
 
   static String _platformLocalAssetId(String rawId) {
     if (Platform.isAndroid) {
@@ -182,6 +185,34 @@ class PhotoSyncCollector {
     }
   }
 
+  /// Fingerprints the selected original resource before consulting backup
+  /// snapshots. Asset IDs and PhotoKit/MediaStore metadata can stay unchanged
+  /// when a user replaces the bytes in place.
+  static Future<String?> sourceFingerprint(AssetEntity asset) async {
+    if (asset.type != AssetType.image && asset.type != AssetType.video) {
+      return null;
+    }
+    try {
+      await _yieldToUi();
+      final origin = await _openOriginFile(asset);
+      if (origin == null || !await origin.exists()) return null;
+      final sizeBytes = await origin.length();
+      if (sizeBytes <= 0) return null;
+      // Oversized videos are permanent skips until their size changes. Avoid
+      // reading hundreds of megabytes only to rediscover that they cannot be
+      // uploaded; the ordinary source hash is used for every eligible item.
+      if (asset.type == AssetType.video &&
+          sizeBytes > maxVideoUploadBytes) {
+        return 'too_large:$sizeBytes';
+      }
+      return SyncFingerprint.fileContentHash(origin);
+    } catch (error) {
+      debugPrint(
+          'PhotoSyncCollector: fingerprint ${asset.id} failed: $error');
+      return null;
+    }
+  }
+
   static Future<PreparedPhotoUpload?> prepareOne(AssetEntity asset) async {
     try {
       await _yieldToUi();
@@ -198,13 +229,26 @@ class PhotoSyncCollector {
       if (asset.type == AssetType.video) {
         final sizeBytes = await origin.length();
         if (sizeBytes <= 0) {
-          debugPrint('PhotoSyncCollector: video $localAssetId skipped zero size');
+          debugPrint(
+              'PhotoSyncCollector: video $localAssetId skipped zero size');
           return null;
+        }
+        if (sizeBytes > maxVideoUploadBytes) {
+          return PreparedPhotoUpload(
+            localAssetId: localAssetId,
+            uploadFile: origin,
+            deleteAfterUpload: false,
+            contentHash: '',
+            sizeBytes: sizeBytes,
+            mediaType: 'VIDEO',
+            mimeType: _guessVideoMimeType(origin.path),
+            permanentSkipReason: 'too_large',
+          );
         }
         final hash = await SyncFingerprint.fileContentHash(origin);
         final assetMimeType = await asset.mimeTypeAsync;
-        final mimeType =
-            _normalizeVideoMimeType(assetMimeType) ?? _guessVideoMimeType(origin.path);
+        final mimeType = _normalizeVideoMimeType(assetMimeType) ??
+            _guessVideoMimeType(origin.path);
         final durationSeconds = asset.videoDuration.inSeconds;
         debugPrint(
           'PhotoSyncCollector: video asset ${asset.id} '

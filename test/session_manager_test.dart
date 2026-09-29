@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_expiry_service.dart';
 import 'package:tencent_cloud_chat_demo/src/api/auth_api.dart';
+import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
 import 'package:tencent_cloud_chat_demo/src/session/auth_repository.dart';
 import 'package:tencent_cloud_chat_demo/src/session/im_client.dart';
 import 'package:tencent_cloud_chat_demo/src/session/im_event_bridge.dart';
@@ -65,6 +68,17 @@ class FakeSessionStore extends SessionStore {
     token = null;
     userId = null;
     credential = null;
+  }
+}
+
+class DelayedTokenSessionStore extends FakeSessionStore {
+  final readStarted = Completer<void>();
+  final tokenResponse = Completer<String?>();
+
+  @override
+  Future<String?> readBusinessToken() {
+    if (!readStarted.isCompleted) readStarted.complete();
+    return tokenResponse.future;
   }
 }
 
@@ -139,7 +153,7 @@ SessionManager manager({
     SessionManager(store: store, auth: auth, im: im);
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
   test('locally expired JWT blocks cached IM restore even when auth is offline',
       () async {
     final payload = base64Url.encode(utf8.encode(jsonEncode({
@@ -182,6 +196,64 @@ void main() {
     expect(session.state.phase, SessionPhase.ready);
     expect(im.connectedUsers, ['a']);
     expect(auth.meCalls, 1);
+  });
+
+  test('slow secure credential read keeps the confirmed account on home',
+      () async {
+    const secureChannel =
+        MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+    final secureValues = <String, String>{};
+    binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(secureChannel, (call) async {
+      final args = Map<String, dynamic>.from(call.arguments as Map);
+      final key = args['key'] as String;
+      if (call.method == 'read') return secureValues[key];
+      if (call.method == 'write') secureValues[key] = args['value'] as String;
+      if (call.method == 'delete') secureValues.remove(key);
+      return null;
+    });
+    SharedPreferences.setMockInitialValues({});
+    final payload = base64Url
+        .encode(utf8.encode(jsonEncode({
+          'sub': 'slow-owner',
+          'exp': DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600,
+        })))
+        .replaceAll('=', '');
+    final validToken = 'eyJhbGciOiJIUzI1NiJ9.$payload.signature';
+    await ApiClient.instance.saveToken(validToken, userId: 'slow-owner');
+
+    final store = DelayedTokenSessionStore()
+      ..userId = 'slow-owner'
+      ..credential = (1, 'cached-sig');
+    final auth = FakeAuthRepository()
+      ..meCall = () async => me('slow-owner');
+    final session = SessionManager(
+      store: store,
+      auth: auth,
+      im: FakeImClient(),
+      restoreWaitBudget: const Duration(milliseconds: 20),
+    );
+
+    try {
+      final restore = session.restore();
+      await store.readStarted.future;
+      await restore;
+      expect(session.state.phase, SessionPhase.offline);
+      expect(session.state.userId, 'slow-owner');
+      expect(session.state.isLoggedOut, isFalse);
+
+      store.tokenResponse.complete(validToken);
+      await session.restore();
+      expect(session.state.phase, SessionPhase.ready);
+    } finally {
+      if (!store.tokenResponse.isCompleted) {
+        store.tokenResponse.complete(validToken);
+      }
+      await session.signOut();
+      await ApiClient.instance.clearToken();
+      binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(secureChannel, null);
+    }
   });
 
   test('does not initialize IM when the cached business session is expired',

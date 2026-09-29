@@ -1,0 +1,170 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.ensureOpenHydrate#4",
+    "name": "ensureOpenHydrate",
+    "kind": "Method",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+    "startLine": 6532,
+    "endLine": 6537
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel",
+        "name": "TUIChatGlobalModel",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator._ensureLatestWindowResetForOpen#6",
+        "name": "_ensureLatestWindowResetForOpen",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/open_hydrate_result.dart:OpenHydrateResult",
+        "name": "OpenHydrateResult",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/open_hydrate_result.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.captureCurrent#2",
+        "name": "captureCurrent",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.captureCurrent#2",
+        "name": "captureCurrent",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.captureCurrent#2",
+        "name": "captureCurrent",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.markHydrateJoined#2",
+        "name": "markHydrateJoined",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.markHydrateOwner#2",
+        "name": "markHydrateOwner",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/history_search_coordinator.dart:Im06HistoryCoverageStore.load#1",
+        "name": "load",
+        "filePath": "lib/src/services/im/history_search_coordinator.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel._findOpenHydrateInFlight#1",
+        "name": "_findOpenHydrateInFlight",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel._historyFlagKeys#1",
+        "name": "_historyFlagKeys",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel._isSameConversationID#2",
+        "name": "_isSameConversationID",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.clearOpenHydrateResult#1",
+        "name": "clearOpenHydrateResult",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.hasInitialHistoryLoaded#1",
+        "name": "hasInitialHistoryLoaded",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.markOpenChatHydrateSettled#1",
+        "name": "markOpenChatHydrateSettled",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.messageDeltaClearEpochFor#1",
+        "name": "messageDeltaClearEpochFor",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.openHydrateResultFor#1",
+        "name": "openHydrateResultFor",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.publishOpenHydrateResult#2",
+        "name": "publishOpenHydrateResult",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.rawMessageCount#1",
+        "name": "rawMessageCount",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      }
+    ],
+    "accesses": [
+      {
+        "uid": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.lastPrepareRequestId",
+        "name": "lastPrepareRequestId",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/open_hydrate_result.dart:OpenHydrateResult.kind",
+        "name": "kind",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/open_hydrate_result.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/open_hydrate_result.dart:OpenHydrateResult.requestSignature",
+        "name": "requestSignature",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/open_hydrate_result.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/open_hydrate_result.dart:OpenHydrateResult.shouldSuppressOrdinaryLoad",
+        "name": "shouldSuppressOrdinaryLoad",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/open_hydrate_result.dart"
+      }
+    ]
+  },
+  "processes": []
+}

@@ -1,0 +1,335 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore",
+    "name": "ConversationLocalStore",
+    "kind": "Class",
+    "filePath": "lib/src/services/conversation_local/conversation_local_store.dart",
+    "startLine": 192,
+    "endLine": 10416
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "imports": [
+      {
+        "uid": "File:lib/src/bootstrap/home_bootstrap.dart",
+        "name": "home_bootstrap.dart",
+        "filePath": "lib/src/bootstrap/home_bootstrap.dart"
+      },
+      {
+        "uid": "File:lib/src/chat_session/chat_session_controller.dart",
+        "name": "chat_session_controller.dart",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart"
+      },
+      {
+        "uid": "File:lib/src/chat_session/chat_session_window_controller.dart",
+        "name": "chat_session_window_controller.dart",
+        "filePath": "lib/src/chat_session/chat_session_window_controller.dart"
+      },
+      {
+        "uid": "File:lib/src/chat_session/chat_session_window_state.dart",
+        "name": "chat_session_window_state.dart",
+        "filePath": "lib/src/chat_session/chat_session_window_state.dart"
+      },
+      {
+        "uid": "File:lib/src/chat_session/conversation_preview_store.dart",
+        "name": "conversation_preview_store.dart",
+        "filePath": "lib/src/chat_session/conversation_preview_store.dart"
+      },
+      {
+        "uid": "File:lib/src/chat_session/conversation_projection_fingerprint.dart",
+        "name": "conversation_projection_fingerprint.dart",
+        "filePath": "lib/src/chat_session/conversation_projection_fingerprint.dart"
+      },
+      {
+        "uid": "File:lib/src/conversation.dart",
+        "name": "conversation.dart",
+        "filePath": "lib/src/conversation.dart"
+      },
+      {
+        "uid": "File:lib/src/pages/ai_assistant/ai_assistant_page.dart",
+        "name": "ai_assistant_page.dart",
+        "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart"
+      },
+      {
+        "uid": "File:lib/src/services/archived_conversation_entry_visibility.dart",
+        "name": "archived_conversation_entry_visibility.dart",
+        "filePath": "lib/src/services/archived_conversation_entry_visibility.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_history_clear_service.dart",
+        "name": "conversation_history_clear_service.dart",
+        "filePath": "lib/src/services/conversation_history_clear_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_local/conversation_draft_service.dart",
+        "name": "conversation_draft_service.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_local/conversation_row_view.dart",
+        "name": "conversation_row_view.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_row_view.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_local/conversation_sync_service.dart",
+        "name": "conversation_sync_service.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_local/conversation_tab_store.dart",
+        "name": "conversation_tab_store.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_local/conversation_unread_aggregate.dart",
+        "name": "conversation_unread_aggregate.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_unread_aggregate.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_local/conversation_unread_guard.dart",
+        "name": "conversation_unread_guard.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_unread_guard.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_peek_service.dart",
+        "name": "conversation_peek_service.dart",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_unread_clear_service.dart",
+        "name": "conversation_unread_clear_service.dart",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/group_conversation_unread_helper.dart",
+        "name": "group_conversation_unread_helper.dart",
+        "filePath": "lib/src/services/group_conversation_unread_helper.dart"
+      },
+      {
+        "uid": "File:lib/src/services/group_local/group_local_tips_service.dart",
+        "name": "group_local_tips_service.dart",
+        "filePath": "lib/src/services/group_local/group_local_tips_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/group_local/group_membership_sync_service.dart",
+        "name": "group_membership_sync_service.dart",
+        "filePath": "lib/src/services/group_local/group_membership_sync_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im_ingress_store.dart",
+        "name": "im_ingress_store.dart",
+        "filePath": "lib/src/services/im/im_ingress_store.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im_recovery_service.dart",
+        "name": "im_recovery_service.dart",
+        "filePath": "lib/src/services/im_recovery_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im_snapshot_bootstrap_service.dart",
+        "name": "im_snapshot_bootstrap_service.dart",
+        "filePath": "lib/src/services/im_snapshot_bootstrap_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/local_account_data_purge.dart",
+        "name": "local_account_data_purge.dart",
+        "filePath": "lib/src/services/local_account_data_purge.dart"
+      },
+      {
+        "uid": "File:lib/src/services/owner_disk_state_snapshot.dart",
+        "name": "owner_disk_state_snapshot.dart",
+        "filePath": "lib/src/services/owner_disk_state_snapshot.dart"
+      },
+      {
+        "uid": "File:lib/src/services/sqflite_lifecycle_host.dart",
+        "name": "sqflite_lifecycle_host.dart",
+        "filePath": "lib/src/services/sqflite_lifecycle_host.dart"
+      },
+      {
+        "uid": "File:lib/src/utils/conversation_preview_history_sync.dart",
+        "name": "conversation_preview_history_sync.dart",
+        "filePath": "lib/src/utils/conversation_preview_history_sync.dart"
+      },
+      {
+        "uid": "File:lib/utils/search_conversation_display.dart",
+        "name": "search_conversation_display.dart",
+        "filePath": "lib/utils/search_conversation_display.dart"
+      },
+      {
+        "uid": "File:test/account_generation_commit_test.dart",
+        "name": "account_generation_commit_test.dart",
+        "filePath": "test/account_generation_commit_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore.ConversationLocalStore#0",
+        "name": "ConversationLocalStore",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Constructor:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._",
+        "name": "_",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Function:lib/src/services/conversation_local/conversation_local_store.dart:fn@2750:2.task@2760:4",
+        "name": "task",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._activeTimeForPersistedRow#3",
+        "name": "_activeTimeForPersistedRow",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._addColumnsIfMissing#3",
+        "name": "_addColumnsIfMissing",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._applyBackendPinnedFlag#1",
+        "name": "_applyBackendPinnedFlag",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._applyConversationIdentityFallback#5",
+        "name": "_applyConversationIdentityFallback",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._applyPreservedLocalDraftOnIncoming#3",
+        "name": "_applyPreservedLocalDraftOnIncoming",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._applyPreviewMessageFallback#2",
+        "name": "_applyPreviewMessageFallback",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._applyRowDisplayFallback#2",
+        "name": "_applyRowDisplayFallback",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._archiveExcludeTokens#1",
+        "name": "_archiveExcludeTokens",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._asInt#1",
+        "name": "_asInt",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._backfillCurrentPreviewColumns#1",
+        "name": "_backfillCurrentPreviewColumns",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._backfillCurrentSdkOrderKeys#1",
+        "name": "_backfillCurrentSdkOrderKeys",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._backfillMigratedPreviewColumns#1",
+        "name": "_backfillMigratedPreviewColumns",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._cancelPendingUpserts#2",
+        "name": "_cancelPendingUpserts",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._captureDisplayName#1",
+        "name": "_captureDisplayName",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._categorizeDbError#1",
+        "name": "_categorizeDbError",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._clearArchiveJoinState#1",
+        "name": "_clearArchiveJoinState",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._clearHistoryCleared#2",
+        "name": "_clearHistoryCleared",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._clearReadCleared#2",
+        "name": "_clearReadCleared",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._cloneConversationForPin#3",
+        "name": "_cloneConversationForPin",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._cloneConversationForRecvOpt#3",
+        "name": "_cloneConversationForRecvOpt",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._collectUnreadForMarkRead#5",
+        "name": "_collectUnreadForMarkRead",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._collectUnreadForMarkReadByIncludeTokens#5",
+        "name": "_collectUnreadForMarkReadByIncludeTokens",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._collectUnreadForMarkReadMemory#5",
+        "name": "_collectUnreadForMarkReadMemory",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._collectUnreadForMarkReadSql#5",
+        "name": "_collectUnreadForMarkReadSql",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._comparisonProbeFromConversation#6",
+        "name": "_comparisonProbeFromConversation",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._completeCoalesceWaitersFromQueued#0",
+        "name": "_completeCoalesceWaitersFromQueued",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore._computePinnedFingerprint#1",
+        "name": "_computePinnedFingerprint",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      }
+    ]
+  },
+  "typed_properties": [
+    {
+      "uid": "Property:lib/src/services/conversation_local/conversation_local_store.dart:ConversationLocalStore.instance",
+      "name": "instance",
+      "filePath": "lib/src/services/conversation_local/conversation_local_store.dart",
+      "declaredType": "ConversationLocalStore"
+    },
+    {
+      "uid": "Property:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore._legacyOwner",
+      "name": "_legacyOwner",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "declaredType": "ConversationLocalStore"
+    }
+  ],
+  "processes": []
+}

@@ -1,0 +1,213 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/im/message_core_store.dart:MessageCoreStore",
+    "name": "MessageCoreStore",
+    "kind": "Class",
+    "filePath": "lib/src/services/im/message_core_store.dart",
+    "startLine": 21,
+    "endLine": 553
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "imports": [
+      {
+        "uid": "File:lib/src/services/conversation_local/conversation_local_store.dart",
+        "name": "conversation_local_store.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_local_store.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im_ingress_store.dart",
+        "name": "im_ingress_store.dart",
+        "filePath": "lib/src/services/im/im_ingress_store.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/read_outbox_store.dart",
+        "name": "read_outbox_store.dart",
+        "filePath": "lib/src/services/im/read_outbox_store.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/read_receipt_outbox_store.dart",
+        "name": "read_receipt_outbox_store.dart",
+        "filePath": "lib/src/services/im/read_receipt_outbox_store.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/runtime_commit_coordinator.dart",
+        "name": "runtime_commit_coordinator.dart",
+        "filePath": "lib/src/services/im/runtime_commit_coordinator.dart"
+      },
+      {
+        "uid": "File:lib/src/services/sqflite_lifecycle_host.dart",
+        "name": "sqflite_lifecycle_host.dart",
+        "filePath": "lib/src/services/sqflite_lifecycle_host.dart"
+      },
+      {
+        "uid": "File:test/c2c_send_without_relation_lookup_test.dart",
+        "name": "c2c_send_without_relation_lookup_test.dart",
+        "filePath": "test/c2c_send_without_relation_lookup_test.dart"
+      },
+      {
+        "uid": "File:test/chat_runtime_commit_test.dart",
+        "name": "chat_runtime_commit_test.dart",
+        "filePath": "test/chat_runtime_commit_test.dart"
+      },
+      {
+        "uid": "File:test/chat_runtime_ingress_sqlite_test.dart",
+        "name": "chat_runtime_ingress_sqlite_test.dart",
+        "filePath": "test/chat_runtime_ingress_sqlite_test.dart"
+      },
+      {
+        "uid": "File:test/failed_message_resend_reposition_test.dart",
+        "name": "failed_message_resend_reposition_test.dart",
+        "filePath": "test/failed_message_resend_reposition_test.dart"
+      },
+      {
+        "uid": "File:test/im_inbox_recovery_index_test.dart",
+        "name": "im_inbox_recovery_index_test.dart",
+        "filePath": "test/im_inbox_recovery_index_test.dart"
+      },
+      {
+        "uid": "File:test/message_core_startup_test.dart",
+        "name": "message_core_startup_test.dart",
+        "filePath": "test/message_core_startup_test.dart"
+      },
+      {
+        "uid": "File:test/receipt_rollback_compat_test.dart",
+        "name": "receipt_rollback_compat_test.dart",
+        "filePath": "test/receipt_rollback_compat_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/im/message_core_store.dart:MessageCoreStore.MessageCoreStore#0",
+        "name": "MessageCoreStore",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Constructor:lib/src/services/im/message_core_store.dart:MessageCoreStore._",
+        "name": "_",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore._copyTable#3",
+        "name": "_copyTable",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore._createSchema#1",
+        "name": "_createSchema",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore._ensureFactory#0",
+        "name": "_ensureFactory",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore._ensureInboxRecoveryColumns#1",
+        "name": "_ensureInboxRecoveryColumns",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore._markLegacyMigrationComplete#1",
+        "name": "_markLegacyMigrationComplete",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore._migrateLegacyTablesIfNeeded#2",
+        "name": "_migrateLegacyTablesIfNeeded",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore._openDb#0",
+        "name": "_openDb",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore._openDbOnce#0",
+        "name": "_openDbOnce",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore._quoteIdentifier#1",
+        "name": "_quoteIdentifier",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore.closeIfOpen#0",
+        "name": "closeIfOpen",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore.runTransaction#6",
+        "name": "runTransaction",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/services/im/message_core_store.dart:MessageCoreStore._coreTables",
+        "name": "_coreTables",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/message_core_store.dart:MessageCoreStore._db",
+        "name": "_db",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/message_core_store.dart:MessageCoreStore._dbVersion",
+        "name": "_dbVersion",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/message_core_store.dart:MessageCoreStore._factoryReady",
+        "name": "_factoryReady",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/message_core_store.dart:MessageCoreStore._openInFlight",
+        "name": "_openInFlight",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/message_core_store.dart:MessageCoreStore._schemaObjects",
+        "name": "_schemaObjects",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/message_core_store.dart:MessageCoreStore.dbName",
+        "name": "dbName",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/message_core_store.dart:MessageCoreStore.instance",
+        "name": "instance",
+        "filePath": "lib/src/services/im/message_core_store.dart"
+      }
+    ]
+  },
+  "typed_properties": [
+    {
+      "uid": "Property:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore._core",
+      "name": "_core",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "declaredType": "MessageCoreStore"
+    },
+    {
+      "uid": "Property:lib/src/services/im/message_core_store.dart:MessageCoreStore.instance",
+      "name": "instance",
+      "filePath": "lib/src/services/im/message_core_store.dart",
+      "declaredType": "MessageCoreStore"
+    },
+    {
+      "uid": "Property:lib/src/services/im/runtime_commit_coordinator.dart:RuntimeCommitCoordinator._core",
+      "name": "_core",
+      "filePath": "lib/src/services/im/runtime_commit_coordinator.dart",
+      "declaredType": "MessageCoreStore"
+    }
+  ],
+  "processes": []
+}

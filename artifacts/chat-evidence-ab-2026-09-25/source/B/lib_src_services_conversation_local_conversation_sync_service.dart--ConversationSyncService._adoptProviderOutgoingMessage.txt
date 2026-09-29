@@ -1,0 +1,23 @@
+Future<bool> _adoptProviderOutgoingMessage(
+    EventEnvelope<dynamic> event, {
+    required SessionIdentity identity,
+    required ImWriterLease lease,
+  }) async {
+    final outgoing = _providerOutgoingIdentity(event, identity: identity);
+    if (outgoing == null) return false;
+    final payload = event.payload as V2TimMessage;
+    return Im05Persistence(
+      store: _messageIngressStore,
+    ).adoptOutboxProviderSucceeded(
+      ownerUserId: identity.ownerUserId,
+      operationId: outgoing.operationId,
+      clientCorrelationId: outgoing.clientCorrelationId,
+      conversationId: outgoing.scope.storageKey,
+      payloadHash: outgoing.payloadFingerprint,
+      leaseOwnerId: lease.leaseOwnerId,
+      fencingToken: lease.fencingToken,
+      nowMs: DateTime.now().millisecondsSinceEpoch,
+      sdkLocalId: payload.id,
+      serverMsgId: payload.msgID,
+    );
+  }

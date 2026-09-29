@@ -1,0 +1,47 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":37852,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"suite":{"id":2,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/app_chat_route_session_reuse_test.dart"},"type":"suite","time":2}
+{"test":{"id":3,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/app_chat_route_session_reuse_test.dart","suiteID":2,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":2,"time":2,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":6030}
+{"group":{"id":4,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":7,"line":null,"column":null,"url":null},"type":"group","time":6031}
+{"test":{"id":5,"name":"every committed canonical send state has a newer version","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":19,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6032}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6049}
+{"test":{"id":6,"name":"terminal truth survives recovery payload garbage collection","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":31,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6049}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6053}
+{"test":{"id":7,"name":"committed success actively notifies an already displayed failure","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":46,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6053}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6057}
+{"test":{"id":8,"name":"a caller timeout cannot release the SDK draft write queue","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":64,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6057}
+{"testID":8,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790282276799 conv=8cd90432dbeb draftLen=1 draftHash=df7e70e50215 empty=false","type":"print","time":6069}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6069}
+{"test":{"id":9,"name":"storage error is unavailable, never legacy missing or retry permission","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":89,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6069}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6071}
+{"test":{"id":10,"name":"SQLite commit failure emits nothing; two adapters share committed truth and GC version","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":96,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6071}
+{"testID":10,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=39 created=true","type":"print","time":6144}
+{"testID":10,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=7.7 deltaMs=7.7 prev=message_core_db_open durationMs=47","type":"print","time":6149}
+{"testID":10,"messageType":"print","message":"commit_probe: handle","type":"print","time":6166}
+{"testID":10,"messageType":"print","message":"commit_probe: armed","type":"print","time":6169}
+{"testID":10,"messageType":"print","message":"commit_probe: rejected","type":"print","time":6177}
+{"testID":10,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=39.2 deltaMs=31.5 prev=message_core_db_ready durationMs=3 created=false","type":"print","time":6180}
+{"testID":10,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=40.6 deltaMs=1.4 prev=message_core_db_open durationMs=4","type":"print","time":6181}
+{"testID":10,"messageType":"print","message":"commit_probe: readable","type":"print","time":6183}
+{"testID":10,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=54.2 deltaMs=13.6 prev=message_core_db_ready durationMs=2 created=false","type":"print","time":6195}
+{"testID":10,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=55.2 deltaMs=1.0 prev=message_core_db_open durationMs=3","type":"print","time":6196}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6201}
+{"test":{"id":11,"name":"concurrent same-operation attempts get exactly one SDK dispatch permit","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":150,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6201}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6204}
+{"testID":3,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":6375}
+{"group":{"id":12,"suiteID":2,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":5,"line":null,"column":null,"url":null},"type":"group","time":6375}
+{"group":{"id":13,"suiteID":2,"parentID":12,"name":"appChatSessionKey","metadata":{"skip":false,"skipReason":null},"testCount":2,"line":12,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/app_chat_route_session_reuse_test.dart"},"type":"group","time":6376}
+{"test":{"id":14,"name":"appChatSessionKey keeps c2c and group sessions isolated for the same raw id","suiteID":2,"groupIDs":[12,13],"metadata":{"skip":false,"skipReason":null},"line":13,"column":5,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/app_chat_route_session_reuse_test.dart"},"type":"testStart","time":6376}
+{"testID":14,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6387}
+{"test":{"id":15,"name":"appChatSessionKey normalizes prefixed and explicit group ids to one session","suiteID":2,"groupIDs":[12,13],"metadata":{"skip":false,"skipReason":null},"line":30,"column":5,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/app_chat_route_session_reuse_test.dart"},"type":"testStart","time":6387}
+{"testID":15,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6388}
+{"test":{"id":16,"name":"route helper reuses an active session before creating another route","suiteID":2,"groupIDs":[12],"metadata":{"skip":false,"skipReason":null},"line":46,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/app_chat_route_session_reuse_test.dart"},"type":"testStart","time":6388}
+{"testID":16,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6395}
+{"test":{"id":17,"name":"reused chat future completes only when the existing route is popped","suiteID":2,"groupIDs":[12],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":59,"root_column":3,"root_url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/app_chat_route_session_reuse_test.dart"},"type":"testStart","time":6395}
+{"testID":17,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6729}
+{"test":{"id":18,"name":"conversation list uses the reuse-aware chat opener","suiteID":2,"groupIDs":[12],"metadata":{"skip":false,"skipReason":null},"line":119,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/app_chat_route_session_reuse_test.dart"},"type":"testStart","time":6729}
+{"testID":18,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6736}
+{"success":true,"type":"done","time":6769}

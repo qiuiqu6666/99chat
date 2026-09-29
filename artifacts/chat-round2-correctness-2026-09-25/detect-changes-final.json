@@ -1,0 +1,2270 @@
+{
+  "summary": {
+    "changed_count": 318,
+    "affected_count": 2,
+    "changed_files": 67,
+    "risk_level": "medium"
+  },
+  "changed_symbols": [
+    {
+      "id": "Class:lib/main.dart:TUIKitDemoApp",
+      "name": "TUIKitDemoApp",
+      "type": "Class",
+      "filePath": "lib/main.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/agent_session_guard.dart:AgentSessionInterceptor",
+      "name": "AgentSessionInterceptor",
+      "type": "Class",
+      "filePath": "lib/src/api/agent_session_guard.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/agent_session_guard.dart:AgentSessionInterceptor.onResponse#2",
+      "name": "onResponse",
+      "type": "Method",
+      "filePath": "lib/src/api/agent_session_guard.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/agent_session_guard.dart:AgentSessionInterceptor.onError#2",
+      "name": "onError",
+      "type": "Method",
+      "filePath": "lib/src/api/agent_session_guard.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/api_client.dart:ApiClient",
+      "name": "ApiClient",
+      "type": "Class",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/api_client.dart:ApiClient._handlingAuthExpiredGeneration",
+      "name": "_handlingAuthExpiredGeneration",
+      "type": "Property",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/api_client.dart:ApiClient._sessionRevision",
+      "name": "_sessionRevision",
+      "type": "Property",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/api_client.dart:ApiClient.sessionRevision",
+      "name": "sessionRevision",
+      "type": "Property",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/api_client.dart:ApiClient.jwtExpiresAt#1",
+      "name": "jwtExpiresAt",
+      "type": "Method",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/api_client.dart:ApiClient.isJwtExpired#2",
+      "name": "isJwtExpired",
+      "type": "Method",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/api_client.dart:ApiClient.expireSessionIfNeeded#1",
+      "name": "expireSessionIfNeeded",
+      "type": "Method",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/api_client.dart:ApiClient.handleSessionExpiryError#1",
+      "name": "handleSessionExpiryError",
+      "type": "Method",
+      "filePath": "lib/src/api/api_client.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/group_create_limit_api.dart:CommunityCreatePrice",
+      "name": "CommunityCreatePrice",
+      "type": "Class",
+      "filePath": "lib/src/api/group_create_limit_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/group_create_limit_api.dart:CommunityCreatePrice.currency",
+      "name": "currency",
+      "type": "Property",
+      "filePath": "lib/src/api/group_create_limit_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/group_create_limit_api.dart:CommunityCreatePrice.amountMinor",
+      "name": "amountMinor",
+      "type": "Property",
+      "filePath": "lib/src/api/group_create_limit_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/group_create_limit_api.dart:CommunityCreatePrice.isValid",
+      "name": "isValid",
+      "type": "Property",
+      "filePath": "lib/src/api/group_create_limit_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/group_create_limit_api.dart:CommunityCreatePrice.displayAmount",
+      "name": "displayAmount",
+      "type": "Property",
+      "filePath": "lib/src/api/group_create_limit_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/api/group_create_limit_api.dart:CommunityCreatePrice.fromJson#1",
+      "name": "fromJson",
+      "type": "Constructor",
+      "filePath": "lib/src/api/group_create_limit_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/group_create_limit_api.dart:GroupCreateLimitsResponse",
+      "name": "GroupCreateLimitsResponse",
+      "type": "Class",
+      "filePath": "lib/src/api/group_create_limit_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/api/group_create_limit_api.dart:GroupCreateLimitsResponse.communityCreatePrice",
+      "name": "communityCreatePrice",
+      "type": "Property",
+      "filePath": "lib/src/api/group_create_limit_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/group_create_limit_api.dart:GroupCreateLimitApi",
+      "name": "GroupCreateLimitApi",
+      "type": "Class",
+      "filePath": "lib/src/api/group_create_limit_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/me_group_api.dart:MutedGroupMemberRecord",
+      "name": "MutedGroupMemberRecord",
+      "type": "Class",
+      "filePath": "lib/src/api/me_group_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/me_group_api.dart:MeGroupApi",
+      "name": "MeGroupApi",
+      "type": "Class",
+      "filePath": "lib/src/api/me_group_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/api/me_group_api.dart:MeGroupApi.createGroup#10",
+      "name": "createGroup",
+      "type": "Method",
+      "filePath": "lib/src/api/me_group_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/api/wallet_api.dart:WalletApi",
+      "name": "WalletApi",
+      "type": "Class",
+      "filePath": "lib/src/api/wallet_api.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/chat.dart:_ChatState",
+      "name": "_ChatState",
+      "type": "Class",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat.dart:_ChatState._draftEdit",
+      "name": "_draftEdit",
+      "type": "Property",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState._ensureDraftEdit#2",
+      "name": "_ensureDraftEdit",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState._captureTextSubmission#1",
+      "name": "_captureTextSubmission",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState._clearSubmittedDraftInput#1",
+      "name": "_clearSubmittedDraftInput",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat.dart:_ChatState._retainedGroupLiveSessionId",
+      "name": "_retainedGroupLiveSessionId",
+      "type": "Property",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat.dart:_ChatState._retainedGroupLiveChatGeneration",
+      "name": "_retainedGroupLiveChatGeneration",
+      "type": "Property",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat.dart:_ChatState._routeReturnRecoveryQueued",
+      "name": "_routeReturnRecoveryQueued",
+      "type": "Property",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat.dart:_ChatState._overlayReturnRecoveryInFlight",
+      "name": "_overlayReturnRecoveryInFlight",
+      "type": "Property",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat.dart:_ChatState._overlayReturnRecoveryConversationId",
+      "name": "_overlayReturnRecoveryConversationId",
+      "type": "Property",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState._persistChatLocalDraftText#5",
+      "name": "_persistChatLocalDraftText",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState._clearChatLocalDraftAfterSend#1",
+      "name": "_clearChatLocalDraftAfterSend",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState._recoverChatHistoryAfterOverlayReturn#1",
+      "name": "_recoverChatHistoryAfterOverlayReturn",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState._performChatHistoryAfterOverlayReturn#1",
+      "name": "_performChatHistoryAfterOverlayReturn",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState.didPushNext#0",
+      "name": "didPushNext",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState.didPopNext#0",
+      "name": "didPopNext",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState._scheduleRouteReturnRecovery#0",
+      "name": "_scheduleRouteReturnRecovery",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState._recoverAfterRouteBecameCurrent#0",
+      "name": "_recoverAfterRouteBecameCurrent",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat.dart:_ChatState.activate#0",
+      "name": "activate",
+      "type": "Method",
+      "filePath": "lib/src/chat.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/chat_page/chat_draft_controller.dart:ChatDraftSubmission",
+      "name": "ChatDraftSubmission",
+      "type": "Class",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftSubmission.durableContext",
+      "name": "durableContext",
+      "type": "Property",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/chat_page/chat_draft_controller.dart:ChatDraftSubmission.ChatDraftSubmission#4",
+      "name": "ChatDraftSubmission",
+      "type": "Constructor",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/chat_page/chat_draft_controller.dart:ChatDraftSubmission._",
+      "name": "_",
+      "type": "Constructor",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftSubmission.editorIdentity",
+      "name": "editorIdentity",
+      "type": "Property",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftSubmission.revision",
+      "name": "revision",
+      "type": "Property",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftSubmission.text",
+      "name": "text",
+      "type": "Property",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftSubmission.persistenceToken",
+      "name": "persistenceToken",
+      "type": "Property",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController",
+      "name": "ChatDraftController",
+      "type": "Class",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController._editorIdentity",
+      "name": "_editorIdentity",
+      "type": "Property",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.captureSubmission#2",
+      "name": "captureSubmission",
+      "type": "Method",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.ownsSubmission#1",
+      "name": "ownsSubmission",
+      "type": "Method",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.clearForSubmission#1",
+      "name": "clearForSubmission",
+      "type": "Method",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/chat_page/chat_draft_controller.dart:ChatDraftController.markSendCompleted#1",
+      "name": "markSendCompleted",
+      "type": "Method",
+      "filePath": "lib/src/chat_page/chat_draft_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/conversation.dart:_ConversationState",
+      "name": "_ConversationState",
+      "type": "Class",
+      "filePath": "lib/src/conversation.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Variable:lib/src/create_group.dart:kStandardGroupMemberLimit",
+      "name": "kStandardGroupMemberLimit",
+      "type": "Variable",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/create_group.dart:_CreateGroup",
+      "name": "_CreateGroup",
+      "type": "Class",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/create_group.dart:_CreateGroup._pendingGroupDraft",
+      "name": "_pendingGroupDraft",
+      "type": "Property",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/create_group.dart:_CreateGroup._loadingContacts",
+      "name": "_loadingContacts",
+      "type": "Property",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/create_group.dart:_CreateGroup._getConversationList#1",
+      "name": "_getConversationList",
+      "type": "Method",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/create_group.dart:_CreateGroup._createGroup#8",
+      "name": "_createGroup",
+      "type": "Method",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/create_group.dart:_CreateGroupDraft",
+      "name": "_CreateGroupDraft",
+      "type": "Class",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/create_group.dart:_CreateGroupDraft.payPin",
+      "name": "payPin",
+      "type": "Property",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/create_group.dart:_CreateGroupDraft.clientRequestId",
+      "name": "clientRequestId",
+      "type": "Property",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/create_group.dart:_CreateGroupDraft.expectedPriceCurrency",
+      "name": "expectedPriceCurrency",
+      "type": "Property",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/create_group.dart:_CreateGroupDraft.expectedPriceMinor",
+      "name": "expectedPriceMinor",
+      "type": "Property",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/create_group.dart:_CreateGroupConfirmPage",
+      "name": "_CreateGroupConfirmPage",
+      "type": "Class",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/create_group.dart:_CreateGroupConfirmPage.initialDraft",
+      "name": "initialDraft",
+      "type": "Property",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/create_group.dart:_CreateGroupConfirmPageState",
+      "name": "_CreateGroupConfirmPageState",
+      "type": "Class",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/create_group.dart:_CreateGroupConfirmPageState._communityRequestId",
+      "name": "_communityRequestId",
+      "type": "Property",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/create_group.dart:_CreateGroupConfirmPageState._formatCommunityPrice#1",
+      "name": "_formatCommunityPrice",
+      "type": "Method",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/create_group.dart:_CreateGroupConfirmPageState._openingCommunityPayPin",
+      "name": "_openingCommunityPayPin",
+      "type": "Property",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/create_group.dart:_CreateGroupConfirmPageState._promptCommunityPayPin#2",
+      "name": "_promptCommunityPayPin",
+      "type": "Method",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/create_group.dart:_CreateGroupConfirmPageState._buildMobileCard#1",
+      "name": "_buildMobileCard",
+      "type": "Method",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/create_group.dart:_CreateGroupConfirmPageState._returnToMemberPicker#0",
+      "name": "_returnToMemberPicker",
+      "type": "Method",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/create_group.dart:_CreateGroupConfirmPageState._buildMobileTypeChoice#5",
+      "name": "_buildMobileTypeChoice",
+      "type": "Method",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/create_group.dart:_CreateGroupConfirmPageState._buildMobileDetailLine#2",
+      "name": "_buildMobileDetailLine",
+      "type": "Method",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/create_group.dart:_CreateGroupConfirmPageState._buildMobileTypeDetails#2",
+      "name": "_buildMobileTypeDetails",
+      "type": "Method",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/create_group.dart:_CreateGroupConfirmPageState._buildGroupCreationCoins#0",
+      "name": "_buildGroupCreationCoins",
+      "type": "Method",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/create_group.dart:_CreateGroupConfirmPageState._buildMobileFormBody#2",
+      "name": "_buildMobileFormBody",
+      "type": "Method",
+      "filePath": "lib/src/create_group.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/navigation/app_chat_route.dart:_PendingChatOpen",
+      "name": "_PendingChatOpen",
+      "type": "Class",
+      "filePath": "lib/src/navigation/app_chat_route.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/navigation/app_chat_route.dart:_PendingChatOpen._PendingChatOpen#1",
+      "name": "_PendingChatOpen",
+      "type": "Constructor",
+      "filePath": "lib/src/navigation/app_chat_route.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/navigation/app_chat_route.dart:_PendingChatOpen.callers",
+      "name": "callers",
+      "type": "Property",
+      "filePath": "lib/src/navigation/app_chat_route.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/navigation/app_chat_route.dart:_PendingChatOpen.result",
+      "name": "result",
+      "type": "Property",
+      "filePath": "lib/src/navigation/app_chat_route.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/navigation/app_chat_route.dart:_accountRouteKey",
+      "name": "_accountRouteKey",
+      "type": "Function",
+      "filePath": "lib/src/navigation/app_chat_route.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/navigation/app_chat_route.dart:AppChatRouteRegistry",
+      "name": "AppChatRouteRegistry",
+      "type": "Class",
+      "filePath": "lib/src/navigation/app_chat_route.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/navigation/app_chat_route.dart:AppChatRouteRegistry._pending",
+      "name": "_pending",
+      "type": "Property",
+      "filePath": "lib/src/navigation/app_chat_route.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/navigation/app_chat_route.dart:AppChatRouteRegistry.unregister#3",
+      "name": "unregister",
+      "type": "Method",
+      "filePath": "lib/src/navigation/app_chat_route.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/navigation/app_chat_route.dart:AppChatRouteRegistry.reset#0",
+      "name": "reset",
+      "type": "Method",
+      "filePath": "lib/src/navigation/app_chat_route.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/navigation/app_chat_route.dart:_AppChatRoutePresenceState",
+      "name": "_AppChatRoutePresenceState",
+      "type": "Class",
+      "filePath": "lib/src/navigation/app_chat_route.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/navigation/app_chat_route.dart:openOrReuseAppChat",
+      "name": "openOrReuseAppChat",
+      "type": "Function",
+      "filePath": "lib/src/navigation/app_chat_route.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/add_friend_page.dart:_AddFriendPageState",
+      "name": "_AddFriendPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/add_friend_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/wallet/widgets/pay_password_prompt.dart:_PayPasswordPromptState",
+      "name": "_PayPasswordPromptState",
+      "type": "Class",
+      "filePath": "lib/src/pages/wallet/widgets/pay_password_prompt.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/chat_failed_message_retry_service.dart:ChatFailedMessageRetryService",
+      "name": "ChatFailedMessageRetryService",
+      "type": "Class",
+      "filePath": "lib/src/services/chat_failed_message_retry_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/chat_latest_window_reset_service.dart:ChatLatestWindowResetService",
+      "name": "ChatLatestWindowResetService",
+      "type": "Class",
+      "filePath": "lib/src/services/chat_latest_window_reset_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog",
+      "name": "ChatOpenPerfLog",
+      "type": "Class",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.enabledInProfile",
+      "name": "enabledInProfile",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.consoleOutputEnabled",
+      "name": "consoleOutputEnabled",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._traceZoneKey",
+      "name": "_traceZoneKey",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._spanZoneKey",
+      "name": "_spanZoneKey",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._traceSequence",
+      "name": "_traceSequence",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._spanSequence",
+      "name": "_spanSequence",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._plaintextKeys",
+      "name": "_plaintextKeys",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._sameConversation#2",
+      "name": "_sameConversation",
+      "type": "Method",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.withTrace#2",
+      "name": "withTrace",
+      "type": "Method",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.withSpan#2",
+      "name": "withSpan",
+      "type": "Method",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.queueSpan#5",
+      "name": "queueSpan",
+      "type": "Method",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.measure#5",
+      "name": "measure",
+      "type": "Method",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan",
+      "name": "ChatOpenSpan",
+      "type": "Class",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan.ChatOpenSpan#5",
+      "name": "ChatOpenSpan",
+      "type": "Constructor",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan._",
+      "name": "_",
+      "type": "Constructor",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan.source",
+      "name": "source",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan.spanId",
+      "name": "spanId",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan.stage",
+      "name": "stage",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan.parentSpanId",
+      "name": "parentSpanId",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan.trace",
+      "name": "trace",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan._clock",
+      "name": "_clock",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan._startedAtUs",
+      "name": "_startedAtUs",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan._finished",
+      "name": "_finished",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan._timeline",
+      "name": "_timeline",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan.start#0",
+      "name": "start",
+      "type": "Method",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenSpan.finish#2",
+      "name": "finish",
+      "type": "Method",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/chat_open_perf_log.dart:_ChatOpenTraceLedger",
+      "name": "_ChatOpenTraceLedger",
+      "type": "Class",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/chat_open_perf_log.dart:_ChatOpenTraceLedger.lastRequestId",
+      "name": "lastRequestId",
+      "type": "Property",
+      "filePath": "lib/src/services/chat_open_perf_log.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator",
+      "name": "ChatOpenViewportCoordinator",
+      "type": "Class",
+      "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftEdit",
+      "name": "ConversationDraftEdit",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftEdit.ConversationDraftEdit#6",
+      "name": "ConversationDraftEdit",
+      "type": "Constructor",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftEdit._",
+      "name": "_",
+      "type": "Constructor",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftEdit.draftId",
+      "name": "draftId",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftEdit.identity",
+      "name": "identity",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftEdit.conversationID",
+      "name": "conversationID",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftEdit.editorIdentity",
+      "name": "editorIdentity",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftEdit.revision",
+      "name": "revision",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftEdit.text",
+      "name": "text",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftEdit.key",
+      "name": "key",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_local/conversation_draft_service.dart:DraftMirrorWriteException",
+      "name": "DraftMirrorWriteException",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:DraftMirrorWriteException.cause",
+      "name": "cause",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:DraftMirrorWriteException.toString#0",
+      "name": "toString",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService",
+      "name": "ConversationDraftService",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.ConversationDraftService#6",
+      "name": "ConversationDraftService",
+      "type": "Constructor",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.forTesting",
+      "name": "forTesting",
+      "type": "Constructor",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.draftStoreForTest",
+      "name": "draftStoreForTest",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.draftCipherForTest",
+      "name": "draftCipherForTest",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._draftStore",
+      "name": "_draftStore",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._durableDrafts",
+      "name": "_durableDrafts",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._draftCipher",
+      "name": "_draftCipher",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._edits",
+      "name": "_edits",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._pendingEdits",
+      "name": "_pendingEdits",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._mirrorRepairPending",
+      "name": "_mirrorRepairPending",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.isCurrentEdit#1",
+      "name": "isCurrentEdit",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.beginEditing#1",
+      "name": "beginEditing",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.recordEdit#2",
+      "name": "recordEdit",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._protectEdit#2",
+      "name": "_protectEdit",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.submissionContext#1",
+      "name": "submissionContext",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.mirrorRepairPending#1",
+      "name": "mirrorRepairPending",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._write#3",
+      "name": "_write",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.persistDraft#3",
+      "name": "persistDraft",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.clearDraft#2",
+      "name": "clearDraft",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.loadDraftText#2",
+      "name": "loadDraftText",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_peek_service.dart:ConversationPeekService",
+      "name": "ConversationPeekService",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_peek_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService",
+      "name": "ConversationUnreadClearService",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService.recoverPendingReadOutbox#1",
+      "name": "recoverPendingReadOutbox",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/friend_local/contacts_protocol_sync_service.dart:ContactsProtocolSyncService",
+      "name": "ContactsProtocolSyncService",
+      "type": "Class",
+      "filePath": "lib/src/services/friend_local/contacts_protocol_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/friend_local/contacts_protocol_sync_service.dart:ContactsProtocolSyncService._ensureDirectoryProjection#1",
+      "name": "_ensureDirectoryProjection",
+      "type": "Method",
+      "filePath": "lib/src/services/friend_local/contacts_protocol_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/group_local/group_create_service.dart:GroupCreateParams",
+      "name": "GroupCreateParams",
+      "type": "Class",
+      "filePath": "lib/src/services/group_local/group_create_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/group_local/group_create_service.dart:GroupCreateParams.payPin",
+      "name": "payPin",
+      "type": "Property",
+      "filePath": "lib/src/services/group_local/group_create_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/group_local/group_create_service.dart:GroupCreateParams.clientRequestId",
+      "name": "clientRequestId",
+      "type": "Property",
+      "filePath": "lib/src/services/group_local/group_create_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/group_local/group_create_service.dart:GroupCreateParams.expectedPriceCurrency",
+      "name": "expectedPriceCurrency",
+      "type": "Property",
+      "filePath": "lib/src/services/group_local/group_create_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/group_local/group_create_service.dart:GroupCreateParams.expectedPriceMinor",
+      "name": "expectedPriceMinor",
+      "type": "Property",
+      "filePath": "lib/src/services/group_local/group_create_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/group_local/group_create_service.dart:GroupCreateService",
+      "name": "GroupCreateService",
+      "type": "Class",
+      "filePath": "lib/src/services/group_local/group_create_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/group_local/group_create_service.dart:GroupCreateService.createWithRecovery#1",
+      "name": "createWithRecovery",
+      "type": "Method",
+      "filePath": "lib/src/services/group_local/group_create_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im05_contracts.dart:ImOutboxRecord",
+      "name": "ImOutboxRecord",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im05_contracts.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.stateVersion",
+      "name": "stateVersion",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_contracts.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.retryOfOperationId",
+      "name": "retryOfOperationId",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_contracts.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.retryOfStateVersion",
+      "name": "retryOfStateVersion",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_contracts.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im05_contracts.dart:ImOutboxRecord.copyWith#14",
+      "name": "copyWith",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_contracts.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Enum:lib/src/services/im/im05_persistence.dart:ImOutboxResultDecision",
+      "name": "ImOutboxResultDecision",
+      "type": "Enum",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict",
+      "name": "ImOutboxResultVerdict",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict.fromDispatchAssessment#1",
+      "name": "fromDispatchAssessment",
+      "type": "Constructor",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict.decision",
+      "name": "decision",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict.main",
+      "name": "main",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict.recoveryCopy",
+      "name": "recoveryCopy",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict.eventAttemptId",
+      "name": "eventAttemptId",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict.reason",
+      "name": "reason",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict.currentState",
+      "name": "currentState",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict.stateVersion",
+      "name": "stateVersion",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict.hasTrustedSnapshot",
+      "name": "hasTrustedSnapshot",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict.deliveryConfirmed",
+      "name": "deliveryConfirmed",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict.canRetry",
+      "name": "canRetry",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultVerdict.accepted",
+      "name": "accepted",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im05_persistence.dart:ImOutboxResultView",
+      "name": "ImOutboxResultView",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultView._current",
+      "name": "_current",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:ImOutboxResultView.current",
+      "name": "current",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im05_persistence.dart:ImOutboxResultView._publish#1",
+      "name": "_publish",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im05_persistence.dart:Im05Persistence",
+      "name": "Im05Persistence",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:Im05Persistence._resultViews",
+      "name": "_resultViews",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im05_persistence.dart:Im05Persistence._viewScope",
+      "name": "_viewScope",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.watchOutboxResult#2",
+      "name": "watchOutboxResult",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.publishCommitted#3",
+      "name": "publishCommitted",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence._publishResult#1",
+      "name": "_publishResult",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.readOutboxResult#2",
+      "name": "readOutboxResult",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.adjudicateOutboxSdkResult#10",
+      "name": "adjudicateOutboxSdkResult",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence._retryParentIsCurrent#2",
+      "name": "_retryParentIsCurrent",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.prepareOutbox#6",
+      "name": "prepareOutbox",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.recordDispatchIntent#6",
+      "name": "recordDispatchIntent",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.adoptOutboxProviderSucceeded#10",
+      "name": "adoptOutboxProviderSucceeded",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence._recordOutboxSdkResult#14",
+      "name": "_recordOutboxSdkResult",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im05_persistence.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im_ingress_store.dart:ImOutboxObservationScope",
+      "name": "ImOutboxObservationScope",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Trait:lib/src/services/im/im_ingress_store.dart:ImOutboxCommitTracking",
+      "name": "ImOutboxCommitTracking",
+      "type": "Trait",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im_ingress_store.dart:ImOutboxCommitTracking.observedOutboxes",
+      "name": "observedOutboxes",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_ingress_store.dart:ImOutboxCommitTracking.committedOutboxes#0",
+      "name": "committedOutboxes",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore",
+      "name": "ConversationLocalImIngressStore",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore._outboxSchemaReady",
+      "name": "_outboxSchemaReady",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore.outboxObservationScope",
+      "name": "outboxObservationScope",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore.transaction#2",
+      "name": "transaction",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im_ingress_store.dart:_SqliteImIngressTransaction",
+      "name": "_SqliteImIngressTransaction",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_ingress_store.dart:_SqliteImIngressTransaction.findDraftHead#2",
+      "name": "findDraftHead",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_ingress_store.dart:_SqliteImIngressTransaction.saveDraftHead#1",
+      "name": "saveDraftHead",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_ingress_store.dart:_SqliteImIngressTransaction.acceptDraft#2",
+      "name": "acceptDraft",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im_ingress_store.dart:InMemoryImIngressStore",
+      "name": "InMemoryImIngressStore",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im_ingress_store.dart:InMemoryImIngressStore.draftHeads",
+      "name": "draftHeads",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im_ingress_store.dart:InMemoryImIngressStore.draftAcceptances",
+      "name": "draftAcceptances",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im_ingress_store.dart:_MemoryImIngressTransaction",
+      "name": "_MemoryImIngressTransaction",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_ingress_store.dart:_MemoryImIngressTransaction.findDraftHead#2",
+      "name": "findDraftHead",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_ingress_store.dart:_MemoryImIngressTransaction.saveDraftHead#1",
+      "name": "saveDraftHead",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_ingress_store.dart:_MemoryImIngressTransaction.acceptDraft#2",
+      "name": "acceptDraft",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im_ingress_store_platform_web.dart:WebImIngressStore",
+      "name": "WebImIngressStore",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im_ingress_store_platform_web.dart:WebImIngressStore._observationScope",
+      "name": "_observationScope",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/im_ingress_store_platform_web.dart:WebImIngressStore.outboxObservationScope",
+      "name": "outboxObservationScope",
+      "type": "Property",
+      "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/im_ingress_store_platform_web.dart:_WebImIngressTransaction",
+      "name": "_WebImIngressTransaction",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:_WebImIngressTransaction.findDraftHead#2",
+      "name": "findDraftHead",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:_WebImIngressTransaction.saveDraftHead#1",
+      "name": "saveDraftHead",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:_WebImIngressTransaction.acceptDraft#2",
+      "name": "acceptDraft",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:_WebImIngressTransaction._bumpMainVersion#1",
+      "name": "_bumpMainVersion",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/message_core_store.dart:MessageCoreStore",
+      "name": "MessageCoreStore",
+      "type": "Class",
+      "filePath": "lib/src/services/im/message_core_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore.runTransaction#6",
+      "name": "runTransaction",
+      "type": "Method",
+      "filePath": "lib/src/services/im/message_core_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/outgoing_send_coordinator.dart:ImCoordinatedSendResult",
+      "name": "ImCoordinatedSendResult",
+      "type": "Class",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImCoordinatedSendResult._sdkResult",
+      "name": "_sdkResult",
+      "type": "Property",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImCoordinatedSendResult._outcomeUnknown",
+      "name": "_outcomeUnknown",
+      "type": "Property",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImCoordinatedSendResult.outboxResult",
+      "name": "outboxResult",
+      "type": "Property",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImCoordinatedSendResult.resultView",
+      "name": "resultView",
+      "type": "Property",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImCoordinatedSendResult.localStatePending",
+      "name": "localStatePending",
+      "type": "Property",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImCoordinatedSendResult.snapshot#0",
+      "name": "snapshot",
+      "type": "Method",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImCoordinatedSendResult.isCurrentSession",
+      "name": "isCurrentSession",
+      "type": "Property",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImCoordinatedSendResult.currentOutboxResult",
+      "name": "currentOutboxResult",
+      "type": "Property",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImCoordinatedSendResult.outcomeUnknown",
+      "name": "outcomeUnknown",
+      "type": "Property",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImCoordinatedSendResult.sdkResult",
+      "name": "sdkResult",
+      "type": "Property",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Enum:lib/src/services/im/outgoing_send_coordinator.dart:ImProviderEvidenceSource",
+      "name": "ImProviderEvidenceSource",
+      "type": "Enum",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator",
+      "name": "ImOutgoingSendCoordinator",
+      "type": "Class",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.ImOutgoingSendCoordinator#0",
+      "name": "ImOutgoingSendCoordinator",
+      "type": "Constructor",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator._",
+      "name": "_",
+      "type": "Constructor",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.ImOutgoingSendCoordinator#1",
+      "name": "ImOutgoingSendCoordinator",
+      "type": "Constructor",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.forTesting",
+      "name": "forTesting",
+      "type": "Constructor",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.send#23",
+      "name": "send",
+      "type": "Method",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.adoptProviderHistory#2",
+      "name": "adoptProviderHistory",
+      "type": "Method",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/services/im/outgoing_send_coordinator.dart:_blocked",
+      "name": "_blocked",
+      "type": "Function",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/read_outbox_store.dart:ConversationReadOutboxRecord",
+      "name": "ConversationReadOutboxRecord",
+      "type": "Class",
+      "filePath": "lib/src/services/im/read_outbox_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/read_outbox_store.dart:ConversationReadOutboxRecord.retryReason",
+      "name": "retryReason",
+      "type": "Property",
+      "filePath": "lib/src/services/im/read_outbox_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/read_outbox_store.dart:ConversationReadOutboxRecord.createdAtMs",
+      "name": "createdAtMs",
+      "type": "Property",
+      "filePath": "lib/src/services/im/read_outbox_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/im/read_outbox_store.dart:ConversationReadOutboxRecord.readEventAtMs",
+      "name": "readEventAtMs",
+      "type": "Property",
+      "filePath": "lib/src/services/im/read_outbox_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/read_outbox_store.dart:ConversationReadOutboxStore",
+      "name": "ConversationReadOutboxStore",
+      "type": "Class",
+      "filePath": "lib/src/services/im/read_outbox_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/read_outbox_store.dart:ConversationReadOutboxStore.markRetry#3",
+      "name": "markRetry",
+      "type": "Method",
+      "filePath": "lib/src/services/im/read_outbox_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/read_outbox_store.dart:ConversationReadOutboxStore.resumeAfterReconnect#1",
+      "name": "resumeAfterReconnect",
+      "type": "Method",
+      "filePath": "lib/src/services/im/read_outbox_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im/tencent_conversation_read_service.dart:TencentConversationReadService",
+      "name": "TencentConversationReadService",
+      "type": "Class",
+      "filePath": "lib/src/services/im/tencent_conversation_read_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/im/tencent_conversation_read_service.dart:TencentConversationReadService.markRead#5",
+      "name": "markRead",
+      "type": "Method",
+      "filePath": "lib/src/services/im/tencent_conversation_read_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/im_connect_status_service.dart:ImConnectStatusService",
+      "name": "ImConnectStatusService",
+      "type": "Class",
+      "filePath": "lib/src/services/im_connect_status_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/platform_official_account_service.dart:PlatformOfficialAccountService",
+      "name": "PlatformOfficialAccountService",
+      "type": "Class",
+      "filePath": "lib/src/services/platform_official_account_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/session_expiry_service.dart:SessionExpiryService",
+      "name": "SessionExpiryService",
+      "type": "Class",
+      "filePath": "lib/src/services/session_expiry_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/web_read_service.dart:WebReadService",
+      "name": "WebReadService",
+      "type": "Class",
+      "filePath": "lib/src/services/web_read_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/session/session_manager.dart:SessionManager",
+      "name": "SessionManager",
+      "type": "Class",
+      "filePath": "lib/src/session/session_manager.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/app_hud.dart:_AppHudOverlay",
+      "name": "_AppHudOverlay",
+      "type": "Class",
+      "filePath": "lib/src/widgets/app_hud.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/widgets/group_live/group_live_startup.dart:groupLiveSameStreamSource",
+      "name": "groupLiveSameStreamSource",
+      "type": "Function",
+      "filePath": "lib/src/widgets/group_live/group_live_startup.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/group_live/group_live_video_player.dart:GroupLiveVideoPlayerState",
+      "name": "GroupLiveVideoPlayerState",
+      "type": "Class",
+      "filePath": "lib/src/widgets/group_live/group_live_video_player.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/group_live/group_live_watch_float.dart:GroupLiveWatchFloat",
+      "name": "GroupLiveWatchFloat",
+      "type": "Class",
+      "filePath": "lib/src/widgets/group_live/group_live_watch_float.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/widgets/group_live/group_live_watch_float.dart:GroupLiveWatchFloat.visible",
+      "name": "visible",
+      "type": "Property",
+      "filePath": "lib/src/widgets/group_live/group_live_watch_float.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/widgets/group_live/group_live_watch_float.dart:_GroupLiveWatchFloatState",
+      "name": "_GroupLiveWatchFloatState",
+      "type": "Class",
+      "filePath": "lib/src/widgets/group_live/group_live_watch_float.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/utils/group_create_limit_message.dart:GroupCreateLimitMessage",
+      "name": "GroupCreateLimitMessage",
+      "type": "Class",
+      "filePath": "lib/utils/group_create_limit_message.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/utils/group_create_limit_message.dart:GroupCreateLimitMessage.standardGroupMemberLimit",
+      "name": "standardGroupMemberLimit",
+      "type": "Property",
+      "filePath": "lib/utils/group_create_limit_message.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/utils/init_step.dart:InitStep",
+      "name": "InitStep",
+      "type": "Class",
+      "filePath": "lib/utils/init_step.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart:ChatLifeCycle",
+      "name": "ChatLifeCycle",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart:ChatLifeCycle.ChatLifeCycle#11",
+      "name": "ChatLifeCycle",
+      "type": "Constructor",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel",
+      "name": "TUIChatSeparateViewModel",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._sendMessage#16",
+      "name": "_sendMessage",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel",
+      "name": "TUIChatGlobalModel",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel._openHydrateCanPublish",
+      "name": "_openHydrateCanPublish",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel._outboxResultSubscriptions",
+      "name": "_outboxResultSubscriptions",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel._outboxSubscriptionConversations",
+      "name": "_outboxSubscriptionConversations",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel._observeOutgoingResult#5",
+      "name": "_observeOutgoingResult",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.applyOutgoingSendResult#7",
+      "name": "applyOutgoingSendResult",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel._mayProjectOutgoingResult#3",
+      "name": "_mayProjectOutgoingResult",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.mayPublishOutgoingSendCompletion#3",
+      "name": "mayPublishOutgoingSendCompletion",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.updateMessage#7",
+      "name": "updateMessage",
+      "type": "Constructor",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart:MessageHistoryPeekLoader",
+      "name": "MessageHistoryPeekLoader",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart:_InputTextFieldState",
+      "name": "_InputTextFieldState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart:_InputTextFieldState._textAcceptancePending",
+      "name": "_textAcceptancePending",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart:_InputTextFieldState._textAcceptanceTicket",
+      "name": "_textAcceptanceTicket",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart:_InputTextFieldState._observeTextSubmission#2",
+      "name": "_observeTextSubmission",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_media_gallery_screen.dart:_ChatMediaGalleryScreenState",
+      "name": "_ChatMediaGalleryScreenState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_media_gallery_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_media_gallery_screen.dart:_ChatMediaGalleryScreenState._handleDownload#1",
+      "name": "_handleDownload",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/chat_media_gallery_screen.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart:MediaPreviewBottomBar",
+      "name": "MediaPreviewBottomBar",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart:MediaPreviewDesktopOverlayChrome",
+      "name": "MediaPreviewDesktopOverlayChrome",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart:_ImageSaveAction",
+      "name": "_ImageSaveAction",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart:_ImageSaveAction.createState#0",
+      "name": "createState",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart:_ImageSaveActionState",
+      "name": "_ImageSaveActionState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart:_ImageSaveActionState._saving",
+      "name": "_saving",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart:_ImageSaveActionState._savingOverlay",
+      "name": "_savingOverlay",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart:_ImageSaveActionState._removeSavingOverlay#0",
+      "name": "_removeSavingOverlay",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart:_ImageSaveActionState.dispose#0",
+      "name": "dispose",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart:_ImageSaveActionState._save#0",
+      "name": "_save",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart:_ImageSaveActionState.build#1",
+      "name": "build",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_chrome.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_reference_button.dart:MediaPreviewReferenceButton",
+      "name": "MediaPreviewReferenceButton",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_reference_button.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_reference_button.dart:MediaPreviewReferenceButton.buttonSize",
+      "name": "buttonSize",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_reference_button.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_reference_button.dart:MediaPreviewReferenceButton.visualScale",
+      "name": "visualScale",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_reference_button.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_video_chrome.dart:MediaPreviewVideoChromeState",
+      "name": "MediaPreviewVideoChromeState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/media_preview_video_chrome.dart",
+      "change_type": "touched"
+    }
+  ],
+  "affected_processes": [
+    {
+      "id": "proc_2_build",
+      "name": "Build → JwtExpiresAt",
+      "process_type": "cross_community",
+      "step_count": 9,
+      "changed_steps": [
+        {
+          "symbol": "isJwtExpired",
+          "step": 8
+        },
+        {
+          "symbol": "jwtExpiresAt",
+          "step": 9
+        }
+      ]
+    },
+    {
+      "id": "proc_161_restorecoldstartsess",
+      "name": "RestoreColdStartSession → JwtExpiresAt",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "isJwtExpired",
+          "step": 3
+        },
+        {
+          "symbol": "jwtExpiresAt",
+          "step": 4
+        }
+      ]
+    }
+  ]
+}

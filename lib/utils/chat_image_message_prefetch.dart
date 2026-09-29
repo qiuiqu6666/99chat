@@ -16,7 +16,9 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
 import 'package:tencent_cloud_chat_demo/src/chat_page/chat_page_scope.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_peek_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_thermal_perf.dart';
+import 'package:tencent_cloud_chat_demo/src/services/contact_social_cache_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/message_media_metadata_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/conversation_preview_history_sync.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
@@ -47,10 +49,13 @@ class ChatOpenPrefetchResult {
 }
 
 class _ThumbnailDownloadJob {
-  _ThumbnailDownloadJob(this.key, V2TimMessage message)
+  _ThumbnailDownloadJob(
+      this.key, this.messageId, this.identity, V2TimMessage message)
       : messages = <V2TimMessage>[message];
 
   final String key;
+  final String messageId;
+  final SessionIdentity identity;
   final List<V2TimMessage> messages;
 
   void attach(V2TimMessage message) {
@@ -113,6 +118,21 @@ class ChatImageMessagePrefetch {
   static int get prefetchInflight =>
       _prefetchInflight + _thumbnailDownloadInFlight;
 
+  static SessionIdentity _captureIdentity() =>
+      SessionIdentityService.instance.capture();
+
+  static bool _isIdentityCurrent(SessionIdentity identity) {
+    final sessions = SessionIdentityService.instance;
+    if (!sessions.isGenerationCurrent(identity.generation)) return false;
+    if (identity.ownerUserId.isEmpty) {
+      return ContactSocialCacheStore.safeLoginUserId().trim().isEmpty;
+    }
+    return sessions.isCurrent(identity);
+  }
+
+  static String _identityKey(SessionIdentity identity, String value) =>
+      '${identity.ownerUserId}:${identity.generation}:$value';
+
   static void bindPageScope(ChatPageScopeToken? token) {
     _pageScope = token;
     _prefetchPaused = false;
@@ -145,7 +165,12 @@ class ChatImageMessagePrefetch {
 
   /// C2C inbound thumbnails are persisted while the app is foregrounded.
   /// This queue downloads compressed THUMB files only; it never decodes them.
-  static void prefetchThumbnailForMessage(V2TimMessage message) {
+  static void prefetchThumbnailForMessage(
+    V2TimMessage message, {
+    SessionIdentity? identity,
+  }) {
+    final requestIdentity = identity ?? _captureIdentity();
+    if (!_isIdentityCurrent(requestIdentity)) return;
     if (kIsWeb || !_isForeground || _prefetchPaused) {
       return;
     }
@@ -164,7 +189,8 @@ class ChatImageMessagePrefetch {
       ChatThermalPerf.increment('thumb_download_skipped_local');
       return;
     }
-    final existing = _thumbnailDownloadJobs[msgID];
+    final key = _identityKey(requestIdentity, msgID);
+    final existing = _thumbnailDownloadJobs[key];
     if (existing != null) {
       existing.attach(message);
       return;
@@ -173,8 +199,13 @@ class ChatImageMessagePrefetch {
       ChatThermalPerf.increment('thumb_download_skipped_queue_full');
       return;
     }
-    final job = _ThumbnailDownloadJob(msgID, message);
-    _thumbnailDownloadJobs[msgID] = job;
+    final job = _ThumbnailDownloadJob(
+      key,
+      msgID,
+      requestIdentity,
+      message,
+    );
+    _thumbnailDownloadJobs[key] = job;
     _thumbnailDownloadPending.add(job);
     _pumpThumbnailDownloads();
   }
@@ -248,20 +279,23 @@ class ChatImageMessagePrefetch {
   ) async {
     final source = job.messages.first;
     try {
+      if (!_isIdentityCurrent(job.identity)) return;
       await MessageMediaMetadataStore.instance.hydrateMessages(
         <V2TimMessage>[source],
+        ownerUserId: job.identity.ownerUserId,
       );
+      if (!_isIdentityCurrent(job.identity)) return;
       if (!_hasLocalThumbFile(source) &&
           resolveBubbleThumbUrl(source) == null) {
-        await _resolveOnlineUrlForMessage(source);
+        await _resolveOnlineUrlForMessage(source, identity: job.identity);
       }
-      if (!_isForeground) {
+      if (!_isForeground || !_isIdentityCurrent(job.identity)) {
         return;
       }
       if (!_hasLocalThumbFile(source) &&
           resolveBubbleThumbUrl(source) != null) {
         final result = await _messageService.downloadMessage(
-          msgID: job.key,
+          msgID: job.messageId,
           message: source,
           messageType: MessageElemType.V2TIM_ELEM_TYPE_IMAGE,
           imageType: 1,
@@ -273,6 +307,7 @@ class ChatImageMessagePrefetch {
           return;
         }
       }
+      if (!_isIdentityCurrent(job.identity)) return;
       if (!_hasLocalThumbFile(source)) {
         ChatThermalPerf.increment('thumb_download_failed');
         return;
@@ -280,8 +315,11 @@ class ChatImageMessagePrefetch {
       for (final target in job.messages) {
         _copyResolvedMedia(source, target);
       }
-      await MessageMediaMetadataStore.instance.upsertFromMessage(source);
-      if (_isForeground) {
+      await MessageMediaMetadataStore.instance.upsertFromMessage(
+        source,
+        ownerUserId: job.identity.ownerUserId,
+      );
+      if (_isForeground && _isIdentityCurrent(job.identity)) {
         _notifyMediaMessageResolved(source);
       }
       ChatThermalPerf.increment('thumb_download_completed');
@@ -323,12 +361,15 @@ class ChatImageMessagePrefetch {
     if (cached == null || cached.isEmpty) {
       return;
     }
+    final identity = _captureIdentity();
+    if (!_isIdentityCurrent(identity)) return;
     if ((conversation.userID?.trim() ?? '').isNotEmpty) {
-      prefetchThumbnailsForFirstWindow(cached);
+      prefetchThumbnailsForFirstWindow(cached, identity: identity);
     }
     unawaited(
       prepareFirstWindowMedia(
         cached,
+        identity: identity,
         budget: initialMediaBudget,
         onMessageResolved: _notifyMediaMessageResolved,
       ),
@@ -343,7 +384,17 @@ class ChatImageMessagePrefetch {
     Duration? prepareBudget,
     void Function(ChatOpenPrefetchResult result)? onLatePrepared,
   }) async {
-    final result = await _loadPeekForConversation(conversation);
+    final identity = _captureIdentity();
+    final result = await _loadPeekForConversation(
+      conversation,
+      identity: identity,
+    );
+    if (!_isIdentityCurrent(identity)) {
+      return const ChatOpenPrefetchResult(
+        messages: <V2TimMessage>[],
+        hasMoreOlder: false,
+      );
+    }
     if (result.messages.isEmpty) {
       return const ChatOpenPrefetchResult(
         messages: <V2TimMessage>[],
@@ -351,15 +402,25 @@ class ChatImageMessagePrefetch {
       );
     }
     final messages = List<V2TimMessage>.from(result.messages);
-    await MessageMediaMetadataStore.instance.hydrateMessages(messages);
+    await MessageMediaMetadataStore.instance.hydrateMessages(
+      messages,
+      ownerUserId: identity.ownerUserId,
+    );
+    if (!_isIdentityCurrent(identity)) {
+      return const ChatOpenPrefetchResult(
+        messages: <V2TimMessage>[],
+        hasMoreOlder: false,
+      );
+    }
     if ((conversation.userID?.trim() ?? '').isNotEmpty) {
-      prefetchThumbnailsForFirstWindow(messages);
+      prefetchThumbnailsForFirstWindow(messages, identity: identity);
     }
     final effectivePrepareBudget = prepareBudget;
     if (effectivePrepareBudget != null &&
         effectivePrepareBudget > Duration.zero) {
       await prepareFirstWindowMedia(
         messages,
+        identity: identity,
         budget: effectivePrepareBudget,
         onMessageResolved: _notifyMediaMessageResolved,
       );
@@ -371,6 +432,7 @@ class ChatImageMessagePrefetch {
     unawaited(
       _enrichOpenPrefetchInBackground(
         messages: messages,
+        identity: identity,
         warmBudget: warmBudget,
         hasMoreOlder: result.hasMoreOlder,
         onLatePrepared: onLatePrepared,
@@ -381,20 +443,28 @@ class ChatImageMessagePrefetch {
 
   static Future<void> _enrichOpenPrefetchInBackground({
     required List<V2TimMessage> messages,
+    required SessionIdentity identity,
     required Duration warmBudget,
     required bool hasMoreOlder,
     void Function(ChatOpenPrefetchResult result)? onLatePrepared,
   }) async {
+    if (!_isIdentityCurrent(identity)) return;
     await resolveOnlineUrlsForMessages(
       messages,
+      identity: identity,
       includeSelf: true,
       onMessageResolved: _notifyMediaMessageResolved,
     );
-    unawaited(MessageMediaMetadataStore.instance.persistFromMessages(messages));
-    fromMessages(messages);
+    if (!_isIdentityCurrent(identity)) return;
+    unawaited(MessageMediaMetadataStore.instance.persistFromMessages(
+      messages,
+      ownerUserId: identity.ownerUserId,
+    ));
+    fromMessages(messages, identity: identity);
     if (warmBudget > Duration.zero) {
-      await warmWithBudget(messages, warmBudget);
+      await warmWithBudget(messages, warmBudget, identity: identity);
     }
+    if (!_isIdentityCurrent(identity)) return;
     onLatePrepared?.call(
       ChatOpenPrefetchResult(
         messages: messages,
@@ -404,8 +474,18 @@ class ChatImageMessagePrefetch {
   }
 
   static Future<ConversationPeekLoadResult> _loadPeekForConversation(
-    V2TimConversation conversation,
-  ) {
+    V2TimConversation conversation, {
+    required SessionIdentity identity,
+  }) {
+    if (!_isIdentityCurrent(identity)) {
+      return Future<ConversationPeekLoadResult>.value(
+        const ConversationPeekLoadResult(
+          messages: <V2TimMessage>[],
+          hasMoreOlder: false,
+          isFinished: true,
+        ),
+      );
+    }
     final key = _conversationKey(conversation);
     if (key == null || key.isEmpty) {
       return Future<ConversationPeekLoadResult>.value(
@@ -431,17 +511,21 @@ class ChatImageMessagePrefetch {
         ),
       );
     }
-    final inFlight = _peekInFlight[key];
+    final scopedKey = _identityKey(identity, key);
+    final inFlight = _peekInFlight[scopedKey];
     if (inFlight != null) {
       return inFlight;
     }
     // 历史云端校验只能由 ConversationHistorySyncCoordinator 发起。
     // 图片预取只消费 SDK 本地已有窗口，避免在路由转场前再开一个云端历史请求。
-    final task = ConversationPeekService.loadLocalForChatEntry(conversation);
-    _peekInFlight[key] = task;
+    final task = ConversationPeekService.loadLocalForChatEntry(
+      conversation,
+      identity: identity,
+    );
+    _peekInFlight[scopedKey] = task;
     return task.whenComplete(() {
-      if (_peekInFlight[key] == task) {
-        _peekInFlight.remove(key);
+      if (_peekInFlight[scopedKey] == task) {
+        _peekInFlight.remove(scopedKey);
       }
     });
   }
@@ -470,12 +554,16 @@ class ChatImageMessagePrefetch {
   /// [budget] 超时后后台继续补全，不阻塞导航。
   static Future<void> resolveOnlineUrlsForMessages(
     Iterable<V2TimMessage?> messages, {
+    SessionIdentity? identity,
     Duration? budget,
     bool includeSelf = false,
     void Function(V2TimMessage message)? onMessageResolved,
   }) async {
+    final requestIdentity = identity ?? _captureIdentity();
+    if (!_isIdentityCurrent(requestIdentity)) return;
     final task = _resolveOnlineUrlsForMessages(
       messages,
+      identity: requestIdentity,
       includeSelf: includeSelf,
       onMessageResolved: onMessageResolved,
     );
@@ -492,12 +580,21 @@ class ChatImageMessagePrefetch {
 
   static Future<void> _resolveOnlineUrlsForMessages(
     Iterable<V2TimMessage?> messages, {
+    required SessionIdentity identity,
     bool includeSelf = false,
     void Function(V2TimMessage message)? onMessageResolved,
   }) async {
+    if (!_isIdentityCurrent(identity)) return;
     final list = messages.whereType<V2TimMessage>().toList(growable: false);
-    await MessageMediaMetadataStore.instance.hydrateMessages(list);
-    unawaited(MessageMediaMetadataStore.instance.persistFromMessages(list));
+    await MessageMediaMetadataStore.instance.hydrateMessages(
+      list,
+      ownerUserId: identity.ownerUserId,
+    );
+    if (!_isIdentityCurrent(identity)) return;
+    unawaited(MessageMediaMetadataStore.instance.persistFromMessages(
+      list,
+      ownerUserId: identity.ownerUserId,
+    ));
     final pending = <V2TimMessage>[];
     for (var index = list.length - 1; index >= 0; index--) {
       if (pending.length >= _maxUrlResolve) {
@@ -522,13 +619,14 @@ class ChatImageMessagePrefetch {
         final index = cursor;
         cursor++;
         final message = pending[index];
-        await _resolveOnlineUrlForMessage(message);
-        if (onMessageResolved != null &&
+        await _resolveOnlineUrlForMessage(message, identity: identity);
+        if (_isIdentityCurrent(identity) &&
+            onMessageResolved != null &&
             !needsOnlineUrlResolution(message, includeSelf: includeSelf)) {
           onMessageResolved(message);
           // A URL that arrives after the bounded open budget still gets the
           // same bubble cache warm-up before the row rebuilds.
-          fromMessages(<V2TimMessage>[message]);
+          fromMessages(<V2TimMessage>[message], identity: identity);
         }
       }
     }
@@ -704,24 +802,32 @@ class ChatImageMessagePrefetch {
     return value.startsWith('http') ? value : null;
   }
 
-  static Future<void> _resolveOnlineUrlForMessage(V2TimMessage message) async {
+  static Future<void> _resolveOnlineUrlForMessage(
+    V2TimMessage message, {
+    required SessionIdentity identity,
+  }) async {
+    if (!_isIdentityCurrent(identity)) return;
     final msgID = message.msgID?.trim() ?? '';
     if (msgID.isEmpty) {
       return;
     }
-    final existing = _urlResolveInFlight[msgID];
+    final key = _identityKey(identity, msgID);
+    final existing = _urlResolveInFlight[key];
     if (existing != null) {
       final source = await existing;
-      _copyResolvedMedia(source, message);
+      if (_isIdentityCurrent(identity)) _copyResolvedMedia(source, message);
       return;
     }
-    final task = _resolveOnlineUrlForMessageImpl(message).then((_) => message);
-    _urlResolveInFlight[msgID] = task;
+    final task = _resolveOnlineUrlForMessageImpl(
+      message,
+      identity: identity,
+    ).then((_) => message);
+    _urlResolveInFlight[key] = task;
     try {
       await task;
     } finally {
-      if (identical(_urlResolveInFlight[msgID], task)) {
-        _urlResolveInFlight.remove(msgID);
+      if (identical(_urlResolveInFlight[key], task)) {
+        _urlResolveInFlight.remove(key);
       }
     }
   }
@@ -742,8 +848,10 @@ class ChatImageMessagePrefetch {
   }
 
   static Future<void> _resolveOnlineUrlForMessageImpl(
-    V2TimMessage message,
-  ) async {
+    V2TimMessage message, {
+    required SessionIdentity identity,
+  }) async {
+    if (!_isIdentityCurrent(identity)) return;
     final msgID = message.msgID?.trim() ?? '';
     if (msgID.isEmpty) {
       return;
@@ -753,6 +861,7 @@ class ChatImageMessagePrefetch {
         msgID: msgID,
         reportError: false,
       );
+      if (!_isIdentityCurrent(identity)) return;
       final imageElem = response.data?.imageElem;
       if (imageElem != null) {
         message.imageElem = imageElem;
@@ -762,7 +871,11 @@ class ChatImageMessagePrefetch {
         message.videoElem = videoElem;
       }
       if (imageElem != null || videoElem != null) {
-        await MessageMediaMetadataStore.instance.upsertFromMessage(message);
+        if (!_isIdentityCurrent(identity)) return;
+        await MessageMediaMetadataStore.instance.upsertFromMessage(
+          message,
+          ownerUserId: identity.ownerUserId,
+        );
       }
     } catch (_) {}
   }
@@ -774,16 +887,20 @@ class ChatImageMessagePrefetch {
   /// message objects are updated in place.
   static Future<void> prepareFirstWindowMedia(
     Iterable<V2TimMessage?> messages, {
+    SessionIdentity? identity,
     Duration budget = initialMediaBudget,
     bool awaitNetwork = false,
     void Function(V2TimMessage message)? onMessageResolved,
   }) async {
+    final requestIdentity = identity ?? _captureIdentity();
+    if (!_isIdentityCurrent(requestIdentity)) return;
     if (budget <= Duration.zero) {
       return;
     }
     final selected = _selectInitialMediaMessages(messages);
     if (ChatCoverDiag.enabled && ChatCoverDiag.canLog) {
-      ChatCoverDiag.log('prepare', '-', 'selected=${selected.length} budgetMs=${budget.inMilliseconds} awaitNetwork=$awaitNetwork');
+      ChatCoverDiag.log('prepare', '-',
+          'selected=${selected.length} budgetMs=${budget.inMilliseconds} awaitNetwork=$awaitNetwork');
       for (final message in selected) {
         ChatCoverDiag.log('selected', message.msgID ?? message.id ?? '-',
             'type=${message.elemType} ts=${message.timestamp} image=${message.imageElem != null} video=${message.videoElem != null}');
@@ -803,14 +920,17 @@ class ChatImageMessagePrefetch {
       await warmWithBudget(
         localSelected,
         _shorterDuration(budget, initialLocalMediaBudget),
+        identity: requestIdentity,
       );
     }
     if (ChatCoverDiag.enabled && ChatCoverDiag.canLog) {
-      ChatCoverDiag.log('prepare_warm_return', '-', 'elapsedMs=${stopwatch.elapsedMilliseconds}');
+      ChatCoverDiag.log('prepare_warm_return', '-',
+          'elapsedMs=${stopwatch.elapsedMilliseconds}');
     }
     final resolveBudget = _shorterDuration(budget, initialMediaUrlBudget);
     final resolveTask = resolveOnlineUrlsForMessages(
       selected,
+      identity: requestIdentity,
       budget: resolveBudget,
       includeSelf: true,
       onMessageResolved: onMessageResolved,
@@ -822,7 +942,11 @@ class ChatImageMessagePrefetch {
         resolveTask.then((_) async {
           final remaining = budget - stopwatch.elapsed;
           if (remaining > Duration.zero) {
-            await warmWithBudget(selected, remaining);
+            await warmWithBudget(
+              selected,
+              remaining,
+              identity: requestIdentity,
+            );
           }
         }).catchError((_) {}),
       );
@@ -831,17 +955,24 @@ class ChatImageMessagePrefetch {
     await resolveTask;
     final remaining = budget - stopwatch.elapsed;
     if (remaining > Duration.zero) {
-      await warmWithBudget(selected, remaining);
+      await warmWithBudget(
+        selected,
+        remaining,
+        identity: requestIdentity,
+      );
     }
   }
 
   /// Schedules only the newest visible-window thumbnails for disk persistence.
   /// This is safe for direct chat entries because it does not await or decode.
   static void prefetchThumbnailsForFirstWindow(
-    Iterable<V2TimMessage?> messages,
-  ) {
+    Iterable<V2TimMessage?> messages, {
+    SessionIdentity? identity,
+  }) {
+    final requestIdentity = identity ?? _captureIdentity();
+    if (!_isIdentityCurrent(requestIdentity)) return;
     for (final message in _selectInitialMediaMessages(messages)) {
-      prefetchThumbnailForMessage(message);
+      prefetchThumbnailForMessage(message, identity: requestIdentity);
     }
   }
 
@@ -857,7 +988,8 @@ class ChatImageMessagePrefetch {
         index--) {
       final message = list[index];
       if (message.elemType != MessageElemType.V2TIM_ELEM_TYPE_IMAGE &&
-          message.imageElem == null && message.videoElem == null) {
+          message.imageElem == null &&
+          message.videoElem == null) {
         continue;
       }
       selected.add(message);
@@ -879,13 +1011,29 @@ class ChatImageMessagePrefetch {
     }
   }
 
-  static void fromMessages(Iterable<V2TimMessage?> messages) {
-    _prefetchFromMessages(messages, maxCount: _maxPrefetch);
+  static void fromMessages(
+    Iterable<V2TimMessage?> messages, {
+    SessionIdentity? identity,
+  }) {
+    final requestIdentity = identity ?? _captureIdentity();
+    _prefetchFromMessages(
+      messages,
+      maxCount: _maxPrefetch,
+      identity: requestIdentity,
+    );
   }
 
   /// 上拉加载更早历史时，仅预热少量靠近当前视口的图片。
-  static void fromHistoricalBatch(Iterable<V2TimMessage?> messages) {
-    _prefetchFromMessages(messages, maxCount: _maxHistoricalPrefetch);
+  static void fromHistoricalBatch(
+    Iterable<V2TimMessage?> messages, {
+    SessionIdentity? identity,
+  }) {
+    final requestIdentity = identity ?? _captureIdentity();
+    _prefetchFromMessages(
+      messages,
+      maxCount: _maxHistoricalPrefetch,
+      identity: requestIdentity,
+    );
   }
 
   /// 退出聊天页时取消尚未开始的预取队列。
@@ -983,8 +1131,11 @@ class ChatImageMessagePrefetch {
   static void _prefetchFromMessages(
     Iterable<V2TimMessage?> messages, {
     required int maxCount,
+    required SessionIdentity identity,
   }) {
-    if (!_pageAllowsDecode || _prefetchPaused) {
+    if (!_isIdentityCurrent(identity) ||
+        !_pageAllowsDecode ||
+        _prefetchPaused) {
       return;
     }
     final list = messages.whereType<V2TimMessage>().toList(growable: false);
@@ -1015,6 +1166,7 @@ class ChatImageMessagePrefetch {
       _scheduleWarmNetworkImage(
         url,
         chatBubbleImageCacheKey(message.msgID, url: url),
+        identity: identity,
         decodeByWidth: _decodeBubbleImageByWidth(message),
       );
     }
@@ -1022,11 +1174,15 @@ class ChatImageMessagePrefetch {
 
   static Future<void> warmWithBudget(
     Iterable<V2TimMessage?> messages,
-    Duration budget,
-  ) async {
+    Duration budget, {
+    SessionIdentity? identity,
+  }) async {
+    final requestIdentity = identity ?? _captureIdentity();
+    if (!_isIdentityCurrent(requestIdentity)) return;
     final jobs = <Future<void>>[];
     final list = messages.whereType<V2TimMessage>().toList(growable: false);
     for (var index = list.length - 1; index >= 0; index--) {
+      if (!_isIdentityCurrent(requestIdentity)) return;
       if (jobs.length >= 4) {
         break;
       }
@@ -1034,9 +1190,19 @@ class ChatImageMessagePrefetch {
       if (message.videoElem != null) {
         final cover = chatVideoCoverProvider(message.videoElem!);
         if (ChatCoverDiag.enabled && ChatCoverDiag.canLog) {
-          ChatCoverDiag.log('warm_video', message.msgID ?? '-', 'provider=${cover?.runtimeType}');
+          ChatCoverDiag.log('warm_video', message.msgID ?? '-',
+              'provider=${cover?.runtimeType}');
         }
-        if (cover != null) jobs.add(_warmProvider(cover));
+        if (cover != null) {
+          jobs.add(_warmProvider(cover).then((_) {
+            if (!_isIdentityCurrent(requestIdentity)) {
+              unawaited(_evictResolvedProvider(
+                PaintingBinding.instance.imageCache,
+                cover,
+              ));
+            }
+          }));
+        }
         continue;
       }
       if (message.elemType != MessageElemType.V2TIM_ELEM_TYPE_IMAGE &&
@@ -1046,7 +1212,8 @@ class ChatImageMessagePrefetch {
       final url = resolveBubbleThumbUrl(message);
       final localPath = _resolveLocalBubblePath(message);
       if (ChatCoverDiag.enabled && ChatCoverDiag.canLog) {
-        ChatCoverDiag.log('warm_image', message.msgID ?? '-', 'local=${localPath != null} url=${url != null}');
+        ChatCoverDiag.log('warm_image', message.msgID ?? '-',
+            'local=${localPath != null} url=${url != null}');
       }
       if (url == null && localPath == null) {
         continue;
@@ -1056,11 +1223,13 @@ class ChatImageMessagePrefetch {
             ? _warmLocalImage(
                 localPath,
                 chatBubbleImageCacheKey(message.msgID, url: localPath),
+                identity: requestIdentity,
                 decodeByWidth: _decodeBubbleImageByWidth(message),
               )
             : _warmNetworkImage(
                 url!,
                 chatBubbleImageCacheKey(message.msgID, url: url),
+                identity: requestIdentity,
                 decodeByWidth: _decodeBubbleImageByWidth(message),
               ),
       );
@@ -1076,12 +1245,20 @@ class ChatImageMessagePrefetch {
   static void _scheduleWarmNetworkImage(
     String url,
     String cacheKey, {
+    required SessionIdentity identity,
     bool decodeByWidth = true,
   }) {
+    if (!_isIdentityCurrent(identity)) return;
     BackgroundMediaGate.instance.observeMetrics();
-    _warmQueue.add(cacheKey, () => _warmNetworkImage(
-      url, cacheKey, decodeByWidth: decodeByWidth,
-    ));
+    _warmQueue.add(_identityKey(identity, cacheKey), () {
+      if (!_isIdentityCurrent(identity)) return Future<void>.value();
+      return _warmNetworkImage(
+        url,
+        cacheKey,
+        identity: identity,
+        decodeByWidth: decodeByWidth,
+      );
+    });
   }
 
   /// Keep the prefetch ResizeImage axis aligned with the chat bubble.
@@ -1159,9 +1336,10 @@ class ChatImageMessagePrefetch {
   static Future<void> _warmNetworkImage(
     String url,
     String cacheKey, {
+    required SessionIdentity identity,
     bool decodeByWidth = true,
   }) async {
-    if (kIsWeb || !_pageAllowsDecode) {
+    if (!_isIdentityCurrent(identity) || kIsWeb || !_pageAllowsDecode) {
       return;
     }
     try {
@@ -1186,15 +1364,23 @@ class ChatImageMessagePrefetch {
                 height: kChatBubbleImageDecodeScrollDeferMaxPx,
               ),
       );
+      if (!_isIdentityCurrent(identity)) {
+        _warmedBubbleProviders.removeWhere((e) => e.cacheKey == cacheKey);
+        _evictBubbleProviders(url, cacheKey);
+      }
     } catch (_) {}
   }
 
   static Future<void> _warmLocalImage(
     String path,
     String cacheKey, {
+    required SessionIdentity identity,
     bool decodeByWidth = true,
   }) async {
-    if (kIsWeb || path.trim().isEmpty || !_pageAllowsDecode) {
+    if (!_isIdentityCurrent(identity) ||
+        kIsWeb ||
+        path.trim().isEmpty ||
+        !_pageAllowsDecode) {
       return;
     }
     try {
@@ -1204,17 +1390,22 @@ class ChatImageMessagePrefetch {
         targetPx: kChatBubbleImageDecodeScrollDeferMaxPx,
       );
       final base = FileImage(File(path));
-      await _warmProvider(
-        decodeByWidth
-            ? ResizeImage(
-                base,
-                width: kChatBubbleImageDecodeScrollDeferMaxPx,
-              )
-            : ResizeImage(
-                base,
-                height: kChatBubbleImageDecodeScrollDeferMaxPx,
-              ),
-      );
+      final provider = decodeByWidth
+          ? ResizeImage(
+              base,
+              width: kChatBubbleImageDecodeScrollDeferMaxPx,
+            )
+          : ResizeImage(
+              base,
+              height: kChatBubbleImageDecodeScrollDeferMaxPx,
+            );
+      await _warmProvider(provider);
+      if (!_isIdentityCurrent(identity)) {
+        unawaited(_evictResolvedProvider(
+          PaintingBinding.instance.imageCache,
+          provider,
+        ));
+      }
     } catch (_) {}
   }
 
@@ -1234,7 +1425,8 @@ class ChatImageMessagePrefetch {
       (info, synchronous) {
         try {
           if (ChatCoverDiag.enabled && ChatCoverDiag.canLog) {
-            ChatCoverDiag.log('warm_decoded', '-', 'provider=${provider.runtimeType} keyHash=${provider.hashCode} sync=$synchronous size=${info.image.width}x${info.image.height}');
+            ChatCoverDiag.log('warm_decoded', '-',
+                'provider=${provider.runtimeType} keyHash=${provider.hashCode} sync=$synchronous size=${info.image.width}x${info.image.height}');
           }
           if (!completer.isCompleted) {
             completer.complete();
@@ -1247,7 +1439,8 @@ class ChatImageMessagePrefetch {
       },
       onError: (_, __) {
         if (ChatCoverDiag.enabled && ChatCoverDiag.canLog) {
-          ChatCoverDiag.log('warm_error', '-', 'provider=${provider.runtimeType} keyHash=${provider.hashCode}');
+          ChatCoverDiag.log('warm_error', '-',
+              'provider=${provider.runtimeType} keyHash=${provider.hashCode}');
         }
         if (!completer.isCompleted) {
           completer.complete();

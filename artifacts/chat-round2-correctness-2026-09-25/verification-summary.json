@@ -1,0 +1,50 @@
+{
+  "createdAt": "2026-09-24T21:40:57.359Z",
+  "tests": [
+    {
+      "log": "focused-release-final.jsonl",
+      "success": true,
+      "suites": 20,
+      "tests": 152,
+      "passed": 152,
+      "failed": [],
+      "skipped": 0,
+      "elapsedMs": 67249
+    },
+    {
+      "log": "profile-correct-flag.jsonl",
+      "success": true,
+      "suites": 2,
+      "tests": 15,
+      "passed": 15,
+      "failed": [],
+      "skipped": 0,
+      "elapsedMs": 14336
+    },
+    {
+      "log": "retry-parent-final.jsonl",
+      "success": true,
+      "suites": 1,
+      "tests": 7,
+      "passed": 7,
+      "failed": [],
+      "skipped": 0,
+      "elapsedMs": 6070
+    },
+    {
+      "log": "route-disposal-final.jsonl",
+      "success": true,
+      "suites": 1,
+      "tests": 8,
+      "passed": 8,
+      "failed": [],
+      "skipped": 0,
+      "elapsedMs": 6846
+    }
+  ],
+  "analyzer": {
+    "errors": 0,
+    "warnings": 3,
+    "infos": 101
+  }
+}

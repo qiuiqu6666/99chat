@@ -1,0 +1,22 @@
+void _warmConversationOnPress(V2TimConversation conversation) {
+    final isGroup = conversationMatchesScope(
+      conversation,
+      ConversationListScope.group,
+    );
+    if (isGroup) {
+      if (!ConversationPerfFlags.groupPressWarmOnTapDownEnabled) {
+        return;
+      }
+    } else if (!ConversationPerfFlags.pressWarmOnTapDownEnabled) {
+      return;
+    }
+    if (_isEditing || !ConversationHistoryWarmScheduler.viewportWarmEnabled) {
+      return;
+    }
+    // User-directed reads share the navigation/page flight and are independent
+    // of background viewport warm pauses. This path stays local-only.
+    unawaited(ChatOpenViewportCoordinator.instance.ensureLocalSnapshotForOpen(
+      conversation: conversation,
+    ));
+    ChatImageMessagePrefetch.prefetchForConversation(conversation);
+  }

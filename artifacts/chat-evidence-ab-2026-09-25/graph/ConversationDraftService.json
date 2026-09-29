@@ -1,0 +1,121 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService",
+    "name": "ConversationDraftService",
+    "kind": "Class",
+    "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+    "startLine": 16,
+    "endLine": 266
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "imports": [
+      {
+        "uid": "File:lib/src/chat.dart",
+        "name": "chat.dart",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "File:test/conversation_settings_reliability_test.dart",
+        "name": "conversation_settings_reliability_test.dart",
+        "filePath": "test/conversation_settings_reliability_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.ConversationDraftService#0",
+        "name": "ConversationDraftService",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Constructor:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.ConversationDraftService#4",
+        "name": "ConversationDraftService",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Constructor:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._",
+        "name": "_",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Constructor:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.forTesting",
+        "name": "forTesting",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._commitDraft#3",
+        "name": "_commitDraft",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._notifyList#1",
+        "name": "_notifyList",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._sdkId#1",
+        "name": "_sdkId",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._write#2",
+        "name": "_write",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.clearDraft#1",
+        "name": "clearDraft",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.clearDraftForConversationIds#1",
+        "name": "clearDraftForConversationIds",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.loadDraftText#1",
+        "name": "loadDraftText",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.persistDraft#2",
+        "name": "persistDraft",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._owner",
+        "name": "_owner",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._tails",
+        "name": "_tails",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService._versions",
+        "name": "_versions",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.instance",
+        "name": "instance",
+        "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart"
+      }
+    ]
+  },
+  "typed_properties": [
+    {
+      "uid": "Property:lib/src/services/conversation_local/conversation_draft_service.dart:ConversationDraftService.instance",
+      "name": "instance",
+      "filePath": "lib/src/services/conversation_local/conversation_draft_service.dart",
+      "declaredType": "ConversationDraftService"
+    }
+  ],
+  "processes": []
+}

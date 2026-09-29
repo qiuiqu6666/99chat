@@ -12,8 +12,9 @@ void main() {
     expect(source, contains('_isChatOpenGenerationCurrent('));
     expect(source, contains('MessageConversationId.sameConversation('));
     expect(source, contains('MobileAsyncCommitGuard'));
-    expect(source, contains("'call-history-refresh'"));
-    expect(source, contains('_mobileCommitGuard.canCommit(commitToken)'));
+    // Network enrichment now shares the page/conversation generation gate;
+    // the removed call-history refresh label is not a lifecycle contract.
+    expect(source, contains('generation == _chatOpenGeneration'));
     expect(source, contains('_mobileCommitGuard.advancePage();'));
   });
 
@@ -30,7 +31,7 @@ void main() {
     expect(source, contains('void dispose()'));
     expect(source, contains('runPostOpenProfileEnrichment()'));
     expect(source, contains('_openProfileEnrichmentInFlight'));
-    final initStart = source.indexOf('void initForEachConversation(');
+    final initStart = source.indexOf('Future<void> initForEachConversation(');
     final enrichmentStart = source.indexOf(
       'Future<void> runPostOpenProfileEnrichment()',
       initStart,
@@ -141,8 +142,10 @@ void main() {
     expect(bottomBody, contains('final transactionToken ='));
     expect(bottomBody, contains('_isCurrentConversationGeneration('));
     expect(bottomBody, contains('model.reloadNewestMessageWindow('));
-    expect(bottomBody, contains('model.markMessageAsRead(force: true);'));
-    expect(bottomBody, contains('changePositionStateForConversation('));
+    expect(bottomBody, contains('model.confirmVisibleLatestWindow('));
+    expect(bottomBody, contains('visibleMessages: displayed'));
+    expect(bottomBody, isNot(contains('model.markMessageAsRead(force: true);')));
+    expect(bottomBody, contains('_settleAtTrueLatestEnd()'));
     expect(bottomBody, contains('curve: Curves.easeInCubic'));
     expect(bottomBody, isNot(contains('curve: Curves.easeOutCubic')));
     expect(

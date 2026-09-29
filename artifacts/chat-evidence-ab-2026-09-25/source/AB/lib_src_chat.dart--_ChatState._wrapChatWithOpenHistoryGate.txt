@@ -1,0 +1,6 @@
+Widget _wrapChatWithOpenHistoryGate(Widget chatWidget) {
+    // History readiness remains a lifecycle/scheduling gate, not a page-wide
+    // interaction gate. The stable TIMUIKitChat tree owns its loading state,
+    // while the app bar and input stay responsive during a cold history load.
+    return chatWidget;
+  }

@@ -1,0 +1,231 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch",
+    "name": "ChatImageMessagePrefetch",
+    "kind": "Class",
+    "filePath": "lib/utils/chat_image_message_prefetch.dart",
+    "startLine": 64,
+    "endLine": 1267
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "imports": [
+      {
+        "uid": "File:lib/src/chat.dart",
+        "name": "chat.dart",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "File:lib/src/conversation.dart",
+        "name": "conversation.dart",
+        "filePath": "lib/src/conversation.dart"
+      },
+      {
+        "uid": "File:lib/src/pages/app.dart",
+        "name": "app.dart",
+        "filePath": "lib/src/pages/app.dart"
+      },
+      {
+        "uid": "File:lib/src/services/chat_history_peek_bootstrap.dart",
+        "name": "chat_history_peek_bootstrap.dart",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "File:lib/src/services/chat_latest_window_reset_service.dart",
+        "name": "chat_latest_window_reset_service.dart",
+        "filePath": "lib/src/services/chat_latest_window_reset_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_local/conversation_sync_service.dart",
+        "name": "conversation_sync_service.dart",
+        "filePath": "lib/src/services/conversation_local/conversation_sync_service.dart"
+      },
+      {
+        "uid": "File:lib/src/widgets/conversation_peek/conversation_peek_media_bubble.dart",
+        "name": "conversation_peek_media_bubble.dart",
+        "filePath": "lib/src/widgets/conversation_peek/conversation_peek_media_bubble.dart"
+      },
+      {
+        "uid": "File:lib/src/widgets/conversation_peek/conversation_peek_overlay.dart",
+        "name": "conversation_peek_overlay.dart",
+        "filePath": "lib/src/widgets/conversation_peek/conversation_peek_overlay.dart"
+      },
+      {
+        "uid": "File:test/chat_image_message_prefetch_oversize_test.dart",
+        "name": "chat_image_message_prefetch_oversize_test.dart",
+        "filePath": "test/chat_image_message_prefetch_oversize_test.dart"
+      },
+      {
+        "uid": "File:test/chat_image_message_prefetch_test.dart",
+        "name": "chat_image_message_prefetch_test.dart",
+        "filePath": "test/chat_image_message_prefetch_test.dart"
+      },
+      {
+        "uid": "File:test/chat_image_prefetch_lifecycle_test.dart",
+        "name": "chat_image_prefetch_lifecycle_test.dart",
+        "filePath": "test/chat_image_prefetch_lifecycle_test.dart"
+      },
+      {
+        "uid": "File:test/chat_page_scope_test.dart",
+        "name": "chat_page_scope_test.dart",
+        "filePath": "test/chat_page_scope_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch.ChatImageMessagePrefetch#0",
+        "name": "ChatImageMessagePrefetch",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Constructor:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._",
+        "name": "_",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._bubbleProviders#2",
+        "name": "_bubbleProviders",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._collectBubbleProvidersForEviction#1",
+        "name": "_collectBubbleProvidersForEviction",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._conversationKey#1",
+        "name": "_conversationKey",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._copyResolvedMedia#2",
+        "name": "_copyResolvedMedia",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._decodeBubbleImageByWidth#1",
+        "name": "_decodeBubbleImageByWidth",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._enrichOpenPrefetchInBackground#4",
+        "name": "_enrichOpenPrefetchInBackground",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._evictBubbleProviders#2",
+        "name": "_evictBubbleProviders",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._evictBubbleProvidersInBatches#2",
+        "name": "_evictBubbleProvidersInBatches",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._evictBubbleProvidersNow#1",
+        "name": "_evictBubbleProvidersNow",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._evictResolvedProvider#2",
+        "name": "_evictResolvedProvider",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._hasLocalThumbFile#1",
+        "name": "_hasLocalThumbFile",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._hasLocalVideoSnapshotFile#1",
+        "name": "_hasLocalVideoSnapshotFile",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._loadPeekForConversation#1",
+        "name": "_loadPeekForConversation",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._notifyMediaMessageResolved#1",
+        "name": "_notifyMediaMessageResolved",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._prefetchFromMessages#2",
+        "name": "_prefetchFromMessages",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._pumpThumbnailDownloads#0",
+        "name": "_pumpThumbnailDownloads",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._resolveLocalBubblePath#1",
+        "name": "_resolveLocalBubblePath",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._resolveOnlineUrlForMessage#1",
+        "name": "_resolveOnlineUrlForMessage",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._resolveOnlineUrlForMessageImpl#1",
+        "name": "_resolveOnlineUrlForMessageImpl",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._resolveOnlineUrlsForMessages#3",
+        "name": "_resolveOnlineUrlsForMessages",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._runThumbnailDownload#1",
+        "name": "_runThumbnailDownload",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._scheduleWarmNetworkImage#3",
+        "name": "_scheduleWarmNetworkImage",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._selectInitialMediaMessages#1",
+        "name": "_selectInitialMediaMessages",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._shorterDuration#2",
+        "name": "_shorterDuration",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._trackWarmedBubbleProvider#2",
+        "name": "_trackWarmedBubbleProvider",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._warmLocalImage#3",
+        "name": "_warmLocalImage",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._warmNetworkImage#3",
+        "name": "_warmNetworkImage",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      },
+      {
+        "uid": "Method:lib/utils/chat_image_message_prefetch.dart:ChatImageMessagePrefetch._warmProvider#1",
+        "name": "_warmProvider",
+        "filePath": "lib/utils/chat_image_message_prefetch.dart"
+      }
+    ]
+  },
+  "processes": []
+}

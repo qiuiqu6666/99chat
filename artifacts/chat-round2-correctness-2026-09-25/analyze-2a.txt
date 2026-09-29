@@ -1,0 +1,7 @@
+Analyzing im05_persistence.dart, im_ingress_store.dart, outbox_state_version_schema.dart...
+
+   info - lib\src\services\im\im05_persistence.dart:119:12 - Use interpolation to compose strings and values. Try using string interpolation to build the composite string. - prefer_interpolation_to_compose_strings
+   info - lib\src\services\im\im05_persistence.dart:163:17 - Use interpolation to compose strings and values. Try using string interpolation to build the composite string. - prefer_interpolation_to_compose_strings
+   info - lib\src\services\im\outbox_state_version_schema.dart:1:8 - The imported package 'sqflite_common' isn't a dependency of the importing package. Try adding a dependency for 'sqflite_common' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+
+3 issues found.

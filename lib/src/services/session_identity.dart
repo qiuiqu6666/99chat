@@ -29,8 +29,21 @@ class SessionIdentityService {
   static final SessionIdentityService instance = SessionIdentityService._();
 
   int _generation = 0;
+  final Set<void Function(int generation, String reason)>
+      _invalidationListeners = <void Function(int, String)>{};
 
   int get generation => _generation;
+
+  void addInvalidationListener(
+      void Function(int generation, String reason) listener) {
+    _invalidationListeners.add(listener);
+  }
+
+  void removeInvalidationListener(
+    void Function(int generation, String reason) listener,
+  ) {
+    _invalidationListeners.remove(listener);
+  }
 
   /// Resolves the owner before logout clears any IM or token state.
   /// The encrypted cache is a last resort for kicked-offline flows where the
@@ -89,6 +102,11 @@ class SessionIdentityService {
   /// Invalidates all operations started before the account boundary.
   int invalidate({String reason = 'session_boundary'}) {
     _generation++;
+    for (final listener in List.of(_invalidationListeners)) {
+      try {
+        listener(_generation, reason);
+      } catch (_) {}
+    }
     return _generation;
   }
 }

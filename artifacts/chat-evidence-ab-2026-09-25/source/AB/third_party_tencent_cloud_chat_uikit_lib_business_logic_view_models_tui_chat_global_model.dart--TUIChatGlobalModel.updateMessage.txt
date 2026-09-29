@@ -1,0 +1,223 @@
+updateMessage(
+    V2TimValueCallback<V2TimMessage> sendMsgRes,
+    String convID,
+    String id,
+    ConvType convType,
+    GroupReceiptAllowType? groupType,
+    ValueChanged<String>? setInputField,
+  ) {
+    final storageConvID = _resolveMessageListStorageKey(convID);
+    List<V2TimMessage> currentHistoryMsgList =
+        _messageListMap[storageConvID] ?? _collectAuthoritativeMessages(convID);
+    final V2TimMessage sendMsgResData = sendMsgRes.data as V2TimMessage;
+    final resolvedMessage = _cloneMessage(sendMsgResData);
+
+    // Always set the correct status based on send result
+    if (sendMsgRes.code == 0) {
+      resolvedMessage.status = MessageStatus.V2TIM_MSG_STATUS_SEND_SUCC;
+      _setUploadProgressSilently(id, 100);
+      final resolvedMsgID = resolvedMessage.msgID?.trim();
+      if (resolvedMsgID != null && resolvedMsgID.isNotEmpty) {
+        _setUploadProgressSilently(resolvedMsgID, 100);
+      }
+    } else {
+      resolvedMessage.status = MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL;
+    }
+    if (resolvedMessage.id == null || resolvedMessage.id!.isEmpty) {
+      resolvedMessage.id = id;
+    }
+    final targetIndex = _findMessageIndexForUpdate(
+      currentHistoryMsgList,
+      id,
+      resolvedMessage,
+    );
+    final originalRowCount = currentHistoryMsgList.length;
+    if (sendMsgRes.code != 0 &&
+        resolvedMessage.status == MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL) {
+      ErrorMessageConverter.attachSendFailCode(
+        resolvedMessage,
+        sendMsgRes.code,
+      );
+      final msgID = resolvedMessage.msgID;
+      if (msgID != null &&
+          msgID.isNotEmpty &&
+          resolvedMessage.localCustomData != null) {
+        _messageService.setLocalCustomData(
+          msgID: msgID,
+          localCustomData: resolvedMessage.localCustomData!,
+        );
+      }
+    }
+    V2TimMessage? previousForMerge;
+    if (targetIndex != -1) {
+      currentHistoryMsgList = [...currentHistoryMsgList];
+      previousForMerge = currentHistoryMsgList[targetIndex];
+      if (sendMsgRes.code != 0) {
+        final boundMsgID = previousForMerge.msgID?.trim();
+        if (boundMsgID != null && boundMsgID.isNotEmpty) {
+          resolvedMessage.msgID = boundMsgID;
+        }
+      }
+      _preserveSoundLocalPath(previousForMerge, resolvedMessage);
+      _preserveImageLocalPath(previousForMerge, resolvedMessage);
+      _preserveImageDisplaySize(resolvedMessage, id);
+      _preserveOutgoingLocalOrderData(previousForMerge, resolvedMessage);
+      currentHistoryMsgList[targetIndex] = resolvedMessage;
+    } else {
+      currentHistoryMsgList = [resolvedMessage, ...currentHistoryMsgList];
+    }
+    final resolvedId = resolvedMessage.id ?? id;
+    final resolvedMsgID = resolvedMessage.msgID;
+    if (sendMsgRes.code == 0) {
+      final hadFailCode =
+          ErrorMessageConverter.getSendFailCode(resolvedMessage) != null;
+      ErrorMessageConverter.clearSendFailCode(resolvedMessage);
+      if (hadFailCode && resolvedMsgID != null && resolvedMsgID.isNotEmpty) {
+        _messageService.setLocalCustomData(
+          msgID: resolvedMsgID,
+          localCustomData: resolvedMessage.localCustomData ?? '',
+        );
+      }
+      _clearUploadProgressSilently(resolvedId);
+      if (resolvedMsgID != null && resolvedMsgID.isNotEmpty) {
+        _clearUploadProgressSilently(resolvedMsgID);
+      }
+      _migrateFileMessageMetadata(id, resolvedMsgID);
+      if (resolvedMessage.elemType == MessageElemType.V2TIM_ELEM_TYPE_IMAGE) {
+        final layoutSize = _fileMessageSizeMap[id] ??
+            ((resolvedMsgID?.isNotEmpty ?? false)
+                ? _fileMessageSizeMap[resolvedMsgID!]
+                : null);
+        if (layoutSize != null &&
+            layoutSize.width > 0 &&
+            layoutSize.height > 0) {
+          applyImageLayoutToMessage(resolvedMessage, layoutSize);
+          if (resolvedMsgID != null && resolvedMsgID.isNotEmpty) {
+            _messageService.setLocalCustomData(
+              msgID: resolvedMsgID,
+              localCustomData: resolvedMessage.localCustomData ?? '',
+            );
+          }
+        }
+      }
+    }
+    if (resolvedId.isNotEmpty || (resolvedMsgID?.isNotEmpty ?? false)) {
+      currentHistoryMsgList = currentHistoryMsgList.where((element) {
+        if (identical(element, resolvedMessage)) {
+          return true;
+        }
+        final sameId = resolvedId.isNotEmpty && element.id == resolvedId;
+        final sameMsgID = resolvedMsgID != null &&
+            resolvedMsgID.isNotEmpty &&
+            element.msgID == resolvedMsgID;
+        if (!sameId && !sameMsgID) {
+          return true;
+        }
+        return false;
+      }).toList();
+    }
+    final collapsedDuplicate = currentHistoryMsgList.length < originalRowCount;
+    if (loadingMessage[storageConvID] != null &&
+        loadingMessage[storageConvID]!.isNotEmpty) {
+      loadingMessage[storageConvID]!.removeWhere((element) => element.id == id);
+    }
+    if (chatConfig.isShowReadingStatus &&
+        groupType != GroupReceiptAllowType.community &&
+        sendMsgRes.data?.msgID != null) {
+      _messageReadReceiptMap[sendMsgRes.data!.msgID!] = V2TimMessageReceipt(
+        timestamp: 0,
+        userID: "",
+        readCount: 0,
+      );
+    }
+    _registerSoundLocalPath(resolvedMessage);
+    final stableIdentity =
+        readOutgoingStableId(previousForMerge)?.trim().isNotEmpty == true
+            ? readOutgoingStableId(previousForMerge)!.trim()
+            : readOutgoingStableId(resolvedMessage)?.trim().isNotEmpty == true
+                ? readOutgoingStableId(resolvedMessage)!.trim()
+                : id.trim();
+    final adoptionRecord = MessageReconciliationRecord<V2TimMessage>(
+      value: resolvedMessage,
+      msgID: resolvedMessage.msgID,
+      localID: resolvedMessage.id,
+      outgoingStableID: stableIdentity,
+      seq: resolvedMessage.seq,
+    );
+    final authoritativeSendCommit = commitMessageDelta(
+      MessageDelta<V2TimMessage>(
+        conversationKey: storageConvID,
+        eventID: 'send_adoption:$stableIdentity:${resolvedMessage.msgID ?? ''}',
+        kind: MessageDeltaKind.optimisticAdoption,
+        source: MessageDeltaSource.sendPipeline,
+        generation: messageDeltaGenerationFor(storageConvID),
+        clearEpoch: messageDeltaClearEpochFor(storageConvID),
+        upserts: [adoptionRecord],
+      ),
+    );
+    if (authoritativeSendCommit == null) {
+      // A queued, stale, or rejected receipt cannot use the old row-local or
+      // full-list fallback. History completion or a later valid receipt owns
+      // the next formal publication.
+      // `send_done_row_local_fallback` is intentionally retired as a formal
+      // list path; keep the diagnostic term for compatibility with probes.
+      return;
+    }
+    _chatUiStateStore.bindMessageAlias(
+      storageConvID,
+      id,
+      ChatUiStateStore.messageKeyOf(resolvedMessage),
+    );
+    // temp id 上已测到的行高迁到正式 msgID，避免 send_done 后失缓存再估高抖动。
+    ChatMessageHeightCache.instance.rememberAlias(id, resolvedMessage.msgID);
+    final knownHeight = ChatMessageHeightCache.instance.heightFor(
+      resolvedMessage,
+    );
+    if (knownHeight != null && knownHeight > 0) {
+      ChatMessageHeightCache.instance.remember(resolvedMessage, knownHeight);
+    }
+    _markMessageRowChanged(storageConvID, resolvedMessage, extraKey: id);
+    final insertedRow = targetIndex == -1;
+    final reordered = !isNewestFirstStorageOrderValid(currentHistoryMsgList);
+    final isRowLocalMediaReceipt = targetIndex != -1 &&
+        !collapsedDuplicate &&
+        stableIdentity.isNotEmpty &&
+        _isRowLocalOutgoingMediaReceipt(previousForMerge, resolvedMessage);
+    final structuralChange = insertedRow || collapsedDuplicate || reordered;
+    if (structuralChange) {
+      _bumpMessageListRevisionFor(
+        storageConvID,
+        reason: insertedRow
+            ? 'send_done_insert_sort'
+            : collapsedDuplicate
+                ? 'send_done_duplicate_collapse'
+                : 'send_done_reorder',
+      );
+    }
+    _logOutgoingSendOrder(
+      event: 'send_done',
+      convID: storageConvID,
+      message: resolvedMessage,
+      clientId: id,
+      mergePath: isRowLocalMediaReceipt
+          ? 'row_local_stable_identity'
+          : targetIndex != -1
+              ? 'update_replace'
+              : 'update_insert',
+      existingIndex: targetIndex,
+      reordered: reordered,
+    );
+    // 同位回执只由 ChatUiStateStore 通知该行；不发全局 notify，
+    // 也不请求贴底，避免用户正在上滑时被拉回底部。
+    if (!structuralChange) {
+      return;
+    }
+    // 发送后 350ms suppress 窗口内推迟整表 notify，让 list-push 先播完。
+    if (targetIndex != -1 && shouldSuppressOutgoingPinScroll()) {
+      Future<void>.delayed(const Duration(milliseconds: 380), () {
+        _markNeedsNotify();
+      });
+    } else {
+      _markNeedsNotify();
+    }
+  }

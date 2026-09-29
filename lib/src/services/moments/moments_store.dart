@@ -6,9 +6,14 @@ import 'package:tencent_cloud_chat_demo/src/api/moments_api.dart';
 import 'package:tencent_cloud_chat_demo/src/models/moments/moment_models.dart';
 import 'package:tencent_cloud_chat_demo/src/services/moments/moments_error_mapper.dart';
 import 'package:tencent_cloud_chat_demo/src/services/moments/moments_local_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_self_info_view_model.dart';
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
+
+class MomentsSessionChanged implements Exception {
+  const MomentsSessionChanged();
+}
 
 class MomentsStore {
   MomentsStore._();
@@ -37,7 +42,25 @@ class MomentsStore {
     return raw.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
   }
 
-  static String _draftKey() => '$_draftKeyPrefix${accountScope()}';
+  static String _draftKey([String? ownerUserId]) =>
+      '$_draftKeyPrefix${accountScopeForUserId(ownerUserId ?? accountScope())}';
+
+  static SessionIdentity captureSessionIdentity() {
+    final owner = accountScope();
+    return SessionIdentityService.instance.capture(ownerUserId: owner);
+  }
+
+  static bool isSessionIdentityCurrent(SessionIdentity identity) =>
+      SessionIdentityService.instance.isCurrent(
+        identity,
+        currentOwnerUserId: accountScope(),
+      );
+
+  static void _requireCurrent(SessionIdentity identity) {
+    if (!isSessionIdentityCurrent(identity)) {
+      throw const MomentsSessionChanged();
+    }
+  }
 
   /// 注销：删除该账号朋友圈草稿 prefs。
   static Future<void> clearDraftForOwner(String? ownerUserId) async {
@@ -190,20 +213,24 @@ class MomentsStore {
     );
   }
 
-  static Future<List<MomentPost>> loadFeed() async {
-    final page = await loadFeedPage();
+  static Future<List<MomentPost>> loadFeed({SessionIdentity? identity}) async {
+    final page = await loadFeedPage(identity: identity);
     return page.items;
   }
 
-  static Future<List<MomentPost>> loadUserMoments(String userId) async {
-    final page = await loadUserMomentsPage(userId);
+  static Future<List<MomentPost>> loadUserMoments(String userId,
+      {SessionIdentity? identity}) async {
+    final page = await loadUserMomentsPage(userId, identity: identity);
     return page.items;
   }
 
   static Future<MomentPostPage> loadFeedPage({
     String? cursor,
     int pageSize = 20,
+    SessionIdentity? identity,
   }) async {
+    final requestIdentity = identity ?? captureSessionIdentity();
+    _requireCurrent(requestIdentity);
     final scope = MomentsLocalStore.feedScope();
     try {
       final page = _postPageFromApi(
@@ -212,18 +239,23 @@ class MomentsStore {
           pageSize: pageSize,
         ),
       );
+      _requireCurrent(requestIdentity);
       await MomentsLocalStore.instance.savePage(
-        ownerUserId: accountScope(),
+        ownerUserId: requestIdentity.ownerUserId,
         scope: scope,
         page: page,
         replace: (cursor ?? '').trim().isEmpty,
       );
+      _requireCurrent(requestIdentity);
       return page;
     } catch (e) {
+      if (e is MomentsSessionChanged) rethrow;
+      _requireCurrent(requestIdentity);
       return _cachedPageOrThrow(
         error: e,
         scope: scope,
         allowCache: (cursor ?? '').trim().isEmpty,
+        identity: requestIdentity,
       );
     }
   }
@@ -232,7 +264,10 @@ class MomentsStore {
     String userId, {
     String? cursor,
     int pageSize = 20,
+    SessionIdentity? identity,
   }) async {
+    final requestIdentity = identity ?? captureSessionIdentity();
+    _requireCurrent(requestIdentity);
     final id = userId.trim();
     if (id.isEmpty) return const MomentPostPage(items: [], hasMore: false);
     final scope = MomentsLocalStore.userScope(id);
@@ -244,33 +279,40 @@ class MomentsStore {
           pageSize: pageSize,
         ),
       );
+      _requireCurrent(requestIdentity);
       await MomentsLocalStore.instance.savePage(
-        ownerUserId: accountScope(),
+        ownerUserId: requestIdentity.ownerUserId,
         scope: scope,
         page: page,
         replace: (cursor ?? '').trim().isEmpty,
       );
+      _requireCurrent(requestIdentity);
       return page;
     } catch (e) {
+      if (e is MomentsSessionChanged) rethrow;
+      _requireCurrent(requestIdentity);
       return _cachedPageOrThrow(
         error: e,
         scope: scope,
         allowCache: (cursor ?? '').trim().isEmpty,
+        identity: requestIdentity,
       );
     }
   }
 
   static Future<List<MomentPost>> loadLocalFeed() async {
+    final owner = accountScope();
     final page = await MomentsLocalStore.instance.loadPage(
-      ownerUserId: accountScope(),
+      ownerUserId: owner,
       scope: MomentsLocalStore.feedScope(),
     );
     return page.items;
   }
 
   static Future<void> saveFeed(List<MomentPost> posts) async {
+    final owner = accountScope();
     await MomentsLocalStore.instance.savePage(
-      ownerUserId: accountScope(),
+      ownerUserId: owner,
       scope: MomentsLocalStore.feedScope(),
       page: MomentPostPage(items: posts, hasMore: false),
       replace: true,
@@ -281,13 +323,16 @@ class MomentsStore {
     required Object error,
     required String scope,
     required bool allowCache,
+    required SessionIdentity identity,
   }) async {
     final mapped = MomentsErrorMapper.map(error);
     if (allowCache) {
+      _requireCurrent(identity);
       final cached = await MomentsLocalStore.instance.loadPage(
-        ownerUserId: accountScope(),
+        ownerUserId: identity.ownerUserId,
         scope: scope,
       );
+      _requireCurrent(identity);
       if (cached.items.isNotEmpty) {
         return MomentPostPage(
           items: cached.items,
@@ -302,9 +347,12 @@ class MomentsStore {
     throw AppException(mapped);
   }
 
-  static Future<MomentDraft?> loadDraft() async {
+  static Future<MomentDraft?> loadDraft({SessionIdentity? identity}) async {
+    final requestIdentity = identity ?? captureSessionIdentity();
+    if (!isSessionIdentityCurrent(requestIdentity)) return null;
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_draftKey());
+    if (!isSessionIdentityCurrent(requestIdentity)) return null;
+    final raw = prefs.getString(_draftKey(requestIdentity.ownerUserId));
     if (raw == null || raw.trim().isEmpty) {
       return null;
     }
@@ -317,19 +365,31 @@ class MomentsStore {
     }
   }
 
-  static Future<void> saveDraft(MomentDraft? draft) async {
+  static Future<void> saveDraft(MomentDraft? draft,
+      {SessionIdentity? identity}) async {
+    final requestIdentity = identity ?? captureSessionIdentity();
+    if (!isSessionIdentityCurrent(requestIdentity)) return;
+    final key = _draftKey(requestIdentity.ownerUserId);
     final prefs = await SharedPreferences.getInstance();
+    if (!isSessionIdentityCurrent(requestIdentity)) return;
     if (draft == null) {
-      await prefs.remove(_draftKey());
+      await prefs.remove(key);
       return;
     }
-    await prefs.setString(_draftKey(), jsonEncode(draft.toJson()));
+    await prefs.setString(key, jsonEncode(draft.toJson()));
   }
 
-  static Future<MomentPost?> findPost(String postId) async {
+  static Future<MomentPost?> findPost(String postId,
+      {SessionIdentity? identity}) async {
+    final requestIdentity = identity ?? captureSessionIdentity();
+    _requireCurrent(requestIdentity);
     try {
-      return await MomentsApi.instance.fetchDetail(postId);
+      final post = await MomentsApi.instance.fetchDetail(postId);
+      _requireCurrent(requestIdentity);
+      return post;
     } catch (e) {
+      if (e is MomentsSessionChanged) rethrow;
+      _requireCurrent(requestIdentity);
       final error = MomentsErrorMapper.map(e);
       if (error.code == 'MOMENT_NOT_FOUND') {
         return null;
@@ -371,22 +431,32 @@ class MomentsStore {
     );
   }
 
-  static Future<MomentPost> upsertPost(MomentPost post) async {
+  static Future<MomentPost> upsertPost(MomentPost post,
+      {SessionIdentity? identity}) async {
+    final requestIdentity = identity ?? captureSessionIdentity();
+    _requireCurrent(requestIdentity);
     await MomentsLocalStore.instance.upsertPost(
-      ownerUserId: accountScope(),
+      ownerUserId: requestIdentity.ownerUserId,
       post: post,
     );
+    _requireCurrent(requestIdentity);
     return post;
   }
 
-  static Future<void> deletePost(String postId) async {
+  static Future<void> deletePost(String postId,
+      {SessionIdentity? identity}) async {
+    final requestIdentity = identity ?? captureSessionIdentity();
+    _requireCurrent(requestIdentity);
     try {
       await MomentsApi.instance.deletePost(postId);
+      _requireCurrent(requestIdentity);
       await MomentsLocalStore.instance.deletePost(
-        ownerUserId: accountScope(),
+        ownerUserId: requestIdentity.ownerUserId,
         postId: postId,
       );
+      _requireCurrent(requestIdentity);
     } catch (e) {
+      if (e is MomentsSessionChanged) rethrow;
       throw MomentsErrorMapper.exception(e, action: 'delete');
     }
   }
@@ -394,16 +464,22 @@ class MomentsStore {
   static Future<MomentPost> toggleLike(
     String postId, {
     MomentPost? current,
+    SessionIdentity? identity,
   }) async {
+    final requestIdentity = identity ?? captureSessionIdentity();
+    _requireCurrent(requestIdentity);
     try {
       final selfId = safeLoginUserId();
       final liked = current?.likedBy(selfId) ??
           (await MomentsApi.instance.fetchDetail(postId)).likedBy(selfId);
+      _requireCurrent(requestIdentity);
       final updated = liked
           ? await MomentsApi.instance.unlike(postId, current: current)
           : await MomentsApi.instance.like(postId, current: current);
-      return upsertPost(updated);
+      _requireCurrent(requestIdentity);
+      return upsertPost(updated, identity: requestIdentity);
     } catch (e) {
+      if (e is MomentsSessionChanged) rethrow;
       throw MomentsErrorMapper.exception(e, action: 'like');
     }
   }
@@ -413,28 +489,32 @@ class MomentsStore {
     String text, {
     MomentUserSnapshot? author,
     String? replyToCommentId,
+    SessionIdentity? identity,
   }) async {
+    final requestIdentity = identity ?? captureSessionIdentity();
+    _requireCurrent(requestIdentity);
     final content = text.trim();
     if (content.isEmpty) {
       throw ArgumentError.value(text, 'text', 'comment text is empty');
     }
     try {
-      return upsertPost(
-        await MomentsApi.instance.addComment(
-          postId,
-          content,
-          replyToCommentId: replyToCommentId,
-        ),
+      final updated = await MomentsApi.instance.addComment(
+        postId,
+        content,
+        replyToCommentId: replyToCommentId,
       );
+      _requireCurrent(requestIdentity);
+      return upsertPost(updated, identity: requestIdentity);
     } catch (e) {
+      if (e is MomentsSessionChanged) rethrow;
       throw MomentsErrorMapper.exception(e, action: 'comment');
     }
   }
 
-  static Future<MomentPost> deleteComment(
-    String postId,
-    String commentId,
-  ) async {
+  static Future<MomentPost> deleteComment(String postId, String commentId,
+      {SessionIdentity? identity}) async {
+    final requestIdentity = identity ?? captureSessionIdentity();
+    _requireCurrent(requestIdentity);
     final momentId = postId.trim();
     final id = commentId.trim();
     if (momentId.isEmpty || id.isEmpty) {
@@ -442,8 +522,12 @@ class MomentsStore {
     }
     try {
       await MomentsApi.instance.deleteComment(momentId, id);
-      return upsertPost(await MomentsApi.instance.fetchDetail(momentId));
+      _requireCurrent(requestIdentity);
+      final updated = await MomentsApi.instance.fetchDetail(momentId);
+      _requireCurrent(requestIdentity);
+      return upsertPost(updated, identity: requestIdentity);
     } catch (e) {
+      if (e is MomentsSessionChanged) rethrow;
       throw MomentsErrorMapper.exception(e, action: 'delete');
     }
   }
@@ -454,13 +538,17 @@ class MomentsStore {
     String? location,
     MomentPublishPrivacy privacy = const MomentPublishPrivacy(),
     void Function(int completed, int total)? onUploadProgress,
+    SessionIdentity? identity,
   }) async {
+    final requestIdentity = identity ?? captureSessionIdentity();
+    _requireCurrent(requestIdentity);
     try {
       final uploaded = <MomentAttachment>[];
       final total = attachments.length;
       for (var index = 0; index < attachments.length; index++) {
         onUploadProgress?.call(index, total);
         uploaded.add(await MomentsApi.instance.uploadMedia(attachments[index]));
+        _requireCurrent(requestIdentity);
       }
       if (total > 0) {
         onUploadProgress?.call(total, total);
@@ -480,6 +568,7 @@ class MomentsStore {
         visibility: privacy.mode.apiValue,
         visibleUserIds: visibleUserIds,
       );
+      _requireCurrent(requestIdentity);
       final mergedAttachments = <MomentAttachment>[];
       for (var index = 0; index < created.attachments.length; index++) {
         final server = created.attachments[index];
@@ -500,8 +589,12 @@ class MomentsStore {
           durationSec: server.durationSec ?? local?.durationSec,
         ));
       }
-      return upsertPost(created.copyWith(attachments: mergedAttachments));
+      return upsertPost(
+        created.copyWith(attachments: mergedAttachments),
+        identity: requestIdentity,
+      );
     } catch (e) {
+      if (e is MomentsSessionChanged) rethrow;
       throw MomentsErrorMapper.exception(e, action: 'publish');
     }
   }

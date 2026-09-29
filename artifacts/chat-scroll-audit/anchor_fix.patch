@@ -1,0 +1,286 @@
+diff --git a/artifacts/chat-scroll-audit/history_message_list_before_anchor_fix.dart b/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart
+index be7cdce..f79dae1 100644
+--- a/artifacts/chat-scroll-audit/history_message_list_before_anchor_fix.dart
++++ b/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart
+@@ -371,12 +371,20 @@ class _TIMUIKitHistoryMessageListState
+   HistoryReadingViewportAnchor? _revealGeometryAnchor;
+   RenderObject? _revealAnchorRenderObject;
+   int _revealAnchorGeneration = 0;
++  HistoryReadingViewportAnchor? _readingGeometryAnchor;
++  RenderObject? _readingAnchorRenderObject;
++  int _readingAnchorGeneration = 0;
++  bool _readingAnchorCaptureScheduled = false;
+   bool _progressiveRevealGrowthPending = false;
+   int _progressiveRevealGeneration = 0;
+   Timer? _followingLatestRestoreRetryTimer;
+   double? _lastGeometryViewportDimension;
+   bool _listGeometryLatchHeld = false;
+   int _listGeometryStableMetrics = 0;
++  int _listGeometryGeneration = 0;
++  bool _listGeometryFrameScheduled = false;
++  TUIChatGlobalModel? _listGeometryOwner;
++  String? _listGeometryConversation;
+   int _contextMenuViewportRestoreGeneration = 0;
+   bool _contextMenuViewportRestoreScheduled = false;
+   bool _contextMenuViewportRestoreCallbackPending = false;
+@@ -2382,6 +2390,9 @@ class _TIMUIKitHistoryMessageListState
+         oldWidget.model.conversationID != widget.model.conversationID ||
+         oldWidget.searchJumpAnchor != widget.searchJumpAnchor ||
+         oldWidget.initFindingMsg != widget.initFindingMsg) {
++      _clearReadingViewportAnchor();
++      _finishListGeometryTransition();
++      _lastGeometryViewportDimension = null;
+       _latestLoadIntent.cancel();
+       _previousLoadQueue.cancel();
+       _invalidatePreviousPagination();
+@@ -2786,6 +2797,8 @@ class _TIMUIKitHistoryMessageListState
+ 
+   @override
+   void dispose() {
++    _clearReadingViewportAnchor();
++    _finishListGeometryTransition();
+     _disposeShortListInsertions();
+     _latestLoadIntent.dispose();
+     _releaseAtJumpCenterOwnership(notify: false);
+@@ -3840,6 +3853,146 @@ class _TIMUIKitHistoryMessageListState
+ 
+   bool _bufferedRevealAnchorRetryScheduled = false;
+ 
++  bool get _canPreserveReadingViewport {
++    final global = _chatGlobalModel;
++    final conv = _conversationId();
++    return mounted &&
++        global != null &&
++        !global.isFollowingLatest(conv) &&
++        !global.isChatListUserScrolling &&
++        !_userScrollGestureActive &&
++        !_pageUi.userScrolling.value &&
++        !global.isUserScrollToBottomInProgress(conv) &&
++        !global.isSearchJumpPending(conv) &&
++        !_initialSearchJumpPending &&
++        !_isSearchJumpStabilizing &&
++        !_scrollToFindInFlight &&
++        _revealGeometryAnchor == null &&
++        !_historyWindowTrimUi.isBusy &&
++        !_paginationUi.isLoadingPrevious &&
++        !_paginationUi.isLoadingLatest &&
++        !_shouldCompensateScrollForPagination() &&
++        !global.isGeometryViewportTransitionActive(conv) &&
++        !global.isMessageContextMenuOverlayOpen &&
++        !global.isContextMenuViewportRestoreActive(conv) &&
++        !global.shouldLockChatScrollForMediaPreview &&
++        !global.hasPendingScrollRestore(conv) &&
++        !global.isRestoringScrollAfterMediaPreview &&
++        !_isLiveViewportPushActive();
++  }
++
++  void _clearReadingViewportAnchor() {
++    _readingGeometryAnchor = null;
++    _readingAnchorRenderObject = null;
++    _readingAnchorGeneration++;
++    _readingAnchorCaptureScheduled = false;
++  }
++
++  void _scheduleReadingViewportAnchorCapture() {
++    if (_readingAnchorCaptureScheduled || !mounted) return;
++    _readingAnchorCaptureScheduled = true;
++    final generation = _readingAnchorGeneration;
++    final model = widget.model;
++    final conv = _conversationId();
++    WidgetsBinding.instance.addPostFrameCallback((_) {
++      if (!mounted || generation != _readingAnchorGeneration) return;
++      _readingAnchorCaptureScheduled = false;
++      if (!identical(model, widget.model) || conv != _conversationId() ||
++          !_canPreserveReadingViewport) {
++        _clearReadingViewportAnchor();
++        return;
++      }
++      // Capture a real row after the gesture/layout settles. Unlike the short
++      // insertion transaction, this anchor lasts throughout historical reading
++      // so a late media decode cannot move the text the user is reading.
++      final anchor = _captureVisiblePaginationViewportAnchor();
++      final index = anchor == null ? null : _globalIndexForPreviousLoadAnchor(
++          _PreviousLoadAnchor(msgID: anchor.msgID, seq: anchor.seq));
++      final row = index == null ? null :
++          _autoScrollController.tagMap[-index]?.context.findRenderObject();
++      _readingAnchorRenderObject = row;
++      _readingGeometryAnchor = HistoryReadingViewportAnchor.capture(row);
++    });
++    WidgetsBinding.instance.scheduleFrame();
++  }
++
++  double? _correctReadingViewportAnchor() {
++    if (!_canPreserveReadingViewport) {
++      _clearReadingViewportAnchor();
++      return null;
++    }
++    final row = _readingAnchorRenderObject;
++    final anchor = _readingGeometryAnchor;
++    if (row == null || anchor == null || !row.attached) {
++      _scheduleReadingViewportAnchorCapture();
++      return null;
++    }
++    if (_renderObjectNeedsLayout(row)) return 0.0;
++    final correction = anchor.correctionFor(row);
++    if (correction == null) {
++      _clearReadingViewportAnchor();
++      _scheduleReadingViewportAnchorCapture();
++    }
++    return correction;
++  }
++
++  void _finishListGeometryTransition() {
++    _listGeometryGeneration++;
++    _listGeometryFrameScheduled = false;
++    _listGeometryStableMetrics = 0;
++    final owner = _listGeometryOwner;
++    final conv = _listGeometryConversation;
++    _listGeometryOwner = null;
++    _listGeometryConversation = null;
++    _listGeometryLatchHeld = false;
++    if (owner != null && conv != null) {
++      owner.endGeometryViewportTransition(conv);
++    }
++  }
++
++  void _scheduleListGeometrySettleFrame() {
++    if (!_listGeometryLatchHeld || _listGeometryFrameScheduled) return;
++    _listGeometryFrameScheduled = true;
++    final generation = _listGeometryGeneration;
++    final owner = _listGeometryOwner;
++    final conv = _listGeometryConversation;
++    WidgetsBinding.instance.addPostFrameCallback((_) {
++      if (!mounted || generation != _listGeometryGeneration) return;
++      _listGeometryFrameScheduled = false;
++      if (!identical(owner, _chatGlobalModel) || conv != _conversationId() ||
++          (_chatGlobalModel?.isChatListUserScrolling ?? false) ||
++          _userScrollGestureActive) {
++        _finishListGeometryTransition();
++        return;
++      }
++      final position = _singleScrollPositionOrNull();
++      if (position == null || !position.hasViewportDimension) {
++        _finishListGeometryTransition();
++        return;
++      }
++      final dimension = position.viewportDimension;
++      final previous = _lastGeometryViewportDimension;
++      if (previous != null &&
++          (dimension - previous).abs() <= TrueLatestEnd.geometryEpsilon) {
++        _listGeometryStableMetrics++;
++      } else {
++        _lastGeometryViewportDimension = dimension;
++        _listGeometryStableMetrics = 0;
++      }
++      // Metrics notifications only report changes. Stable layout must instead
++      // be observed across real frames, including a resize with no new rows.
++      if (_listGeometryStableMetrics >= 2) {
++        _finishListGeometryTransition();
++        _scheduleReadingViewportAnchorCapture();
++        _scheduleVisibleIncomingProgress();
++        _scheduleVisibleLatestConfirmation();
++      } else {
++        _scheduleListGeometrySettleFrame();
++      }
++    });
++    WidgetsBinding.instance.scheduleFrame();
++  }
++
+   /// Keep one real message fixed during a newer-page or buffered-row insert.
+   /// ScrollPhysics corrects its geometry before paint, including during a drag.
+   bool _beginBufferedRevealAnchor({
+@@ -3883,7 +4036,10 @@ class _TIMUIKitHistoryMessageListState
+   double? _correctNewestInsertFromVisibleAnchor(ScrollMetrics metrics) {
+     final anchor = _revealViewportAnchor;
+     final geometry = _revealGeometryAnchor;
+-    if (anchor == null || geometry == null) return null;
++    if (anchor == null || geometry == null) {
++      return _correctReadingViewportAnchor();
++    }
++    _clearReadingViewportAnchor();
+     final global = _chatGlobalModel;
+     if (global?.isFollowingLatest(_conversationId()) == true ||
+         global?.isUserScrollToBottomInProgress(_conversationId()) == true ||
+@@ -3944,6 +4100,7 @@ class _TIMUIKitHistoryMessageListState
+     _newestInsertRoom = 0.0;
+     _newestInsertRoomAtMs = 0;
+     _revealAnchorGeneration++;
++    _scheduleReadingViewportAnchorCapture();
+     if (reason != null) {
+       ChatJitterDiag.logFollowingLatest(
+         action: 'reveal_anchor_clear',
+@@ -5812,7 +5969,12 @@ class _TIMUIKitHistoryMessageListState
+   bool _isLatestMessageRowVisible() {
+     if (_viewportInsert.viewportInsertSlideActive) return false;
+     final messages = _currentVisibleMessageList();
+-    if (messages.isEmpty) return false;
++    if (messages.isEmpty) {
++      // An explicitly hidden-only confirmed window has no row to measure.
++      // An ordinary empty projection (loading/filtering) is not proof of end.
++      return _chatGlobalModel?.hasOnlyPermanentlyHiddenConfirmedMessages(
++              _conversationId()) ?? false;
++    }
+     final tag = _autoScrollController.tagMap[0];
+     final tagContext = tag?.context;
+     if (tagContext == null ||
+@@ -14472,6 +14634,7 @@ class _TIMUIKitHistoryMessageListState
+   @override
+   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
+     KeyboardViewportTransitionCoordinator.active?.noteHistoryBuild();
++    _scheduleReadingViewportAnchorCapture();
+     _scheduleVisibleIncomingProgress();
+     _scheduleLiveCenterRelease();
+     final globalModel = context.read<TUIChatGlobalModel>();
+@@ -14757,28 +14920,23 @@ class _TIMUIKitHistoryMessageListState
+               (_chatGlobalModel?.isChatListUserScrolling ?? false) ||
+                   _userScrollGestureActive;
+           if (_listGeometryLatchHeld && userScrolling) {
+-            final conv = _conversationId();
+-            _chatGlobalModel?.endGeometryViewportTransition(conv);
+-            _listGeometryLatchHeld = false;
+-            _listGeometryStableMetrics = 0;
++            _finishListGeometryTransition();
+           } else if (previous != null && dim > 0 && !userScrolling) {
+             final delta = (dim - previous).abs();
+             final conv = _conversationId();
+             if (delta > TrueLatestEnd.geometryEpsilon) {
+               if (!_listGeometryLatchHeld) {
+-                _chatGlobalModel?.beginGeometryViewportTransition(conv);
++                _listGeometryOwner = _chatGlobalModel;
++                _listGeometryConversation = conv;
++                _listGeometryOwner?.beginGeometryViewportTransition(conv);
+                 _listGeometryLatchHeld = true;
+               }
+               _listGeometryStableMetrics = 0;
+-            } else if (_listGeometryLatchHeld) {
+-              _listGeometryStableMetrics++;
+-              if (_listGeometryStableMetrics >= 2) {
+-                _chatGlobalModel?.endGeometryViewportTransition(conv);
+-                _listGeometryLatchHeld = false;
+-                _listGeometryStableMetrics = 0;
+-              }
++              _clearReadingViewportAnchor();
++              _scheduleListGeometrySettleFrame();
+             }
+           }
++          _scheduleReadingViewportAnchorCapture();
+         }
+         return false;
+       },
+@@ -14796,6 +14954,8 @@ class _TIMUIKitHistoryMessageListState
+                 }
+                 if (notification is ScrollStartNotification &&
+                     notification.dragDetails != null) {
++                  _clearReadingViewportAnchor();
++                  _finishListGeometryTransition();
+                   // A short-window retry waits for a deliberate older drag.
+                   // Merely starting a reversed drag must not release its latch.
+                   if (_shortViewportPreviousPointer == null) {
+@@ -14956,6 +15116,7 @@ class _TIMUIKitHistoryMessageListState
+                     }
+                   }
+                 } else if (notification is ScrollEndNotification) {
++                  _scheduleReadingViewportAnchorCapture();
+                   _syncTopHistoryLoadingVisible();
+                   // 无论是否标记过 active，都清全局滚动态，防止掐断后丢 End 导致永久失灵。
+                   _userScrollGestureActive = false;

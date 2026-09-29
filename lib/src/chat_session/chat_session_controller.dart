@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
@@ -1819,6 +1820,7 @@ class ChatSessionController extends ChangeNotifier {
 
     final current = conversations;
     if (current.isEmpty) {
+      _tabStore.rememberUnloadedMessagePreview(id, message);
       ConversationFeedPerf.increment(
         'last_message_outcome',
         reason: 'compatibility_store',
@@ -1834,6 +1836,7 @@ class ChatSessionController extends ChangeNotifier {
 
     final patchedIndex = _tabStore.displayIndexOf(id);
     if (patchedIndex < 0) {
+      _tabStore.rememberUnloadedMessagePreview(id, message);
       ConversationFeedPerf.increment(
         'last_message_outcome',
         reason: 'missing_conversation',
@@ -1870,15 +1873,23 @@ class ChatSessionController extends ChangeNotifier {
         identical(preferred, existing) &&
         beforeRevokeFp == afterRevokeFp &&
         !isRevokedMessage(message)) {
-      ConversationFeedPerf.increment(
-        'last_message_outcome',
-        reason: 'noop',
+      // SDK objects can change in place. Only the Store's captured row
+      // fingerprint can prove this is a no-op, not object identity.
+      final revision = _tabStore.contentRevision;
+      _tabStore.applyPatches(
+        [source],
+        reason: 'last_message_local',
+        preserveOrder: !allowReorder,
       );
-      OutgoingVisibleProbe.log(
-        'preview_apply_noop',
-        conversationID: id,
-        message: message,
-      );
+      if (_tabStore.contentRevision != revision) {
+        ChatRecoveryTrace.log('conversation_mutable_preview_recovered',
+            conversationID: id,
+            messageID: preferred.msgID,
+            fields: {
+              'timestamp': preferred.timestamp,
+              'sortFrozen': _tabStore.isSortFrozenByScroll
+            });
+      }
       return;
     }
 

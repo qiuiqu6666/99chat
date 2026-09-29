@@ -1,0 +1,95 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/chat.dart:_ChatState._performChatHistoryAfterOverlayReturn#1",
+    "name": "_performChatHistoryAfterOverlayReturn",
+    "kind": "Method",
+    "filePath": "lib/src/chat.dart",
+    "startLine": 7349,
+    "endLine": 7351
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/chat.dart:_ChatState",
+        "name": "_ChatState",
+        "filePath": "lib/src/chat.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/chat.dart:_ChatState._recoverChatHistoryAfterOverlayReturn#1",
+        "name": "_recoverChatHistoryAfterOverlayReturn",
+        "filePath": "lib/src/chat.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/chat.dart:_ChatState._clearMountedDisplayListCache#0",
+        "name": "_clearMountedDisplayListCache",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat.dart:_ChatState._getConvID#0",
+        "name": "_getConvID",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat.dart:_ChatState._hasVisibleHistoryMessages#0",
+        "name": "_hasVisibleHistoryMessages",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat.dart:_ChatState._reloadChatHistoryIfEmpty#1",
+        "name": "_reloadChatHistoryIfEmpty",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat.dart:_ChatState._resolvedConversationID#1",
+        "name": "_resolvedConversationID",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat.dart:_ChatState._restoreActiveChatRegistry#1",
+        "name": "_restoreActiveChatRegistry",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_diag_log.dart:ChatDiagLog.log#4",
+        "name": "log",
+        "filePath": "lib/src/services/chat_diag_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_diag_log.dart:ChatDiagLog.log#4",
+        "name": "log",
+        "filePath": "lib/src/services/chat_diag_log.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady.cancel#1",
+        "name": "cancel",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      }
+    ],
+    "accesses": [
+      {
+        "uid": "Property:lib/src/chat_page/chat_open_lifecycle.dart:ChatOpenLifecycle.openHistoryGate",
+        "name": "openHistoryGate",
+        "filePath": "lib/src/chat_page/chat_open_lifecycle.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_open_lifecycle.dart:ChatOpenLifecycle.openHistoryGateConvKey",
+        "name": "openHistoryGateConvKey",
+        "filePath": "lib/src/chat_page/chat_open_lifecycle.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart:TIMUIKitChatController.scrollController",
+        "name": "scrollController",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart"
+      }
+    ]
+  },
+  "processes": []
+}

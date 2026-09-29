@@ -1,0 +1,129 @@
+@override
+  void didUpdateWidget(Chat oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldConversationID = _resolvedConversationID(
+      oldWidget.selectedConversation,
+    );
+    final newConversationID = _resolvedConversationID(
+      widget.selectedConversation,
+    );
+    if (oldConversationID != newConversationID) {
+      final oldInputText =
+          _chatController.textFieldController?.textEditingController?.text ??
+              '';
+      if (!_draft.shouldSuppressLifecyclePersist &&
+          oldConversationID.isNotEmpty) {
+        _draft.cancelDebounce();
+        unawaited(
+          _persistChatLocalDraftText(
+            oldInputText,
+            _draft.writeGeneration,
+            conversationID: oldConversationID,
+            enforceCurrentGeneration: false,
+          ),
+        );
+      }
+      _draft.beginConversation();
+      _mobileCommitGuard.advanceConversation();
+      _beginChatOpenGeneration();
+      _chatOpenPhaseGeneration = _openLifecycle.beginConversation();
+      _chatOpenCompletedStages.clear();
+      _chatOpenBackgroundParts.clear();
+      _pendingOpenHistoryMediaEnrichment = null;
+      _chatOpenInitStopwatch
+        ..reset()
+        ..start();
+      final oldGroupId = oldWidget.selectedConversation.groupID?.trim() ?? '';
+      ConversationHistorySyncCoordinator.instance.cancelConversation(
+        oldConversationID,
+      );
+      if (oldGroupId.isNotEmpty) {
+        GroupMetadataRefreshCoordinator.instance.invalidate(oldGroupId);
+      }
+      _groupMemberCountGeneration++;
+      _lastGroupMetadataRefreshAt = null;
+      _clearExternalEntryState(oldConversationID);
+      _openLifecycle.cancelPendingMuteFetch();
+      _openLifecycle.scheduledVisibleSdkUnreadClean = false;
+      _lastPublishedExternalEntryState = null;
+      _chatController.model?.disableVoiceAutoPlayChain();
+      unawaited(SoundPlayer.stop());
+      ActiveChatRegistry.instance.enter(
+        _resolvedConversationID(),
+        conversationType: _getConvType(),
+      );
+      ConversationHistoryWarmScheduler.instance.pauseForActiveChat(
+        reason: 'chat_switch',
+      );
+      _conversation = _normalizedConversationForChat(
+        widget.selectedConversation,
+      );
+      _cachedHeaderFaceUrl = _conversation.faceUrl;
+      _cachedHeaderShowName = _conversation.showName;
+      _groupMemberCount = null;
+      _groupMemberCountPinnedToLocalSnapshot = false;
+      // 首屏同步：用本地缓存喂 _groupSide，避免首屏不显浮窗。
+      final newGroupIdForRebate =
+          widget.selectedConversation.groupID?.trim() ?? '';
+      if (newGroupIdForRebate.isNotEmpty) {
+        final rebateCached = AgentRebateEntryLocalStore.instance.readCachedSync(
+          ownerUserId: ContactSocialCacheStore.safeLoginUserId(),
+          groupId: newGroupIdForRebate,
+        );
+        if (rebateCached != null) {
+          _groupSide.agentRebateGroupBound = rebateCached.bound;
+          _groupSide.agentRebateGroupEnabled = rebateCached.enabled;
+          _groupSide.agentRebateIdentityEnabled = rebateCached.isAgent;
+        } else {
+          _groupSide.agentRebateGroupBound = false;
+          _groupSide.agentRebateGroupEnabled = false;
+          _groupSide.agentRebateIdentityEnabled = false;
+        }
+      } else {
+        _groupSide.agentRebateGroupBound = false;
+        _groupSide.agentRebateGroupEnabled = false;
+        _groupSide.agentRebateIdentityEnabled = false;
+      }
+      _groupSide.groupNoticeBanner = '';
+      _openGroupNoticeAfterTransitionInFlight = null;
+      // Plan 095：切会话时清空旧群的三公/游戏状态，防止旧群的网络结果
+      // 晚到后把 sangongTenantId / canEditConfig 等写入新会话。
+      _groupSide.clearSangongAccess();
+      _groupSide.disableGroupGame();
+      _applyCachedGroupGameForCurrentGroup();
+      _watchingGroupLive = false;
+      _groupLiveIndexFingerprint = null;
+      _seedGroupDisplayFromMemory();
+      _armOpenGroupNoticeAfterTransition();
+      _seedGroupLiveFromIndex();
+      _syncChatTopFixState();
+      _stopGroupLiveCurrentPoll();
+      _resolvedPeerFaceUrl = null;
+      _resolvedPeerFaceUrlForId = null;
+      _peerLocalProfile = null;
+      _c2cPermission.canMessage = null;
+      _c2cPermission.trustedInitialCanMessage = false;
+      _c2cPermission.requestSeq++;
+      _applyInitialC2cPermissionHint(resetIfMissing: true);
+      final peer = _c2cPeerUserId();
+      if (peer != null && !_c2cPermission.trustedInitialCanMessage) {
+        C2cFriendMessageGuard.invalidate(peer);
+      }
+      _syncChatHeaderState();
+      // Peer/network enrichment is restarted by the bounded post-open queue.
+      _resetWalletCardState();
+      _ensureMessageItemBuilder();
+      _invalidateChatConfigCache();
+      final newConvKey = _getConvID()?.trim() ?? '';
+      _startOpenHistoryGate(newConvKey);
+    }
+    if (oldConversationID != newConversationID ||
+        oldWidget.selectedConversation.groupID !=
+            widget.selectedConversation.groupID ||
+        oldWidget.selectedConversation.type !=
+            widget.selectedConversation.type) {
+      _openLifecycle.cancelPendingPostOpenTasks();
+      _postOpenScheduler.cancelPending();
+      _schedulePostOpenTasks();
+    }
+  }

@@ -1,0 +1,31 @@
+Future<void> _clearChatLocalDraftAfterSend(String conversationId) async {
+    final id = conversationId.trim();
+    if (id.isEmpty) {
+      return;
+    }
+    // 发送成功后使发送前排队的 debounce 保存失效，否则旧草稿可能在清理后
+    // 又被异步写回本地库，表现为“消息已发出但草稿仍出现”。
+    _draft.markSendCompleted();
+    if (mounted) {
+      _draft.text = null;
+    }
+    final ids = <String>{id, _conversation.conversationID.trim()};
+    final groupId = _conversation.groupID?.trim() ?? '';
+    if (_getConvType() == ConvType.group && groupId.isNotEmpty) {
+      ids.add(groupId);
+      ids.add('group_$groupId');
+    }
+    await _draftWrites.enqueue(
+      () async {
+        await ConversationDraftService.instance.clearDraftForConversationIds(
+          ids,
+        );
+      },
+      onError: (error, stackTrace) {
+        debugPrint(
+          '[ChatDraft] clear-after-send failed conv=$id error=$error\n'
+          '$stackTrace',
+        );
+      },
+    );
+  }

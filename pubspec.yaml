@@ -15,7 +15,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-version: 3.0.1+20
+version: 3.0.1+19
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -114,6 +114,13 @@ dependencies:
     path: third_party/scrollable_positioned_list_for_us
 
 dependency_overrides:
+  # Preserve native close failures for the lifecycle write/open fence.
+  sqflite_common:
+    path: third_party/sqflite_common
+  image_picker_ios:
+    path: third_party/image_picker_ios
+  image_picker_android:
+    path: third_party/image_picker_android
   geolocator_android: ^4.6.2
   # livekit_client 2.8+ needs device_info_plus ^12; UIKit/i18n pin older.
   device_info_plus: ^12.3.0

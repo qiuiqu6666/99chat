@@ -1,0 +1,38 @@
+[
+  {
+    "scenario": "before_commit",
+    "newProcessPid": 47172,
+    "draftRecovered": "A",
+    "durableStateBeforeRepair": null,
+    "canRetry": false,
+    "recoveryPerformedSdkSends": 0,
+    "providerEvidence": "serialized synthetic fixture"
+  },
+  {
+    "scenario": "prepared",
+    "newProcessPid": 25148,
+    "draftRecovered": null,
+    "durableStateBeforeRepair": "prepared",
+    "canRetry": false,
+    "recoveryPerformedSdkSends": 0,
+    "providerEvidence": "serialized synthetic fixture"
+  },
+  {
+    "scenario": "dispatch_intent",
+    "newProcessPid": 57984,
+    "draftRecovered": null,
+    "durableStateBeforeRepair": "dispatchIntent",
+    "canRetry": false,
+    "recoveryPerformedSdkSends": 0,
+    "providerEvidence": "serialized synthetic fixture"
+  },
+  {
+    "scenario": "sdk_success_commit_failure",
+    "newProcessPid": 72612,
+    "draftRecovered": null,
+    "durableStateBeforeRepair": "sending",
+    "canRetry": false,
+    "recoveryPerformedSdkSends": 0,
+    "providerEvidence": "serialized synthetic fixture"
+  }
+]

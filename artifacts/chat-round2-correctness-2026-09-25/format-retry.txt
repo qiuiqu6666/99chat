@@ -1,0 +1,4 @@
+Formatted lib/src/services/im/outbox_state_version_schema.dart
+Formatted lib/src/services/im/im05_persistence.dart
+Formatted lib/src/services/im/outgoing_send_coordinator.dart
+Formatted 4 files (3 changed) in 0.02 seconds.

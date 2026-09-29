@@ -1,0 +1,956 @@
+diff --git a/third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart b/third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart
+--- a/third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart
++++ b/third_party/tencent_cloud_chat_uikit/lib/data_services/message/message_history_peek_loader.dart
+@@ -1,5 +1,6 @@
+ import 'dart:async';
+ 
++import 'package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart';
+ import 'package:tencent_cloud_chat_sdk/enum/history_msg_get_type_enum.dart';
+ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
+     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
+@@ -110,7 +111,7 @@ class MessageHistoryPeekLoader {
+       source: source,
+       count: count,
+       run: () async {
+-        final response = await messageService.getHistoryMessageListWithComplete(
++        final response = await ChatOpenPerfLog.measure('sdk_cloud_call', () => messageService.getHistoryMessageListWithComplete(
+           count: count,
+           getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
+           userID: userID,
+@@ -118,7 +119,7 @@ class MessageHistoryPeekLoader {
+           lastMsgID: lastMsgID,
+           lastMsgSeq: effectiveSeq,
+           lastMsg: lastMsg,
+-        );
++        ), conversationID: userID ?? groupID, source: source);
+         ChatHistoryTrace.log(
+           'peek_cloud_only',
+           conversationID: userID ?? groupID,
+@@ -249,6 +250,8 @@ class MessageHistoryPeekLoader {
+     );
+     final inFlight = _inFlightByKey[key];
+     if (inFlight != null) {
++      ChatOpenPerfLog.mark('history_loader_reused', conversationID: userID ?? groupID,
++          extras: <String, Object?>{'source': source, 'actualRead': false});
+       ChatHistoryTrace.log(
+         'history_request_reused',
+         conversationID: userID ?? groupID,
+@@ -508,8 +511,8 @@ class MessageHistoryPeekLoader {
+       groupID: groupID,
+       lastMsgSeq: lastMsgSeq,
+     );
+-    final localResponse =
+-        await messageService.getHistoryMessageListWithComplete(
++    final localResponse = await ChatOpenPerfLog.measure('sdk_local_call', () =>
++        messageService.getHistoryMessageListWithComplete(
+       count: count,
+       getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
+       userID: userID,
+@@ -517,7 +520,7 @@ class MessageHistoryPeekLoader {
+       lastMsgID: lastMsgID,
+       lastMsgSeq: requestSeq,
+       lastMsg: lastMsg,
+-    );
++    ), conversationID: userID ?? groupID, source: source);
+     final localMessages = localResponse?.messageList ?? const <V2TimMessage>[];
+     // A null response means the SDK did not provide a completion marker.
+     // Treat it as retryable instead of latching "no more history".
+@@ -544,8 +547,8 @@ class MessageHistoryPeekLoader {
+     var cloudMessages = const <V2TimMessage>[];
+     // 90 天漫游：本地满窗也可能全是上次登录的旧消息，必须打云端。
+     if (!localOnly) {
+-      final cloudResponse =
+-          await messageService.getHistoryMessageListWithComplete(
++      final cloudResponse = await ChatOpenPerfLog.measure('sdk_cloud_call', () =>
++          messageService.getHistoryMessageListWithComplete(
+         count: count,
+         getType: HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
+         userID: userID,
+@@ -553,7 +556,7 @@ class MessageHistoryPeekLoader {
+         lastMsgID: lastMsgID,
+         lastMsgSeq: requestSeq,
+         lastMsg: lastMsg,
+-      );
++      ), conversationID: userID ?? groupID, source: source);
+       cloudMessages = cloudResponse?.messageList ?? const <V2TimMessage>[];
+       isFinished = cloudResponse?.isFinished ?? false;
+       // DIAG: SDK 原始返回 - cloud older
+@@ -603,12 +606,12 @@ class MessageHistoryPeekLoader {
+             },
+           );
+           try {
+-            final after = await messageService.getHistoryMessageListWithComplete(
++            final after = await ChatOpenPerfLog.measure('sdk_local_call', () => messageService.getHistoryMessageListWithComplete(
+               count: count,
+               getType: HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
+               userID: userID,
+               groupID: groupID,
+-            );
++            ), conversationID: userID ?? groupID, source: 'coverage_diagnostic');
+             final afterMessages = after?.messageList ?? const <V2TimMessage>[];
+             ChatHistoryTrace.log(
+               'local_coverage_diag_after_cloud',
+diff --git a/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart b/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart
+--- a/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart
++++ b/third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart
+@@ -6592,7 +6632,10 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+       trace: ownerTrace,
+     );
+     late final Future<OpenHydrateResult> task;
++    final ownerSpan = ChatOpenPerfLog.queueSpan('hydrate_producer',
++        trace: ownerTrace, source: 'shared_local');
+     task = Future<OpenHydrateResult>.microtask(() async {
++      ownerSpan?.start();
+       var kind = OpenHydrateResultKind.aborted;
+       ChatOpenPerfLog.mark(
+         'app_hydrate_started',
+@@ -6604,7 +6647,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+         trace: ownerTrace,
+       );
+       try {
+-        if (canPublish() && await load()) {
++        if (canPublish() && await ChatOpenPerfLog.withSpan(ownerSpan, load)) {
+           kind = rawMessageCount(key) > 0
+               ? OpenHydrateResultKind.committedMessages
+               : OpenHydrateResultKind.committedEmpty;
+@@ -6653,8 +6696,13 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
+           trace: ownerTrace,
+         );
+       }
++      ownerSpan?.finish(outcome: kind.name, extras: <String, Object?>{
++        'rawCount': result.resultCount,
++        'committed': result.firstWindowCommitted,
++      });
+       return result;
+     }).whenComplete(() {
++      ownerSpan?.finish(outcome: 'error');
+       final stillOwner = identical(_findOpenHydrateInFlight(key), task);
+       _openHydrateInFlightByConv
+           .removeWhere((_, value) => identical(value, task));
+diff --git a/lib/src/services/chat_open_perf_log.dart b/lib/src/services/chat_open_perf_log.dart
+--- a/lib/src/services/chat_open_perf_log.dart
++++ b/lib/src/services/chat_open_perf_log.dart
+@@ -1,23 +1,27 @@
+ import 'dart:async';
++import 'dart:developer' as developer;
+ 
+ import 'package:flutter/foundation.dart';
+ 
+-/// 发布版可见：进入聊天页耗时追踪。过滤关键字：`[ChatOpenPerf]`
++/// 进入聊天页耗时追踪。过滤关键字：`[ChatOpenPerf]`
+ ///
+ /// 用法：Xcode / `flutter logs` / Android logcat 搜 `ChatOpenPerf`。
+ /// 每条含 `elapsedMs`（距点击）与 `deltaMs`（距上一里程碑），以及 `region` 中文阶段名。
+-/// Debug 和 Profile 默认输出，Release 永不输出。
++/// Debug 采集账本；Profile 通过 CHAT_OPEN_PROFILE 启用。Release 永不输出。
+ class ChatOpenPerfLog {
+   ChatOpenPerfLog._();
+ 
+   /// Debug 构建仍采集账本，便于测试与必要时重开控制台。
+   static const bool enabled = kDebugMode;
+ 
+-  /// Profile 构建关闭控制台；需要真机采样时再改回 true。
+-  static const bool enabledInProfile = false;
++  /// Enable device sampling without modifying source or release behavior.
++  static const bool enabledInProfile =
++      bool.fromEnvironment('CHAT_OPEN_PROFILE');
+ 
+   /// 高频控制台输出开关。关闭后仍写 debugSink / 计数器。
+-  static const bool consoleOutputEnabled = false;
++  static const bool consoleOutputEnabled = bool.fromEnvironment(
++      'CHAT_OPEN_PERF_CONSOLE',
++      defaultValue: enabledInProfile);
+ 
+   static bool get isEnabled =>
+       !kReleaseMode && (enabled || (kProfileMode && enabledInProfile));
+@@ -37,6 +41,10 @@ class ChatOpenPerfLog {
+     t0Ms: 0,
+   );
+   static _ChatOpenTraceLedger? _current;
++  static final Object _traceZoneKey = Object();
++  static final Object _spanZoneKey = Object();
++  static int _traceSequence = 0;
++  static int _spanSequence = 0;
+ 
+   static int? _hydrateOwnerRequestId;
+   static int lastPrepareRequestId = 0;
+@@ -159,6 +167,14 @@ class ChatOpenPerfLog {
+     'applied',
+     'coldstart',
+     'iscurrenttab',
++    'spanid',
++    'parentspanid',
++    'stage',
++    'queuewaitus',
++    'executionus',
++    'totalus',
++    'displaycount',
++    'actualread',
+   };
+ 
+   static String get sessionId => _current?.sessionId ?? '';
+@@ -172,12 +188,34 @@ class ChatOpenPerfLog {
+     int? requestId,
+     String? conversationKey,
+   }) {
+-    final current = _current;
++    final inherited = Zone.current[_traceZoneKey] as ChatOpenTraceContext?;
++    if (inherited != null &&
++        (conversationKey == null ||
++            _sameConversation(inherited.conversationKey, conversationKey))) {
++      return ChatOpenTraceContext(
++          session: inherited.session,
++          chatOpenTraceId: inherited.chatOpenTraceId,
++          requestId: requestId ?? inherited.requestId,
++          conversationKey: conversationKey ?? inherited.conversationKey,
++          t0Ms: inherited.t0Ms);
++    }
++    var current = _current;
++    if (conversationKey != null &&
++        (current == null ||
++            !_sameConversation(current.convId, conversationKey))) {
++      current = null;
++      for (final ledger in _ledgers.reversed) {
++        if (_sameConversation(ledger.convId, conversationKey)) {
++          current = ledger;
++          break;
++        }
++      }
++    }
+     if (current == null) {
+       return ChatOpenTraceContext(
+         session: '-',
+         chatOpenTraceId: '-',
+-        requestId: requestId ?? lastPrepareRequestId,
++        requestId: requestId ?? 0,
+         conversationKey: (conversationKey ?? '').trim(),
+         t0Ms: 0,
+       );
+@@ -185,12 +223,65 @@ class ChatOpenPerfLog {
+     return ChatOpenTraceContext(
+       session: current.sessionId,
+       chatOpenTraceId: current.sessionId,
+-      requestId: requestId ?? lastPrepareRequestId,
++      requestId: requestId ?? current.lastRequestId,
+       conversationKey: (conversationKey ?? current.convId).trim(),
+       t0Ms: current.t0Ms,
+     );
+   }
+ 
++  static bool _sameConversation(String a, String b) =>
++      a == b ||
++      a == 'c2c_$b' ||
++      b == 'c2c_$a' ||
++      a == 'group_$b' ||
++      b == 'group_$a';
++
++  static T withTrace<T>(ChatOpenTraceContext trace, T Function() action) =>
++      runZoned(action, zoneValues: <Object, Object>{_traceZoneKey: trace});
++
++  static T withSpan<T>(ChatOpenSpan? span, T Function() action) => span == null
++      ? action()
++      : runZoned(action, zoneValues: <Object, Object>{
++          _traceZoneKey: span.trace,
++          _spanZoneKey: span.spanId
++        });
++
++  static ChatOpenSpan? queueSpan(
++    String stage, {
++    ChatOpenTraceContext? trace,
++    String? conversationID,
++    String source = 'unknown',
++    String? parentSpanId,
++  }) =>
++      isEnabled
++          ? ChatOpenSpan._(
++              stage,
++              trace ?? captureCurrent(conversationKey: conversationID),
++              source,
++              'span_${++_spanSequence}',
++              parentSpanId ?? Zone.current[_spanZoneKey] as String?)
++          : null;
++
++  static Future<T> measure<T>(
++    String stage,
++    Future<T> Function() action, {
++    ChatOpenTraceContext? trace,
++    String? conversationID,
++    String source = 'unknown',
++  }) async {
++    if (!isEnabled) return action();
++    final context = trace ?? captureCurrent(conversationKey: conversationID);
++    final span = queueSpan(stage, trace: context, source: source)!..start();
++    try {
++      final result = await withSpan(span, action);
++      span.finish();
++      return result;
++    } catch (_) {
++      span.finish(outcome: 'error');
++      rethrow;
++    }
++  }
++
+   /// 点会话 / 即将打开聊天时调用，开启一轮会话时钟。
+   static void beginOpen({
+     required String conversationID,
+@@ -202,7 +293,8 @@ class ChatOpenPerfLog {
+     }
+     final id = conversationID.trim();
+     final t0Ms = DateTime.now().millisecondsSinceEpoch;
+-    final sessionId = 'open_${t0Ms.toRadixString(36)}_${_hashId(id)}';
++    final sessionId =
++        'open_${t0Ms.toRadixString(36)}_${_hashId(id)}_${++_traceSequence}';
+     final ledger = _ChatOpenTraceLedger(
+       sessionId: sessionId,
+       convId: id,
+@@ -237,8 +329,7 @@ class ChatOpenPerfLog {
+     if (!isEnabled) {
+       return;
+     }
+-    final ctx = trace ??
+-        captureCurrent(conversationKey: conversationID);
++    final ctx = trace ?? captureCurrent(conversationKey: conversationID);
+     final ledger = _ledgerFor(ctx);
+     _tally(ledger, event, extras);
+     final now = DateTime.now().millisecondsSinceEpoch;
+@@ -340,9 +431,8 @@ class ChatOpenPerfLog {
+     final now = DateTime.now().millisecondsSinceEpoch;
+     _print(
+       'open_trace_summary',
+-      conversationID: ctx.conversationKey.isEmpty
+-          ? ledger.convId
+-          : ctx.conversationKey,
++      conversationID:
++          ctx.conversationKey.isEmpty ? ledger.convId : ctx.conversationKey,
+       extras: <String, Object?>{
+         'session': ledger.sessionId,
+         'chatOpenTraceId': ledger.sessionId,
+@@ -369,9 +459,7 @@ class ChatOpenPerfLog {
+         'uikitProducerCount': ledger.uikitProducerCount,
+         'lastIgnoredReason': ledger.lastIgnoredReason,
+         'lastRejectReason': ledger.lastRejectReason,
+-        'note': phase == 'settle_2s'
+-            ? '2s 观察窗，不是打开完成态'
+-            : '打开链路计数快照',
++        'note': phase == 'settle_2s' ? '2s 观察窗，不是打开完成态' : '打开链路计数快照',
+       },
+     );
+   }
+@@ -383,9 +471,8 @@ class ChatOpenPerfLog {
+     final now = DateTime.now().millisecondsSinceEpoch;
+     _print(
+       'open_summary',
+-      conversationID: ctx.conversationKey.isEmpty
+-          ? ledger.convId
+-          : ctx.conversationKey,
++      conversationID:
++          ctx.conversationKey.isEmpty ? ledger.convId : ctx.conversationKey,
+       extras: <String, Object?>{
+         'session': ledger.sessionId,
+         'chatOpenTraceId': ledger.sessionId,
+@@ -415,6 +502,7 @@ class ChatOpenPerfLog {
+       source: source,
+       trace: captureCurrent(requestId: requestId),
+     );
++    _ledgerFor(snap.trace!).lastRequestId = requestId;
+     _prepareSnaps.add(snap);
+     while (_prepareSnaps.length > 8) {
+       _prepareSnaps.removeAt(0);
+@@ -785,6 +873,10 @@ class ChatOpenPerfLog {
+       // ignore: avoid_print
+       print(line);
+     }
++    if (kProfileMode && enabledInProfile) {
++      developer.Timeline.instantSync('ChatOpenPerf.$event',
++          arguments: <String, Object?>{'record': line});
++    }
+   }
+ 
+   static String _hashId(String value) {
+@@ -820,6 +912,9 @@ class ChatOpenPerfLog {
+ 
+   static bool _isSensitiveIdentifierKey(String key) {
+     return key == 'key' ||
++        key == 'owner' ||
++        key == 'user' ||
++        key.endsWith('ids') ||
+         key == 'conversationkey' ||
+         key.endsWith('id') ||
+         key.contains('convid') ||
+@@ -830,7 +925,16 @@ class ChatOpenPerfLog {
+   }
+ 
+   static bool _isSensitiveContentKey(String key) {
+-    return key == 'lastmessage' ||
++    return key.contains('token') ||
++        key.contains('usersig') ||
++        key.contains('authorization') ||
++        key.contains('password') ||
++        key.contains('signature') ||
++        key.contains('url') ||
++        key.contains('payload') ||
++        key == 'error' ||
++        key == 'stack' ||
++        key == 'lastmessage' ||
+         key == 'messagebody' ||
+         key == 'content' ||
+         key == 'text';
+@@ -845,6 +949,59 @@ class ChatOpenPerfLog {
+   }
+ }
+ 
++/// queueWaitUs ends at start; executionUs ends at finish. A timeout on a
++/// caller does not finish the producer span or imply its work was cancelled.
++class ChatOpenSpan {
++  ChatOpenSpan._(
++      this.stage, this.trace, this.source, this.spanId, this.parentSpanId);
++  final String stage, source, spanId;
++  final String? parentSpanId;
++  final ChatOpenTraceContext trace;
++  final Stopwatch _clock = Stopwatch()..start();
++  int? _startedAtUs;
++  bool _finished = false;
++  developer.TimelineTask? _timeline;
++
++  void start() {
++    if (_startedAtUs != null || _finished) return;
++    _startedAtUs = _clock.elapsedMicroseconds;
++    ChatOpenPerfLog.mark('span_start', trace: trace, extras: <String, Object?>{
++      'stage': stage,
++      'spanId': spanId,
++      'parentSpanId': parentSpanId,
++      'source': source,
++      'queueWaitUs': _startedAtUs,
++    });
++    if (kProfileMode && ChatOpenPerfLog.enabledInProfile) {
++      _timeline = developer.TimelineTask()
++        ..start('ChatOpen.$stage', arguments: <String, Object?>{
++          'traceId': trace.chatOpenTraceId,
++          'spanId': spanId
++        });
++    }
++  }
++
++  void finish(
++      {String outcome = 'completed', Map<String, Object?> extras = const {}}) {
++    if (_finished) return;
++    start();
++    _finished = true;
++    _clock.stop();
++    _timeline?.finish();
++    ChatOpenPerfLog.mark('span_end', trace: trace, extras: <String, Object?>{
++      'stage': stage,
++      'spanId': spanId,
++      'parentSpanId': parentSpanId,
++      'source': source,
++      'queueWaitUs': _startedAtUs,
++      'executionUs': _clock.elapsedMicroseconds - _startedAtUs!,
++      'totalUs': _clock.elapsedMicroseconds,
++      'outcome': outcome,
++      ...extras,
++    });
++  }
++}
++
+ class ChatOpenTraceContext {
+   const ChatOpenTraceContext({
+     required this.session,
+@@ -879,6 +1036,7 @@ class ChatOpenPrepareWorkSnapshot {
+ }
+ 
+ class _ChatOpenTraceLedger {
++  int lastRequestId = 0;
+   _ChatOpenTraceLedger({
+     required this.sessionId,
+     required this.convId,
+diff --git a/lib/src/services/conversation_peek_service.dart b/lib/src/services/conversation_peek_service.dart
+--- a/lib/src/services/conversation_peek_service.dart
++++ b/lib/src/services/conversation_peek_service.dart
+@@ -1,5 +1,6 @@
+ import 'dart:async';
+ 
++import 'package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_local_store.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/message_media_metadata_store.dart';
+ import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
+@@ -219,17 +220,33 @@ class ConversationPeekService {
+     final groupID = isGroup && rawGroupID != null && rawGroupID.isNotEmpty
+         ? ChatIdFormat.canonicalGroupStorageId(rawGroupID)
+         : null;
+-    final result = await MessageHistoryPeekLoader.loadOlderLocalOnlyResult(
+-      messageService: _messageService,
+-      count: HistoryMessageDartConstant.initialOpenFetchCount,
+-      userID: userID,
+-      groupID: groupID,
+-    );
+-    var messages = _dedupeMessages(result.messageList);
+-    messages = await _dropMessagesAtOrBeforeHistoryClear(
+-      conversation: conversation,
+-      messages: messages,
+-    );
++    final trace = ChatOpenPerfLog.captureCurrent(
++        conversationKey: conversation.conversationID);
++    final result = await ChatOpenPerfLog.measure(
++        'local_snapshot_wait',
++        () => MessageHistoryPeekLoader.loadOlderLocalOnlyResult(
++              messageService: _messageService,
++              count: HistoryMessageDartConstant.initialOpenFetchCount,
++              userID: userID,
++              groupID: groupID,
++            ),
++        trace: trace,
++        source: 'sdk_local');
++    final messages = await ChatOpenPerfLog.measure(
++        'local_history_filter',
++        () => _dropMessagesAtOrBeforeHistoryClear(
++              conversation: conversation,
++              messages: _dedupeMessages(result.messageList),
++            ),
++        trace: trace,
++        source: 'sdk_local');
++    ChatOpenPerfLog.mark('local_read_result',
++        trace: trace,
++        extras: <String, Object?>{
++          'requestCompleted': true,
++          'rawCount': result.messageList.length,
++          'displayCount': messages.length,
++        });
+     // Text and message identity are ready after the SDK local query. Media
+     // metadata is enrichment and must not delay the local first frame.
+     unawaited(_hydrateLocalMessageMetadata(messages));
+diff --git a/lib/src/services/chat_open_viewport_coordinator.dart b/lib/src/services/chat_open_viewport_coordinator.dart
+--- a/lib/src/services/chat_open_viewport_coordinator.dart
++++ b/lib/src/services/chat_open_viewport_coordinator.dart
+@@ -149,7 +149,7 @@ class ChatOpenViewportCoordinator {
+     final signature = '${identity.ownerUserId}|${identity.generation}|'
+         '${last?.msgID}|${last?.seq}|${last?.timestamp}|'
+         '${globalModel.messageDeltaClearEpochFor(key)}';
+-    final task = globalModel.ensureOpenHydrate(
++    final task = ChatOpenPerfLog.withTrace(hydrateTrace, () => globalModel.ensureOpenHydrate(
+       key,
+       requestSignature: signature,
+       canPublish: () =>
+@@ -161,7 +161,7 @@ class ChatOpenViewportCoordinator {
+         allowCloudVerification: false,
+         logTrace: hydrateTrace,
+       ),
+-    );
++    ));
+     try {
+       return (await task.timeout(timeout)).shouldSuppressOrdinaryLoad;
+     } on TimeoutException {
+@@ -216,7 +216,7 @@ class ChatOpenViewportCoordinator {
+       },
+       trace: logTrace,
+     );
+-    final task = globalModel.ensureOpenHydrate(
++    final task = ChatOpenPerfLog.withTrace(logTrace, () => globalModel.ensureOpenHydrate(
+       key,
+       requestSignature: signature,
+       canPublish: () =>
+@@ -239,7 +239,7 @@ class ChatOpenViewportCoordinator {
+             outcome == LatestWindowResetOutcome.installedProvisional ||
+             outcome == LatestWindowResetOutcome.offlineProvisional;
+       },
+-    );
++    ));
+     try {
+       return (await task.timeout(timeout)).shouldSuppressOrdinaryLoad;
+     } on TimeoutException {
+diff --git a/lib/src/navigation/app_chat_route.dart b/lib/src/navigation/app_chat_route.dart
+--- a/lib/src/navigation/app_chat_route.dart
++++ b/lib/src/navigation/app_chat_route.dart
+@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
+ import 'package:tencent_cloud_chat_demo/src/chat.dart';
+ import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/chat_open_viewport_coordinator.dart';
++import 'package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/chat_pipeline_clock.dart';
+ import 'package:tencent_cloud_chat_demo/src/utils/message_conversation_id.dart';
+ import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
+@@ -149,7 +150,8 @@ class _AppChatRoutePresenceState extends State<_AppChatRoutePresence> {
+         animation?.status == AnimationStatus.forward ||
+         animation?.status == AnimationStatus.reverse;
+     BackgroundMediaGate.instance.setBusy(
+-      this, moving(_primaryAnimation) || moving(_secondaryAnimation),
++      this,
++      moving(_primaryAnimation) || moving(_secondaryAnimation),
+     );
+   }
+ 
+@@ -259,12 +261,24 @@ Future<T?> openOrReuseAppChat<T>(
+   MessageAnchor? searchJumpAnchor,
+   bool? initialC2cCanMessage,
+   String? c2cPermissionHintSource,
++  ChatOpenTraceContext? openTrace,
++  String openSource = 'route',
+ }) async {
+   if (!context.mounted) {
+     return Future<T?>.value();
+   }
+   final navigator = Navigator.of(context);
+   final sessionKey = appChatSessionKey(conversation);
++  if (openTrace == null) {
++    ChatOpenPerfLog.beginOpen(
++        conversationID: conversation.conversationID,
++        phase: 'route_request',
++        extras: <String, Object?>{'source': openSource});
++    openTrace = ChatOpenPerfLog.captureCurrent(
++        conversationKey: conversation.conversationID);
++  }
++  ChatOpenPerfLog.mark('route_requested',
++      trace: openTrace, extras: <String, Object?>{'source': openSource});
+   // Pipeline [2] - push_begin：进入 openOrReuseAppChat 主流程
+   // 用 normalizeKey 与 conversation.dart / chat.dart / UIKit 内的 key 保持一致。
+   final pipelineKey = ChatPipelineClock.normalizeKey(
+@@ -273,7 +287,9 @@ Future<T?> openOrReuseAppChat<T>(
+     groupId: conversation.groupID,
+   );
+   ChatPipelineClock.instance.trace(pipelineKey, 'push_begin',
+-      extras: <String, Object?>{'canReuse': initFindingMsg == null && searchJumpAnchor == null});
++      extras: <String, Object?>{
++        'canReuse': initFindingMsg == null && searchJumpAnchor == null
++      });
+   // Search/anchor opens carry a new navigation subject. Until the existing
+   // Chat State exposes an in-place target-message activation API, preserve the
+   // established dedicated route semantics instead of silently dropping it.
+@@ -282,6 +298,7 @@ Future<T?> openOrReuseAppChat<T>(
+       ? AppChatRouteRegistry.instance.activeRoute(navigator, sessionKey)
+       : null;
+   if (existing != null) {
++    ChatOpenPerfLog.mark('route_reused', trace: openTrace);
+     if (!existing.isCurrent) {
+       navigator.popUntil((route) => identical(route, existing));
+     }
+@@ -305,11 +322,15 @@ Future<T?> openOrReuseAppChat<T>(
+         (media?.padding.top ?? 0) -
+         kToolbarHeight -
+         56;
+-    await ChatOpenViewportCoordinator.instance.prepareOpenViewport(
+-      conversation: conversation,
+-      viewportHeight: viewportHeight,
+-      source: 'route',
+-    );
++    await ChatOpenPerfLog.measure(
++        'route_prepare',
++        () => ChatOpenViewportCoordinator.instance.prepareOpenViewport(
++              conversation: conversation,
++              viewportHeight: viewportHeight,
++              source: 'route',
++            ),
++        trace: openTrace,
++        source: openSource);
+   } catch (_) {
+     // 预热失败不阻塞导航；chat.dart 端的 in-flight 仍会重试。
+   }
+@@ -322,8 +343,10 @@ Future<T?> openOrReuseAppChat<T>(
+             ChatOpenViewportCoordinator.localBudget.inMilliseconds,
+       });
+   if (!context.mounted) {
++    ChatOpenPerfLog.mark('route_cancelled', trace: openTrace);
+     return null;
+   }
++  ChatOpenPerfLog.mark('route_push', trace: openTrace);
+   return navigator.push<T>(
+     appChatRoute<T>(
+       conversation,
+diff --git a/lib/src/conversation.dart b/lib/src/conversation.dart
+--- a/lib/src/conversation.dart
++++ b/lib/src/conversation.dart
+@@ -3254,6 +3254,13 @@ class _ConversationState extends State<Conversation> {
+       return;
+     }
+     _openingConversationID = conversationID;
++    final openCacheKey =
++        _chatCacheConversationKey(selectedConv) ?? conversationID;
++    ChatOpenPerfLog.beginOpen(conversationID: openCacheKey,
++        phase: 'conv_item_tap', extras: <String, Object?>{
++          'source': widget.onConversationChanged == null ? 'list' : 'embedded',
++        });
++    final openTrace = ChatOpenPerfLog.captureCurrent(conversationKey: openCacheKey);
+     unawaited(
+       ConversationSyncService.instance.retainOpenedGroupConversation(
+         selectedConv,
+@@ -3290,19 +3297,18 @@ class _ConversationState extends State<Conversation> {
+         'embedded': widget.onConversationChanged != null,
+       },
+     );
+-    await ConversationUnreadClearService.clearLocalForOpenFast(
++    await ChatOpenPerfLog.measure('entry_local_unread_clear', () =>
++        ConversationUnreadClearService.clearLocalForOpenFast(
+       conversation: selectedConv,
+       markViewModelReadLocally: _controller.model.markConversationReadLocally,
+-    );
++    ), trace: openTrace, source: 'list');
+ 
+-    final openCacheKey =
+-        _chatCacheConversationKey(selectedConv) ?? conversationID;
+     ConversationHistoryWarmScheduler.instance.touchMemoryWarm(openCacheKey);
+     final isGroup = selectedConv.type == 2 ||
+         (selectedConv.groupID?.trim().isNotEmpty ?? false);
+-    ChatOpenPerfLog.beginOpen(
++    ChatOpenPerfLog.mark('entry_local_ready',
+       conversationID: openCacheKey,
+-      phase: 'conv_item_tap',
++      trace: openTrace,
+       extras: <String, Object?>{
+         'rawConvID': conversationID,
+         'isGroup': isGroup,
+@@ -3320,10 +3326,6 @@ class _ConversationState extends State<Conversation> {
+             .hasInitialHistoryLoaded(openCacheKey),
+       },
+     );
+-    final openTrace = ChatOpenPerfLog.captureCurrent(
+-      conversationKey: openCacheKey,
+-    );
+-
+     final embeddedChat = widget.onConversationChanged != null;
+     if (embeddedChat) {
+       final previous = _embeddedActiveConversationID;
+@@ -3377,10 +3379,10 @@ class _ConversationState extends State<Conversation> {
+         unawaited(() async {
+           try {
+             final coordinator = ChatOpenViewportCoordinator.instance;
+-            final prepareTask = coordinator.prepareOpenViewport(
++            final prepareTask = ChatOpenPerfLog.withTrace(openTrace, () => coordinator.prepareOpenViewport(
+               conversation: selectedConv,
+               source: 'list',
+-            );
++            ));
+             final listRequestId = coordinator.currentRequestId;
+             final snap = await prepareTask;
+             if (!coordinator.isCurrent(
+@@ -3437,6 +3439,8 @@ class _ConversationState extends State<Conversation> {
+           context,
+           selectedConv,
+           entryUnreadCount: entryUnreadCount,
++          openTrace: openTrace,
++          openSource: 'list',
+         );
+         ChatOpenPerfLog.mark('navigator_pop_back', trace: openTrace);
+         ConversationDraftLeaveTrace.stage(
+diff --git a/test/chat_open_profile_trace_test.dart b/test/chat_open_profile_trace_test.dart
+new file mode 100644
+--- /dev/null
++++ b/test/chat_open_profile_trace_test.dart
+@@ -0,0 +1,201 @@
++import 'dart:async';
++
++import 'package:flutter_test/flutter_test.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import 'package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart';
++import 'package:tencent_cloud_chat_sdk/enum/history_msg_get_type_enum.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_message_list_result.dart';
++import 'package:tencent_cloud_chat_uikit/data_services/message/message_history_peek_loader.dart';
++import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.dart';
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++  final lines = <String>[];
++  setUp(() {
++    SharedPreferences.setMockInitialValues({});
++    ChatOpenPerfLog.resetForTest();
++    lines.clear();
++    ChatOpenPerfLog.debugSink = lines.add;
++  });
++  tearDown(() {
++    ChatOpenPerfLog.resetForTest();
++    ChatOpenPerfLog.debugSink = null;
++  });
++
++  ChatOpenTraceContext begin(String id) {
++    ChatOpenPerfLog.beginOpen(conversationID: id, phase: 'test');
++    return ChatOpenPerfLog.captureCurrent(conversationKey: id);
++  }
++
++  test('each open owns a unique trace even for the same conversation', () {
++    final first = begin('c2c_alice');
++    final second = begin('c2c_alice');
++    expect(first.chatOpenTraceId, isNot(second.chatOpenTraceId));
++    expect(
++        ChatOpenPerfLog.captureCurrent(conversationKey: 'alice')
++            .chatOpenTraceId,
++        second.chatOpenTraceId);
++    expect(
++        ChatOpenPerfLog.captureCurrent(conversationKey: 'c2c_other')
++            .chatOpenTraceId,
++        '-');
++  });
++
++  test(
++      'async work and nested spans keep their creating trace after another open',
++      () async {
++    final first = begin('c2c_alice');
++    final gate = Completer<void>();
++    final task = ChatOpenPerfLog.withTrace(
++        first,
++        () => ChatOpenPerfLog.measure('producer', () async {
++              await gate.future;
++              expect(
++                  ChatOpenPerfLog.captureCurrent(conversationKey: 'alice')
++                      .chatOpenTraceId,
++                  first.chatOpenTraceId);
++              await ChatOpenPerfLog.measure('sdk_local_read', () async => 7);
++            }));
++    final second = begin('c2c_bob');
++    gate.complete();
++    await task;
++    final producer = lines.firstWhere(
++        (l) => l.contains('event=span_start') && l.contains('stage=producer'));
++    final producerId = RegExp(r'\bspanId=(\S+)').firstMatch(producer)!.group(1);
++    final child = lines.firstWhere((l) =>
++        l.contains('event=span_start') && l.contains('stage=sdk_local_read'));
++    expect(child, contains('parentSpanId=$producerId'));
++    expect(child, contains('chatOpenTraceId=${first.chatOpenTraceId}'));
++    expect(child, isNot(contains(second.chatOpenTraceId)));
++  });
++
++  test('queue wait and execution are disjoint; finish is idempotent', () async {
++    final trace = begin('c2c_alice');
++    final span = ChatOpenPerfLog.queueSpan('producer', trace: trace)!;
++    await Future<void>.value();
++    span.start();
++    await Future<void>.value();
++    span.finish(extras: {'rawCount': 4});
++    span.finish(outcome: 'error');
++    final ends = lines.where((l) => l.contains('event=span_end')).toList();
++    expect(ends, hasLength(1));
++    int field(String name) =>
++        int.parse(RegExp('$name=(\\d+)').firstMatch(ends.single)!.group(1)!);
++    expect(field('totalUs'), field('queueWaitUs') + field('executionUs'));
++    expect(ends.single, contains('outcome=completed'));
++    expect(ends.single, contains('rawCount=4'));
++  });
++
++  test('measurement preserves the exception and records an error outcome',
++      () async {
++    begin('c2c_alice');
++    final error = StateError('private payload');
++    await expectLater(
++        ChatOpenPerfLog.measure<void>('read', () async => throw error),
++        throwsA(same(error)));
++    expect(lines.last, contains('outcome=error'));
++    expect(lines.join('\n'), isNot(contains('private payload')));
++  });
++
++  test('a caller timeout does not end or cancel the shared producer span',
++      () async {
++    begin('c2c_alice');
++    final gate = Completer<int>();
++    final task = ChatOpenPerfLog.measure('producer', () => gate.future);
++    await expectLater(
++        task.timeout(Duration.zero), throwsA(isA<TimeoutException>()));
++    expect(lines.where((l) => l.contains('event=span_end')), isEmpty);
++    gate.complete(3);
++    expect(await task, 3);
++    expect(lines.where((l) => l.contains('event=span_end')), hasLength(1));
++  });
++
++  test('profile diagnostics redact content and authentication fields', () {
++    begin('c2c_private_owner');
++    ChatOpenPerfLog.mark('diagnostic', extras: {
++      'owner': 'private_owner',
++      'serverMsgID': 'private_message',
++      'text': 'private_text',
++      'payload': 'private_payload',
++      'accessToken': 'private_token',
++      'userSig': 'private_signature',
++      'url': 'https://private.invalid',
++      'error': 'private_exception',
++      'stage': 'sdk_local_read',
++      'spanId': 'span_123',
++      'queueWaitUs': 3,
++    });
++    expect(lines.join('\n'), isNot(contains('private_')));
++    expect(lines.last, contains('payload=<redacted>'));
++    expect(lines.last, contains('spanId=span_123'));
++    expect(lines.last, contains('queueWaitUs=3'));
++  });
++
++  test('two joined requests log only one actual SDK call', () async {
++    begin('c2c_profile_peer');
++    final service = _ControlledHistoryService()..gate = Completer<void>();
++    Future<V2TimMessageListResult> request() =>
++        MessageHistoryPeekLoader.loadOlderLocalOnlyResult(
++            messageService: service, count: 3, userID: 'profile_peer');
++    final first = request();
++    final second = request();
++    expect(service.calls, 1);
++    service.gate!.complete();
++    await Future.wait([first, second]);
++    expect(service.calls, 1);
++    expect(lines.where((l) => l.contains('event=history_loader_reused')),
++        hasLength(1));
++    expect(
++        lines.where((l) =>
++            l.contains('event=span_start') &&
++            l.contains('stage=sdk_local_call')),
++        hasLength(1));
++  });
++
++  test('one paginated request logs each actual SDK call', () async {
++    begin('group_profile_room');
++    final service = _ControlledHistoryService()..paged = true;
++    final result = await MessageHistoryPeekLoader.loadOlderLocalOnlyResult(
++        messageService: service, count: 3, groupID: 'profile_room');
++    expect(result.messageList, hasLength(3));
++    expect(service.calls, 3);
++    expect(
++        lines.where((l) =>
++            l.contains('event=span_start') &&
++            l.contains('stage=sdk_local_call')),
++        hasLength(3));
++  });
++}
++
++class _ControlledHistoryService extends Fake implements MessageService {
++  int calls = 0;
++  bool paged = false;
++  Completer<void>? gate;
++  @override
++  Future<V2TimMessageListResult?> getHistoryMessageListWithComplete({
++    HistoryMsgGetTypeEnum getType =
++        HistoryMsgGetTypeEnum.V2TIM_GET_LOCAL_OLDER_MSG,
++    String? userID,
++    String? groupID,
++    int lastMsgSeq = 0,
++    required int count,
++    String? lastMsgID,
++    V2TimMessage? lastMsg,
++    List<int>? messageTypeList,
++    List<int>? messageSeqList,
++    int? timeBegin,
++    int? timePeriod,
++  }) async {
++    calls++;
++    if (gate != null) await gate!.future;
++    final seq = 4 - calls;
++    final message = V2TimMessage.fromJson({'message_risk_type_identified': 0})
++      ..msgID = 'message_$seq'
++      ..seq = '$seq'
++      ..timestamp = 100000 + seq
++      ..elemType = 1;
++    return V2TimMessageListResult(
++        isFinished: !paged || calls >= 3, messageList: paged ? [message] : []);
++  }
++}
+diff --git a/test/app_chat_route_session_reuse_test.dart b/test/app_chat_route_session_reuse_test.dart
+--- a/test/app_chat_route_session_reuse_test.dart
++++ b/test/app_chat_route_session_reuse_test.dart
+@@ -3,6 +3,7 @@ import 'dart:io';
+ import 'package:flutter/material.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:tencent_cloud_chat_demo/src/navigation/app_chat_route.dart';
++import 'package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart';
+ import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart';
+ 
+ void main() {
+@@ -112,6 +113,7 @@ void main() {
+     expect(await reusedFuture, 'left-chat');
+     expect(await existingPush, 'left-chat');
+     expect(completed, isTrue);
++    ChatOpenPerfLog.resetForTest();
+   });
+ 
+   test('conversation list uses the reuse-aware chat opener', () {

@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-09-24T21:50:51.974Z",
+  "files": 30,
+  "reportLocalLinks": 39,
+  "head": "26bcc02c68680725c1a91bf7548535c0645687a0",
+  "patchSha256": "37a21855ddbda30a3d9fc23cdd18bff7374e42c05718175d2bc9e452ac2f8eb1",
+  "reportSha256": "e3debc88d3c8b9e1e3700e8caca9263cd5d65fb87c80f5aaed388eaeac877c81",
+  "graph": {
+    "summary": {
+      "changed_count": 318,
+      "affected_count": 2,
+      "changed_files": 67,
+      "risk_level": "medium"
+    },
+    "partial": false,
+    "truncated": false,
+    "note": "Whole dirty tree, not exclusive round 2. Index flow coverage is incomplete."
+  },
+  "failures": []
+}

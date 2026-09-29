@@ -1,0 +1,46 @@
+Future<void> _loadChatLocalDraft() async {
+    final conversationId = _resolvedConversationID();
+    if (conversationId.isEmpty) {
+      return;
+    }
+    final loadRevision = _draft.stateRevision;
+    final text = await ConversationDraftService.instance.loadDraftText(
+      conversationID: conversationId,
+    );
+    if (!mounted ||
+        !_isCurrentConversation(conversationId) ||
+        !_draft.canApplyLoadedDraft(loadRevision)) {
+      return;
+    }
+    _draft.setTextImmediate(text);
+    final loaded = text?.trim() ?? '';
+    if (loaded.isEmpty) {
+      return;
+    }
+
+    void applyToInputIfReady() {
+      if (!mounted ||
+          !_isCurrentConversation(conversationId) ||
+          !_draft.canApplyLoadedDraft(loadRevision)) {
+        return;
+      }
+      final inputController = _chatController.textFieldController;
+      final editingController = inputController?.textEditingController;
+      if (inputController == null || editingController == null) {
+        return;
+      }
+      if (editingController.text.trim().isEmpty) {
+        inputController.setTextField(text!, notifyChanged: false);
+      }
+    }
+
+    // The outer controller owns a TextEditingController before the actual
+    // input widget has attached its listener. A draft loaded in that window
+    // makes setTextField() notify nobody. Rebuild with draftText for initState,
+    // then retry after the frame for an already-created input widget.
+    applyToInputIfReady();
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      applyToInputIfReady();
+    });
+  }

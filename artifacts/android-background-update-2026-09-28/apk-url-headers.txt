@@ -1,0 +1,17 @@
+HTTP/1.1 400 Bad Request
+Server: AliyunOSS
+Date: Sun, 27 Sep 2026 22:04:37 GMT
+Content-Type: application/xml
+Content-Length: 454
+Connection: keep-alive
+x-oss-request-id: 6AB992F56AFD363635479AA5
+Content-Range: bytes 0-3/350324280
+Accept-Ranges: bytes
+ETag: "743E6287319BB3B994C24318F5D7BFE9"
+Last-Modified: Sun, 27 Sep 2026 08:53:12 GMT
+x-oss-object-type: Normal
+x-oss-hash-crc64ecma: 13267791518374459916
+x-oss-storage-class: Standard
+x-oss-server-time: 3
+x-oss-ec: 0048-00000200
+

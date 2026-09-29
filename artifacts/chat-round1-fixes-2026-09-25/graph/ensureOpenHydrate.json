@@ -1,0 +1,84 @@
+{
+  "target": {
+    "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.ensureOpenHydrate#4",
+    "name": "ensureOpenHydrate",
+    "type": "Method",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 4,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 1,
+    "processes_affected": 0,
+    "modules_affected": 2
+  },
+  "byDepthCounts": {
+    "1": 1,
+    "2": 1,
+    "3": 2
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Services",
+      "hits": 3,
+      "impact": "indirect"
+    },
+    {
+      "name": "View_models",
+      "hits": 1,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator._ensureLatestWindowResetForOpen#6",
+        "name": "_ensureLatestWindowResetForOpen",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.ensureLocalSnapshotForOpen#4",
+        "name": "ensureLocalSnapshotForOpen",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.prepareForOpen#2",
+        "name": "prepareForOpen",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.prepareOpenViewport#5",
+        "name": "prepareOpenViewport",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}

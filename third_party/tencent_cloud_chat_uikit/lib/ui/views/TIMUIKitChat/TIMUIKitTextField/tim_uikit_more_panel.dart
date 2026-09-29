@@ -37,6 +37,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/permission.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_gallery_pick_utils.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/picker_recovery_coordinator.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/gallery_send_perf_trace.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_media_send_utils.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/image_edit/editable_asset_picker.dart';
@@ -203,6 +204,7 @@ class _PendingGalleryImageSend {
     this.imageHeight,
     required this.batchId,
     required this.batchIndex,
+    this.onDurablyAccepted,
   });
 
   final String filePath;
@@ -213,6 +215,30 @@ class _PendingGalleryImageSend {
   final int? imageHeight;
   final String batchId;
   final int batchIndex;
+  final VoidCallback? onDurablyAccepted;
+}
+
+class _PickerRecoveryDispatchBatch {
+  _PickerRecoveryDispatchBatch(
+    this.coordinator,
+    Iterable<XFile> files,
+  )   : files = List<XFile>.unmodifiable(files),
+        _expectedPaths = files.map((file) => file.path).toSet();
+
+  final PickerRecoveryCoordinator coordinator;
+  final List<XFile> files;
+  final Set<String> _expectedPaths;
+  final Set<String> _acceptedPaths = <String>{};
+  bool _completionScheduled = false;
+
+  void accept(XFile file) {
+    if (_completionScheduled || !_expectedPaths.contains(file.path)) return;
+    _acceptedPaths.add(file.path);
+    if (_acceptedPaths.length == _expectedPaths.length) {
+      _completionScheduled = true;
+      unawaited(coordinator.completePaths(files));
+    }
+  }
 }
 
 class _ResolvedGalleryImage {
@@ -423,6 +449,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
     String? snapshotPath,
     String? existingOptimisticId,
     GallerySendPerfTrace? perf,
+    VoidCallback? onDurablyAccepted,
   }) {
     if (!_hasUsableConversation(convID) ||
         !_isCapturedConversationCurrent(convID, convType)) {
@@ -451,6 +478,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
       convID: convID,
       convType: convType,
       existingOptimisticId: optimisticId,
+      onDurablyAccepted: onDurablyAccepted,
     );
     final handled = mounted
         ? MessageUtils.handleMessageError(sendFuture, context)
@@ -744,6 +772,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
     required String convID,
     required ConvType convType,
     required GallerySendPerfTrace perf,
+    PickerRecoveryCoordinator? recovery,
   }) async {
     if (files.length > ChatGalleryPickUtils.maxSelectedAssets) {
       _showPanelNotice(TIM_t('每次最多选择9项，请重新选择'));
@@ -767,6 +796,12 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
         imageFiles.add(picked);
       }
     }
+    final recoveryBatch = recovery == null
+        ? null
+        : _PickerRecoveryDispatchBatch(
+            recovery,
+            <XFile>[...imageFiles, ...videos],
+          );
 
     // Insert video rows before copying temporary picker files. The copy and
     // thumbnail extraction can take hundreds of milliseconds for large clips.
@@ -828,14 +863,18 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
     // Start videos as soon as their rows are visible. Image header checks and
     // image sends must not hold back an independently selected video.
     for (var videoIndex = 0; videoIndex < videos.length; videoIndex++) {
+      final pickedVideo = videos[videoIndex];
       perf.retainAsyncOperation();
       unawaited(
         _prepareAndDispatchSystemGalleryVideo(
-          file: videos[videoIndex],
+          file: pickedVideo,
           model: model,
           convID: convID,
           convType: convType,
           existingOptimisticId: videoOptimisticIds[videoIndex],
+          onDurablyAccepted: recoveryBatch == null
+              ? null
+              : () => recoveryBatch.accept(pickedVideo),
           perf: perf,
         ).whenComplete(perf.releaseAsyncOperation),
       );
@@ -915,6 +954,9 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
           batchIndex: i,
           imageWidth: imageSize?.width.round(),
           imageHeight: imageSize?.height.round(),
+          onDurablyAccepted: recoveryBatch == null
+              ? null
+              : () => recoveryBatch.accept(picked),
         ));
         _enqueueGalleryImage(model, pendingImages.last, perf);
         perf.log(
@@ -956,6 +998,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
     required ConvType convType,
     required String existingOptimisticId,
     GallerySendPerfTrace? perf,
+    VoidCallback? onDurablyAccepted,
   }) async {
     String? optimisticId = existingOptimisticId;
     final mediaPerf = MediaSendPerf.begin(existingOptimisticId);
@@ -1034,6 +1077,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
         duration: duration,
         snapshotPath: snapshotPath,
         existingOptimisticId: optimisticId,
+        onDurablyAccepted: onDurablyAccepted,
         perf: perf,
       );
       perf?.log('video_send_queued', detail: 'itemMs=${watch.elapsedMilliseconds}');
@@ -1096,6 +1140,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
             existingOptimisticId: item.optimisticId,
             batchId: item.batchId,
             batchIndex: item.batchIndex,
+            onDurablyAccepted: item.onDurablyAccepted,
           );
           // The send coordinator owns delivery and status updates. Do not
           // bind the batch to this panel's BuildContext after navigation.
@@ -1746,9 +1791,49 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
         );
 
         if (PlatformUtils().isMobile && !preferCustomPicker) {
+          final recovery = PickerRecoveryCoordinator.instance;
+          final destination = '${convType.name}:$convID';
+          await recovery.recover();
+          final drafts = await recovery.drafts(
+            entry: 'chat.gallery', destination: destination);
+          if (!mounted || !model.canSendCapturedMedia) return;
+          final availableDrafts = drafts.where((d) => d.files.isNotEmpty).toList();
+          if (availableDrafts.isNotEmpty) {
+            final draft = availableDrafts.first;
+            final send = await showDialog<bool>(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                        title: Text(TIM_t('恢复上次选择的媒体')),
+                content: Text(draft.error == null
+                    ? TIM_t('上次选择的媒体已保留，是否发送到当前原会话？')
+                    : TIM_t('部分文件已不可用，是否发送仍保留的媒体到当前原会话？')),
+                        actions: [
+                          TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, false),
+                              child: Text(TIM_t('稍后'))),
+                          TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, true),
+                              child: Text(TIM_t('发送'))),
+                        ]));
+            if (send == true &&
+                model.canSendCapturedMedia &&
+                await recovery.claim(draft)) {
+              await dismissPicker(transitionSettled: true);
+              await _dispatchSystemPickedMedia(
+                  files: draft.files,
+                  model: model,
+                  convID: convID,
+                  convType: convType,
+                  perf: perf,
+                  recovery: recovery);
+            }
+            return;
+          }
           perf.log('system_picker_open');
           final systemFiles =
-              await ChatGalleryPickUtils.pickSystemGalleryMedia(perf: perf);
+              await ChatGalleryPickUtils.pickSystemGalleryMedia(perf: perf, recoveryDestination: destination);
           perf.log(
             'system_picker_returned',
             count: systemFiles?.length ?? 0,
@@ -1769,6 +1854,7 @@ class _MorePanelState extends TIMUIKitState<MorePanel> {
               convID: convID,
               convType: convType,
               perf: perf,
+              recovery: recovery,
             );
             return;
           }

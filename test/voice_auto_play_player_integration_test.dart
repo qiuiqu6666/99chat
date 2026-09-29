@@ -18,6 +18,7 @@ import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_glo
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/sound_player_voice_route_bridge.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/sound_record.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/sticker_preview_voice_scope.dart';
 
 class _AudioPlatform extends JustAudioPlatform {
   _Player? latest;
@@ -234,6 +235,12 @@ void main() {
       await until(() =>
           platform.latest?.pendingPlay != null &&
           SoundPlayer.playingMessageId == 'voice1');
+      global.saveScrollBeforeMediaPreview('voice-peer');
+      model.onChatRouteCovered();
+      await Future<void>.delayed(Duration.zero);
+      expect(SoundPlayer.playingMessageId, 'voice1');
+      expect(SoundPlayer.isPlaying, isTrue);
+      expect(model.voiceAutoPlayChainEnabled, isTrue);
       for (var i = 2; i <= 4; i++) {
         platform.latest!.completeVoice();
         await until(() =>
@@ -241,6 +248,16 @@ void main() {
             platform.latest?.pendingPlay != null);
         expect(model.currentPlayedMsgId, 'voice$i');
       }
+      global.endMediaPreviewOverlay();
+      expect(SoundPlayer.playingMessageId, 'voice4');
+      await StickerPreviewVoiceScope.run(() async {
+        model.onChatRouteCovered();
+        await Future<void>.delayed(Duration.zero);
+        expect(SoundPlayer.playingMessageId, 'voice4');
+        expect(SoundPlayer.isPlaying, isTrue);
+        expect(model.voiceAutoPlayChainEnabled, isTrue);
+      });
+      expect(SoundPlayer.isPlaying, isTrue);
       await manual;
       model.disableVoiceAutoPlayChain();
       await SoundPlayer.handleBubbleTap(
@@ -281,7 +298,7 @@ void main() {
       await until(() =>
           SoundPlayer.playingMessageId == 'voice6' &&
           platform.latest?.pendingPlay != null);
-      model.stopVoiceAutoPlay();
+      model.onChatRouteCovered();
       await resumed;
       await until(() => SoundPlayer.currentPhase == VoicePlaybackPhase.idle);
       expect(model.voiceAutoPlayChainEnabled, isFalse);

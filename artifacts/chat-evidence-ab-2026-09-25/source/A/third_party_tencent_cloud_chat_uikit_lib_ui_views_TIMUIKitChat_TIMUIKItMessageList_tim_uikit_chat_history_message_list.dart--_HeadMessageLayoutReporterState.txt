@@ -1,0 +1,39 @@
+class _HeadMessageLayoutReporterState
+    extends State<_HeadMessageLayoutReporter> {
+  int _reportAttempts = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleReport();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HeadMessageLayoutReporter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _scheduleReport();
+  }
+
+  void _scheduleReport() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _reportIfReady());
+  }
+
+  void _reportIfReady() {
+    if (!mounted) {
+      return;
+    }
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) {
+      if (_reportAttempts < 4) {
+        _reportAttempts++;
+        _scheduleReport();
+      }
+      return;
+    }
+    final offset = box.localToGlobal(Offset.zero);
+    widget.onLaidOut(widget.message, box.size, offset & box.size);
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}

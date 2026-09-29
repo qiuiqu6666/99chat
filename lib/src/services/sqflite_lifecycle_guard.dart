@@ -30,22 +30,19 @@ class SqfliteLifecycleGuard {
 
   /// 已打开则返回现有连接；后台已关且未打开则抛 [SqfliteClosedForBackground]。
   static Database? beforeOpen(Database? existing) {
-    if (existing != null) {
-      return existing;
-    }
     if (!instance.canOpenDatabase) {
       throw const SqfliteClosedForBackground();
     }
-    return null;
+    return existing;
   }
 
   static Future<void> closeDatabase(Database? db) async {
     if (db == null) {
       return;
     }
-    try {
-      await db.close();
-    } catch (_) {}
+    // sqflite marks the Dart handle closed before the native acknowledgment.
+    // isOpen=false cannot prove a failed native close is safe to reopen.
+    await db.close();
   }
 
   @visibleForTesting

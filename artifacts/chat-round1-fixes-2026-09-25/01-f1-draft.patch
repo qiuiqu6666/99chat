@@ -1,0 +1,973 @@
+diff --git a/lib/src/chat_page/chat_draft_controller.dart b/lib/src/chat_page/chat_draft_controller.dart
+--- a/lib/src/chat_page/chat_draft_controller.dart
++++ b/lib/src/chat_page/chat_draft_controller.dart
+@@ -1,5 +1,16 @@
+ import 'dart:async';
+ 
++/// Captured before the input is cleared. Identity is never reused by another
++/// page/conversation, even when its local revision starts from zero.
++class ChatDraftSubmission {
++  ChatDraftSubmission._(
++      this.editorIdentity, this.revision, this.text, this.persistenceToken);
++  final Object editorIdentity;
++  final int revision;
++  final String text;
++  Object? persistenceToken;
++}
++
+ /// Debounced local draft text for the open chat page.
+ class ChatDraftController {
+   String? text;
+@@ -7,12 +18,32 @@ class ChatDraftController {
+   int _writeGeneration = 0;
+   int _stateRevision = 0;
+   bool _sendClearBarrier = false;
++  Object _editorIdentity = Object();
+   int get writeGeneration => _writeGeneration;
+   bool get shouldSuppressLifecyclePersist => _sendClearBarrier;
+   int get stateRevision => _stateRevision;
+ 
+   static const Duration debounceDuration = Duration(milliseconds: 250);
+ 
++  ChatDraftSubmission captureSubmission(String value,
++          {Object? persistenceToken}) =>
++      ChatDraftSubmission._(
++          _editorIdentity, _stateRevision, value, persistenceToken);
++
++  bool ownsSubmission(ChatDraftSubmission submission) =>
++      identical(submission.editorIdentity, _editorIdentity) &&
++      submission.revision == _stateRevision;
++
++  /// A send clear belongs to its submission, not to a new user edit.
++  bool clearForSubmission(ChatDraftSubmission submission) {
++    if (!ownsSubmission(submission)) return false;
++    _writeGeneration++;
++    cancelDebounce();
++    text = null;
++    _sendClearBarrier = true;
++    return true;
++  }
++
+   void setTextImmediate(String? value) {
+     final trimmed = value?.trim() ?? '';
+     text = trimmed.isEmpty ? null : value;
+@@ -59,14 +90,19 @@ class ChatDraftController {
+     cancelDebounce();
+   }
+ 
+-  void markSendCompleted() {
++  bool markSendCompleted([ChatDraftSubmission? submission]) {
++    if (submission != null) return clearForSubmission(submission);
++    // Compatibility for callers that complete synchronously. Asynchronous
++    // send results must always pass their captured submission.
+     _sendClearBarrier = true;
+     clear();
++    return true;
+   }
+ 
+   /// Invalidates work owned by the previous conversation while allowing the
+   /// new conversation to start persisting immediately.
+   void beginConversation() {
++    _editorIdentity = Object();
+     _sendClearBarrier = false;
+     clear();
+   }
+diff --git a/lib/src/services/conversation_local/conversation_draft_service.dart b/lib/src/services/conversation_local/conversation_draft_service.dart
+--- a/lib/src/services/conversation_local/conversation_draft_service.dart
++++ b/lib/src/services/conversation_local/conversation_draft_service.dart
+@@ -12,6 +12,27 @@ import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+ import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_id_canonical.dart';
+ 
++/// A process-local edit capability, scoped to the captured SDK login generation.
++/// This is deliberately not a persisted version or a recoverable clear task.
++class ConversationDraftEdit {
++  const ConversationDraftEdit._(this.identity, this.conversationID,
++      this.editorIdentity, this.revision, this.text);
++  final SessionIdentity identity;
++  final String conversationID;
++  final Object editorIdentity;
++  final int revision;
++  final String? text;
++  String get key =>
++      '${identity.ownerUserId}|${identity.generation}|$conversationID';
++}
++
++class DraftMirrorWriteException implements Exception {
++  const DraftMirrorWriteException(this.cause);
++  final Object cause;
++  @override
++  String toString() => 'SDK draft saved; local mirror needs repair: $cause';
++}
++
+ /// 会话草稿：以 IMSDK 本地会话库为权威，SQLite 仅保留兼容镜像。
+ class ConversationDraftService {
+   ConversationDraftService._();
+@@ -29,6 +50,9 @@ class ConversationDraftService {
+   static final ConversationDraftService instance = ConversationDraftService._();
+   final Map<String, Future<void>> _tails = {};
+   final Map<String, int> _versions = {};
++  final Map<String, ConversationDraftEdit> _edits = {};
++  final Set<String> _pendingEdits = {};
++  final Set<String> _mirrorRepairPending = {};
+   String get _owner =>
+       ownerForTest?.call() ?? ContactSocialCacheStore.safeLoginUserId();
+ 
+@@ -43,16 +67,70 @@ class ConversationDraftService {
+     return 'c2c_$id';
+   }
+ 
+-  Future<void> _write(String rawId, String? text) {
+-    final id = _sdkId(rawId);
++  bool isCurrentEdit(ConversationDraftEdit edit) =>
++      identical(_edits[edit.key], edit) &&
++      SessionIdentityService.instance
++          .isCurrent(edit.identity, currentOwnerUserId: _owner);
++
++  ConversationDraftEdit beginEditing(String conversationID) {
+     final identity =
+         SessionIdentityService.instance.capture(ownerUserId: _owner);
++    final id = _sdkId(conversationID);
++    final key = '${identity.ownerUserId}|${identity.generation}|$id';
++    final previous = _edits[key];
++    final pendingText = _pendingEdits.contains(key) ? previous?.text : null;
++    final edit =
++        ConversationDraftEdit._(identity, id, Object(), 0, pendingText);
++    _edits.removeWhere((_, value) => !SessionIdentityService.instance
++        .isCurrent(value.identity, currentOwnerUserId: _owner));
++    _edits[key] = edit;
++    // A new page takes over an accepted edit that has not reached the SDK yet.
++    // Invalidating the old editor must not discard that pending content.
++    if (pendingText != null) {
++      _write(id, pendingText, expectedEdit: edit).catchError((Object error) {
++        ConversationDraftLeaveTrace.stage('draft_handoff_write_failed',
++            conversationId: id,
++            extras: <String, Object?>{
++              'mirrorOnly': error is DraftMirrorWriteException
++            });
++      });
++    }
++    return edit;
++  }
++
++  ConversationDraftEdit? recordEdit(
++      ConversationDraftEdit previous, String text) {
++    if (!isCurrentEdit(previous)) return null;
++    final edit = ConversationDraftEdit._(
++        previous.identity,
++        previous.conversationID,
++        previous.editorIdentity,
++        previous.revision + 1,
++        text);
++    _edits[edit.key] = edit;
++    _pendingEdits.add(edit.key);
++    return edit;
++  }
++
++  bool mirrorRepairPending(ConversationDraftEdit edit) =>
++      _mirrorRepairPending.contains(edit.key);
++
++  Future<void> _write(String rawId, String? text,
++      {ConversationDraftEdit? expectedEdit}) {
++    final id = _sdkId(rawId);
++    final identity = expectedEdit?.identity ??
++        SessionIdentityService.instance.capture(ownerUserId: _owner);
+     if (id.isEmpty || identity.ownerUserId.isEmpty) return Future.value();
++    if (expectedEdit != null &&
++        (expectedEdit.conversationID != id || !isCurrentEdit(expectedEdit))) {
++      return Future.value();
++    }
+     final key = '${identity.ownerUserId}|${identity.generation}|$id';
+     final version = (_versions[key] ?? 0) + 1;
+     _versions[key] = version;
+     bool current() =>
+         _versions[key] == version &&
++        (expectedEdit == null || isCurrentEdit(expectedEdit)) &&
+         SessionIdentityService.instance
+             .isCurrent(identity, currentOwnerUserId: _owner);
+     final next = (_tails[key] ?? Future<void>.value()).then((_) async {
+@@ -80,11 +158,18 @@ class ConversationDraftService {
+         conversationId: id,
+         draftText: text ?? '',
+       );
+-      if (commitForTest != null) {
+-        await commitForTest!(id, text ?? '');
+-      } else {
+-        final commit = await _commitDraft(id, text ?? '', canCommit: current);
+-        if (current()) await _notifyList(commit);
++      if (expectedEdit != null) _pendingEdits.remove(key);
++      try {
++        if (commitForTest != null) {
++          await commitForTest!(id, text ?? '');
++        } else {
++          final commit = await _commitDraft(id, text ?? '', canCommit: current);
++          if (current()) await _notifyList(commit);
++        }
++        if (current()) _mirrorRepairPending.remove(key);
++      } catch (error) {
++        _mirrorRepairPending.add(key);
++        throw DraftMirrorWriteException(error);
+       }
+     });
+     late Future<void> tail;
+@@ -103,11 +188,14 @@ class ConversationDraftService {
+   Future<void> persistDraft({
+     required String conversationID,
+     required String rawInputText,
++    ConversationDraftEdit? expectedEdit,
+   }) =>
+-      _write(conversationID, rawInputText);
++      _write(conversationID, rawInputText, expectedEdit: expectedEdit);
+ 
+-  Future<void> clearDraft({required String conversationID}) =>
+-      _write(conversationID, null);
++  Future<void> clearDraft(
++          {required String conversationID,
++          ConversationDraftEdit? expectedEdit}) =>
++      _write(conversationID, null, expectedEdit: expectedEdit);
+ 
+   /// Clears all IDs known to represent the same active conversation. This is
+   /// used after send because group routes can expose both a bare IM ID and a
+@@ -122,13 +210,19 @@ class ConversationDraftService {
+     }
+   }
+ 
+-  Future<String?> loadDraftText({required String conversationID}) async {
++  Future<String?> loadDraftText(
++      {required String conversationID,
++      ConversationDraftEdit? expectedEdit}) async {
+     final id = _sdkId(conversationID);
+     if (id.isEmpty) {
+       return null;
+     }
+-    final identity =
++    final identity = expectedEdit?.identity ??
+         SessionIdentityService.instance.capture(ownerUserId: _owner);
++    if (expectedEdit != null && !isCurrentEdit(expectedEdit)) return null;
++    if (expectedEdit != null && _pendingEdits.contains(expectedEdit.key)) {
++      return expectedEdit.text;
++    }
+     final String? text;
+     if (readForTest != null) {
+       text = await readForTest!(id);
+@@ -141,10 +235,29 @@ class ConversationDraftService {
+       }
+       text = result.data?.draftText;
+     }
+-    if (!SessionIdentityService.instance
+-        .isCurrent(identity, currentOwnerUserId: _owner)) {
++    if ((expectedEdit != null && !isCurrentEdit(expectedEdit)) ||
++        !SessionIdentityService.instance
++            .isCurrent(identity, currentOwnerUserId: _owner)) {
+       return null;
+     }
++    final key = '${identity.ownerUserId}|${identity.generation}|$id';
++    if (_mirrorRepairPending.contains(key)) {
++      bool current() =>
++          SessionIdentityService.instance
++              .isCurrent(identity, currentOwnerUserId: _owner) &&
++          (expectedEdit == null || isCurrentEdit(expectedEdit));
++      try {
++        if (commitForTest != null) {
++          await commitForTest!(id, text ?? '');
++        } else {
++          final commit = await _commitDraft(id, text ?? '', canCommit: current);
++          if (current()) await _notifyList(commit);
++        }
++        if (current()) _mirrorRepairPending.remove(key);
++      } catch (_) {
++        // SDK remains authoritative even when its derived mirror is unavailable.
++      }
++    }
+     return (text?.trim().isEmpty ?? true) ? null : text;
+   }
+ 
+diff --git a/lib/src/chat.dart b/lib/src/chat.dart
+--- a/lib/src/chat.dart
++++ b/lib/src/chat.dart
+@@ -369,6 +369,40 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+   final C2cSendPermissionController _c2cPermission =
+       C2cSendPermissionController();
+   final ChatDraftController _draft = ChatDraftController();
++  ConversationDraftEdit? _draftEdit;
++
++  ConversationDraftEdit _ensureDraftEdit(String conversationId,
++      {bool userEdit = false}) {
++    final service = ConversationDraftService.instance;
++    if (_draftEdit == null ||
++        (userEdit && !service.isCurrentEdit(_draftEdit!))) {
++      _draftEdit = service.beginEditing(conversationId);
++    }
++    return _draftEdit!;
++  }
++
++  Object? _captureTextSubmission(String text) {
++    final service = ConversationDraftService.instance;
++    final edit = service.recordEdit(
++        _ensureDraftEdit(_resolvedConversationID(), userEdit: true), text);
++    if (edit == null) return null;
++    _draftEdit = edit;
++    return _draft.captureSubmission(text, persistenceToken: edit);
++  }
++
++  void _clearSubmittedDraftInput(Object? value) {
++    if (value is! ChatDraftSubmission || !_draft.ownsSubmission(value)) return;
++    final previous = value.persistenceToken;
++    if (previous is! ConversationDraftEdit) return;
++    final edit = ConversationDraftService.instance.recordEdit(previous, '');
++    if (edit == null || !_draft.clearForSubmission(value)) return;
++    value.persistenceToken = edit;
++    _draftEdit = edit;
++    unawaited(_persistChatLocalDraftText('', _draft.writeGeneration,
++        conversationID: edit.conversationID,
++        enforceCurrentGeneration: false,
++        expectedEdit: edit));
++  }
+   final ChatDraftWriteQueue _draftWrites = ChatDraftWriteQueue();
+   final ChatGroupPageSideController _groupSide = ChatGroupPageSideController();
+   final GroupLiveChatState _groupLiveState = GroupLiveChatState();
+@@ -1309,8 +1343,10 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+       return;
+     }
+     final loadRevision = _draft.stateRevision;
++    final edit = _ensureDraftEdit(conversationId);
+     final text = await ConversationDraftService.instance.loadDraftText(
+       conversationID: conversationId,
++      expectedEdit: edit,
+     );
+     if (!mounted ||
+         !_isCurrentConversation(conversationId) ||
+@@ -1355,13 +1391,16 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+     int generation, {
+     String? conversationID,
+     bool enforceCurrentGeneration = true,
++    ConversationDraftEdit? expectedEdit,
+   }) async {
+     final conversationId = (conversationID ?? _resolvedConversationID()).trim();
+     if (conversationId.isEmpty) {
+       return;
+     }
++    final edit = expectedEdit ?? _ensureDraftEdit(conversationId);
+     await _draftWrites.enqueue(
+       () async {
++        if (!ConversationDraftService.instance.isCurrentEdit(edit)) return;
+         if (enforceCurrentGeneration && _draft.shouldSuppressLifecyclePersist) {
+           ConversationDraftLeaveTrace.stage(
+             'draft_persist_skipped',
+@@ -1393,6 +1432,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+         await ConversationDraftService.instance.persistDraft(
+           conversationID: conversationId,
+           rawInputText: text,
++          expectedEdit: edit,
+         );
+       },
+       onError: (error, stackTrace) {
+@@ -1406,6 +1446,10 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+ 
+   void _onChatDraftTextChanged(String text) {
+     final conversationId = _resolvedConversationID();
++    final edit = ConversationDraftService.instance.recordEdit(
++        _ensureDraftEdit(conversationId, userEdit: true), text);
++    if (edit == null) return;
++    _draftEdit = edit;
+     if (text.trim().isNotEmpty) {
+       ConversationDraftLeaveTrace.focus(conversationId);
+     }
+@@ -1417,7 +1461,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+     _draft.onChanged(
+       text,
+       persist: (raw, generation) =>
+-          unawaited(_persistChatLocalDraftText(raw, generation)),
++          unawaited(_persistChatLocalDraftText(raw, generation,
++              conversationID: edit.conversationID, expectedEdit: edit)),
+     );
+   }
+ 
+@@ -1443,28 +1488,16 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+     );
+   }
+ 
+-  Future<void> _clearChatLocalDraftAfterSend(String conversationId) async {
+-    final id = conversationId.trim();
+-    if (id.isEmpty) {
+-      return;
+-    }
+-    // 发送成功后使发送前排队的 debounce 保存失效，否则旧草稿可能在清理后
+-    // 又被异步写回本地库，表现为“消息已发出但草稿仍出现”。
+-    _draft.markSendCompleted();
+-    if (mounted) {
+-      _draft.text = null;
+-    }
+-    final ids = <String>{id, _conversation.conversationID.trim()};
+-    final groupId = _conversation.groupID?.trim() ?? '';
+-    if (_getConvType() == ConvType.group && groupId.isNotEmpty) {
+-      ids.add(groupId);
+-      ids.add('group_$groupId');
+-    }
++  Future<void> _clearChatLocalDraftAfterSend(ChatDraftSubmission submission) async {
++    final edit = submission.persistenceToken;
++    if (edit is! ConversationDraftEdit ||
++        !ConversationDraftService.instance.isCurrentEdit(edit) ||
++        !_draft.markSendCompleted(submission)) return;
++    final id = edit.conversationID;
+     await _draftWrites.enqueue(
+       () async {
+-        await ConversationDraftService.instance.clearDraftForConversationIds(
+-          ids,
+-        );
++        await ConversationDraftService.instance.clearDraft(
++            conversationID: id, expectedEdit: edit);
+       },
+       onError: (error, stackTrace) {
+         debugPrint(
+@@ -9421,6 +9454,13 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+     // 会话，不能在回调时重新取“当前会话”，否则 A 发送成功会清掉 B 草稿。
+     final lifecycleConversationId = _resolvedConversationID();
+     _chatLifeCycle = ChatLifeCycle(
++      textWillSubmit: _captureTextSubmission,
++      textDidClearAfterSubmit: _clearSubmittedDraftInput,
++      textDidSubmit: (submission, result) {
++        if (result.code == 0 && submission is ChatDraftSubmission) {
++          unawaited(_clearChatLocalDraftAfterSend(submission));
++        }
++      },
+       newMessageWillMount: (V2TimMessage message) async {
+         _handleGroupLiveIncomingMessage(message);
+         unawaited(
+@@ -9475,9 +9515,6 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+         final conversationId = lifecycleConversationId.isNotEmpty
+             ? lifecycleConversationId
+             : _resolvedConversationID();
+-        if (sendMsgRes.code == 0 && conversationId.isNotEmpty) {
+-          unawaited(_clearChatLocalDraftAfterSend(conversationId));
+-        }
+         // 己方发送不走通知侧 patch；SDK onConversationChanged 若因群 ID
+         // 形态/非成员门禁落库失败，列表预览会空，再进页会误标 empty-loaded。
+         if (sendMsgRes.code == 0 && conversationId.isNotEmpty) {
+@@ -10676,6 +10713,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+         );
+       }
+       _draft.beginConversation();
++      _draftEdit = null;
+       _mobileCommitGuard.advanceConversation();
+       _beginChatOpenGeneration();
+       _chatOpenPhaseGeneration = _openLifecycle.beginConversation();
+diff --git a/third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart b/third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart
+--- a/third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart
++++ b/third_party/tencent_cloud_chat_uikit/lib/business_logic/life_cycle/chat_life_cycle.dart
+@@ -1,6 +1,8 @@
+ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
+     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
+ import 'package:tencent_cloud_chat_uikit/business_logic/life_cycle/base_life_cycle.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart'
++    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_value_callback.dart';
+ import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
+ 
+ class ChatLifeCycle {
+@@ -18,6 +20,14 @@ class ChatLifeCycle {
+   /// After a new message been sent.
+   MessageFunctionNullCallback messageDidSend;
+ 
++  /// Host-owned submission identity, captured before programmatic input clear.
++  /// These optional hooks do not change the generic message lifecycle.
++  final Object? Function(String text)? textWillSubmit;
++  final void Function(Object? submission)? textDidClearAfterSubmit;
++  final void Function(
++          Object? submission, V2TimValueCallback<V2TimMessage> result)?
++      textDidSubmit;
++
+   /// After getting the latest message list from API,
+   /// and before historical message list will be rendered.
+   /// You may add or delete some messages here.
+@@ -41,14 +51,20 @@ class ChatLifeCycle {
+   MessageListFunctionAsync messageListShouldMount;
+ 
+   ChatLifeCycle({
+-    this.shouldClearHistoricalMessageList = DefaultLifeCycle.defaultAsyncBooleanSolution,
++    this.textWillSubmit,
++    this.textDidClearAfterSubmit,
++    this.textDidSubmit,
++    this.shouldClearHistoricalMessageList =
++        DefaultLifeCycle.defaultAsyncBooleanSolution,
+     this.shouldDeleteMessage = DefaultLifeCycle.defaultAsyncBooleanSolution,
+     this.messageDidSend = DefaultLifeCycle.defaultNullCallbackSolution,
+-    this.didGetHistoricalMessageList = DefaultLifeCycle.defaultMessageListSolution,
++    this.didGetHistoricalMessageList =
++        DefaultLifeCycle.defaultMessageListSolution,
+     // this.messageWillSend = DefaultLifeCycle.defaultTwoMessagesSolution,
+     this.modifiedMessageWillMount = DefaultLifeCycle.defaultMessageSolution,
+     this.newMessageWillMount = DefaultLifeCycle.defaultMessageSolution,
+     this.messageShouldMount = DefaultLifeCycle.defaultBooleanSolution,
+-    this.messageListShouldMount = DefaultLifeCycle.defaultMessageListSolutionAsync,
++    this.messageListShouldMount =
++        DefaultLifeCycle.defaultMessageListSolutionAsync,
+   });
+ }
+diff --git a/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart b/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart
+--- a/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart
++++ b/third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart
+@@ -13,6 +13,8 @@ import 'package:scroll_to_index/scroll_to_index.dart';
+ import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
+ import 'package:tencent_cloud_chat_sdk/models/v2_tim_callback.dart'
+     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_callback.dart';
++import 'package:tencent_cloud_chat_sdk/models/v2_tim_value_callback.dart'
++    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_value_callback.dart';
+ import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
+     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation.dart';
+ import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_member_full_info.dart'
+@@ -365,34 +367,59 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
+     final convType = widget.conversationType;
+     conversationModel.clearWebDraft(conversationID: widget.conversationID);
+     if (text.isNotEmpty && text != zeroWidthSpace) {
++      final submission = widget.model.lifeCycle?.textWillSubmit?.call(text);
+       if (widget.model.repliedMessage != null) {
+         MessageUtils.handleMessageError(
+-            widget.model.sendReplyMessage(
+-              text: text,
+-              convID: widget.conversationID,
+-              convType: convType,
+-              atUserIDList: getUserIdFromMemberInfoMap(),
+-            ),
++            _observeTextSubmission(
++                submission,
++                widget.model.sendReplyMessage(
++                  text: text,
++                  convID: widget.conversationID,
++                  convType: convType,
++                  atUserIDList: getUserIdFromMemberInfoMap(),
++                )),
+             context);
+       } else {
+         MessageUtils.handleMessageError(
+-            widget.model.sendTextMessage(
+-              text: text,
+-              convID: widget.conversationID,
+-              convType: convType,
+-            ),
++            _observeTextSubmission(
++                submission,
++                widget.model.sendTextMessage(
++                  text: text,
++                  convID: widget.conversationID,
++                  convType: convType,
++                )),
+             context);
+       }
+       textEditingController.clear();
+       // Controller mutations do not invoke TextField.onChanged. Notify the
+       // host explicitly so its local draft is cleared at send intent instead
+       // of waiting for the asynchronous messageDidSend callback.
+-      widget.onChanged?.call("");
++      _notifySubmissionClear(submission);
+       goDownBottom(fromOutgoingSend: true);
+     }
+     currentCursor = null;
+   }
+ 
++  Future<V2TimValueCallback<V2TimMessage>?> _observeTextSubmission(
++      Object? submission, Future<V2TimValueCallback<V2TimMessage>?> pending) {
++    // Capture the host callback too: the model can switch conversations while
++    // this SDK future is pending.
++    final completed = widget.model.lifeCycle?.textDidSubmit;
++    return pending.then((result) {
++      if (result != null) completed?.call(submission, result);
++      return result;
++    });
++  }
++
++  void _notifySubmissionClear(Object? submission) {
++    final cleared = widget.model.lifeCycle?.textDidClearAfterSubmit;
++    if (cleared != null) {
++      cleared(submission);
++    } else {
++      widget.onChanged?.call("");
++    }
++  }
++
+   // index为emoji的index,data为baseurl+name
+   _onCustomEmojiFaceSubmitted(int index, String data) {
+     final now = DateTime.now().millisecondsSinceEpoch;
+@@ -474,31 +501,40 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
+     final text = textEditingController.text.trim();
+     final convType = widget.conversationType;
+     if (text.isNotEmpty && text != zeroWidthSpace) {
++      final submission = widget.model.lifeCycle?.textWillSubmit?.call(text);
+       final mentionOccurrences = _mentionOccurrencesForSend(text);
+       if (widget.model.repliedMessage != null) {
+         MessageUtils.handleMessageError(
+-            widget.model.sendReplyMessage(
+-                text: text,
+-                convID: widget.conversationID,
+-                convType: convType,
+-                atUserIDList: getUserIdFromMemberInfoMap(),
+-                mentionOccurrences: mentionOccurrences),
++            _observeTextSubmission(
++                submission,
++                widget.model.sendReplyMessage(
++                    text: text,
++                    convID: widget.conversationID,
++                    convType: convType,
++                    atUserIDList: getUserIdFromMemberInfoMap(),
++                    mentionOccurrences: mentionOccurrences)),
+             context);
+       } else if (mentionedMembersMap.isNotEmpty) {
+-        widget.model.sendTextAtMessage(
+-            text: text,
+-            convType: widget.conversationType,
+-            convID: widget.conversationID,
+-            atUserList: getUserIdFromMemberInfoMap(),
+-            mentionOccurrences: mentionOccurrences);
++        _observeTextSubmission(
++            submission,
++            widget.model.sendTextAtMessage(
++                text: text,
++                convType: widget.conversationType,
++                convID: widget.conversationID,
++                atUserList: getUserIdFromMemberInfoMap(),
++                mentionOccurrences: mentionOccurrences));
+       } else {
+         MessageUtils.handleMessageError(
+-            widget.model.sendTextMessage(
+-                text: text, convID: widget.conversationID, convType: convType),
++            _observeTextSubmission(
++                submission,
++                widget.model.sendTextMessage(
++                    text: text,
++                    convID: widget.conversationID,
++                    convType: convType)),
+             context);
+       }
+       textEditingController.clear();
+-      widget.onChanged?.call("");
++      _notifySubmissionClear(submission);
+       currentCursor = null;
+       lastText = "";
+       _clearMentionState();
+@@ -546,7 +582,8 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
+   }
+ 
+   Future<void> _goDownBottomImpl({bool fromOutgoingSend = false}) async {
+-    if (!fromOutgoingSend && _shouldSkipBottomScrollForShortHistory() &&
++    if (!fromOutgoingSend &&
++        _shouldSkipBottomScrollForShortHistory() &&
+         !widget.model.haveMoreLatestData &&
+         !globalModel.memoryWindowMissingNewer(widget.conversationID) &&
+         !globalModel.hasDurableHistoryDeferred(widget.conversationID)) {
+@@ -563,7 +600,8 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
+   }) async {
+     if (_hasActiveTextComposition ||
+         (!allowKeyboardReturn &&
+-            KeyboardViewportTransitionCoordinator.active?.isAnimating == true)) {
++            KeyboardViewportTransitionCoordinator.active?.isAnimating ==
++                true)) {
+       return;
+     }
+     final token = ++_bottomReturnToken;
+@@ -802,19 +840,18 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
+           model.atPositionY = atPosition.dy;
+           isAddingAtSearchWords = true;
+         }
+-        List<V2TimGroupMemberFullInfo> showAtMemberList = (model
+-                    .groupMemberList ??
+-                [])
+-            .where((element) {
+-              final showName = _getShowName(element).toLowerCase();
+-              keyword ??= "";
+-              return element != null &&
+-                  showName.contains(keyword!.toLowerCase()) &&
+-                  TencentUtils.checkString(showName) != null &&
+-                  element.userID != widget.model.selfMemberInfo?.userID;
+-            })
+-            .whereType<V2TimGroupMemberFullInfo>()
+-            .toList();
++        List<V2TimGroupMemberFullInfo> showAtMemberList =
++            (model.groupMemberList ?? [])
++                .where((element) {
++                  final showName = _getShowName(element).toLowerCase();
++                  keyword ??= "";
++                  return element != null &&
++                      showName.contains(keyword!.toLowerCase()) &&
++                      TencentUtils.checkString(showName) != null &&
++                      element.userID != widget.model.selfMemberInfo?.userID;
++                })
++                .whereType<V2TimGroupMemberFullInfo>()
++                .toList();
+ 
+         showAtMemberList.sort(
+             (V2TimGroupMemberFullInfo userA, V2TimGroupMemberFullInfo userB) {
+@@ -1039,8 +1076,7 @@ class _InputTextFieldState extends TIMUIKitState<TIMUIKitInputTextField> {
+   controllerHandler() {
+     final actionType = widget.controller?.actionType;
+     if (actionType == ActionType.longPressToAt) {
+-      final pinToLatestAfterAt =
+-          widget.controller?.pinToLatestAfterAt ?? false;
++      final pinToLatestAfterAt = widget.controller?.pinToLatestAfterAt ?? false;
+       widget.controller?.pinToLatestAfterAt = false;
+       widget.controller?.actionType = null;
+       final atUserID = widget.controller?.atUserID;
+diff --git a/test/chat_draft_submission_test.dart b/test/chat_draft_submission_test.dart
+new file mode 100644
+--- /dev/null
++++ b/test/chat_draft_submission_test.dart
+@@ -0,0 +1,225 @@
++import 'dart:async';
++
++import 'package:fake_async/fake_async.dart';
++import 'package:flutter_test/flutter_test.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import 'package:tencent_cloud_chat_demo/src/chat_page/chat_draft_controller.dart';
++import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_draft_service.dart';
++import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++  setUp(() => SharedPreferences.setMockInitialValues({}));
++
++  test('late send success preserves B, its debounce and its leave save', () {
++    fakeAsync((clock) {
++      final draft = ChatDraftController();
++      final saved = <String>[];
++      void save(String text, int _) => saved.add(text);
++      draft.onChanged('A', persist: save);
++      final sent = draft.captureSubmission('A');
++      expect(draft.clearForSubmission(sent), isTrue);
++      draft.onChanged('B', persist: save);
++      expect(draft.markSendCompleted(sent), isFalse);
++      expect(draft.text, 'B');
++      expect(draft.shouldSuppressLifecyclePersist, isFalse);
++      clock.elapse(ChatDraftController.debounceDuration);
++      expect(saved, ['B']);
++      draft.dispose();
++    });
++  });
++
++  test('same text is a new edit; old submissions and old loads are rejected',
++      () {
++    final draft = ChatDraftController();
++    final loadRevision = draft.stateRevision;
++    draft.onChanged('A', persist: (_, __) {});
++    final first = draft.captureSubmission('A');
++    draft.clearForSubmission(first);
++    draft.onChanged('A', persist: (_, __) {});
++    final second = draft.captureSubmission('A');
++    draft.clearForSubmission(second);
++    draft.onChanged('B', persist: (_, __) {});
++    expect(draft.markSendCompleted(second), isFalse);
++    expect(draft.markSendCompleted(first), isFalse);
++    expect(draft.canApplyLoadedDraft(loadRevision), isFalse);
++    expect(draft.text, 'B');
++    draft.beginConversation();
++    expect(draft.markSendCompleted(second), isFalse);
++    draft.dispose();
++  });
++
++  test('persisted B survives A completion, page disposal and reopen', () async {
++    final f = _DraftFixture();
++    var edit = f.service.beginEditing('c2c_peer');
++    edit = f.service.recordEdit(edit, 'A')!;
++    final submittedClear = f.service.recordEdit(edit, '')!;
++    await f.service
++        .clearDraft(conversationID: 'c2c_peer', expectedEdit: submittedClear);
++    final b = f.service.recordEdit(submittedClear, 'B')!;
++    await f.save(b);
++    await f.service
++        .clearDraft(conversationID: 'c2c_peer', expectedEdit: submittedClear);
++    final reopened = f.service.beginEditing('c2c_peer');
++    expect(
++        await f.service
++            .loadDraftText(conversationID: 'c2c_peer', expectedEdit: reopened),
++        'B');
++    expect(f.sdk, 'B');
++    expect(f.mirror, 'B');
++    expect(f.writes, [null, 'B']);
++  });
++
++  test('new edit invalidates queued clear before debounce has persisted',
++      () async {
++    final f = _DraftFixture();
++    final original = f.service.beginEditing('group_@TGS#peer');
++    final clear = f.service.recordEdit(original, '')!;
++    final pendingClear =
++        f.service.clearDraft(conversationID: '@TGS#peer', expectedEdit: clear);
++    final b = f.service.recordEdit(clear, 'B')!;
++    await pendingClear;
++    expect(f.writes, isEmpty);
++    await f.save(b);
++    expect(f.sdk, 'B');
++    expect(f.mirror, 'B');
++  });
++
++  test('new page takes over unsaved B without revision collision or lost write',
++      () async {
++    final f = _DraftFixture();
++    final old = f.service.beginEditing('c2c_peer');
++    final a = f.service.recordEdit(old, 'A')!;
++    final clear = f.service.recordEdit(a, '')!;
++    final b = f.service.recordEdit(clear, 'B')!;
++    final reopened = f.service.beginEditing('c2c_peer');
++    expect(identical(reopened.editorIdentity, old.editorIdentity), isFalse);
++    expect(
++        await f.service
++            .loadDraftText(conversationID: 'c2c_peer', expectedEdit: reopened),
++        'B');
++    await f.service.clearDraft(conversationID: 'c2c_peer', expectedEdit: clear);
++    await f.save(b); // Late old-page leave/debounce cannot reclaim ownership.
++    await f.save(reopened);
++    expect(f.sdk, 'B');
++    expect(f.mirror, 'B');
++  });
++
++  test('in-flight old SDK clear cannot publish its mirror over new B',
++      () async {
++    final f = _DraftFixture();
++    final started = Completer<void>(), gate = Completer<void>();
++    f.beforeWrite = (_) async {
++      started.complete();
++      await gate.future;
++    };
++    final original = f.service.beginEditing('c2c_peer');
++    final clear = f.service.recordEdit(original, '')!;
++    final clearing =
++        f.service.clearDraft(conversationID: 'c2c_peer', expectedEdit: clear);
++    await started.future;
++    final b = f.service.recordEdit(clear, 'B')!;
++    final saving = f.save(b);
++    f.beforeWrite = null;
++    gate.complete();
++    await Future.wait([clearing, saving]);
++    expect(f.writes, [null, 'B']);
++    expect(f.commits, ['B']);
++    expect(f.sdk, 'B');
++  });
++
++  test('account switch and same-owner relogin reject old captured tokens',
++      () async {
++    final f = _DraftFixture();
++    var edit = f.service.beginEditing('c2c_peer');
++    edit = f.service.recordEdit(edit, 'A')!;
++    f.owner = 'another_owner';
++    await f.save(edit);
++    f.owner = 'owner';
++    SessionIdentityService.instance
++        .invalidate(reason: 'draft_regression_relogin');
++    await f.save(edit);
++    expect(f.writes, isEmpty);
++  });
++
++  test('SDK error leaves mirror unchanged and the next edit can save',
++      () async {
++    final f = _DraftFixture()..code = 1;
++    final a = f.service.recordEdit(f.service.beginEditing('c2c_peer'), 'A')!;
++    await expectLater(f.save(a), throwsStateError);
++    expect(f.commits, isEmpty);
++    f.code = 0;
++    final b = f.service.recordEdit(a, 'B')!;
++    await f.save(b);
++    expect(f.sdk, 'B');
++    expect(f.mirror, 'B');
++  });
++
++  test('SDK success plus mirror failure repairs from SDK without a resend',
++      () async {
++    final f = _DraftFixture()..failMirror = true;
++    final a = f.service.recordEdit(f.service.beginEditing('c2c_peer'), 'A')!;
++    await expectLater(f.save(a), throwsA(isA<DraftMirrorWriteException>()));
++    expect(f.sdk, 'A');
++    expect(f.mirror, isNull);
++    expect(f.service.mirrorRepairPending(a), isTrue);
++    f.failMirror = false;
++    expect(
++        await f.service
++            .loadDraftText(conversationID: 'c2c_peer', expectedEdit: a),
++        'A');
++    expect(f.mirror, 'A');
++    expect(f.writes, ['A']);
++    expect(f.service.mirrorRepairPending(a), isFalse);
++  });
++
++  test('a late SDK draft load cannot restore A over new B', () async {
++    final f = _DraftFixture();
++    final started = Completer<void>(), gate = Completer<String?>();
++    f.service.readForTest = (_) {
++      started.complete();
++      return gate.future;
++    };
++    final original = f.service.beginEditing('c2c_peer');
++    final loading = f.service
++        .loadDraftText(conversationID: 'c2c_peer', expectedEdit: original);
++    await started.future;
++    final b = f.service.recordEdit(original, 'B')!;
++    gate.complete('A');
++    expect(await loading, isNull);
++    await f.save(b);
++    expect(f.sdk, 'B');
++  });
++}
++
++class _DraftFixture {
++  _DraftFixture() {
++    service = ConversationDraftService.forTesting(
++      ownerForTest: () => owner,
++      writeForTest: (_, text) async {
++        writes.add(text);
++        await beforeWrite?.call(text);
++        if (code == 0) sdk = text;
++        return code;
++      },
++      readForTest: (_) async => sdk,
++      commitForTest: (_, text) async {
++        if (failMirror) throw StateError('disk full');
++        commits.add(text);
++        mirror = text;
++      },
++    );
++  }
++  late final ConversationDraftService service;
++  String owner = 'owner';
++  String? sdk, mirror;
++  int code = 0;
++  bool failMirror = false;
++  Future<void> Function(String?)? beforeWrite;
++  final writes = <String?>[];
++  final commits = <String>[];
++  Future<void> save(ConversationDraftEdit edit) => service.persistDraft(
++      conversationID: edit.conversationID,
++      rawInputText: edit.text ?? '',
++      expectedEdit: edit);
++}
+diff --git a/test/chat_input_composition_guard_test.dart b/test/chat_input_composition_guard_test.dart
+--- a/test/chat_input_composition_guard_test.dart
++++ b/test/chat_input_composition_guard_test.dart
+@@ -17,7 +17,7 @@ void main() {
+     expect(source.contains('Duration(milliseconds: 48)'), isFalse);
+     expect(source.contains('syncScrollWithKeyboard'), isFalse);
+     expect(
+-      source.contains(
++      source.replaceAll(RegExp(r'\s+'), ' ').contains(
+         'KeyboardViewportTransitionCoordinator.active?.isAnimating == true',
+       ),
+       isTrue,
+@@ -58,10 +58,10 @@ void main() {
+   test('host has a barrier in both lifecycle save and send cleanup paths', () {
+     final source = File('lib/src/chat.dart').readAsStringSync();
+     expect(source.contains('shouldSuppressLifecyclePersist'), isTrue);
+-    expect(source.contains('markSendCompleted()'), isTrue);
+-    expect(source.contains('sendMsgRes.code == 0 && conversationId.isNotEmpty'),
+-        isTrue);
+-    expect(source.contains('clearDraftForConversationIds'), isTrue);
++    expect(source, contains('markSendCompleted(submission)'));
++    expect(source, contains('textWillSubmit: _captureTextSubmission'));
++    expect(source, contains('textDidClearAfterSubmit: _clearSubmittedDraftInput'));
++    expect(source, contains('expectedEdit: edit'));
+   });
+ 
+   test('programmatic send clear is forwarded to the draft owner', () {
+@@ -73,7 +73,7 @@ void main() {
+         RegExp(r'textEditingController\.clear\(\);').allMatches(source).length,
+         2);
+     expect(
+-        RegExp(r'widget\.onChanged\?\.call\(""\);').allMatches(source).length,
++        RegExp(r'_notifySubmissionClear\(submission\);').allMatches(source).length,
+         2);
+   });
+ 

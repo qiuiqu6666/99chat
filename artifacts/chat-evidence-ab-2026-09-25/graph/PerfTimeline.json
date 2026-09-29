@@ -1,0 +1,51 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/perf_timeline.dart:PerfTimeline",
+    "name": "PerfTimeline",
+    "kind": "Class",
+    "filePath": "lib/src/services/perf_timeline.dart",
+    "startLine": 3,
+    "endLine": 9
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "imports": [
+      {
+        "uid": "File:lib/src/chat.dart",
+        "name": "chat.dart",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "File:lib/src/contact.dart",
+        "name": "contact.dart",
+        "filePath": "lib/src/contact.dart"
+      },
+      {
+        "uid": "File:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "name": "tim_uikit_chat_history_message_list.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/perf_timeline.dart:PerfTimeline.PerfTimeline#0",
+        "name": "PerfTimeline",
+        "filePath": "lib/src/services/perf_timeline.dart"
+      },
+      {
+        "uid": "Constructor:lib/src/services/perf_timeline.dart:PerfTimeline._",
+        "name": "_",
+        "filePath": "lib/src/services/perf_timeline.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/perf_timeline.dart:PerfTimeline.instant#2",
+        "name": "instant",
+        "filePath": "lib/src/services/perf_timeline.dart"
+      }
+    ]
+  },
+  "processes": []
+}

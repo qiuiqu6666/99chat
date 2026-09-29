@@ -45,20 +45,20 @@ void main() {
               path: '/me/chat/attachment-policy', clientPlatform: null),
           isNull);
     });
-    test('contact uses iOS release channel on Android', () {
+    test('contact uses the actual release channel for each platform', () {
       expect(
         ApiClient.resolveClientPlatformHeader(
           path: '/api/v1/platform/contact',
           clientPlatform: 'Android',
         ),
-        'iOS',
+        'Android',
       );
       expect(
         ApiClient.resolveClientPlatformHeader(
           path: 'api/v1/platform/contact',
           clientPlatform: 'Android',
         ),
-        'iOS',
+        'Android',
       );
     });
 

@@ -1,0 +1,102 @@
+{
+  "target": {
+    "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._isSensitiveContentKey#1",
+    "name": "_isSensitiveContentKey",
+    "type": "Method",
+    "filePath": "lib/src/services/chat_open_perf_log.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 6,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 1,
+    "processes_affected": 0,
+    "modules_affected": 2
+  },
+  "byDepthCounts": {
+    "1": 1,
+    "2": 1,
+    "3": 4
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Services",
+      "hits": 5,
+      "impact": "direct"
+    },
+    {
+      "name": "Chat_viewport",
+      "hits": 1,
+      "impact": "indirect"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._formatExtra#2",
+        "name": "_formatExtra",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._print#3",
+        "name": "_print",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._printSummary#2",
+        "name": "_printSummary",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.beginOpen#3",
+        "name": "beginOpen",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.emitOpenTraceSummary#2",
+        "name": "emitOpenTraceSummary",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}

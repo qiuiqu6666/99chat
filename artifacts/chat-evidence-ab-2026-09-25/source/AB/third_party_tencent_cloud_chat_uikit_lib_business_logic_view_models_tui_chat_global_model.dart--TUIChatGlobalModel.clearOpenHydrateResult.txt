@@ -1,0 +1,7 @@
+void clearOpenHydrateResult(String conversationID) {
+    final key = conversationID.trim();
+    if (key.isEmpty) return;
+    _openHydrateResultByConv.removeWhere(
+      (alias, _) => _isSameConversationID(alias, key),
+    );
+  }

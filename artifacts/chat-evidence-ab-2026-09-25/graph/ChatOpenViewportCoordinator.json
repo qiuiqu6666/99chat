@@ -1,0 +1,171 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator",
+    "name": "ChatOpenViewportCoordinator",
+    "kind": "Class",
+    "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+    "startLine": 39,
+    "endLine": 656
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "imports": [
+      {
+        "uid": "File:lib/src/chat.dart",
+        "name": "chat.dart",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "File:lib/src/conversation.dart",
+        "name": "conversation.dart",
+        "filePath": "lib/src/conversation.dart"
+      },
+      {
+        "uid": "File:lib/src/navigation/app_chat_route.dart",
+        "name": "app_chat_route.dart",
+        "filePath": "lib/src/navigation/app_chat_route.dart"
+      },
+      {
+        "uid": "File:test/chat_latest_window_reset_service_test.dart",
+        "name": "chat_latest_window_reset_service_test.dart",
+        "filePath": "test/chat_latest_window_reset_service_test.dart"
+      },
+      {
+        "uid": "File:test/chat_open_viewport_ready_contract_test.dart",
+        "name": "chat_open_viewport_ready_contract_test.dart",
+        "filePath": "test/chat_open_viewport_ready_contract_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.ChatOpenViewportCoordinator#0",
+        "name": "ChatOpenViewportCoordinator",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Constructor:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator._",
+        "name": "_",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator._conversationKey#1",
+        "name": "_conversationKey",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator._ensureLatestWindowResetForOpen#6",
+        "name": "_ensureLatestWindowResetForOpen",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.ensureLocalSnapshotForOpen#4",
+        "name": "ensureLocalSnapshotForOpen",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.isCurrent#2",
+        "name": "isCurrent",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.markTransitioning#1",
+        "name": "markTransitioning",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.markVisible#1",
+        "name": "markVisible",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.phaseFor#1",
+        "name": "phaseFor",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.prepareForOpen#2",
+        "name": "prepareForOpen",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.prepareOpenViewport#5",
+        "name": "prepareOpenViewport",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.recordPrepareStart#2",
+        "name": "recordPrepareStart",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.resetForTest#0",
+        "name": "resetForTest",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.snapshotFor#1",
+        "name": "snapshotFor",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator._activeKey",
+        "name": "_activeKey",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator._phase",
+        "name": "_phase",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator._requestId",
+        "name": "_requestId",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.cloudGraceBudget",
+        "name": "cloudGraceBudget",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.currentRequestId",
+        "name": "currentRequestId",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.instance",
+        "name": "instance",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.localBudget",
+        "name": "localBudget",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.phase",
+        "name": "phase",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.prepareTimeout",
+        "name": "prepareTimeout",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      }
+    ]
+  },
+  "typed_properties": [
+    {
+      "uid": "Property:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.instance",
+      "name": "instance",
+      "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+      "declaredType": "ChatOpenViewportCoordinator"
+    }
+  ],
+  "processes": []
+}

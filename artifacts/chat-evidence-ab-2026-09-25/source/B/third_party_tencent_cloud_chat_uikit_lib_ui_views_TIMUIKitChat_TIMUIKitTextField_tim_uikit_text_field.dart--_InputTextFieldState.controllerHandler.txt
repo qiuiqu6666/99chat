@@ -1,0 +1,49 @@
+controllerHandler() {
+    final actionType = widget.controller?.actionType;
+    if (actionType == ActionType.longPressToAt) {
+      final pinToLatestAfterAt =
+          widget.controller?.pinToLatestAfterAt ?? false;
+      widget.controller?.pinToLatestAfterAt = false;
+      widget.controller?.actionType = null;
+      final atUserID = widget.controller?.atUserID;
+      final atUserName = widget.controller?.atUserName;
+      if (pinToLatestAfterAt) {
+        unawaited(_pinToLatestThenMention(atUserID, atUserName));
+      } else {
+        mentionMemberInMessage(atUserID, atUserName);
+      }
+      return;
+    } else if (actionType == ActionType.setTextField) {
+      final newText = widget.controller?.inputText ?? "";
+      _setProgrammaticText(
+        newText,
+        notifyChanged: widget.controller?.notifyOnSetTextField ?? true,
+      );
+      widget.controller?.notifyOnSetTextField = true;
+      lastText = textEditingController.text;
+      focusNode.requestFocus();
+      _narrowTextFieldKey.currentState?.setSendButton();
+      widget.controller?.actionType = null;
+      return;
+    } else if (actionType == ActionType.requestFocus) {
+      focusNode.requestFocus();
+      widget.controller?.actionType = null;
+      return;
+    } else if (actionType == ActionType.handleAtMember) {
+      handleAtMember(memberInfo: widget.controller?.groupMemberFullInfo);
+      widget.controller?.actionType = null;
+      return;
+    } else if (actionType == ActionType.hideAllPanel) {
+      widget.controller?.actionType = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _narrowTextFieldKey.currentState?.hideAllPanel();
+      });
+      return;
+    } else if (actionType == ActionType.hideAccessoryPanel) {
+      widget.controller?.actionType = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _narrowTextFieldKey.currentState?.hideAccessoryPanels();
+      });
+      return;
+    }
+  }

@@ -1,0 +1,12 @@
+int _findMessageIndexForUpdate(
+    List<V2TimMessage> messageList,
+    String id,
+    V2TimMessage sentMessage,
+  ) {
+    return findReplaceableOutgoingIndex(
+      '',
+      sentMessage,
+      priorTempId: id,
+      listOverride: messageList,
+    );
+  }

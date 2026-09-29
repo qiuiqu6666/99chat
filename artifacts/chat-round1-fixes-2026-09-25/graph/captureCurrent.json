@@ -1,0 +1,878 @@
+{
+  "target": {
+    "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.captureCurrent#2",
+    "name": "captureCurrent",
+    "type": "Method",
+    "filePath": "lib/src/services/chat_open_perf_log.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 81,
+  "risk": "CRITICAL",
+  "riskSharedAxes": "HIGH",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 23,
+    "processes_affected": 2,
+    "modules_affected": 10
+  },
+  "byDepthCounts": {
+    "1": 23,
+    "2": 41,
+    "3": 17
+  },
+  "affected_processes": [
+    {
+      "name": "initState",
+      "type": "Function",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "affected_process_count": 5,
+      "total_hits": 5,
+      "earliest_broken_step": 1
+    },
+    {
+      "name": "initState",
+      "type": "Function",
+      "filePath": "lib/src/chat.dart",
+      "affected_process_count": 2,
+      "total_hits": 2,
+      "earliest_broken_step": 1
+    }
+  ],
+  "affected_modules": [
+    {
+      "name": "Services",
+      "hits": 43,
+      "impact": "direct"
+    },
+    {
+      "name": "Chat_viewport",
+      "hits": 9,
+      "impact": "direct"
+    },
+    {
+      "name": "TIMUIKItMessageList",
+      "hits": 9,
+      "impact": "direct"
+    },
+    {
+      "name": "Chat_page",
+      "hits": 4,
+      "impact": "indirect"
+    },
+    {
+      "name": "Separate_models",
+      "hits": 4,
+      "impact": "indirect"
+    },
+    {
+      "name": "View_models",
+      "hits": 3,
+      "impact": "direct"
+    },
+    {
+      "name": "Conversation_feed",
+      "hits": 2,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_1456",
+      "hits": 1,
+      "impact": "direct"
+    },
+    {
+      "name": "Cluster_1464",
+      "hits": 1,
+      "impact": "indirect"
+    },
+    {
+      "name": "Test",
+      "hits": 1,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat.dart:_ChatState._reloadChatHistoryIfEmpty#1",
+        "name": "_reloadChatHistoryIfEmpty",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat.dart:_ChatState._scheduleDeferredHistoryVerification#1",
+        "name": "_scheduleDeferredHistoryVerification",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._handleOnConvItemTaped#1",
+        "name": "_handleOnConvItemTaped",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.apply#8",
+        "name": "apply",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.emitOpenTraceSummary#2",
+        "name": "emitOpenTraceSummary",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.markHistoryListBuilt#5",
+        "name": "markHistoryListBuilt",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.markMessagesFirstVisible#4",
+        "name": "markMessagesFirstVisible",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.recordPrepareStart#2",
+        "name": "recordPrepareStart",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.ensureLocalSnapshotForOpen#4",
+        "name": "ensureLocalSnapshotForOpen",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.prepareForOpen#2",
+        "name": "prepareForOpen",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.prepareOpenViewport#5",
+        "name": "prepareOpenViewport",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator._verifyAfterFirstFrame#6",
+        "name": "_verifyAfterFirstFrame",
+        "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator.repairOpenViewport#3",
+        "name": "repairOpenViewport",
+        "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator.verifyAfterFirstFrame#5",
+        "name": "verifyAfterFirstFrame",
+        "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_history_warm_scheduler.dart:ConversationHistoryWarmScheduler._warmOne#5",
+        "name": "_warmOne",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_history_warm_scheduler.dart:ConversationHistoryWarmScheduler.runPressWarm#1",
+        "name": "runPressWarm",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/conversation_history_warm_scheduler.dart:ConversationHistoryWarmScheduler.runTargetLocalWarm#2",
+        "name": "runTargetLocalWarm",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._awaitWarmOpenCommitGate#2",
+        "name": "_awaitWarmOpenCommitGate",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.ensureOpenHydrate#4",
+        "name": "ensureOpenHydrate",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._scheduleChatOpenPerfProbe#1",
+        "name": "_scheduleChatOpenPerfProbe",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._scheduleMessagesFirstVisibleAfterReveal#1",
+        "name": "_scheduleMessagesFirstVisibleAfterReveal",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChatProviderScope._loadData#2",
+        "name": "_loadData",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart:TIMUIKitChatProviderScope.TIMUIKitChatProviderScope#21",
+        "name": "TIMUIKitChatProviderScope",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._completeChatOpenInitStage#3",
+        "name": "_completeChatOpenInitStage",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._fetchAndStoreBackendMuteStatus#1",
+        "name": "_fetchAndStoreBackendMuteStatus",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._markChatOpenHistoryReady#0",
+        "name": "_markChatOpenHistoryReady",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._mountStableChatBody#1",
+        "name": "_mountStableChatBody",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._onGroupRealtimeChanged#0",
+        "name": "_onGroupRealtimeChanged",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._performChatHistoryAfterOverlayReturn#1",
+        "name": "_performChatHistoryAfterOverlayReturn",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._performDeferredHistoryVerification#4",
+        "name": "_performDeferredHistoryVerification",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._prepareOpenHistoryGate#3",
+        "name": "_prepareOpenHistoryGate",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._runOpenHistoryEnrichment#2",
+        "name": "_runOpenHistoryEnrichment",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._runOpenHistoryGateWithTipsMerge#3",
+        "name": "_runOpenHistoryGateWithTipsMerge",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._schedulePostOpenTasks#0",
+        "name": "_schedulePostOpenTasks",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._startOpenHistoryGate#1",
+        "name": "_startOpenHistoryGate",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._tryMarkChatOpenEnriched#0",
+        "name": "_tryMarkChatOpenEnriched",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState._waitOpenHistoryLayoutReady#1",
+        "name": "_waitOpenHistoryLayoutReady",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat.dart:_ChatState.initState#0",
+        "name": "initState",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": [
+          {
+            "id": "proc_72_initstate",
+            "label": "InitState → Cancel",
+            "processType": "intra_community",
+            "step": 1
+          },
+          {
+            "id": "proc_108_initstate",
+            "label": "InitState → CancelPendingPostOpenTasks",
+            "processType": "intra_community",
+            "step": 1
+          }
+        ]
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationBody#5",
+        "name": "_buildConversationBody",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationPeekActions#2",
+        "name": "_buildConversationPeekActions",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationRow#4",
+        "name": "_buildConversationRow",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._applyImpl#14",
+        "name": "_applyImpl",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog._scheduleSettleSummary#1",
+        "name": "_scheduleSettleSummary",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator._ensureLatestWindowResetForOpen#6",
+        "name": "_ensureLatestWindowResetForOpen",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_open_viewport_coordinator.dart:ChatOpenViewportCoordinator.recordPrepareStart#2",
+        "name": "recordPrepareStart",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_viewport/chat_viewport_collection.dart:ChatViewportCollection.attach#3",
+        "name": "attach",
+        "filePath": "lib/src/services/chat_viewport/chat_viewport_collection.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_viewport/open_viewport_cache.dart:OpenViewportCache.peek#1",
+        "name": "peek",
+        "filePath": "lib/src/services/chat_viewport/open_viewport_cache.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_viewport/open_viewport_cache.dart:OpenViewportCache.prepareVisible#3",
+        "name": "prepareVisible",
+        "filePath": "lib/src/services/chat_viewport/open_viewport_cache.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator._enqueueRetry#6",
+        "name": "_enqueueRetry",
+        "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator._runOpenViewportRepair#3",
+        "name": "_runOpenViewportRepair",
+        "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator._runVerification#8",
+        "name": "_runVerification",
+        "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_history_sync_coordinator.dart:ConversationHistorySyncCoordinator.reconcileConversation#3",
+        "name": "reconcileConversation",
+        "filePath": "lib/src/services/conversation_history_sync_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_history_warm_scheduler.dart:ConversationHistoryWarmScheduler._runSyncWarmPass#2",
+        "name": "_runSyncWarmPass",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_history_warm_scheduler.dart:ConversationHistoryWarmScheduler._runViewportWarmPass#3",
+        "name": "_runViewportWarmPass",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_history_warm_scheduler.dart:ConversationHistoryWarmScheduler.schedulePressWarm#1",
+        "name": "schedulePressWarm",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/conversation_history_warm_scheduler.dart:ConversationHistoryWarmScheduler.scheduleTargetLocalWarm#2",
+        "name": "scheduleTargetLocalWarm",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._loadGroupMembersForOpenShellImpl#2",
+        "name": "_loadGroupMembersForOpenShellImpl",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._supplementOpenShellSenders#2",
+        "name": "_supplementOpenShellSenders",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._finishOpeningPlaceholderDismiss#1",
+        "name": "_finishOpeningPlaceholderDismiss",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._scheduleOpeningPlaceholderDismiss#1",
+        "name": "_scheduleOpeningPlaceholderDismiss",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._showOpeningPlaceholderAfterDelay#1",
+        "name": "_showOpeningPlaceholderAfterDelay",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState.didUpdateWidget#1",
+        "name": "didUpdateWidget",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState.initState#0",
+        "name": "initState",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": [
+          {
+            "id": "proc_147_initstate",
+            "label": "InitState → DisposeStack",
+            "processType": "cross_community",
+            "step": 1
+          },
+          {
+            "id": "proc_63_initstate",
+            "label": "InitState → _canCountStable",
+            "processType": "cross_community",
+            "step": 1
+          },
+          {
+            "id": "proc_64_initstate",
+            "label": "InitState → ElapsedSinceOpenMs",
+            "processType": "cross_community",
+            "step": 1
+          },
+          {
+            "id": "proc_44_initstate",
+            "label": "InitState → _print",
+            "processType": "cross_community",
+            "step": 1
+          },
+          {
+            "id": "proc_206_initstate",
+            "label": "InitState → Log",
+            "processType": "cross_community",
+            "step": 1
+          }
+        ]
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat.dart:_ChatState._hydrateGroupDisplayForOpen#0",
+        "name": "_hydrateGroupDisplayForOpen",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat.dart:_ChatState._markChatOpenBackgroundPart#2",
+        "name": "_markChatOpenBackgroundPart",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat.dart:_ChatState._recoverChatHistoryAfterOverlayReturn#1",
+        "name": "_recoverChatHistoryAfterOverlayReturn",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat.dart:_ChatState._refreshChatGroupMuteState#0",
+        "name": "_refreshChatGroupMuteState",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat.dart:_ChatState._runDeferredHistoryVerification#4",
+        "name": "_runDeferredHistoryVerification",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat.dart:_ChatState.didUpdateWidget#1",
+        "name": "didUpdateWidget",
+        "filePath": "lib/src/chat.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationRowBound#1",
+        "name": "_buildConversationRowBound",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._showConversationPeek#1",
+        "name": "_showConversationPeek",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState.build#1",
+        "name": "build",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.beginOpen#3",
+        "name": "beginOpen",
+        "filePath": "lib/src/services/chat_open_perf_log.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_history_warm_scheduler.dart:ConversationHistoryWarmScheduler.runAfterConversationSync#1",
+        "name": "runAfterConversationSync",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/conversation_history_warm_scheduler.dart:ConversationHistoryWarmScheduler.runViewportWarm#2",
+        "name": "runViewportWarm",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._supplementOpenShellSendersAfterHydrate#2",
+        "name": "_supplementOpenShellSendersAfterHydrate",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.loadGroupMembersForOpenShell#1",
+        "name": "loadGroupMembersForOpenShell",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._beginOpeningPlaceholderForCurrentConversation#0",
+        "name": "_beginOpeningPlaceholderForCurrentConversation",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._commitHistoryOpenRevealReady#2",
+        "name": "_commitHistoryOpenRevealReady",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart:_TIMUIKitHistoryMessageListState._onOpeningPlaceholderFadeStatus#1",
+        "name": "_onOpeningPlaceholderFadeStatus",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}

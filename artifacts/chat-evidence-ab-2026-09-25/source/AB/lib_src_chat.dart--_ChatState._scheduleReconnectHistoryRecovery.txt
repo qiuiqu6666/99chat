@@ -1,0 +1,33 @@
+void _scheduleReconnectHistoryRecovery() {
+    final generation = _chatOpenGeneration;
+    final scheduledConversationID = _resolvedConversationID();
+    _reconnectRecoveryTimer?.cancel();
+    _reconnectRecoveryTimer = Timer(const Duration(milliseconds: 350), () {
+      if (!_isChatOpenGenerationCurrent(generation, scheduledConversationID)) {
+        return;
+      }
+      final conversationId = _resolvedConversationID();
+      if (conversationId.isEmpty) {
+        return;
+      }
+      if (_latestWindowResetNeeded()) {
+        // Real reconnect while the page is open: the latest-window reset owns
+        // recovery. It repairs immediately when the user is at the bottom and
+        // defers (polling) while history is being read. The anchor-based
+        // catch-up must not compete for the same recovery.
+        _armLatestWindowResetWhenAtBottom(reason: 'im_reconnected');
+        return;
+      }
+      unawaited(
+        ConversationHistorySyncCoordinator.instance.reconcileConversation(
+          conversationID: conversationId,
+          conversation: _conversation,
+          reason: 'im_reconnected',
+        ),
+      );
+      ChatHistoryRefreshBus.instance.requestRefresh(
+        conversationId: conversationId,
+        reason: 'im_reconnected',
+      );
+    });
+  }

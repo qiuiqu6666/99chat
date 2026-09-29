@@ -1,0 +1,151 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:lib/src/conversation.dart:_ConversationState._previewProjectionToken#2",
+    "name": "_previewProjectionToken",
+    "type": "Method",
+    "filePath": "lib/src/conversation.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 10,
+  "risk": "HIGH",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 3,
+    "processes_affected": 0,
+    "modules_affected": 4
+  },
+  "byDepthCounts": {
+    "1": 3,
+    "2": 3,
+    "3": 4
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Cluster_1360",
+      "hits": 3,
+      "impact": "direct"
+    },
+    {
+      "name": "Cluster_1365",
+      "hits": 3,
+      "impact": "indirect"
+    },
+    {
+      "name": "Conversation_feed",
+      "hits": 3,
+      "impact": "indirect"
+    },
+    {
+      "name": "Cluster_1361",
+      "hits": 1,
+      "impact": "indirect"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._drainPreviewProjectionRows#0",
+        "name": "_drainPreviewProjectionRows",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._previewLastMessageFor#1",
+        "name": "_previewLastMessageFor",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._queuePreviewProjection#1",
+        "name": "_queuePreviewProjection",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationRow#4",
+        "name": "_buildConversationRow",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildEditingConversationItem#4",
+        "name": "_buildEditingConversationItem",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._queueVisiblePreviewProjections#0",
+        "name": "_queueVisiblePreviewProjections",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._buildConversationRowBound#1",
+        "name": "_buildConversationRowBound",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState._onSessionProjectionChanged#0",
+        "name": "_onSessionProjectionChanged",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState.build#1",
+        "name": "build",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/conversation.dart:_ConversationState.initState#0",
+        "name": "initState",
+        "filePath": "lib/src/conversation.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}
+

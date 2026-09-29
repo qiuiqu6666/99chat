@@ -46,11 +46,18 @@ class ChatLifeCycle {
   /// Before rendering a message to message list.
   bool Function(V2TimMessage msg) messageShouldMount;
 
+  /// A content-only decision that a message never has a history row (for
+  /// example an internal system signal). Unlike messageShouldMount, this must
+  /// not depend on loading, scrolling, animation or temporary visibility.
+  /// Raw messages still participate in synchronization and history cursors.
+  final bool Function(V2TimMessage msg)? messagePermanentlyHidden;
+
   /// Before all message will be rendered on the message list.
   /// You may add or delete some messages here.
   MessageListFunctionAsync messageListShouldMount;
 
   ChatLifeCycle({
+    this.messagePermanentlyHidden,
     this.textWillSubmit,
     this.textDidClearAfterSubmit,
     this.textDidSubmit,

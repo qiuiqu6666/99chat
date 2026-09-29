@@ -1,0 +1,1702 @@
+{
+  "summary": {
+    "changed_count": 66,
+    "affected_count": 97,
+    "changed_files": 54,
+    "risk_level": "critical"
+  },
+  "changed_symbols": [
+    {
+      "id": "Property:lib/src/pages/agent_rebate_descendants_page.dart:_AgentRebateDescendantsPageState._profilePending",
+      "name": "_profilePending",
+      "type": "Property",
+      "filePath": "lib/src/pages/agent_rebate_descendants_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/agent_rebate_descendants_page.dart:_AgentRebateDescendantsPageState._profileRequested",
+      "name": "_profileRequested",
+      "type": "Property",
+      "filePath": "lib/src/pages/agent_rebate_descendants_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/agent_rebate_descendants_page.dart:_AgentRebateDescendantsPageState._profileRunning",
+      "name": "_profileRunning",
+      "type": "Property",
+      "filePath": "lib/src/pages/agent_rebate_descendants_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/agent_rebate_descendants_page.dart:_AgentRebateDescendantsPageState._moreError",
+      "name": "_moreError",
+      "type": "Property",
+      "filePath": "lib/src/pages/agent_rebate_descendants_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._listController",
+      "name": "_listController",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._fileCache",
+      "name": "_fileCache",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._visibleFileAttempts",
+      "name": "_visibleFileAttempts",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/ai_assistant/ai_assistant_page.dart:_AiAssistantPageState._fileRequests",
+      "name": "_fileRequests",
+      "type": "Property",
+      "filePath": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/contact_friends_page.dart:_ContactFriendsPageState",
+      "name": "_ContactFriendsPageState",
+      "type": "Class",
+      "filePath": "lib/src/pages/contact_friends_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/contact_friends_page.dart:_ContactFriendsPageState._loadGeneration",
+      "name": "_loadGeneration",
+      "type": "Property",
+      "filePath": "lib/src/pages/contact_friends_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/contact_friends_page.dart:_ContactFriendRow",
+      "name": "_ContactFriendRow",
+      "type": "Class",
+      "filePath": "lib/src/pages/contact_friends_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/group_game/sangong_all_users_page.dart:_SangongAllUsersPageState._lastAutoFillQuery",
+      "name": "_lastAutoFillQuery",
+      "type": "Property",
+      "filePath": "lib/src/pages/group_game/sangong_all_users_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/group_live/group_live_member_loader.dart:GroupLiveMemberLoader.load#1",
+      "name": "load",
+      "type": "Method",
+      "filePath": "lib/src/pages/group_live/group_live_member_loader.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/moments/moments_detail_page.dart:_DetailCommentsRows.index",
+      "name": "index",
+      "type": "Property",
+      "filePath": "lib/src/pages/moments/moments_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart:_LuckyHeaderPainter.shouldRepaint#1",
+      "name": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "type": "Method",
+      "filePath": "lib/src/pages/wallet/red_packet/lucky_red_packet_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart:RedPacketProjectDetailPage.initialClaimOutcome",
+      "name": "initialClaimOutcome",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart:_RedPacketProjectDetailPageState._loading",
+      "name": "_loading",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart:_RedPacketProjectDetailPageState._localClaim",
+      "name": "_localClaim",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart:_RedPacketProjectDetailPageState._claimOutcome",
+      "name": "_claimOutcome",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart:_RedPacketProjectDetailPageState._claimAttempted",
+      "name": "_claimAttempted",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart:_RedPacketProjectDetailPageState._hasClaimed",
+      "name": "_hasClaimed",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart:_RedPacketProjectDetailPageState._localAmountMinor",
+      "name": "_localAmountMinor",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart:_RedPacketProjectDetailPageState._shouldInsertOwnClaim",
+      "name": "_shouldInsertOwnClaim",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_flow_detail_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart:_RedPacketPreviewPageState._openError",
+      "name": "_openError",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart:_RedPacketPreviewPageState._terminalClaimError",
+      "name": "_terminalClaimError",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart:_RedPacketPreviewPageState._claimOutcome",
+      "name": "_claimOutcome",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart:_RedPacketCover.error",
+      "name": "error",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart:_RedPacketCover.onOpen",
+      "name": "onOpen",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart:_OpenCoinButton.onTap",
+      "name": "onTap",
+      "type": "Property",
+      "filePath": "lib/src/pages/wallet/red_packet/red_packet_open_flow_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/provider/presence_provider.dart:PresenceProvider.clearSessionState#0",
+      "name": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "type": "Method",
+      "filePath": "lib/src/provider/presence_provider.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/provider/presence_provider.dart:PresenceProvider._drainUserRevisionChunk#0",
+      "name": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "type": "Method",
+      "filePath": "lib/src/provider/presence_provider.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/provider/presence_provider.dart:PresenceProvider._persistPresenceBatch#2",
+      "name": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "type": "Method",
+      "filePath": "lib/src/provider/presence_provider.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/provider/presence_provider.dart:PresenceProvider.applyPresenceChanged#5",
+      "name": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "type": "Method",
+      "filePath": "lib/src/provider/presence_provider.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/provider/presence_provider.dart:PresenceProvider._flush#0",
+      "name": "_flush",
+      "type": "Method",
+      "filePath": "lib/src/provider/presence_provider.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/provider/presence_provider.dart:PresenceProvider._syncHeartbeatTransport#0",
+      "name": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "type": "Method",
+      "filePath": "lib/src/provider/presence_provider.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/provider/presence_provider.dart:PresenceProvider._stopHttpHeartbeatTimer#0",
+      "name": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "type": "Method",
+      "filePath": "lib/src/provider/presence_provider.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/provider/presence_provider.dart:PresenceProvider._sendHeartbeat#0",
+      "name": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "type": "Method",
+      "filePath": "lib/src/provider/presence_provider.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/provider/presence_provider.dart:PresenceProvider.shouldShowPresenceLabel#2",
+      "name": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "type": "Method",
+      "filePath": "lib/src/provider/presence_provider.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_unread_aggregate.dart:ConversationUnreadAggregate._rawUnreadChanges",
+      "name": "_rawUnreadChanges",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_unread_aggregate.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/group_local/group_membership_sync_service.dart:GroupMembershipSyncService.notifyProfileRefresh#2",
+      "name": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "type": "Method",
+      "filePath": "lib/src/services/group_local/group_membership_sync_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "",
+      "name": "forTest",
+      "type": "Constructor",
+      "filePath": "lib/src/services/ios_apns_push_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/ios_apns_push_service.dart:IosApnsPushService._lastSuccessfulSubmitKey",
+      "name": "_lastSuccessfulSubmitKey",
+      "type": "Property",
+      "filePath": "lib/src/services/ios_apns_push_service.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/services/livekit_call_ringtone.dart:shouldPlayRingtone",
+      "name": "shouldPlayRingtone",
+      "type": "Function",
+      "filePath": "lib/src/services/livekit_call_ringtone.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/livekit_call_ringtone.dart:LiveKitCallRingtone._attached",
+      "name": "_attached",
+      "type": "Property",
+      "filePath": "lib/src/services/livekit_call_ringtone.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/red_packet_local_store.dart:RedPacketOpenedRecord.claimAmountMinor",
+      "name": "claimAmountMinor",
+      "type": "Property",
+      "filePath": "lib/src/services/red_packet_local_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/red_packet_local_store.dart:RedPacketOpenedRecord.claimedAt",
+      "name": "claimedAt",
+      "type": "Property",
+      "filePath": "lib/src/services/red_packet_local_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/utils/sticker_chat_bubble_size.dart:resolveStickerMessageSize",
+      "name": "resolveStickerMessageSize",
+      "type": "Function",
+      "filePath": "lib/utils/sticker_chat_bubble_size.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_media_send_utils.dart:stageSystemPickerVideoForChatSend",
+      "name": "stageSystemPickerVideoForChatSend",
+      "type": "Function",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_media_send_utils.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list_item.dart:_TIMUIKItHistoryMessageListItemState._confirmAbandonOutcomeUnknown#2",
+      "name": "_confirmAbandonOutcomeUnknown",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list_item.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:_SegmentedUploadRingPainter.shouldRepaint#1",
+      "name": "shouldRepaint",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:TimUIKitMediaUploadOverlay.effectiveMessageStatus#3",
+      "name": "effectiveMessageStatus",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:TimUIKitMediaUploadOverlay.shouldShowUploadOverlay#3",
+      "name": "shouldShowUploadOverlay",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:TimUIKitMessageUploadOverlayLayer.createState#0",
+      "name": "createState",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:TimUIKitMediaUploadOverlay.supportsInlineUploadOverlay#1",
+      "name": "supportsInlineUploadOverlay",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:TimUIKitMediaUploadOverlay.resolveUploadProgress#2",
+      "name": "resolveUploadProgress",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:TimUIKitMediaUploadOverlay.build#3",
+      "name": "build",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:_RotatingUploadRing.createState#0",
+      "name": "createState",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:_TimUIKitMessageUploadOverlayLayerState.build#1",
+      "name": "build",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:_RotatingUploadRingState._controller",
+      "name": "_controller",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:_RotatingUploadRingState.dispose#0",
+      "name": "dispose",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:_RotatingUploadRingState.build#1",
+      "name": "build",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:_SegmentedUploadRingPainter._segmentCount",
+      "name": "_segmentCount",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:_SegmentedUploadRingPainter._strokeWidth",
+      "name": "_strokeWidth",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:_SegmentedUploadRingPainter._gapAngle",
+      "name": "_gapAngle",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:_SegmentedUploadRingPainter.progress",
+      "name": "progress",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart:_SegmentedUploadRingPainter.paint#2",
+      "name": "paint",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_media_upload_overlay.dart",
+      "change_type": "touched"
+    }
+  ],
+  "affected_processes": [
+    {
+      "id": "proc_5_build",
+      "name": "Build → UpdateLocalSetting",
+      "process_type": "cross_community",
+      "step_count": 8,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 7
+        },
+        {
+          "symbol": "forTest",
+          "step": 8
+        }
+      ]
+    },
+    {
+      "id": "proc_6_build",
+      "name": "Build → LoginInfo",
+      "process_type": "cross_community",
+      "step_count": 8,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 7
+        },
+        {
+          "symbol": "forTest",
+          "step": 8
+        }
+      ]
+    },
+    {
+      "id": "proc_11_build",
+      "name": "Build → FriendRealtimeEndpoint",
+      "process_type": "cross_community",
+      "step_count": 8,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 8
+        }
+      ]
+    },
+    {
+      "id": "proc_20_build",
+      "name": "Build → TUISelfInfoViewModel",
+      "process_type": "cross_community",
+      "step_count": 7,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 7
+        }
+      ]
+    },
+    {
+      "id": "proc_21_build",
+      "name": "Build → ConversationServicesImpl",
+      "process_type": "cross_community",
+      "step_count": 7,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 7
+        }
+      ]
+    },
+    {
+      "id": "proc_32_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_43_restorecoldstartsess",
+      "name": "RestoreColdStartSession → MarkTagged",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_47_build",
+      "name": "Build → GroupMemberCloudSearchPage",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_50_build",
+      "name": "Build → AppMaterialPageRoute",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_51_build",
+      "name": "Build → AppConfirmDialog",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_52_build",
+      "name": "Build → AppPromptDialog",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_62_restorecoldstartsess",
+      "name": "RestoreColdStartSession → EmitColdStartTraceSummary",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+          "step": 2
+        }
+      ]
+    },
+    {
+      "id": "proc_64_tuibuild",
+      "name": "TuiBuild → GroupMentionOccurrence",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_75_build",
+      "name": "Build → AppBackground",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "load",
+          "step": 2
+        }
+      ]
+    },
+    {
+      "id": "proc_87_build",
+      "name": "Build → StickerPanelTheme",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_89_build",
+      "name": "Build → WalletPayMethodDto",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_90_build",
+      "name": "Build → TUIKitWidePopupScope",
+      "process_type": "intra_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_91_loginwithpassword",
+      "name": "LoginWithPassword → ParsedPhoneNumber",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_101_tuibuild",
+      "name": "TuiBuild → TUIKitDragArea",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        },
+        {
+          "symbol": "forTest",
+          "step": 2
+        }
+      ]
+    },
+    {
+      "id": "proc_103_build",
+      "name": "Build → AppPageTransitionsBuilder",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_107_build",
+      "name": "Build → SearchEntry",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_108_build",
+      "name": "Build → Search",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_115_build",
+      "name": "Build → SangongGameRulesSettingsPage",
+      "process_type": "intra_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_119_build",
+      "name": "Build → GroupLivePrimaryButton",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_123_build",
+      "name": "Build → AppUserAvatar",
+      "process_type": "intra_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_129_build",
+      "name": "Build → MyProfileDetail",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_146_tuibuild",
+      "name": "TuiBuild → GroupProfileDetailCard",
+      "process_type": "intra_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_149_build",
+      "name": "Build → UpdateLocalSetting",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        },
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_150_build",
+      "name": "Build → LoginInfo",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        },
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_159_build",
+      "name": "Build → TUISelfInfoViewModel",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_160_build",
+      "name": "Build → ConversationServicesImpl",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_167_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_176_build",
+      "name": "Build → AppMaterialPageRoute",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_181_tuibuild",
+      "name": "TuiBuild → GroupMentionOccurrence",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_192_tuibuild",
+      "name": "TuiBuild → TUIKitWidePopupScope",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_197_build",
+      "name": "Build → TUIKitDragArea",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_198_build",
+      "name": "Build → GroupLivePrimaryButton",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_203_build",
+      "name": "Build → UpdateLocalSetting",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        },
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_204_build",
+      "name": "Build → LoginInfo",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        },
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_211_build",
+      "name": "Build → TUISelfInfoViewModel",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_212_build",
+      "name": "Build → ConversationServicesImpl",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_218_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_239_tuibuild",
+      "name": "TuiBuild → TUIKitDragArea",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_242_build",
+      "name": "Build → UpdateLocalSetting",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        },
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_243_build",
+      "name": "Build → LoginInfo",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        },
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_248_build",
+      "name": "Build → TUISelfInfoViewModel",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_249_build",
+      "name": "Build → ConversationServicesImpl",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_255_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_274_build",
+      "name": "Build → UpdateLocalSetting",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        },
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_275_build",
+      "name": "Build → LoginInfo",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        },
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_279_build",
+      "name": "Build → TUISelfInfoViewModel",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_280_build",
+      "name": "Build → ConversationServicesImpl",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_284_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_299_build",
+      "name": "Build → UpdateLocalSetting",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        },
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_300_build",
+      "name": "Build → LoginInfo",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        },
+        {
+          "symbol": "forTest",
+          "step": 6
+        }
+      ]
+    },
+    {
+      "id": "proc_302_build",
+      "name": "Build → TUISelfInfoViewModel",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_303_build",
+      "name": "Build → ConversationServicesImpl",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_307_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 6
+        },
+        {
+          "symbol": "forTest",
+          "step": 2
+        }
+      ]
+    },
+    {
+      "id": "proc_308_tuibuild",
+      "name": "TuiBuild → _classifyBySize",
+      "process_type": "cross_community",
+      "step_count": 6,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 2
+        }
+      ]
+    },
+    {
+      "id": "proc_319_build",
+      "name": "Build → UpdateLocalSetting",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        },
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_320_build",
+      "name": "Build → LoginInfo",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        },
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_321_build",
+      "name": "Build → TUISelfInfoViewModel",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_322_build",
+      "name": "Build → ConversationServicesImpl",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_324_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_334_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_343_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_351_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_359_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 5,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 5
+        }
+      ]
+    },
+    {
+      "id": "proc_367_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_375_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_383_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_391_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_399_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_407_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 4,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 4
+        }
+      ]
+    },
+    {
+      "id": "proc_415_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_423_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_431_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_439_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_447_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_455_build",
+      "name": "Build → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_463_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_471_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_479_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_487_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_495_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_503_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_511_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_518_build",
+      "name": "Build → AppBorder",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "_flush",
+          "step": 1
+        }
+      ]
+    },
+    {
+      "id": "proc_519_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_525_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_530_tuibuild",
+      "name": "TuiBuild → PlatformUtils",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "forTest",
+          "step": 3
+        }
+      ]
+    },
+    {
+      "id": "proc_556_build",
+      "name": "Build → AppSurface",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "_flush",
+          "step": 1
+        }
+      ]
+    },
+    {
+      "id": "proc_594_build",
+      "name": "Build → AppTextSecondary",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "_flush",
+          "step": 1
+        }
+      ]
+    },
+    {
+      "id": "proc_597_build",
+      "name": "Build → AppTextSecondary",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "build",
+          "step": 1
+        }
+      ]
+    },
+    {
+      "id": "proc_599_build",
+      "name": "Build → AppTextPrimary",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "_flush",
+          "step": 1
+        }
+      ]
+    },
+    {
+      "id": "proc_602_build",
+      "name": "Build → AppTextPrimary",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "build",
+          "step": 1
+        }
+      ]
+    },
+    {
+      "id": "proc_635_build",
+      "name": "Build → _fromLocale",
+      "process_type": "cross_community",
+      "step_count": 3,
+      "changed_steps": [
+        {
+          "symbol": "build",
+          "step": 1
+        }
+      ]
+    }
+  ]
+}

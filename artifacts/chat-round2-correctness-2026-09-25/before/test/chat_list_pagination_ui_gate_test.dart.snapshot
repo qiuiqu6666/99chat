@@ -1,0 +1,201 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:tencent_cloud_chat_uikit/ui/controllers/chat_list_pagination_ui_gate.dart';
+
+void main() {
+  group('ChatListPaginationUiGate top reach', () {
+    late ChatListPaginationUiGate gate;
+
+    setUp(() {
+      gate = ChatListPaginationUiGate();
+    });
+
+    test(
+      'blocks repeat load at same top reach until scrolled away or successful release',
+      () {
+        expect(gate.shouldAllowLoadPreviousAtTopReach(), isTrue);
+
+        gate.markTopReachConsumedForPreviousLoad('msg:abc');
+        expect(gate.shouldAllowLoadPreviousAtTopReach(), isFalse);
+
+        gate.finishPreviousLoadInFlight();
+        expect(gate.previousLoadConsumedThisTopReach, isTrue);
+        expect(gate.shouldAllowLoadPreviousAtTopReach(), isFalse);
+
+        gate.resetTopReachConsumedIfScrolledAway(
+          pixels: 500,
+          maxScrollExtent: 1000,
+        );
+        expect(gate.shouldAllowLoadPreviousAtTopReach(), isTrue);
+      },
+    );
+
+    test('viewport fill can bypass top reach consumed', () {
+      gate.markTopReachConsumedForPreviousLoad('msg:abc');
+      expect(
+        gate.shouldAllowLoadPreviousAtTopReach(bypassTopReachConsumed: true),
+        isTrue,
+      );
+    });
+
+    test('does not reset top reach when still near top', () {
+      gate.markTopReachConsumedForPreviousLoad('msg:abc');
+      gate.resetTopReachConsumedIfScrolledAway(
+        pixels: 900,
+        maxScrollExtent: 1000,
+      );
+      expect(gate.shouldAllowLoadPreviousAtTopReach(), isFalse);
+    });
+
+    test('successful page with haveMore releases latch', () {
+      gate.markTopReachConsumedForPreviousLoad('msg:abc');
+      gate.releaseTopReachConsumedAfterSuccessfulPage(haveMoreData: true);
+      expect(gate.previousLoadConsumedThisTopReach, isFalse);
+      expect(gate.lastTopReachConsumedAnchorKey, isNull);
+      expect(gate.shouldAllowLoadPreviousAtTopReach(), isTrue);
+    });
+
+    test('successful page without haveMore keeps latch', () {
+      gate.markTopReachConsumedForPreviousLoad('msg:abc');
+      gate.releaseTopReachConsumedAfterSuccessfulPage(haveMoreData: false);
+      expect(gate.previousLoadConsumedThisTopReach, isTrue);
+      expect(gate.lastTopReachConsumedAnchorKey, 'msg:abc');
+      expect(gate.shouldAllowLoadPreviousAtTopReach(), isFalse);
+    });
+
+    test('finishPreviousLoadInFlight does not release latch', () {
+      gate.markTopReachConsumedForPreviousLoad('msg:abc');
+      gate.previousLoadInFlightAnchorKey = 'msg:abc';
+      gate.finishPreviousLoadInFlight();
+      expect(gate.previousLoadInFlightAnchorKey, isNull);
+      expect(gate.previousLoadConsumedThisTopReach, isTrue);
+      expect(gate.shouldAllowLoadPreviousAtTopReach(), isFalse);
+    });
+
+    test(
+        'retryable zero-growth waits for a fresh drag, including viewport fill',
+        () {
+      gate.markTopReachConsumedForPreviousLoad('seq:716557');
+      gate.releaseTopReachConsumedAfterRetryableNoGrowth(haveMoreData: true);
+      expect(gate.shouldAllowLoadPreviousAtTopReach(), isFalse);
+      expect(
+          gate.shouldAllowLoadPreviousAtTopReach(bypassTopReachConsumed: true),
+          isFalse);
+      gate.finishPreviousLoadInFlight();
+      expect(gate.shouldAllowLoadPreviousAtTopReach(), isFalse);
+      gate.onUserDragStart();
+      expect(gate.previousLoadConsumedThisTopReach, isFalse);
+      expect(gate.lastTopReachConsumedAnchorKey, isNull);
+      expect(gate.shouldAllowLoadPreviousAtTopReach(), isTrue);
+    });
+
+    test('drag during an in-flight retry does not grant another request', () {
+      gate.markTopReachConsumedForPreviousLoad('seq:716557');
+      gate.releaseTopReachConsumedAfterRetryableNoGrowth(haveMoreData: true);
+      gate.isLoadingPrevious = true;
+      gate.onUserDragStart();
+      expect(gate.shouldAllowLoadPreviousAtTopReach(), isFalse);
+      gate.isLoadingPrevious = false;
+      gate.onUserDragStart();
+      expect(gate.shouldAllowLoadPreviousAtTopReach(), isTrue);
+      gate.markTopReachConsumedForPreviousLoad('seq:716557');
+      gate.onUserDragStart();
+      expect(gate.shouldAllowLoadPreviousAtTopReach(), isFalse);
+    });
+
+    test('terminal zero-growth page keeps latch', () {
+      gate.markTopReachConsumedForPreviousLoad('seq:1');
+      gate.releaseTopReachConsumedAfterRetryableNoGrowth(haveMoreData: false);
+      gate.onUserDragStart();
+      expect(gate.previousLoadConsumedThisTopReach, isTrue);
+    });
+
+    test(
+        'failed cursor survives programmatic motion and only a new cursor releases it',
+        () {
+      gate.markTopReachConsumedForPreviousLoad('seq:81');
+      gate.releaseTopReachConsumedAfterRetryableNoGrowth(haveMoreData: true);
+      gate.resetTopReachConsumedIfScrolledAway(
+          pixels: 0, maxScrollExtent: 1000);
+      expect(gate.lastTopReachConsumedAnchorKey, 'seq:81');
+      for (final key in <String?>[null, 'seq:81']) {
+        expect(
+            gate.shouldAllowLoadPreviousAtTopReach(
+                anchorKey: key, bypassTopReachConsumed: true),
+            isFalse);
+      }
+      expect(
+          gate.shouldAllowLoadPreviousAtTopReach(anchorKey: 'seq:61'), isTrue);
+      expect(gate.previousRetryNeedsUserGesture, isFalse);
+    });
+
+    test('new cursor does not release a genuine terminal top-reach latch', () {
+      gate.markTopReachConsumedForPreviousLoad('seq:1');
+      gate.releaseTopReachConsumedAfterRetryableNoGrowth(haveMoreData: false);
+      expect(
+          gate.shouldAllowLoadPreviousAtTopReach(anchorKey: 'seq:61'), isFalse);
+    });
+  });
+
+  group('source contracts', () {
+    test('list releases latch after successful page in _loadPreviousImpl', () {
+      final src = File(
+        'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart',
+      ).readAsStringSync();
+      expect(
+          src.contains('releaseTopReachConsumedAfterSuccessfulPage'), isTrue);
+      final implIdx = src.indexOf('Future<void> _loadPreviousImpl');
+      final releaseIdx =
+          src.indexOf('releaseTopReachConsumedAfterSuccessfulPage');
+      expect(implIdx, greaterThanOrEqualTo(0));
+      expect(releaseIdx, greaterThan(implIdx));
+      expect(src.contains('下一次上滑重试'), isTrue);
+      expect(src.contains('effectiveLoaded'), isTrue);
+      expect(src.contains('releaseTopReachConsumedAfterRetryableNoGrowth'),
+          isTrue);
+    });
+
+    test('previous load finally does not setState before finish pagination',
+        () {
+      final src = File(
+        'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart',
+      ).readAsStringSync();
+      final implIdx = src.indexOf('Future<void> _loadPreviousImpl');
+      expect(implIdx, greaterThanOrEqualTo(0));
+      final finishIdx = src.indexOf('_finishPreviousLoadPagination(', implIdx);
+      expect(finishIdx, greaterThan(implIdx));
+      final doneIdx = src.lastIndexOf("'ui_load_done'", finishIdx);
+      expect(doneIdx, greaterThan(implIdx));
+      final between = src.substring(doneIdx, finishIdx);
+      expect(between.contains('setState(() {})'), isFalse);
+    });
+
+    test('reverse native append does not setState before return', () {
+      final src = File(
+        'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart',
+      ).readAsStringSync();
+      final reverseIdx = src.indexOf('load_previous_reverse_append_native');
+      expect(reverseIdx, greaterThanOrEqualTo(0));
+      final returnIdx = src.indexOf('return;', reverseIdx);
+      expect(returnIdx, greaterThan(reverseIdx));
+      final branch = src.substring(reverseIdx, returnIdx);
+      expect(branch.contains('setState(() {})'), isFalse);
+    });
+
+    test('history list uses previous prefetch policy and idle cacheExtent', () {
+      final src = File(
+        'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart',
+      ).readAsStringSync();
+      expect(src.contains('HistoryPreviousPrefetchPolicy'), isTrue);
+      expect(src.contains('scroll_previous_prefetch'), isTrue);
+      final extentIdx = src.indexOf('double _effectiveHistoryCacheExtent()');
+      expect(extentIdx, greaterThanOrEqualTo(0));
+      final extentEnd =
+          src.indexOf('double _historyPreviousPrefetchPx()', extentIdx);
+      expect(extentEnd, greaterThan(extentIdx));
+      final extentBody = src.substring(extentIdx, extentEnd);
+      expect(extentBody.contains('scrollingCacheExtent'), isFalse);
+    });
+  });
+}

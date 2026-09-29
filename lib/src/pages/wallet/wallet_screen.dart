@@ -184,6 +184,7 @@ class _WalletTabLifecycle extends StatefulWidget {
 
 class _WalletTabLifecycleState extends State<_WalletTabLifecycle> {
   DateTime? _lastReloadAt;
+  bool _routeActive = true;
 
   @override
   void initState() {
@@ -209,15 +210,17 @@ class _WalletTabLifecycleState extends State<_WalletTabLifecycle> {
           ?.removeListener(_handleTabIndexChanged);
       widget.activeTabIndexListenable?.addListener(_handleTabIndexChanged);
     }
-    if (widget.isTabActive && !oldWidget.isTabActive) {
-      _reloadIfActive();
-    }
+    _reloadIfActive();
   }
 
-  void _handleTabIndexChanged() {
-    if (widget.activeTabIndexListenable?.value == widget.mainTabIndex) {
-      _reloadIfActive();
-    }
+  void _handleTabIndexChanged() => _reloadIfActive();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _routeActive =
+        (ModalRoute.of(context)?.isCurrent ?? true) && TickerMode.of(context);
+    _reloadIfActive();
   }
 
   bool get _isActive => widget.activeTabIndexListenable == null
@@ -225,7 +228,17 @@ class _WalletTabLifecycleState extends State<_WalletTabLifecycle> {
       : widget.activeTabIndexListenable!.value == widget.mainTabIndex;
 
   void _reloadIfActive() {
-    if (!_isActive) return;
+    final controller = context.read<WalletController>();
+    if (!_isActive || !_routeActive) {
+      controller.setActive(false);
+      return;
+    }
+    // Reactivation may notify; defer it until the inherited-widget build ends.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_isActive || !_routeActive) return;
+      if (controller.setActive(true)) _lastReloadAt = DateTime.now();
+    });
+    if (controller.hasDeferredRefresh) return;
     final now = DateTime.now();
     final last = _lastReloadAt;
     if (last != null && now.difference(last) < const Duration(seconds: 10)) {
@@ -233,7 +246,7 @@ class _WalletTabLifecycleState extends State<_WalletTabLifecycle> {
     }
     _lastReloadAt = now;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || !_isActive) return;
+      if (!mounted || !_isActive || !_routeActive) return;
       await context.read<WalletController>().load();
     });
   }
@@ -284,7 +297,6 @@ class _WalletView extends StatelessWidget {
   Widget _buildWalletScrollContent({
     required BuildContext context,
   }) {
-
     final cardGap = 18.h;
     final horizontalPadding = 16.w;
     final cardWidth = MediaQuery.sizeOf(context).width - horizontalPadding * 2;
@@ -767,7 +779,12 @@ class _ActionBar extends StatelessWidget {
       ),
       _ActItem(
         action: _WalletHomeAction.swap,
-        hint: i18n.t(zhHans: '币种兑换', zhHant: '幣種兌換', en: 'Exchange coins', ja: '通貨交換', ko: '코인 교환'),
+        hint: i18n.t(
+            zhHans: '币种兑换',
+            zhHant: '幣種兌換',
+            en: 'Exchange coins',
+            ja: '通貨交換',
+            ko: '코인 교환'),
         txt: i18n.t(
           zhHans: '闪兑',
           zhHant: '閃兌',
@@ -778,7 +795,12 @@ class _ActionBar extends StatelessWidget {
       ),
       _ActItem(
         action: _WalletHomeAction.record,
-        hint: i18n.t(zhHans: '收支明细', zhHant: '收支明細', en: 'Transactions', ja: '入出金明細', ko: '거래 내역'),
+        hint: i18n.t(
+            zhHans: '收支明细',
+            zhHant: '收支明細',
+            en: 'Transactions',
+            ja: '入出金明細',
+            ko: '거래 내역'),
         txt: i18n.t(
           zhHans: '记录',
           zhHant: '記錄',
@@ -867,7 +889,8 @@ class _ActionBar extends StatelessWidget {
                   ),
                 ),
               ),
-            ).toList(),
+            )
+            .toList(),
       ),
     );
   }
@@ -1694,12 +1717,12 @@ class _ActItem {
   final _WalletHomeAction action;
 
   final String txt;
+
   /// 图标下方的用途说明。
   final String? hint;
 
   const _ActItem({
     required this.action,
-
     required this.txt,
     this.hint,
   });

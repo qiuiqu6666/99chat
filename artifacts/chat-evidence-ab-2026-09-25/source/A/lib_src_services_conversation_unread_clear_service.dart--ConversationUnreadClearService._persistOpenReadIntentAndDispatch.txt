@@ -1,0 +1,27 @@
+static Future<void> _persistOpenReadIntentAndDispatch({
+    required String ownerUserId,
+    required String conversationID,
+    required String lastReadMessageId,
+    required _ConversationReadWatermark watermark,
+    required int sessionGeneration,
+  }) async {
+    try {
+      await ConversationReadOutboxStore.instance.enqueue(
+        ownerUserId: ownerUserId,
+        conversationId: conversationID,
+        lastReadMessageId: lastReadMessageId,
+        cleanTimestamp: watermark.timestamp,
+        cleanSequence: watermark.sequence,
+      );
+      _recordReadIntent(conversationID);
+      if (!_isCurrentSession(sessionGeneration)) return;
+      await scheduleSdkUnreadClean(
+        conversationID: conversationID,
+        trigger: SdkUnreadCleanTrigger.open,
+        hadUnread: true,
+      );
+    } catch (e) {
+      debugPrint('persist open read outbox failed errorType=${e.runtimeType}');
+      await _armReadOutboxRetryTimer();
+    }
+  }

@@ -1,0 +1,66 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/services/login_coordinator.dart:LoginCoordinator.recoverOnForeground#0",
+    "name": "recoverOnForeground",
+    "kind": "Method",
+    "filePath": "lib/src/services/login_coordinator.dart",
+    "startLine": 755,
+    "endLine": 755
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/services/login_coordinator.dart:LoginCoordinator",
+        "name": "LoginCoordinator",
+        "filePath": "lib/src/services/login_coordinator.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/api/api_client.dart:ApiClient.isValidJwt#1",
+        "name": "isValidJwt",
+        "filePath": "lib/src/api/api_client.dart"
+      },
+      {
+        "uid": "Method:lib/src/api/api_client.dart:ApiClient.isValidJwt#1",
+        "name": "isValidJwt",
+        "filePath": "lib/src/api/api_client.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/login_coordinator.dart:LoginCoordinator._clearSessionForLogout#1",
+        "name": "_clearSessionForLogout",
+        "filePath": "lib/src/services/login_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/login_coordinator.dart:LoginCoordinator._sessionLog#1",
+        "name": "_sessionLog",
+        "filePath": "lib/src/services/login_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/login_coordinator.dart:LoginCoordinator.markFailed#9",
+        "name": "markFailed",
+        "filePath": "lib/src/services/login_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/login_coordinator.dart:LoginCoordinator.markImReady#2",
+        "name": "markImReady",
+        "filePath": "lib/src/services/login_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/login_coordinator.dart:LoginCoordinator.markLoggedOut#1",
+        "name": "markLoggedOut",
+        "filePath": "lib/src/services/login_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/login_coordinator.dart:LoginCoordinator.markSessionRefreshing#1",
+        "name": "markSessionRefreshing",
+        "filePath": "lib/src/services/login_coordinator.dart"
+      }
+    ]
+  },
+  "processes": []
+}

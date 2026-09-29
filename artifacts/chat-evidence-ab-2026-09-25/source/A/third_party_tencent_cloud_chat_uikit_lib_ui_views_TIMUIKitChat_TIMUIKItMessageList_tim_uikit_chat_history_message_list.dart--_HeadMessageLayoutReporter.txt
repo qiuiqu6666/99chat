@@ -1,0 +1,18 @@
+/// 仅包裹全局最新消息（globalIndex == 0），上报行高与发送浮层目标位。
+/// 禁止使用 GlobalKey：未读/已读分区各有 index 0，GlobalKey 会冲突并导致列表空白。
+class _HeadMessageLayoutReporter extends StatefulWidget {
+  const _HeadMessageLayoutReporter({
+    required this.message,
+    required this.onLaidOut,
+    required this.child,
+  });
+
+  final V2TimMessage message;
+  final void Function(V2TimMessage message, Size size, Rect globalRect)
+      onLaidOut;
+  final Widget child;
+
+  @override
+  State<_HeadMessageLayoutReporter> createState() =>
+      _HeadMessageLayoutReporterState();
+}

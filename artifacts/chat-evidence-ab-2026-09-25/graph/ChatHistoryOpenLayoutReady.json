@@ -1,0 +1,108 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady",
+    "name": "ChatHistoryOpenLayoutReady",
+    "kind": "Class",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart",
+    "startLine": 9,
+    "endLine": 112
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "imports": [
+      {
+        "uid": "File:lib/src/chat.dart",
+        "name": "chat.dart",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "File:test/chat_history_open_layout_ready_test.dart",
+        "name": "chat_history_open_layout_ready_test.dart",
+        "filePath": "test/chat_history_open_layout_ready_test.dart"
+      },
+      {
+        "uid": "File:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "name": "tui_chat_separate_view_model.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart"
+      },
+      {
+        "uid": "File:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+        "name": "tim_uikit_chat_history_message_list.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady.ChatHistoryOpenLayoutReady#0",
+        "name": "ChatHistoryOpenLayoutReady",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      },
+      {
+        "uid": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady._",
+        "name": "_",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady._key#1",
+        "name": "_key",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady.begin#1",
+        "name": "begin",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady.cancel#1",
+        "name": "cancel",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady.epochOf#1",
+        "name": "epochOf",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady.isReady#1",
+        "name": "isReady",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady.signal#2",
+        "name": "signal",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      },
+      {
+        "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady.wait#2",
+        "name": "wait",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady._epoch",
+        "name": "_epoch",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady._pending",
+        "name": "_pending",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady._signaled",
+        "name": "_signaled",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      },
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart:ChatHistoryOpenLayoutReady.epochRevision",
+        "name": "epochRevision",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart"
+      }
+    ]
+  },
+  "processes": []
+}

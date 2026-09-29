@@ -1,0 +1,24 @@
+Future<bool> abandonOutcomeUnknownMessage({
+    required String conversationID,
+    required ConvType conversationType,
+    required String sdkLocalId,
+    String? msgID,
+  }) async {
+    final localId = sdkLocalId.trim();
+    if (localId.isEmpty || conversationType == ConvType.none) return false;
+    final abandoned =
+        await ImOutgoingSendCoordinator.instance.abandonOutcomeUnknown(
+      sdkLocalId: localId,
+      conversationId: conversationID,
+      conversationType: conversationType == ConvType.group
+          ? ImConversationType.group
+          : ImConversationType.c2c,
+    );
+    if (!abandoned) return false;
+    return markOutgoingSendFailedByIdentity(
+      conversationID: conversationID,
+      clientId: localId,
+      msgID: msgID,
+      reason: 'outcome_unknown_abandoned_by_user',
+    );
+  }

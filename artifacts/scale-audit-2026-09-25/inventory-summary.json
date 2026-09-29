@@ -1,0 +1,6 @@
+{
+  "dart_files_scanned": 1703,
+  "page_screen_candidates": 192,
+  "http_literal_call_sites": 258,
+  "scope": "App and vendored UIKit Dart; page/screen candidates include legacy/debug/helpers; SDK/indirect/dynamic routes require manual trace; no runtime coverage claim"
+}

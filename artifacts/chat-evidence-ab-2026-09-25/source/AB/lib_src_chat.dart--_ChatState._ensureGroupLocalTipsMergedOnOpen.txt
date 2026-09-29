@@ -1,0 +1,19 @@
+/// 进聊首屏前合并本地群灰字并过滤占位 IM tip（设/取消管理员等）。
+  Future<void> _ensureGroupLocalTipsMergedOnOpen(String convKey) async {
+    if (!mounted || convKey.isEmpty) {
+      return;
+    }
+    if (_getConvType() != ConvType.group || !SelfHostedGroupBridge.enabled) {
+      return;
+    }
+    final groupId =
+        widget.selectedConversation.groupID?.trim().isNotEmpty == true
+            ? widget.selectedConversation.groupID!.trim()
+            : convKey;
+    if (groupId.isEmpty) {
+      return;
+    }
+    await GroupTipsOperatorPatchService.instance.applyPatchesForVisibleGroup(
+      groupId,
+    );
+  }

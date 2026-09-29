@@ -1,0 +1,19 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":12784,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":1,"time":2,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":3268}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":5,"line":null,"column":null,"url":null},"type":"group","time":3269}
+{"test":{"id":3,"name":"two recovery coordinators invoke the SDK once; unknown outcome cannot redispatch","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":30,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_dispatch_and_draft_test.dart"},"type":"testStart","time":3269}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3307}
+{"test":{"id":4,"name":"matching local optimistic and failed SDK objects are not success evidence","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":50,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_dispatch_and_draft_test.dart"},"type":"testStart","time":3307}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3313}
+{"test":{"id":5,"name":"accepted A cannot erase a new identical-text B; old SDK write cannot restore A","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":65,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_dispatch_and_draft_test.dart"},"type":"testStart","time":3313}
+{"testID":5,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790284346419 conv=8cd90432dbeb draftLen=4 draftHash=0967115f2813 empty=false","type":"print","time":3336}
+{"testID":5,"error":"Expected: 'client_aa2f12e4-f8f4-4a4d-9bf7-5393297e92b4'\n  Actual: 'client_8df15f21-115f-423f-94d3-4688be545ec1'\n   Which: is different.\n          Expected: client_aa2f12e4-f ...\n            Actual: client_8df15f21-1 ...\n                           ^\n           Differ at offset 7\n","stackTrace":"package:matcher                                     expect\npackage:flutter_test/src/widget_tester.dart 473:18  expect\ntest\\round2_dispatch_and_draft_test.dart 84:5       main.<fn>\n","isFailure":true,"type":"error","time":3338}
+{"testID":5,"result":"failure","skipped":false,"hidden":false,"type":"testDone","time":3338}
+{"test":{"id":6,"name":"one draft cannot be accepted by two operations; transaction rolls back second pair","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":87,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_dispatch_and_draft_test.dart"},"type":"testStart","time":3338}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3341}
+{"test":{"id":7,"name":"rejected prepared assessment does not accept or clear a new draft","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":96,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_dispatch_and_draft_test.dart"},"type":"testStart","time":3342}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3344}
+{"success":false,"type":"done","time":3377}

@@ -16,6 +16,7 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_image.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_image.dart';
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
+import 'package:tencent_cloud_chat_uikit/data_services/message/outgoing_media_work_queue.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/image_decode_spec.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
 
@@ -620,7 +621,8 @@ Future<bool> needsChatImageBackgroundCompression(String sourcePath) async {
     final size = await File(trimmed).length();
     final isJpeg = ext == 'jpg' || ext == 'jpeg';
     if (isJpeg && size <= kChatImageSkipCompressBelowBytes) {
-      return false;
+      final dimensions = await probeLocalImageSize(trimmed);
+      if (_canSkipChatJpegPreparation(dimensions)) return false;
     }
   } catch (_) {}
   return true;
@@ -813,6 +815,37 @@ Future<String?> stageSystemPickerVideoForChatSend(String sourcePath) async {
 }
 
 /// 聊天图片发送前：复制到稳定临时路径、校正方向并统一为 JPEG，提升上传与缩略图清晰度。
+bool _canSkipChatJpegPreparation(Size? size) =>
+    size != null &&
+    size.width > 0 &&
+    size.height > 0 &&
+    size.width * size.height <= kChatImageMaxLongEdge * kChatImageMaxLongEdge;
+
+/// Android BitmapFactory samples before allocating pixels. Keep enough pixels
+/// for the existing send geometry, including orientation-swapped photographs.
+({int sampleSize, int estimatedWorkingBytes}) chatImageDecodeAdmission(
+    Size size) {
+  if (!size.width.isFinite || !size.height.isFinite ||
+      size.width <= 0 || size.height <= 0) {
+    throw ArgumentError.value(size, 'size', 'Positive finite dimensions required');
+  }
+  final target = resolveChatImageSendTargetSize(
+      sourceWidth: size.width, sourceHeight: size.height);
+  var sample = 1;
+  final longest = size.width > size.height ? size.width : size.height;
+  while (sample * 2 <= longest &&
+      (size.width / (sample * 2)).floor().clamp(1, 1 << 32) >= target.width &&
+      (size.height / (sample * 2)).floor().clamp(1, 1 << 32) >= target.height) {
+    sample *= 2;
+  }
+  final decoded = (size.width / sample).ceil() * (size.height / sample).ceil();
+  // Original sampled bitmap + orientation copy + target/encode intermediates.
+  return (
+    sampleSize: sample,
+    estimatedWorkingBytes: decoded * 8 + target.width * target.height * 8
+  );
+}
+
 Future<String?> prepareImageForChatSend(
   String sourcePath, {
   Size? knownSourceSize,
@@ -841,10 +874,19 @@ Future<String?> prepareImageForChatSend(
     return trimmed;
   }
 
+  final sourceSize = knownSourceSize ?? await probeLocalImageSize(trimmed);
+  if (sourceSize == null ||
+      !sourceSize.width.isFinite ||
+      !sourceSize.height.isFinite ||
+      sourceSize.width <= 0 ||
+      sourceSize.height <= 0) {
+    throw const FormatException('Cannot safely determine image dimensions');
+  }
   try {
     final originSize = await source.length();
     final isJpeg = ext == 'jpg' || ext == 'jpeg';
-    if (isJpeg && originSize <= kChatImageSkipCompressBelowBytes) {
+    if (isJpeg && originSize <= kChatImageSkipCompressBelowBytes &&
+        _canSkipChatJpegPreparation(sourceSize)) {
       return trimmed;
     }
   } catch (_) {}
@@ -858,8 +900,7 @@ Future<String?> prepareImageForChatSend(
   // 计算目标框。超长竖图单独保宽度，普通图限制最长边。
   var targetWidth = kChatImageMaxLongEdge;
   var targetHeight = kChatImageMaxLongEdge;
-  final sourceSize = knownSourceSize ?? await probeLocalImageSize(trimmed);
-  if (sourceSize != null && sourceSize.width > 0 && sourceSize.height > 0) {
+  if (sourceSize.width > 0 && sourceSize.height > 0) {
     final target = resolveChatImageSendTargetSize(
       sourceWidth: sourceSize.width,
       sourceHeight: sourceSize.height,
@@ -870,15 +911,20 @@ Future<String?> prepareImageForChatSend(
 
   // 统一校正 EXIF 方向并写入像素（keepExif: false），避免 SDK 读到与显示不一致的宽高。
   try {
-    final result = await FlutterImageCompress.compressAndGetFile(
-      source.absolute.path,
-      targetPath,
-      minWidth: targetWidth,
-      minHeight: targetHeight,
-      quality: kChatImageJpegQuality,
-      format: CompressFormat.jpeg,
-      keepExif: false,
-      autoCorrectionAngle: true,
+    final admission = chatImageDecodeAdmission(sourceSize);
+    final result = await OutgoingMediaWorkQueue.imageDecode.run(
+      () => FlutterImageCompress.compressAndGetFile(
+        source.absolute.path,
+        targetPath,
+        minWidth: targetWidth,
+        minHeight: targetHeight,
+        quality: kChatImageJpegQuality,
+        format: CompressFormat.jpeg,
+        keepExif: false,
+        autoCorrectionAngle: true,
+        inSampleSize: Platform.isAndroid ? admission.sampleSize : 1,
+      ),
+      weight: admission.estimatedWorkingBytes,
     );
     final outPath = result?.path.trim() ?? '';
     if (outPath.isNotEmpty && await File(outPath).exists()) {

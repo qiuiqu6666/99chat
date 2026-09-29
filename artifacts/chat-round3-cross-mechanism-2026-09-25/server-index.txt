@@ -1,0 +1,26 @@
+
+  GitNexus Analyzer (1.6.12)
+
+  GitNexus Analyzer (1.6.12)
+  GITNEXUS_MAX_FILE_SIZE: effective threshold 1024KB (default 512KB)
+
+[2K
+  Skipped 5 large files (>1024KB)
+[2K
+  - robot-service/data/backups/clear-ALL-robot_20260802_191202.sql
+[2K
+  - scripts/push-friends-to-im/state/push_friends_apply.jsonl
+[2K
+  - scripts/push-friends-to-im/state/push_friends_pairs.jsonl
+[2K
+  - scripts/push-group-roles-to-im/state/push_roles_apply.jsonl
+[2K
+  - scripts/push-group-roles-to-im/state/push_roles_rows.jsonl
+{"level":40,"time":1790300965314,"name":"gitnexus","msg":"[scope-resolution] 1865 property read/write site(s) name a field that IS defined in this workspace, but only in another language, so per-language inference declined to link them. Queries for these fields return an empty result that does NOT mean \"unused\" — it means the definition anchor is in a different language. Affected: admin (java), key (java/typescript/vue), OPEN (java), accountId (java), addTime (java), adminUserId (java), announcementId (java), arg (javascript), avatarUrl (java), chain (java), …"}
+{"level":40,"time":1790300965844,"name":"gitnexus","truncation":{"truncated":true,"entryPointCandidatesDropped":5961,"entryPointsUnexplored":0,"walksCutByBudget":62,"tracesDepthCapped":12,"calleesDropped":2049,"processesDropped":0},"msg":"[processes] 1186 flows reported, but whole flows are MISSING: 5961 of 6161 candidate entry point(s) never ranked in, 0 ranked entry point(s) never traced, 0 deduplicated flow(s) dropped at maxProcesses, 12 trace(s) cut at maxTraceDepth, 2049 callee(s) skipped at maxBranching, 62 walk(s) cut by the per-entry trace budget. An absent flow does NOT mean the code path does not exist."}
+{"level":30,"time":1790300989740,"name":"gitnexus","msg":"name-fallback resolution: 60 call sites (8 distinct caller-file/name pairs), 0 refused as impossible (guessed/refused by language: javascript 59/0, java 1/0)"}
+  Repository indexed successfully (54.8s)
+
+  45,633 nodes | 99,144 edges | 1342 clusters | 1186 flows
+  C:\Users\ASUS\Downloads\Telegram Desktop\99chat-server
+

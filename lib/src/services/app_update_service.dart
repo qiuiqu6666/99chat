@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:tencent_cloud_chat_demo/src/api/platform_api.dart';
 import 'package:tencent_cloud_chat_demo/src/services/startup_version_check_service.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
@@ -6,13 +7,17 @@ import 'package:tencent_cloud_chat_demo/src/utils/app_version.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/app_dialog.dart';
 import 'package:tencent_cloud_chat_demo/utils/toast.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'android_update_download.dart';
+import 'android_update_prompt_service.dart';
 
 /// 升级策略分流结果
 enum UpdateOutcome {
   /// 不弹窗（服务端 policy == none 或 无新版本）
   noPrompt,
+
   /// 弹可关闭窗（policy == optional）
   optional,
+
   /// 弹不可关闭窗（policy == force / gray 或服务端配错降级）
   mandatory,
 }
@@ -21,6 +26,76 @@ class AppUpdateService {
   AppUpdateService._();
 
   static final AppUpdateService instance = AppUpdateService._();
+  static const _releaseVersion = '3.0.1';
+  static const _releaseBuild = 20;
+  static const _releaseApkUrl = 'https://image.99chat.vip/app-release.apk';
+
+  static String _bundledReleaseUrl() =>
+      Uri.parse(_releaseApkUrl).replace(queryParameters: {
+        'version': _releaseVersion,
+        'build': '$_releaseBuild',
+      }).toString();
+
+  /// The currently published Android artifact is a known-good fallback while
+  /// the platform contact endpoint still advertises its obsolete 1.0.0+1.
+  /// Never override a newer server release or a server-side update kill switch.
+  static AndroidUpdateRequest? resolveBundledAndroidRelease({
+    required PlatformContactInfo info,
+    required String currentVersion,
+    required int currentBuildNumber,
+  }) {
+    if (info.updatePolicy == UpdatePolicy.none) return null;
+    final localComparison = compareVersions(currentVersion, _releaseVersion);
+    if (localComparison > 0 || currentBuildNumber >= _releaseBuild) {
+      return null;
+    }
+    final serverComparison = compareVersions(info.version, _releaseVersion);
+    if (serverComparison > 0 ||
+        (int.tryParse(info.build.trim()) ?? 0) >= _releaseBuild) {
+      return null;
+    }
+    return AndroidUpdateRequest(
+      url: _bundledReleaseUrl(),
+      version: _releaseVersion,
+      build: _releaseBuild,
+      mandatory: false,
+    );
+  }
+
+  /// Prefer the release artifact. Older servers only expose a landing page;
+  /// keep their browser update flow until an APK URL is configured.
+  static String? resolveAndroidApkUrl(PlatformContactInfo info) {
+    final explicit = info.apkUrl.trim();
+    final legacy = info.downloadUrl.trim();
+    for (final candidate in [explicit, legacy]) {
+      final uri = Uri.tryParse(candidate);
+      if (uri == null ||
+          !const {'http', 'https'}.contains(uri.scheme.toLowerCase()) ||
+          uri.host.isEmpty ||
+          uri.userInfo.isNotEmpty) {
+        continue;
+      }
+      if ((candidate == explicit && explicit.isNotEmpty) ||
+          uri.path.toLowerCase().endsWith('.apk')) {
+        return candidate;
+      }
+    }
+    // These older download URLs are HTML pages, not APKs. Only substitute the
+    // verified artifact when the server advertises that exact release.
+    final landing = Uri.tryParse(legacy);
+    final isKnownLanding = (landing?.host.toLowerCase() == 'down.99chat.vip' &&
+            (landing?.path.isEmpty == true || landing?.path == '/')) ||
+        (landing?.host.toLowerCase() == '99chat.com' &&
+            landing?.path == '/download');
+    if (landing?.scheme == 'https' &&
+        isKnownLanding &&
+        landing?.query.isEmpty == true &&
+        compareVersions(info.version, _releaseVersion) == 0 &&
+        int.tryParse(info.build.trim()) == _releaseBuild) {
+      return _bundledReleaseUrl();
+    }
+    return null;
+  }
 
   bool _checking = false;
   bool _automaticCheckCompleted = false;
@@ -108,8 +183,7 @@ class AppUpdateService {
     if (raw.isEmpty) return ('', '');
     // + 后面是 build 号，不参与版本比较
     final plusIdx = raw.indexOf('+');
-    final main =
-        plusIdx >= 0 ? raw.substring(0, plusIdx) : raw;
+    final main = plusIdx >= 0 ? raw.substring(0, plusIdx) : raw;
     // - 后面是预发布标签
     final dashIdx = main.indexOf('-');
     if (dashIdx < 0) return (main, '');
@@ -136,8 +210,18 @@ class AppUpdateService {
       final localVersion = clientParts.first.trim();
       final localBuild =
           clientParts.length > 1 ? int.tryParse(clientParts[1].trim()) ?? 0 : 0;
-      final remoteVersion = info.version.trim();
-      final remoteBuild = int.tryParse(info.build.trim()) ?? 0;
+      final isAndroid =
+          !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+      final bundledRelease = isAndroid
+          ? resolveBundledAndroidRelease(
+              info: info,
+              currentVersion: localVersion,
+              currentBuildNumber: localBuild,
+            )
+          : null;
+      final remoteVersion = bundledRelease?.version ?? info.version.trim();
+      final remoteBuild =
+          bundledRelease?.build ?? int.tryParse(info.build.trim()) ?? 0;
       if (remoteVersion.isEmpty) {
         throw const FormatException('Missing remote version');
       }
@@ -153,10 +237,33 @@ class AppUpdateService {
           (versionComparison == 0 && remoteBuild > localBuild);
       // 无新版本 + 不强制 → 不弹窗
       final isMandatory = outcome == UpdateOutcome.mandatory;
-      final shouldPrompt = (outcome != UpdateOutcome.noPrompt) &&
-          (hasNewVersion || isMandatory);
+      final shouldPrompt =
+          (outcome != UpdateOutcome.noPrompt) && (hasNewVersion || isMandatory);
+      debugPrint('[AppUpdate] check local=$localVersion+$localBuild '
+          'remote=$remoteVersion+$remoteBuild '
+          'source=${bundledRelease == null ? 'platform' : 'bundled_android'} '
+          'policy=${info.updatePolicy.name} shouldPrompt=$shouldPrompt');
       if (!manual) {
         _automaticCheckCompleted = true;
+      }
+      if (isAndroid) {
+        final apkUrl = bundledRelease?.url ?? resolveAndroidApkUrl(info);
+        debugPrint('[AppUpdate] android apkAvailable=${apkUrl != null}');
+        if (shouldPrompt && apkUrl != null) {
+          await AndroidUpdatePromptService.instance.prepare(
+            AndroidUpdateRequest(
+                url: apkUrl,
+                version: remoteVersion,
+                build: remoteBuild,
+                mandatory: isMandatory,
+                notes: bundledRelease?.notes ?? (info.changelog ?? '').trim()),
+            manual: manual,
+          );
+          return;
+        }
+        // A withdrawn release or a landing-page-only release must not leave an
+        // earlier APK's blocking prompt on screen.
+        await AndroidUpdatePromptService.instance.cancel();
       }
       if (!context.mounted) {
         return;
@@ -248,7 +355,13 @@ class AppUpdateService {
         showCloseButton: info.updatePolicy.showCloseButton,
         onConfirm: launchDownload,
       );
-    } catch (_) {
+    } catch (error) {
+      debugPrint('[AppUpdate] check failed type=${error.runtimeType}');
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        // A completed system download remains usable after process restart,
+        // even if the version endpoint is temporarily unreachable.
+        await AndroidUpdatePromptService.instance.restore();
+      }
       if (manual && context.mounted) {
         final i18n = AppI18n.of(context);
         ToastUtils.toast(i18n.t(

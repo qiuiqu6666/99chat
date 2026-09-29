@@ -42,6 +42,7 @@ import 'package:tencent_cloud_chat_uikit/base_widgets/tim_callback.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_conversation_view_model.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/core/core_services_implements.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/conversation_notify_bridge.dart';
+import 'package:tencent_cloud_chat_uikit/data_services/message/history_read_admission_gate.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_history_trace.dart';
@@ -127,6 +128,7 @@ class MessageServiceImpl extends MessageService {
   // A stuck native history Future must release the reconciliation barrier so
   // later send/adoption and user actions cannot wait indefinitely.
   static const Duration _historyReadTimeout = Duration(seconds: 20);
+  static const Duration _historyReadAdmissionTimeout = Duration(seconds: 3);
   static const Set<int> _groupReadFrequencyCodes = <int>{-10113, 6015, 7008};
   static final Map<String, Future<V2TimCallback>> _groupReadInFlight = {};
   static final Map<String, Future<V2TimCallback>> _groupReadDeferred = {};
@@ -135,6 +137,8 @@ class MessageServiceImpl extends MessageService {
   static final Set<String> _groupReadNeedsTrailing = <String>{};
   static final Map<String, _MessageDownloadFlight> _downloadInFlight =
       <String, _MessageDownloadFlight>{};
+  static final HistoryReadAdmissionGate _historyReadAdmissionGate =
+      HistoryReadAdmissionGate(maxConcurrent: 2, maxQueued: 8);
   final Map<String, _HistoryReadFlight> _historyReadInFlight =
       <String, _HistoryReadFlight>{};
   final Map<String, int> _historyGenerationByKey = <String, int>{};
@@ -293,6 +297,12 @@ class MessageServiceImpl extends MessageService {
       }
     }
 
+    // A logical timeout cannot cancel the SDK's native read. Keep a global,
+    // bounded permit for that physical operation until its Future settles so
+    // retries across conversations cannot accumulate unbounded native work.
+    final permit = await _historyReadAdmissionGate.acquire(
+      timeout: _historyReadAdmissionTimeout,
+    );
     final generation = (_historyGenerationByKey[key] ?? 0) + 1;
     _historyGenerationByKey[key] = generation;
     final flight = _HistoryReadFlight(generation);
@@ -301,12 +311,17 @@ class MessageServiceImpl extends MessageService {
     try {
       nativeFuture = start();
     } catch (_) {
+      permit.release();
       _finishHistoryLane(key, flight);
       rethrow;
     }
     nativeFuture.then<void>(
-      (_) => _finishHistoryLane(key, flight),
+      (_) {
+        permit.release();
+        _finishHistoryLane(key, flight);
+      },
       onError: (Object _, StackTrace __) {
+        permit.release();
         _finishHistoryLane(key, flight);
       },
     );

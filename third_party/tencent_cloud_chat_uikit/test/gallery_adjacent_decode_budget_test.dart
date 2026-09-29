@@ -31,16 +31,17 @@ void main() {
     expect(adjacent.height, 2048);
     expect(adjacent.policy, ResizeImagePolicy.fit);
     for (final fullResolution in [false, true]) {
-      expect(
-        ChatMessagePreviewImageResolver.wrapPreviewDecode(
+      final visible = ChatMessagePreviewImageResolver.wrapPreviewDecode(
           context: context,
           message: null,
           provider: original,
           preferFullResolution: fullResolution,
-        ),
-        same(original),
-        reason: 'Visible file images and zoom retain full source resolution',
-      );
+        ) as ResizeImage;
+      expect(visible.imageProvider, same(original));
+      expect(visible.width, isNotNull);
+      expect(visible.height, isNotNull);
+      expect(visible.policy, ResizeImagePolicy.fit);
+      expect(visible.allowUpscaling, isFalse);
     }
   });
 

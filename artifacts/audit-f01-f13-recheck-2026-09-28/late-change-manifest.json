@@ -1,0 +1,17 @@
+{
+  "capturedAtUtc": "2026-09-27T19:05:35.741890+00:00",
+  "files": [
+    {
+      "path": "lib/src/services/im_sdk_relationship_directory.dart",
+      "sha256": "5d2d4fc28a5386a7a3b644f52af8fada8d5fd3630db5771b111c6e8ea0a444f0"
+    },
+    {
+      "path": "lib/src/services/sqflite_lifecycle_host.dart",
+      "sha256": "e28c0ac0b1a17b715eeb26252007d6bdf455729f0917057ba461be548d159344"
+    },
+    {
+      "path": "lib/src/services/sqflite_lifecycle_guard.dart",
+      "sha256": "e989ea828c005eb973cce8011fbc3394ffc63524747a32ac187dfadb8b4a4b42"
+    }
+  ]
+}

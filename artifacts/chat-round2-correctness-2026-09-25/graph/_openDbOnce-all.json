@@ -1,0 +1,140 @@
+[
+  {
+    "target": {
+      "id": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore._openDbOnce#0",
+      "name": "_openDbOnce",
+      "type": "Method",
+      "filePath": "lib/src/services/im/message_core_store.dart"
+    },
+    "direction": "upstream",
+    "impactedCount": 10,
+    "risk": "LOW",
+    "riskSharedAxes": "LOW",
+    "riskScale": {
+      "comparableAcrossKinds": true,
+      "unusedAxes": []
+    },
+    "epistemic": "exact",
+    "summary": {
+      "direct": 1,
+      "processes_affected": 0,
+      "modules_affected": 2
+    },
+    "byDepthCounts": {
+      "1": 1,
+      "2": 1,
+      "3": 8
+    },
+    "affected_processes": [],
+    "affected_modules": [
+      {
+        "name": "Im",
+        "hits": 9,
+        "impact": "direct"
+      },
+      {
+        "name": "Test",
+        "hits": 1,
+        "impact": "indirect"
+      }
+    ],
+    "byDepth": {
+      "1": [
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore._openDb#0",
+          "name": "_openDb",
+          "filePath": "lib/src/services/im/message_core_store.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ],
+      "2": [
+        {
+          "depth": 2,
+          "id": "Method:lib/src/services/im/message_core_store.dart:MessageCoreStore.runTransaction#6",
+          "name": "runTransaction",
+          "filePath": "lib/src/services/im/message_core_store.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ],
+      "3": [
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/im/im_ingress_store.dart:ConversationLocalImIngressStore.transaction#2",
+          "name": "transaction",
+          "filePath": "lib/src/services/im/im_ingress_store.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/im/runtime_commit_coordinator.dart:RuntimeCommitCoordinator.activateAccount#2",
+          "name": "activateAccount",
+          "filePath": "lib/src/services/im/runtime_commit_coordinator.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/im/runtime_commit_coordinator.dart:RuntimeCommitCoordinator.claimEffect#6",
+          "name": "claimEffect",
+          "filePath": "lib/src/services/im/runtime_commit_coordinator.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/im/runtime_commit_coordinator.dart:RuntimeCommitCoordinator.commit#5",
+          "name": "commit",
+          "filePath": "lib/src/services/im/runtime_commit_coordinator.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/im/runtime_commit_coordinator.dart:RuntimeCommitCoordinator.listEffects#8",
+          "name": "listEffects",
+          "filePath": "lib/src/services/im/runtime_commit_coordinator.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/im/runtime_commit_coordinator.dart:RuntimeCommitCoordinator.load#3",
+          "name": "load",
+          "filePath": "lib/src/services/im/runtime_commit_coordinator.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/im/runtime_commit_coordinator.dart:RuntimeCommitCoordinator.recordEffectResult#8",
+          "name": "recordEffectResult",
+          "filePath": "lib/src/services/im/runtime_commit_coordinator.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:lib/src/services/im/runtime_commit_coordinator.dart:RuntimeCommitCoordinator.revalidatePendingEffect#6",
+          "name": "revalidatePendingEffect",
+          "filePath": "lib/src/services/im/runtime_commit_coordinator.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ]
+    }
+  }
+]

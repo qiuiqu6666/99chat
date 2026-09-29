@@ -1,0 +1,144 @@
+00:00 +0: loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart
+00:00 +0: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart: two recovery coordinators invoke the SDK once; unknown outcome cannot redispatch
+00:00 +1: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart: two clicks on the same durable failure share one retry identity and SDK call
+00:00 +2: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart: rebuilding a failed recovery copy cannot authorize a second child
+00:00 +3: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart: legacy retry child prevents a new-format sibling from dispatching
+00:00 +4: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart: parent copy maintenance after retry preparation preserves dispatch
+00:00 +5: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart: SDK receives business metadata and the authoritative retry identity
+00:00 +6: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart: success after retry preparation prevents dispatch and UI replacement
+00:00 +7: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart: matching local optimistic and failed SDK objects are not success evidence
+00:00 +8: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart: accepted A cannot erase a new identical-text B; old SDK write cannot restore A
+[DraftLeaveTrace] stage=sdk_draft_write_done t=1790303494912 conv=8cd90432dbeb draftLen=4 draftHash=0967115f2813 empty=false
+00:00 +9: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart: a hung SDK draft write does not strand later durable edits
+[DraftLeaveTrace] stage=sdk_draft_write_done t=1790303495020 conv=8cd90432dbeb draftLen=1 draftHash=df7e70e50215 empty=false
+00:00 +10: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart: one draft cannot be accepted by two operations; transaction rolls back second pair
+00:00 +11: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart: rejected prepared assessment does not accept or clear a new draft
+00:00 +12: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: every committed canonical send state has a newer version
+00:00 +13: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: terminal truth survives recovery payload garbage collection
+00:00 +14: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: committed success actively notifies an already displayed failure
+00:00 +15: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: a caller timeout cannot release the SDK draft write queue
+[DraftLeaveTrace] stage=sdk_draft_write_done t=1790303495080 conv=8cd90432dbeb draftLen=1 draftHash=df7e70e50215 empty=false
+00:00 +16: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: storage error is unavailable, never legacy missing or retry permission
+00:00 +17: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: SQLite commit failure emits nothing; two adapters share committed truth and GC version
+[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=37 created=true
+[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=7.9 deltaMs=7.9 prev=message_core_db_open durationMs=46
+commit_probe: handle
+00:00 +18: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: SQLite commit failure emits nothing; two adapters share committed truth and GC version
+00:00 +19: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: SQLite commit failure emits nothing; two adapters share committed truth and GC version
+00:01 +20: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: SQLite commit failure emits nothing; two adapters share committed truth and GC version
+00:01 +21: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: SQLite commit failure emits nothing; two adapters share committed truth and GC version
+00:01 +22: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: SQLite commit failure emits nothing; two adapters share committed truth and GC version
+00:01 +23: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: SQLite commit failure emits nothing; two adapters share committed truth and GC version
+00:01 +24: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: SQLite commit failure emits nothing; two adapters share committed truth and GC version
+commit_probe: armed
+commit_probe: rejected
+[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=1184.5 deltaMs=1176.6 prev=message_core_db_ready durationMs=3 created=false
+[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=1185.5 deltaMs=1.0 prev=message_core_db_open durationMs=4
+commit_probe: readable
+00:02 +24: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_route_read_boundaries_test.dart: read W1 acknowledgement preserves same-millisecond W2; retries classify and resume
+[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=1182 created=true
+[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=132.5 deltaMs=132.5 prev=message_core_db_open durationMs=1315
+00:02 +24: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: SQLite commit failure emits nothing; two adapters share committed truth and GC version
+[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=2181.9 deltaMs=996.4 prev=message_core_db_ready durationMs=2 created=false
+[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=2183.0 deltaMs=1.1 prev=message_core_db_open durationMs=3
+00:02 +25: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_route_read_boundaries_test.dart: read W1 acknowledgement preserves same-millisecond W2; retries classify and resume
+00:02 +26: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_route_read_boundaries_test.dart: read W1 acknowledgement preserves same-millisecond W2; retries classify and resume
+00:02 +26: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: two SQLite adapters admit only one retry child across key formats
+*** sqflite warning ***
+
+You are changing sqflite default factory.
+Be aware of the potential side effects. Any library using sqflite
+will have this factory as the default for all operations.
+
+*** sqflite warning ***
+
+00:03 +27: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: two SQLite adapters admit only one retry child across key formats
+[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=3454.4 deltaMs=1271.4 prev=message_core_db_ready durationMs=1260 created=true
+[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=3723.6 deltaMs=269.2 prev=message_core_db_open durationMs=1529
+00:05 +28: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart: a zero-row recovery update rolls back the main outcome transition
+*** sqflite warning ***
+
+You are changing sqflite default factory.
+Be aware of the potential side effects. Any library using sqflite
+will have this factory as the default for all operations.
+
+*** sqflite warning ***
+
+[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=5986.2 deltaMs=2262.7 prev=message_core_db_ready durationMs=1326 created=true
+[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=6134.4 deltaMs=148.1 prev=message_core_db_open durationMs=1474
+00:06 +28: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round3_upgrade_test.dart: old outbox schema reopens repeatedly without granting a new retry
+[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=1135 created=true
+[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=77.6 deltaMs=77.6 prev=message_core_db_open durationMs=1213
+00:07 +29: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round3_upgrade_test.dart: old outbox schema reopens repeatedly without granting a new retry
+[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=2443.7 deltaMs=2366.1 prev=message_core_db_ready durationMs=3 created=false
+[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=2445.1 deltaMs=1.4 prev=message_core_db_open durationMs=4
+00:10 +30: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round3_upgrade_test.dart: old outbox schema reopens repeatedly without granting a new retry
+00:10 +31: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round3_upgrade_test.dart: old outbox schema reopens repeatedly without granting a new retry
+00:10 +31: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/chat_draft_submission_test.dart: persisted B survives A completion, page disposal and reopen
+[DraftLeaveTrace] stage=sdk_draft_write_done t=1790303505336 conv=ce0bc751d59a draftLen=0 draftHash= empty=true
+[DraftLeaveTrace] stage=sdk_draft_write_done t=1790303505339 conv=ce0bc751d59a draftLen=1 draftHash=df7e70e50215 empty=false
+00:10 +32: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round3_upgrade_test.dart: old outbox schema reopens repeatedly without granting a new retry
+00:10 +32: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/chat_draft_submission_test.dart: new edit invalidates queued clear before debounce has persisted
+[DraftLeaveTrace] stage=sdk_draft_write_done t=1790303505342 conv=9086baec1111 draftLen=1 draftHash=df7e70e50215 empty=false
+00:10 +33: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round3_upgrade_test.dart: old outbox schema reopens repeatedly without granting a new retry
+00:10 +33: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/chat_draft_submission_test.dart: new page takes over unsaved B without revision collision or lost write
+[DraftLeaveTrace] stage=sdk_draft_write_done t=1790303505345 conv=ce0bc751d59a draftLen=1 draftHash=df7e70e50215 empty=false
+[DraftLeaveTrace] stage=sdk_draft_write_done t=1790303505345 conv=ce0bc751d59a draftLen=1 draftHash=df7e70e50215 empty=false
+00:10 +34: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round3_upgrade_test.dart: old outbox schema reopens repeatedly without granting a new retry
+00:10 +34: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/chat_draft_submission_test.dart: in-flight old SDK clear cannot publish its mirror over new B
+[DraftLeaveTrace] stage=sdk_draft_write_done t=1790303505346 conv=ce0bc751d59a draftLen=1 draftHash=df7e70e50215 empty=false
+00:10 +35: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round3_upgrade_test.dart: old outbox schema reopens repeatedly without granting a new retry
+00:10 +36: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round3_upgrade_test.dart: old outbox schema reopens repeatedly without granting a new retry
+00:10 +36: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/chat_draft_submission_test.dart: SDK error leaves mirror unchanged and the next edit can save
+[DraftLeaveTrace] stage=sdk_draft_write_failed t=1790303505350 conv=ce0bc751d59a draftLen=-1 draftHash= empty=false code=1
+[DraftLeaveTrace] stage=sdk_draft_write_done t=1790303505353 conv=ce0bc751d59a draftLen=1 draftHash=df7e70e50215 empty=false
+00:10 +37: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round3_upgrade_test.dart: old outbox schema reopens repeatedly without granting a new retry
+00:10 +37: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/chat_draft_submission_test.dart: SDK success plus mirror failure repairs from SDK without a resend
+[DraftLeaveTrace] stage=sdk_draft_write_done t=1790303505355 conv=ce0bc751d59a draftLen=1 draftHash=559aead08264 empty=false
+00:10 +38: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round3_upgrade_test.dart: old outbox schema reopens repeatedly without granting a new retry
+00:10 +38: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/chat_draft_submission_test.dart: a late SDK draft load cannot restore A over new B
+[DraftLeaveTrace] stage=sdk_draft_write_done t=1790303505356 conv=ce0bc751d59a draftLen=1 draftHash=df7e70e50215 empty=false
+00:10 +39: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round3_upgrade_test.dart: old outbox schema reopens repeatedly without granting a new retry
+[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=4071.7 deltaMs=1626.6 prev=message_core_db_ready durationMs=3 created=false
+[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=4072.8 deltaMs=1.1 prev=message_core_db_open durationMs=4
+00:14 +40: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint declares the complete Journal state machine
+00:14 +41: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint transitions Outbox through its legal states idempotently
+00:14 +42: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint lists only owner-scoped recoverable Outboxes in stable order
+00:14 +43: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint replays each commit stage idempotently
+00:14 +44: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint rejects a stale fencing token without changing journal
+00:14 +45: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint does not dispatch when recovery copy is missing or conflicts
+00:14 +46: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint corrupt Prepared payload becomes durable manualRequired
+00:14 +47: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint stale account lease cannot mark another Outbox manualRequired
+00:14 +48: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint DispatchIntent recovery becomes OutcomeUnknown and never resendable
+00:14 +49: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint provider evidence resolves OutcomeUnknown and completes projection
+00:14 +50: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint provider evidence rejects a correlation or payload mismatch
+00:14 +51: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint effect ledger claims and finishes idempotently
+00:14 +52: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint rejects a same-revision checkpoint with different contents
+00:14 +53: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint treats mismatched dispatch attempts as a recovery conflict
+00:14 +54: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im05_persistence_test.dart: IM-05 journal and projection checkpoint persists Journal, Checkpoint, Effect and Outbox in SQLite
+00:19 +55: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im09_read_authority_test.dart: page lifecycle without a watermark never invokes a full SDK clear
+00:19 +56: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im09_read_authority_test.dart: normalizes explicit C2C and group clears before the SDK authority call
+00:19 +57: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im09_read_authority_test.dart: rejects a successful SDK result that returns after account switch
+00:19 +58: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/im09_read_authority_test.dart: read SDK mutations stay inside the authority and SDK implementation
+00:24 +59: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: acknowledged and completed reject late failure without ambiguous bool
+00:24 +60: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: a durable provider success supersedes an already-created failure verdict
+00:24 +61: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: stale attempt failure is rejected; exact provider success may settle the operation
+00:24 +62: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: unknown dispatch callbacks stay unknown until exact provider evidence
+00:24 +63: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: rejecting an old event does not erase the current attempt retry verdict
+00:24 +64: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: abandonment does not discard later delivery evidence
+00:24 +65: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: persistence failure cannot turn valid SDK success into retryable failure
+00:24 +66: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: provider-confirmed UI row survives a late explicit failure
+00:24 +67: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: a sync msgID alone does not suppress a real sending failure
+00:24 +68: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: a revoked row cannot be revived by a late success result
+00:24 +69: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: a deleted row and its preview are not recreated by late success
+00:24 +70: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: provider evidence must match operation, owner, correlation, conversation and payload
+00:24 +71: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: conflicted verdicts cannot publish success or enable retry
+00:24 +72: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: an already completed dispatch refusal reports the confirmed result
+00:24 +73: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: SQLite result transaction rolls back both copies and version survives reopen
+[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=1283 created=true
+[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=148.9 deltaMs=148.9 prev=message_core_db_open durationMs=1433
+00:27 +74: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: SQLite result transaction rolls back both copies and version survives reopen
+00:27 +75: C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/outgoing_result_arbitration_test.dart: SQLite result transaction rolls back both copies and version survives reopen
+[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=1247.1 deltaMs=1098.2 prev=message_core_db_ready durationMs=2 created=false
+[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=1248.0 deltaMs=0.8 prev=message_core_db_open durationMs=3
+00:27 +76: All tests passed!

@@ -38,7 +38,7 @@ class WeChatStickerBottomBar extends StatelessWidget {
                 ? const SizedBox.shrink()
                 : ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     itemCount: packages.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 2),
                     itemBuilder: (context, index) {
@@ -49,15 +49,17 @@ class WeChatStickerBottomBar extends StatelessWidget {
                         onLongPress: onPackPreview == null
                             ? null
                             : () => onPackPreview!(index),
-                        borderRadius: BorderRadius.circular(4),
-                        child: Container(
+                        borderRadius: BorderRadius.circular(10),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 160),
+                          margin: const EdgeInsets.symmetric(vertical: 4),
                           width: _iconBox,
                           height: _iconBox,
                           decoration: BoxDecoration(
                             color: selected
                                 ? panelTheme.selectedTabColor
                                 : panelTheme.bottomBarBackground,
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           alignment: Alignment.center,
                           child: _PackMenuIcon(

@@ -16,6 +16,22 @@ import 'package:tencent_cloud_chat_demo/src/services/voice_output_route_service.
 import 'package:tencent_cloud_chat_demo/src/utils/call_user_id.dart';
 import 'package:tencent_cloud_chat_demo/utils/toast.dart';
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
+
+/// Business callbacks cannot take ownership of media cleanup.
+Future<void> completeCallCleanup({
+  required VoidCallback notify,
+  required Future<void> Function() release,
+}) async {
+  try {
+    notify();
+  } catch (error) {
+    ChatRecoveryTrace.log('call_end_notification_failed',
+        conversationID: '', fields: {'errorType': error.runtimeType});
+  } finally {
+    await release();
+  }
+}
 
 typedef LiveKitCallEndedCallback = void Function({
   required String callId,
@@ -38,7 +54,8 @@ bool shouldReconcileStaleRinging({
   required DateTime now,
 }) {
   if (phase != LiveKitCallPhase.ringingIn &&
-      phase != LiveKitCallPhase.ringingOut) {
+      phase != LiveKitCallPhase.ringingOut &&
+      phase != LiveKitCallPhase.connecting) {
     return false;
   }
   if (ringDeadline == null) {
@@ -47,13 +64,63 @@ bool shouldReconcileStaleRinging({
   return !now.isBefore(ringDeadline);
 }
 
+@visibleForTesting
+Future<void> awaitLiveKitRoomConnect({
+  required Future<void> Function() connect,
+  required Duration timeout,
+  required bool Function() isCurrent,
+  required VoidCallback onLateSuccess,
+}) {
+  final physicalConnect = connect();
+  physicalConnect.then<void>(
+    (_) {
+      if (!isCurrent()) onLateSuccess();
+    },
+    onError: (Object _, StackTrace __) {},
+  );
+  return physicalConnect.timeout(timeout);
+}
+
 /// Single active LiveKit C2C call session.
 class LiveKitCallSession extends ChangeNotifier {
-  LiveKitCallSession._();
+  LiveKitCallSession._(
+      {LiveKitCallApi? api,
+      this.tokenRequestTimeout = const Duration(seconds: 12),
+      this.connectTimeout = const Duration(seconds: 20)})
+      : _api = api ?? LiveKitCallApi.instance;
+
+  @visibleForTesting
+  factory LiveKitCallSession.forTesting(
+          {required LiveKitCallApi api,
+          Duration tokenRequestTimeout = const Duration(seconds: 12),
+          Duration connectTimeout = const Duration(seconds: 20)}) =>
+      LiveKitCallSession._(
+        api: api,
+        tokenRequestTimeout: tokenRequestTimeout,
+        connectTimeout: connectTimeout,
+      );
 
   static final LiveKitCallSession instance = LiveKitCallSession._();
 
-  final LiveKitCallApi _api = LiveKitCallApi.instance;
+  final LiveKitCallApi _api;
+  final Duration tokenRequestTimeout;
+  final Duration connectTimeout;
+  final Expando<Future<void>> _mediaTeardowns =
+      Expando<Future<void>>('livekit media teardown');
+  Future<void>? _tokenOperation;
+
+  @visibleForTesting
+  void debugAdoptConnected(Room room, LiveKitCallCredentials creds) {
+    _sessionGen++;
+    _resetState();
+    _room = room;
+    _creds = creds;
+    _phase = LiveKitCallPhase.connected;
+  }
+
+  @visibleForTesting
+  Future<void> debugRefreshCredentials({bool recovering = false}) =>
+      recovering ? _recoverRoomConnection() : _refreshRoomTokenIfConnected();
 
   LiveKitCallPhase _phase = LiveKitCallPhase.idle;
   LiveKitCallCredentials? _creds;
@@ -544,7 +611,9 @@ class LiveKitCallSession extends ChangeNotifier {
     )) {
       return;
     }
-    if (_phase == LiveKitCallPhase.ringingOut) {
+    if (_phase == LiveKitCallPhase.ringingOut ||
+        (_phase == LiveKitCallPhase.connecting &&
+            _role == AppCallRole.caller)) {
       await cancelOutgoing();
       return;
     }
@@ -996,7 +1065,13 @@ class LiveKitCallSession extends ChangeNotifier {
       isCallee: _role == AppCallRole.callee,
     );
     try {
-      await room.connect(creds.url, creds.token);
+      await awaitLiveKitRoomConnect(
+        connect: () => room.connect(creds.url, creds.token),
+        timeout: connectTimeout,
+        isCurrent: () =>
+            _sessionGen == gen && !_finalizing && identical(_room, room),
+        onLateSuccess: () => unawaited(_teardownMedia(room, listener)),
+      );
     } catch (e) {
       if (_sessionGen != gen || _finalizing) return;
       _telemetry?.setError(e.toString());
@@ -1110,6 +1185,7 @@ class LiveKitCallSession extends ChangeNotifier {
 
   void _armTokenRefresh(LiveKitCallCredentials creds) {
     _tokenRefreshTimer?.cancel();
+    _tokenRefreshTimer = null;
     if (creds.expiresAt <= 0) {
       return;
     }
@@ -1117,13 +1193,19 @@ class LiveKitCallSession extends ChangeNotifier {
       creds.expiresAt * 1000,
     ).subtract(_tokenRefreshLeadTime);
     final delay = refreshAt.difference(DateTime.now());
-    if (!delay.isNegative && delay > Duration.zero) {
-      _tokenRefreshTimer = Timer(delay, () {
+    final gen = _sessionGen;
+    final room = _room;
+    // Short server TTLs must not create synchronous recursive refreshes.
+    _tokenRefreshTimer = Timer(
+        delay > const Duration(seconds: 15)
+            ? delay
+            : const Duration(seconds: 15), () {
+      if (gen == _sessionGen &&
+          callId == creds.callId &&
+          identical(room, _room)) {
         unawaited(_refreshRoomTokenIfConnected());
-      });
-      return;
-    }
-    unawaited(_refreshRoomTokenIfConnected());
+      }
+    });
   }
 
   bool _maybeRecoverFromDisconnect(DisconnectReason? reason) {
@@ -1148,82 +1230,114 @@ class LiveKitCallSession extends ChangeNotifier {
         reason == DisconnectReason.disconnected;
   }
 
-  Future<void> _refreshRoomTokenIfConnected() async {
-    if (_finalizing || _phase != LiveKitCallPhase.connected) {
-      return;
-    }
-    final id = callId;
-    if (id.isEmpty) {
-      return;
-    }
-    try {
-      final creds = await _api.fetchToken(callId: id);
-      _creds = creds;
-      _armTokenRefresh(creds);
-      await _reconnectRoomWithCredentials(creds);
-    } catch (e, st) {
-      _telemetry?.setError('tokenRefresh: $e');
-      if (kDebugMode) {
-        debugPrint('LiveKitCallSession: token refresh failed $e\n$st');
-      }
-    }
-  }
+  Future<void> _refreshRoomTokenIfConnected() =>
+      _refreshCredentials(recovering: false);
 
-  Future<void> _recoverRoomConnection() async {
-    final creds = _creds;
-    if (creds == null || creds.callId.isEmpty) {
-      return;
+  Future<void> _recoverRoomConnection() =>
+      _refreshCredentials(recovering: true);
+
+  Future<void> _refreshCredentials({required bool recovering}) {
+    if (_finalizing ||
+        _phase != LiveKitCallPhase.connected ||
+        callId.isEmpty ||
+        _room == null) {
+      return Future<void>.value();
     }
-    try {
-      final fresh = await _api.fetchToken(callId: creds.callId);
-      _creds = fresh;
-      _armTokenRefresh(fresh);
-      await _reconnectRoomWithCredentials(fresh);
-    } catch (e, st) {
-      _telemetry?.setError('recover: $e');
-      if (kDebugMode) {
-        debugPrint('LiveKitCallSession: recover connection failed $e\n$st');
+    final running = _tokenOperation;
+    if (running != null) return running;
+    final id = callId;
+    final gen = _sessionGen;
+    final room = _room!;
+    var active = true;
+    var reconnecting = false;
+    bool isCurrent() =>
+        active &&
+        !_finalizing &&
+        gen == _sessionGen &&
+        callId == id &&
+        identical(room, _room);
+    final operation = ChatRecoveryTrace.nextOperation('call-refresh');
+    late final Future<void> pending;
+    pending = Future<void>(() async {
+      try {
+        ChatRecoveryTrace.log('call_refresh_start',
+            conversationID: '',
+            operation: operation,
+            fields: {'generation': gen, 'recovering': recovering});
+        final fresh =
+            await _api.fetchToken(callId: id).timeout(tokenRequestTimeout);
+        if (!isCurrent()) return;
+        if (fresh.callId != id) {
+          throw StateError('Call credentials belong to another call');
+        }
+        _creds = fresh;
+        reconnecting = true;
+        await _reconnectRoomWithCredentials(fresh,
+                room: room, isCurrent: isCurrent)
+            .timeout(const Duration(seconds: 20));
+        if (!isCurrent()) return;
+        _armTokenRefresh(fresh);
+        ChatRecoveryTrace.log('call_refresh_done',
+            conversationID: '',
+            operation: operation,
+            fields: {'generation': gen});
+      } catch (error) {
+        if (!isCurrent()) return;
+        _telemetry?.setError('credentialRefresh: ${error.runtimeType}');
+        ChatRecoveryTrace.log('call_refresh_failed',
+            conversationID: '',
+            operation: operation,
+            fields: {
+              'generation': gen,
+              'errorType': error.runtimeType,
+              'stage': reconnecting ? 'reconnect' : 'credentials'
+            });
+        // A timed-out native reconnect retains the old Room. End its session
+        // before releasing the flight; a second writer must never reuse it.
+        if (recovering || reconnecting) {
+          active = false;
+          await _finalize(
+              reason: AppCallEndReason.unknown, operatorIsSelf: false);
+        } else if (_creds != null && _creds!.expiresAt > 0) {
+          _armTokenRefresh(_creds!);
+        }
+      } finally {
+        active = false;
+        if (identical(_tokenOperation, pending)) _tokenOperation = null;
       }
-      if (!_finalizing && _phase == LiveKitCallPhase.connected) {
-        await _finalize(
-          reason: AppCallEndReason.unknown,
-          operatorIsSelf: false,
-        );
-      }
-    }
+    });
+    _tokenOperation = pending;
+    return pending;
   }
 
   Future<void> _reconnectRoomWithCredentials(
-    LiveKitCallCredentials creds,
-  ) async {
-    final room = _room;
-    if (room == null || _finalizing) {
-      return;
-    }
-    final gen = _sessionGen;
+    LiveKitCallCredentials creds, {
+    required Room room,
+    required bool Function() isCurrent,
+  }) async {
+    if (!isCurrent()) return;
     final mic = _micEnabled;
     final cam = _camEnabled;
     final video = creds.isVideo;
     try {
       await room.disconnect();
     } catch (_) {}
-    if (_sessionGen != gen || _finalizing) {
-      return;
-    }
+    if (!isCurrent()) return;
     _telemetry?.markConnectStarted();
     await room.connect(creds.url, creds.token);
-    if (_sessionGen != gen || _finalizing) {
-      return;
-    }
+    if (!isCurrent()) return;
     _telemetry?.markConnectFinished();
     if (mic) {
       await publishLocalCallTracks(room: room, video: video && cam);
+      if (!isCurrent()) return;
       _telemetry?.markPublishFinished(ok: true);
     }
     await ensureRemoteAudioSubscribed(room, tag: 'reconnect');
+    if (!isCurrent()) return;
     await ensureRemoteVideoSubscribed(room, tag: 'reconnect');
+    if (!isCurrent()) return;
     await _ensureCallAudioRoute();
-    if (_sessionGen == gen && !_finalizing) {
+    if (isCurrent()) {
       notifyListeners();
     }
   }
@@ -1250,6 +1364,20 @@ class LiveKitCallSession extends ChangeNotifier {
   Future<void> _teardownMedia(
     Room? room,
     EventsListener<RoomEvent>? listener,
+  ) {
+    if (room != null) {
+      final existing = _mediaTeardowns[room];
+      if (existing != null) return existing;
+      final teardown = _performMediaTeardown(room, listener);
+      _mediaTeardowns[room] = teardown;
+      return teardown;
+    }
+    return _performMediaTeardown(null, listener);
+  }
+
+  Future<void> _performMediaTeardown(
+    Room? room,
+    EventsListener<RoomEvent>? listener,
   ) async {
     try {
       await listener?.dispose().timeout(const Duration(seconds: 2));
@@ -1267,9 +1395,13 @@ class LiveKitCallSession extends ChangeNotifier {
     final sec = timeoutSec > 0 ? timeoutSec : 60;
     _ringDeadline = DateTime.now().add(Duration(seconds: sec));
     _ringTimeout = Timer(Duration(seconds: sec), () {
-      if (_phase == LiveKitCallPhase.ringingOut) {
+      if (_phase == LiveKitCallPhase.ringingOut ||
+          (_phase == LiveKitCallPhase.connecting &&
+              _role == AppCallRole.caller)) {
         unawaited(cancelOutgoing());
-      } else if (_phase == LiveKitCallPhase.ringingIn) {
+      } else if (_phase == LiveKitCallPhase.ringingIn ||
+          (_phase == LiveKitCallPhase.connecting &&
+              _role == AppCallRole.callee)) {
         unawaited(
           _finalize(
             reason: AppCallEndReason.noResponse,
@@ -1309,6 +1441,7 @@ class LiveKitCallSession extends ChangeNotifier {
     final role = _role;
     final connectedAt = _connectedAt;
     final effectiveReason = _pendingEndReason ?? reason;
+    var cleanupScheduled = false;
 
     try {
       final total = connectedAt == null
@@ -1349,33 +1482,45 @@ class LiveKitCallSession extends ChangeNotifier {
 
       final callback = onCallEnded;
       final endedCallId = creds?.callId ?? '';
+      cleanupScheduled = true;
       unawaited(() async {
         // Exit is Duration.zero; only yield a frame so pop + blank paint settle
         // before chat-bubble rebuild / room.dispose.
         await Future<void>.delayed(const Duration(milliseconds: 48));
-        if (callback != null && endedCallId.isNotEmpty) {
-          callback(
-            callId: endedCallId,
-            mediaType: media,
-            reason: effectiveReason,
-            role: role,
-            callerUserId: caller,
-            calleeUserId: callee,
-            peerUserId: peer,
-            operatorUserId: operatorId,
-            totalTimeSec: total,
-            isOutgoing: isOutgoing,
-          );
-        }
-        await _teardownMedia(room, listener);
+        await completeCallCleanup(
+            notify: () {
+              if (callback != null && endedCallId.isNotEmpty) {
+                callback(
+                  callId: endedCallId,
+                  mediaType: media,
+                  reason: effectiveReason,
+                  role: role,
+                  callerUserId: caller,
+                  calleeUserId: callee,
+                  peerUserId: peer,
+                  operatorUserId: operatorId,
+                  totalTimeSec: total,
+                  isOutgoing: isOutgoing,
+                );
+              }
+            },
+            release: () => _teardownMedia(room, listener));
       }());
+    } catch (error) {
+      ChatRecoveryTrace.log('call_finalize_failed',
+          conversationID: '', fields: {'errorType': error.runtimeType});
+      _resetState();
+      notifyListeners();
     } finally {
+      if (!cleanupScheduled) unawaited(_teardownMedia(room, listener));
       _finalizing = false;
     }
   }
 
   void _resetState() {
     _tokenRefreshTimer?.cancel();
+    _tokenRefreshTimer = null;
+    _tokenOperation = null;
     _tokenRecoverAttempts = 0;
     _phase = LiveKitCallPhase.idle;
     _creds = null;

@@ -1135,12 +1135,12 @@ class TIMUIKitMessageTooltipState
     final needAdminRecall = !isOwnMessage ||
         (timestamp != null &&
             !isRevocable(timestamp, model.chatConfig.upperRecallTime));
-    unawaited(model.revokeMsg(
+    await model.revokeMsg(
       msgID,
       needAdminRecall,
       messageItem.messageFromWeb,
       messageItem,
-    ));
+    );
   }
 
   String? _existingImagePath(V2TimMessage message) {

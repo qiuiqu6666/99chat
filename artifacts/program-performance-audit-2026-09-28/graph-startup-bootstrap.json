@@ -1,0 +1,46 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/api/api_client.dart:ApiClient.bootstrap#0",
+    "name": "bootstrap",
+    "kind": "Method",
+    "filePath": "lib/src/api/api_client.dart",
+    "startLine": 812,
+    "endLine": 812
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/api/api_client.dart:ApiClient",
+        "name": "ApiClient",
+        "filePath": "lib/src/api/api_client.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/api/api_client.dart:ApiClient._ensureDeviceId#0",
+        "name": "_ensureDeviceId",
+        "filePath": "lib/src/api/api_client.dart"
+      },
+      {
+        "uid": "Method:lib/src/api/api_client.dart:ApiClient._loadClientInfo#0",
+        "name": "_loadClientInfo",
+        "filePath": "lib/src/api/api_client.dart"
+      },
+      {
+        "uid": "Method:lib/src/api/api_client.dart:ApiClient.loadToken#0",
+        "name": "loadToken",
+        "filePath": "lib/src/api/api_client.dart"
+      },
+      {
+        "uid": "Method:lib/src/utils/client_device_info.dart:ClientDeviceInfo.deviceModel#0",
+        "name": "deviceModel",
+        "filePath": "lib/src/utils/client_device_info.dart"
+      }
+    ]
+  },
+  "processes": []
+}

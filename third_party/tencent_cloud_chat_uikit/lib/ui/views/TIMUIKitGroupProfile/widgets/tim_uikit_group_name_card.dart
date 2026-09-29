@@ -1,6 +1,7 @@
 // ignore_for_file: unnecessary_null_comparison
 
 import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_demo/utils/group_name_card_save_failure.dart';
 import 'package:provider/provider.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_callback.dart';
@@ -25,34 +26,51 @@ class GroupProfileNameCardState extends TIMUIKitState<GroupProfileNameCard>{
   String? nameCard;
   bool _savingNameCard = false;
 
-  Future<void> _setNameCard(
-    TUIGroupProfileModel model,
-    String nameCard,
-  ) async {
+  Future<void> _setNameCard(TUIGroupProfileModel model, String nameCard) async {
     if (_savingNameCard) {
       return;
     }
     _savingNameCard = true;
-    final response = await model.setNameCard(nameCard.trim());
-    _savingNameCard = false;
-    if (!mounted) {
-      return;
+    try {
+      final response = await model.setNameCard(nameCard.trim());
+      if (!mounted) {
+        return;
+      }
+      if (response?.code == 0) {
+        onTIMCallback(
+          TIMCallback(
+            type: TIMCallbackType.INFO,
+            infoRecommendText: TIM_t("修改成功"),
+            infoCode: 6660211,
+          ),
+        );
+        return;
+      }
+      onTIMCallback(
+        TIMCallback(
+          type: TIMCallbackType.INFO,
+          infoRecommendText: GroupNameCardSaveFailure.fromResponse(
+            code: response?.code,
+            description: response?.desc,
+          ).message,
+          infoCode: 6660212,
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        onTIMCallback(
+          TIMCallback(
+            type: TIMCallbackType.INFO,
+            infoRecommendText: GroupNameCardSaveFailure.fromError(
+              error,
+            ).message,
+            infoCode: 6660212,
+          ),
+        );
+      }
+    } finally {
+      _savingNameCard = false;
     }
-    if (response?.code == 0) {
-      onTIMCallback(TIMCallback(
-        type: TIMCallbackType.INFO,
-        infoRecommendText: TIM_t("修改成功"),
-        infoCode: 6660211,
-      ));
-      return;
-    }
-    onTIMCallback(TIMCallback(
-      type: TIMCallbackType.INFO,
-      infoRecommendText: response?.desc?.isNotEmpty == true
-          ? response!.desc!
-          : TIM_t("保存失败"),
-      infoCode: 6660212,
-    ));
   }
 
   @override

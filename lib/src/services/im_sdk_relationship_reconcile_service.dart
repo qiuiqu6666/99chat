@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:tencent_cloud_chat_demo/src/services/active_chat_registry.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_flags.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_gate_log.dart';
@@ -78,6 +79,10 @@ class ImSdkRelationshipReconcileService {
   int reconnectEpoch = 0;
 
   int _sessionGeneration = -1;
+  int _sessionEpoch = 0;
+  final Map<String, Object> _requests = {};
+  final Map<String, void Function()> _deferred = {};
+  Timer? _deferredTimer;
   bool _connectBaseline = false;
   bool _needsReconnectReconcile = false;
   DateTime? _lastGroupSdkAt;
@@ -109,6 +114,15 @@ class ImSdkRelationshipReconcileService {
   }
 
   void resetForSession(int generation) {
+    _sessionEpoch++;
+    _requests.clear();
+    _deferred.clear();
+    _deferredTimer?.cancel();
+    _deferredTimer = null;
+    // Old physical requests may finish, but cannot own the new session flight.
+    _friendFlight = null;
+    _groupFlight = null;
+    _lastGroupSdkAt = null;
     _fallbackTimer?.cancel();
     _fallbackTimer = null;
     _idleHold?.complete();
@@ -196,69 +210,94 @@ class ImSdkRelationshipReconcileService {
     required bool isFriends,
     required String reason,
   }) async {
-    var phase = _phase(isReconcile: isReconcile, isFriends: isFriends);
-    if (phase == ImSdkRelationshipPhase.completed ||
-        phase == ImSdkRelationshipPhase.running) {
-      _logSkip(reason, 'once_or_inflight');
-      return;
-    }
-    if (phase == ImSdkRelationshipPhase.scheduled) {
-      return;
-    }
+    final phase = _phase(isReconcile: isReconcile, isFriends: isFriends);
+    if (phase != ImSdkRelationshipPhase.idle) return;
+    final epoch = _sessionEpoch;
+    final key = '$isReconcile:$isFriends';
+    final token = Object();
+    _requests[key] = token;
+    bool owns() => epoch == _sessionEpoch && identical(_requests[key], token);
     _setPhase(
-      isReconcile: isReconcile,
-      isFriends: isFriends,
-      phase: ImSdkRelationshipPhase.scheduled,
-    );
+        isReconcile: isReconcile,
+        isFriends: isFriends,
+        phase: ImSdkRelationshipPhase.scheduled);
     try {
-      await _waitUntilRunnable();
-      phase = _phase(isReconcile: isReconcile, isFriends: isFriends);
-      if (phase != ImSdkRelationshipPhase.scheduled) {
+      final runnable = await _waitUntilRunnable(epoch);
+      if (!owns()) return;
+      if (!runnable) {
+        _deferred[key] = () {
+          if (!owns()) return;
+          _setPhase(
+              isReconcile: isReconcile,
+              isFriends: isFriends,
+              phase: ImSdkRelationshipPhase.idle);
+          unawaited(_request(
+              isReconcile: isReconcile, isFriends: isFriends, reason: reason));
+        };
+        _scheduleDeferred();
         return;
       }
       _setPhase(
-        isReconcile: isReconcile,
-        isFriends: isFriends,
-        phase: ImSdkRelationshipPhase.running,
-      );
+          isReconcile: isReconcile,
+          isFriends: isFriends,
+          phase: ImSdkRelationshipPhase.running);
       if (isFriends) {
-        await _runFriends(reason: reason, isReconcile: isReconcile);
+        await _runFriends(
+            reason: reason, isReconcile: isReconcile, epoch: epoch);
       } else {
-        await _runGroups(reason: reason, isReconcile: isReconcile);
+        await _runGroups(
+            reason: reason, isReconcile: isReconcile, epoch: epoch);
       }
+      if (!owns()) return;
       _setPhase(
-        isReconcile: isReconcile,
-        isFriends: isFriends,
-        phase: ImSdkRelationshipPhase.completed,
-      );
+          isReconcile: isReconcile,
+          isFriends: isFriends,
+          phase: ImSdkRelationshipPhase.completed);
     } catch (_) {
+      if (!owns()) return;
       _setPhase(
-        isReconcile: isReconcile,
-        isFriends: isFriends,
-        phase: ImSdkRelationshipPhase.idle,
-      );
+          isReconcile: isReconcile,
+          isFriends: isFriends,
+          phase: ImSdkRelationshipPhase.idle);
       ConversationPerfGateLog.log(
         'im_rel.${isFriends ? 'friends' : 'groups'}.reconcile',
-        extras: <String, Object?>{
-          'reason': reason,
-          'outcome': 'fail',
-        },
+        extras: <String, Object?>{'reason': reason, 'outcome': 'fail'},
       );
     }
+  }
+
+  void _scheduleDeferred() {
+    if (_deferredTimer != null || _deferred.isEmpty) return;
+    final epoch = _sessionEpoch;
+    _deferredTimer = Timer(const Duration(seconds: 1), () {
+      _deferredTimer = null;
+      if (epoch != _sessionEpoch) return;
+      if (!(_canRunNowOverride?.call() ?? _productionCanRun())) {
+        _scheduleDeferred();
+        return;
+      }
+      final pending = _deferred.values.toList();
+      _deferred.clear();
+      for (final resume in pending) {
+        resume();
+      }
+    });
   }
 
   Future<void> _runFriends({
     required String reason,
     required bool isReconcile,
+    required int epoch,
   }) async {
-    while (_friendFlight != null) {
+    while (epoch == _sessionEpoch && _friendFlight != null) {
       await _friendFlight;
     }
+    if (epoch != _sessionEpoch) return;
     if (!isReconcile && _directory.hasCompleteFriendSnapshot) {
       return;
     }
     late final Future<void> task;
-    task = _fetchFriends(reason: reason).whenComplete(() {
+    task = _fetchFriends(reason: reason, epoch: epoch).whenComplete(() {
       if (identical(_friendFlight, task)) {
         _friendFlight = null;
       }
@@ -270,15 +309,17 @@ class ImSdkRelationshipReconcileService {
   Future<void> _runGroups({
     required String reason,
     required bool isReconcile,
+    required int epoch,
   }) async {
-    while (_groupFlight != null) {
+    while (epoch == _sessionEpoch && _groupFlight != null) {
       await _groupFlight;
     }
+    if (epoch != _sessionEpoch) return;
     if (!isReconcile && _directory.hasCompleteGroupSnapshot) {
       return;
     }
     late final Future<void> task;
-    task = _fetchGroups(reason: reason).whenComplete(() {
+    task = _fetchGroups(reason: reason, epoch: epoch).whenComplete(() {
       if (identical(_groupFlight, task)) {
         _groupFlight = null;
       }
@@ -287,7 +328,8 @@ class ImSdkRelationshipReconcileService {
     await task;
   }
 
-  Future<void> _fetchFriends({required String reason}) async {
+  Future<void> _fetchFriends(
+      {required String reason, required int epoch}) async {
     if (_loadFriendsOverride == null && SelfHostedFriendshipBridge.enabled) {
       // The protocol coordinator serializes hydration and remote changes. A
       // second SQLite/SDK snapshot writer could replay an older captured list.
@@ -301,6 +343,7 @@ class ImSdkRelationshipReconcileService {
     final started = DateTime.now();
     try {
       final rawEntries = await _loadFriends();
+      if (epoch != _sessionEpoch) return;
       debugFriendGetCount++;
       final sdkMs = DateTime.now().difference(started).inMilliseconds;
       ConversationPerfGateLog.log(
@@ -308,10 +351,12 @@ class ImSdkRelationshipReconcileService {
         extras: <String, Object?>{'ms': sdkMs, 'reason': reason},
       );
       final entries = await _overlayEntries(rawEntries);
+      if (epoch != _sessionEpoch) return;
       final extractStarted = DateTime.now();
       final ordered = await _orderedIds(entries);
-      if (identity != null &&
-          !SessionIdentityService.instance.isCurrent(identity)) {
+      if (epoch != _sessionEpoch ||
+          (identity != null &&
+              !SessionIdentityService.instance.isCurrent(identity))) {
         _directory.dropFriendCapture(captureId);
         return;
       }
@@ -335,12 +380,15 @@ class ImSdkRelationshipReconcileService {
     }
   }
 
-  Future<void> _fetchGroups({required String reason}) async {
+  Future<void> _fetchGroups(
+      {required String reason, required int epoch}) async {
     final captureId = _directory.beginGroupCapture();
     final started = DateTime.now();
     try {
       await _waitGroupRateLimit();
+      if (epoch != _sessionEpoch) return;
       final entries = await _loadGroups();
+      if (epoch != _sessionEpoch) return;
       debugGroupGetCount++;
       _lastGroupSdkAt = DateTime.now();
       ConversationPerfGateLog.log(
@@ -351,6 +399,7 @@ class ImSdkRelationshipReconcileService {
         },
       );
       final ordered = await _orderedGroupIds(entries);
+      if (epoch != _sessionEpoch) return;
       _directory.applyGroupSnapshot(
         captureId: captureId,
         entries: entries,
@@ -688,29 +737,26 @@ class ImSdkRelationshipReconcileService {
     await requestRelationshipReconcile(reason: 'login_delay_fallback');
   }
 
-  Future<void> _waitUntilRunnable() async {
+  Future<bool> _waitUntilRunnable(int epoch) async {
     final hold = _idleHold;
-    if (hold != null) {
-      await hold.future;
-    }
-    final override = _canRunNowOverride;
-    if (override != null) {
-      if (!override()) {
-        throw StateError('idle_cancelled');
-      }
-      return;
-    }
+    if (hold != null) await hold.future;
+    if (epoch != _sessionEpoch) return false;
     final deadline = DateTime.now().add(uiIdleTimeout);
-    while (DateTime.now().isBefore(deadline)) {
-      if (_productionCanRun()) {
-        return;
-      }
+    do {
+      if (epoch != _sessionEpoch) return false;
+      if (_canRunNowOverride?.call() ?? _productionCanRun()) return true;
+      if (_canRunNowOverride != null) return false;
       await Future<void>.delayed(const Duration(milliseconds: 80));
-    }
+    } while (DateTime.now().isBefore(deadline));
+    // A deadline bounds this attempt; it never overrides user activity.
+    return false;
   }
 
   bool _productionCanRun() {
     try {
+      final lifecycle = WidgetsBinding.instance.lifecycleState;
+      if (lifecycle != null && lifecycle != AppLifecycleState.resumed)
+        return false;
       if ((ActiveChatRegistry.instance.activeConversationId ?? '').isNotEmpty) {
         return false;
       }

@@ -141,6 +141,7 @@ class ImRecoveryWorker {
         persistPriority: persistPriority,
       );
     }
+    var scanned = 0;
     var dispatched = 0;
     var deferred = 0;
     var retryUpdates = 0;
@@ -148,10 +149,12 @@ class ImRecoveryWorker {
     int? nextRetryAtMs;
     for (final record in records) {
       if (phase == ReconnectRecoveryPhase.visibleGap) {
-        final conversationId = record.event.scope?.canonicalConversationId ?? '';
+        final conversationId =
+            record.event.scope?.canonicalConversationId ?? '';
         if (activeConversationId != null &&
             conversationId != activeConversationId &&
             !InboxRecoveryPolicy.isHighPriority(record.recoveryPriority)) {
+          scanned++;
           moreDue = true;
           continue;
         }
@@ -162,7 +165,18 @@ class ImRecoveryWorker {
         moreDue = true;
         break;
       }
+      if (!router.canAcceptWithoutWaiting) {
+        // The Inbox remains the queue. Capacity pressure is not a failed
+        // command and must not increase retryCount or poison a recoverable row.
+        deferred++;
+        nextRetryAtMs = _minRetry(nextRetryAtMs, effectiveNow + 500);
+        moreDue = false;
+        break;
+      }
       ImRecoveryPayload recovery;
+      // Count inspected records, not the full metadata page: the coordinator
+      // treats a full scanned page as a reason to run again immediately.
+      scanned++;
       Object? loadError;
       if (record.status == ImInboxStatus.projectionPublished) {
         recovery = const ImRecoveryPayload.recovered(null);
@@ -195,8 +209,17 @@ class ImRecoveryWorker {
       }
       final event = _withPayload(record.event, recovery.payload);
       try {
-        await router.dispatch(event, lane: _laneFor(event));
+        await router.dispatch(event,
+            lane: _laneFor(event), waitForCapacity: false);
         dispatched++;
+      } on ImMailboxCapacityExceeded {
+        // Another producer may have taken the slot while loadPayload awaited.
+        // Do not retain that payload in an admission chain or advance its row.
+        deferred++;
+        scanned--;
+        nextRetryAtMs = _minRetry(nextRetryAtMs, effectiveNow + 500);
+        moreDue = false;
+        break;
       } catch (error) {
         deferred++;
         final scheduled = await _scheduleFailure(
@@ -212,7 +235,7 @@ class ImRecoveryWorker {
     }
     cpu.stop();
     return ImRecoveryRunResult(
-      scanned: records.length,
+      scanned: scanned,
       dispatched: dispatched,
       deferred: deferred,
       dueCount: counts?.dueCount ?? records.length,

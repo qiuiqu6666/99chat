@@ -1,0 +1,356 @@
+[
+  {
+    "group": "A",
+    "path": "lib/src/navigation/app_chat_route.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/services/chat_open_viewport_coordinator.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/services/chat_latest_window_reset_service.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/services/chat_history_peek_bootstrap.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/services/conversation_history_sync_coordinator.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/chat_page/chat_post_open_scheduler.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/chat_page/chat_open_lifecycle.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/services/chat_viewport/chat_viewport_models.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/services/chat_viewport/chat_viewport_collection.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/services/chat_viewport/open_viewport_cache.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/services/chat_open_perf_log.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/services/chat_pipeline_clock.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_history_open_layout_ready.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "AB",
+    "path": "lib/src/chat.dart",
+    "selectors": [
+      "_ChatState._draft",
+      "_ChatState._draftWrites",
+      "_ChatState._beginChatOpenGeneration",
+      "_ChatState._isChatOpenGenerationCurrent",
+      "_ChatState._scheduleReconnectHistoryRecovery",
+      "_ChatState._loadChatLocalDraft",
+      "_ChatState._persistChatLocalDraftText",
+      "_ChatState._onChatDraftTextChanged",
+      "_ChatState._persistChatLocalDraft",
+      "_ChatState._clearChatLocalDraftAfterSend",
+      "_ChatState._seedCachedHistoryOnOpen",
+      "_ChatState._isOpenHistoryWarm",
+      "_ChatState._conversationLooksEmptyForOpen",
+      "_ChatState._ensureEmptyConversationReadyForOpen",
+      "_ChatState._startOpenHistoryGate",
+      "_ChatState._runOpenHistoryGateWithTipsMerge",
+      "_ChatState._waitOpenHistoryLayoutReady",
+      "_ChatState._prepareOpenHistoryGate",
+      "_ChatState._ensureGroupLocalTipsMergedOnOpen",
+      "_ChatState._wrapChatWithOpenHistoryGate",
+      "_ChatState._reloadChatHistoryIfEmpty",
+      "_ChatState._markChatOpenHistoryReady",
+      "_ChatState._scheduleDeferredHistoryVerification",
+      "_ChatState._runDeferredHistoryVerification",
+      "_ChatState._performDeferredHistoryVerification",
+      "_ChatState._schedulePostOpenTasks",
+      "_ChatState.initState",
+      "_ChatState.deactivate",
+      "_ChatState.dispose",
+      "_ChatState.didUpdateWidget"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/conversation.dart",
+    "selectors": [
+      "_ConversationState._scheduleViewportWarmAfterSettle",
+      "_ConversationState._runViewportWarmNow",
+      "_ConversationState._warmConversationOnPress",
+      "_ConversationState._handleOnConvItemTaped"
+    ]
+  },
+  {
+    "group": "AB",
+    "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+    "selectors": [
+      "TUIChatGlobalModel.messageStatusInConversation",
+      "TUIChatGlobalModel.abandonOutcomeUnknownMessage",
+      "TUIChatGlobalModel.applyOutgoingSendResult",
+      "TUIChatGlobalModel.hasOpenHydrateInFlight",
+      "TUIChatGlobalModel.openHydrateResultFor",
+      "TUIChatGlobalModel.publishOpenHydrateResult",
+      "TUIChatGlobalModel.clearOpenHydrateResult",
+      "TUIChatGlobalModel._findOpenHydrateInFlight",
+      "TUIChatGlobalModel.ensureOpenHydrate",
+      "TUIChatGlobalModel.awaitOpenHydrateInFlight",
+      "TUIChatGlobalModel.bindOutgoingSyncMsgId",
+      "TUIChatGlobalModel._sendMessage",
+      "TUIChatGlobalModel._findMessageIndexForUpdate",
+      "TUIChatGlobalModel.updateMessage",
+      "TUIChatGlobalModel.markOutgoingSendFailedByIdentity",
+      "TUIChatGlobalModel.markOutgoingGuardDropped",
+      "TUIChatGlobalModel.applyAppRealtimeMessage",
+      "TUIChatGlobalModel._onReceiveNewMsg",
+      "TUIChatGlobalModel.completeHistoryReconciliation"
+    ]
+  },
+  {
+    "group": "AB",
+    "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+    "selectors": [
+      "TUIChatSeparateViewModel.initForEachConversation",
+      "TUIChatSeparateViewModel.loadChatRecord",
+      "TUIChatSeparateViewModel._sendMessage",
+      "TUIChatSeparateViewModel.sendTextAtMessage",
+      "TUIChatSeparateViewModel._currentResendMessage",
+      "TUIChatSeparateViewModel.reSendFailMessage",
+      "TUIChatSeparateViewModel._performFailedMessageResend",
+      "TUIChatSeparateViewModel.sendTextMessage",
+      "TUIChatSeparateViewModel._markOutgoingMediaSendFailed",
+      "TUIChatSeparateViewModel._prependOptimisticTextPlaceholder",
+      "TUIChatSeparateViewModel._adoptOptimisticOutgoingTextMessage"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/chat_page/chat_draft_controller.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/services/conversation_local/conversation_draft_service.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/services/conversation_local/conversation_local_store.dart",
+    "selectors": [
+      "ConversationLocalStore._createConversationTable",
+      "ConversationLocalStore._createCoordinatorStateTable",
+      "ConversationLocalStore.commitCoordinatorPlan",
+      "ConversationLocalStore.updateLocalDraft",
+      "ConversationLocalStore.clearLocalDraft",
+      "ConversationLocalStore.localDraftTextFor"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/services/conversation_local/conversation_mutation_shadow_bridge.dart",
+    "selectors": [
+      "ConversationMutationShadowBridge.restoreDurableConversationState",
+      "ConversationMutationShadowBridge.prepareLocalIntentCommit",
+      "ConversationMutationShadowBridge.prepareFieldPatchCommit"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/services/im/outgoing_send_coordinator.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/services/im/im05_persistence.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/services/im/im05_contracts.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/services/im/contracts/outgoing_identity_contract.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/services/im/tencent_message_adapter.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/services/im/im_ingress_store.dart",
+    "selectors": [
+      "ConversationLocalImIngressStore",
+      "_SqliteImIngressTransaction.findOutbox",
+      "_SqliteImIngressTransaction.updateOutboxIfCurrent",
+      "_SqliteImIngressTransaction.findOutboxRecovery",
+      "_SqliteImIngressTransaction.updateOutboxRecoveryIfCurrent"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+    "selectors": [
+      "_InputTextFieldState._setProgrammaticText",
+      "_InputTextFieldState.handleSetDraftText",
+      "_InputTextFieldState._onEmojiSubmitted",
+      "_InputTextFieldState.onSubmitted",
+      "_InputTextFieldState.controllerHandler"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+    "selectors": [
+      "_TIMUIKitHistoryMessageListState._scheduleMessagesFirstVisibleAfterReveal",
+      "_HeadMessageLayoutReporter",
+      "_HeadMessageLayoutReporterState"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/services/conversation_peek_service.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/services/perf_timeline.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/src/services/conversation_unread_clear_service.dart",
+    "selectors": [
+      "ConversationUnreadClearService.clearLocalForOpenFast",
+      "ConversationUnreadClearService._persistOpenReadIntentAndDispatch"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "lib/utils/chat_image_message_prefetch.dart",
+    "selectors": [
+      "ChatImageMessagePrefetch.prepareFirstWindowMedia",
+      "ChatImageMessagePrefetch.warmWithBudget",
+      "ChatImageMessagePrefetch._selectInitialMediaMessages",
+      "ChatImageMessagePrefetch.initialMediaBudget",
+      "ChatImageMessagePrefetch.initialLocalMediaBudget",
+      "ChatImageMessagePrefetch.initialMediaUrlBudget"
+    ]
+  },
+  {
+    "group": "A",
+    "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/tim_uikit_chat.dart",
+    "selectors": [
+      "_TUIChatState.initState",
+      "_TUIChatState.didUpdateWidget",
+      "TIMUIKitChatProviderScope._loadData"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/services/im/message_core_store.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/utils/c2c_blocked_outgoing_message_sync.dart",
+    "selectors": [
+      "@file"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/services/conversation_local/conversation_sync_service.dart",
+    "selectors": [
+      "ConversationSyncService._adoptProviderOutgoingMessage",
+      "ConversationSyncService._handleMessageIngress",
+      "ConversationSyncService._handleSdkRealtimeMessage",
+      "ConversationSyncService._providerOutgoingIdentity"
+    ]
+  },
+  {
+    "group": "B",
+    "path": "lib/src/services/im/outgoing_outbox_recovery_service.dart",
+    "selectors": [
+      "@file"
+    ]
+  }
+]

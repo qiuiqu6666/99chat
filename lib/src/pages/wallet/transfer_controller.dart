@@ -7,6 +7,7 @@ import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 import 'order/wallet_card_im_sender.dart';
 import 'order/wallet_card_replay_guard.dart';
 import 'order/wallet_order.dart';
+import 'order/server_managed_wallet_cards.dart';
 import 'order/wallet_order_checker.dart';
 import 'order/wallet_order_events.dart';
 import 'order/wallet_order_service.dart';
@@ -285,6 +286,7 @@ class TransferController extends ChangeNotifier {
     notifyListeners();
 
     final draft = WalletOrderDraft(
+      serverManagedCard: _repo is ServerManagedWalletCards,
       clientOrderId: clientId,
       type: isGroup ? WalletOrderType.redPacket : WalletOrderType.transfer,
       amountText: amountText,
@@ -397,6 +399,7 @@ class TransferController extends ChangeNotifier {
     WalletOrderResult ret,
     String sentClientOrderId,
   ) async {
+    if (_repo is ServerManagedWalletCards) return;
     if (conversationId.trim().isEmpty) {
       debugPrint(
         'wallet-card skip empty-conv after REST orderId=${ret.orderId} '

@@ -1,0 +1,15 @@
+void _ensureEmptyConversationReadyForOpen(String convKey) {
+    final globalModel = serviceLocator<TUIChatGlobalModel>();
+    // 冷开并行 peek 未完成：禁止预判 empty-loaded。
+    if (globalModel.hasOpenHydrateInFlight(convKey)) {
+      return;
+    }
+    if (!_conversationLooksEmptyForOpen(convKey)) {
+      return;
+    }
+    if (globalModel.hasInitialHistoryLoaded(convKey) &&
+        globalModel.rawMessageCount(convKey) == 0) {
+      return;
+    }
+    globalModel.clearLocalHistoryAsEmptyLoaded(convKey);
+  }

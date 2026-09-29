@@ -27,8 +27,9 @@ import 'package:tencent_cloud_chat_demo/src/platform/clipboard_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_perf_flags.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im_group_receive_opt.dart';
-import 'package:tencent_cloud_chat_demo/utils/dio_error_message.dart';
 import 'package:tencent_cloud_chat_demo/utils/toast.dart';
+import 'package:tencent_cloud_chat_demo/utils/group_name_card_save_failure.dart';
+import 'package:tencent_cloud_chat_demo/src/services/group_name_card_profile_source.dart';
 import 'package:tencent_cloud_chat_sdk/enum/group_type.dart';
 import 'package:tencent_cloud_chat_sdk/enum/receive_message_opt_enum.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
@@ -39,7 +40,6 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_group_info.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_group_info.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/life_cycle/group_profile_life_cycle.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_group_profile_model.dart';
-import 'package:tencent_cloud_chat_uikit/business_logic/services/group_member_store.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_friendship_view_model.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_self_info_view_model.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
@@ -49,7 +49,6 @@ import 'package:tencent_cloud_chat_uikit/ui/utils/screen_utils.dart';
 import 'package:tencent_cloud_chat_demo/utils/friend_add_source.dart';
 import 'package:tencent_cloud_chat_demo/utils/friend_mutual_utils.dart';
 import 'package:tencent_cloud_chat_demo/utils/theme.dart';
-import 'package:tencent_cloud_chat_demo/utils/user_avatar.dart';
 import 'package:tencent_cloud_chat_demo/utils/user_display_profile.dart';
 import 'package:tencent_cloud_chat_demo/utils/profile_page_nav.dart';
 import 'package:tencent_cloud_chat_demo/src/group_manage_page.dart';
@@ -106,32 +105,6 @@ class GroupProfilePage extends StatelessWidget {
 
   String _groupNameCardForEdit(TUIGroupProfileModel model) {
     return model.getSelfNameCard().trim();
-  }
-
-  String _groupNameCardHintBaseline(TUIGroupProfileModel model) {
-    final nameCard = _groupNameCardForEdit(model);
-    if (nameCard.isNotEmpty) {
-      return nameCard;
-    }
-    final selfInfo = serviceLocator<TUISelfInfoViewModel>().loginInfo;
-    final profileNickname = selfInfo?.nickName?.trim() ?? '';
-    if (profileNickname.isNotEmpty) {
-      return profileNickname;
-    }
-    final loginUserID = selfInfo?.userID;
-    if (loginUserID != null) {
-      for (final member
-          in model.groupMemberList ?? <V2TimGroupMemberFullInfo?>[]) {
-        if (member?.userID == loginUserID) {
-          final memberNick = member?.nickName?.trim() ?? '';
-          if (memberNick.isNotEmpty) {
-            return memberNick;
-          }
-          break;
-        }
-      }
-    }
-    return '';
   }
 
   String _getMemberShowName(V2TimGroupMemberFullInfo? item) {
@@ -771,76 +744,46 @@ class GroupProfilePage extends StatelessWidget {
     );
   }
 
-  String _selfImFaceUrl(TUIGroupProfileModel model) {
-    final selfInfo = serviceLocator<TUISelfInfoViewModel>().loginInfo;
-    final coreInfo = TIMUIKitCore.getInstance().loginUserInfo;
-    final selfId = (selfInfo?.userID ?? coreInfo?.userID ?? '').trim();
-    final memberFace = selfId.isEmpty
-        ? null
-        : GroupMemberStore.instance.memberOf(model.groupID, selfId)?.faceUrl;
-    String? listFace;
-    if (selfId.isNotEmpty) {
-      for (final member in model.groupMemberList) {
-        if ((member?.userID ?? '').trim() == selfId) {
-          listFace = member?.faceUrl;
-          break;
-        }
-      }
-    }
-    final candidates = <String?>[
-      memberFace,
-      listFace,
-      coreInfo?.faceUrl,
-      selfInfo?.faceUrl,
-    ];
-    for (final raw in candidates) {
-      final usable = UserAvatarHelper.usableAvatarOrEmpty(raw);
-      if (usable.isNotEmpty) {
-        return usable;
-      }
-    }
-    return '';
-  }
-
   Future<void> _showEditNameCard(
     BuildContext context,
     TUITheme theme,
     TUIGroupProfileModel model,
   ) async {
-    final selfInfo = serviceLocator<TUISelfInfoViewModel>().loginInfo;
-    await ProfileNicknameEditPage.pushGroupNameCard(
-      context,
-      initialNameCard: _groupNameCardForEdit(model),
-      hintBaseline: _groupNameCardHintBaseline(model),
-      avatarFaceUrl: _selfImFaceUrl(model),
-      avatarShowName: selfInfo?.nickName ?? '',
-      onSave: (String newText) async {
-        final res = await model.setNameCard(newText.trim());
-        if (res == null || res.code != 0) {
+    final source = GroupNameCardProfileSource(model: model);
+    try {
+      await ProfileNicknameEditPage.pushGroupNameCard(
+        context,
+        initialNameCard: _groupNameCardForEdit(model),
+        profileSource: source,
+        onSave: (String newText) async {
+          if (!source.isCurrent) {
+            throw GroupNameCardSaveFailure.fromResponse(
+              description: 'SESSION_CHANGED',
+            );
+          }
+          final res = await model.setNameCard(newText.trim());
+          if (res == null || res.code != 0) {
+            throw GroupNameCardSaveFailure.fromResponse(
+              code: res?.code,
+              description: res?.desc,
+            );
+          }
+          if (!context.mounted) return true;
           ToastUtils.toast(
-            DioErrorMessage.sanitizeUserText(
-              res?.desc,
-              fallback: AppI18n.of(context).t(
-                zhHans: '保存失败',
-                zhHant: '儲存失敗',
-                en: 'Save failed',
-                ja: '保存に失敗',
-                ko: '저장 실패',
-              ),
+            AppI18n.of(context).t(
+              zhHans: '修改成功',
+              zhHant: '修改成功',
+              en: 'Updated',
+              ja: '変更しました',
+              ko: '수정되었습니다',
             ),
           );
-          return false;
-        }
-        ToastUtils.toast(AppI18n.of(context).t(
-          zhHans: '修改成功',
-          zhHant: '修改成功',
-          en: 'Updated',
-          ja: '変更しました',
-          ko: '수정되었습니다',
-        ));
-        return true;
-      },
-    );
+          return true;
+        },
+      );
+    } finally {
+      source.dispose();
+    }
   }
 
   Widget _buildSectionGap(TUITheme theme) {

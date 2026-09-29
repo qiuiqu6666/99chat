@@ -1,0 +1,130 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/pages/wallet/wallet_controller.dart:WalletController",
+    "name": "WalletController",
+    "kind": "Class",
+    "filePath": "lib/src/pages/wallet/wallet_controller.dart",
+    "startLine": 17,
+    "endLine": 169
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "calls": [
+      {
+        "uid": "Function:test/wallet_snapshot_local_test.dart:main",
+        "name": "main",
+        "filePath": "test/wallet_snapshot_local_test.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/wallet/wallet_screen.dart:_WalletScreenState.build#1",
+        "name": "build",
+        "filePath": "lib/src/pages/wallet/wallet_screen.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/wallet/withdraw_coin_picker_screen.dart:WithdrawCoinPickerScreen.build#1",
+        "name": "build",
+        "filePath": "lib/src/pages/wallet/withdraw_coin_picker_screen.dart"
+      }
+    ],
+    "imports": [
+      {
+        "uid": "File:lib/src/pages/wallet/wallet_screen.dart",
+        "name": "wallet_screen.dart",
+        "filePath": "lib/src/pages/wallet/wallet_screen.dart"
+      },
+      {
+        "uid": "File:lib/src/pages/wallet/withdraw_coin_picker_screen.dart",
+        "name": "withdraw_coin_picker_screen.dart",
+        "filePath": "lib/src/pages/wallet/withdraw_coin_picker_screen.dart"
+      },
+      {
+        "uid": "File:test/wallet_snapshot_local_test.dart",
+        "name": "wallet_snapshot_local_test.dart",
+        "filePath": "test/wallet_snapshot_local_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/pages/wallet/wallet_controller.dart:WalletController.WalletController#2",
+        "name": "WalletController",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/wallet/wallet_controller.dart:WalletController._applySnapshot#1",
+        "name": "_applySnapshot",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/wallet/wallet_controller.dart:WalletController._onBalanceChanged#0",
+        "name": "_onBalanceChanged",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/wallet/wallet_controller.dart:WalletController._recoverPending#0",
+        "name": "_recoverPending",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/wallet/wallet_controller.dart:WalletController.dispose#0",
+        "name": "dispose",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/wallet/wallet_controller.dart:WalletController.load#1",
+        "name": "load",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Method:lib/src/pages/wallet/wallet_controller.dart:WalletController.toggleBal#0",
+        "name": "toggleBal",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/pages/wallet/wallet_controller.dart:WalletController._busy",
+        "name": "_busy",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/pages/wallet/wallet_controller.dart:WalletController._dead",
+        "name": "_dead",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/pages/wallet/wallet_controller.dart:WalletController._displayIdentity",
+        "name": "_displayIdentity",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/pages/wallet/wallet_controller.dart:WalletController._hasSnapshot",
+        "name": "_hasSnapshot",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/pages/wallet/wallet_controller.dart:WalletController._localStore",
+        "name": "_localStore",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/pages/wallet/wallet_controller.dart:WalletController._refreshAgain",
+        "name": "_refreshAgain",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/pages/wallet/wallet_controller.dart:WalletController._repo",
+        "name": "_repo",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      },
+      {
+        "uid": "Property:lib/src/pages/wallet/wallet_controller.dart:WalletController.coins",
+        "name": "coins",
+        "filePath": "lib/src/pages/wallet/wallet_controller.dart"
+      }
+    ]
+  },
+  "processes": []
+}

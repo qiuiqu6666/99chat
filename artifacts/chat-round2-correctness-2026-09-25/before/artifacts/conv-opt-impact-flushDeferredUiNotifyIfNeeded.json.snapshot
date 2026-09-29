@@ -1,0 +1,147 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.flushDeferredUiNotifyIfNeeded#1",
+    "name": "flushDeferredUiNotifyIfNeeded",
+    "type": "Method",
+    "filePath": "lib/src/chat_session/chat_session_controller.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 10,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "lower-bound",
+  "boundaries": [
+    "6 call sites invoking `flushDeferredUiNotifyIfNeeded` were dropped at index time because the receiver's type could not be established (e.g. an unresolved constructor, factory or chained expression). Those callers are absent from this result — actual impact may be higher."
+  ],
+  "causes": {
+    "scopeExtractionFiles": 0,
+    "receiverTyping": 6,
+    "dispatchBoundary": 0,
+    "externalBoundary": 0,
+    "undecidedSatisfaction": 0,
+    "callableValueReferences": 0
+  },
+  "summary": {
+    "direct": 3,
+    "processes_affected": 0,
+    "modules_affected": 1
+  },
+  "byDepthCounts": {
+    "1": 3,
+    "2": 1,
+    "3": 6
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Chat_session",
+      "hits": 10,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._armActiveChatUiNotifyMaxDefer#0",
+        "name": "_armActiveChatUiNotifyMaxDefer",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._armScrollUiNotifyMaxDefer#0",
+        "name": "_armScrollUiNotifyMaxDefer",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.patchConversationAfterChatLeave#2",
+        "name": "patchConversationAfterChatLeave",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._notifyControllerProjection#2",
+        "name": "_notifyControllerProjection",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._flushDeferredPinReorder#0",
+        "name": "_flushDeferredPinReorder",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._onTabStoreChanged#0",
+        "name": "_onTabStoreChanged",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._scheduleCoalescedNotify#1",
+        "name": "_scheduleCoalescedNotify",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController._scheduleTabStoreNotify#0",
+        "name": "_scheduleTabStoreNotify",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.endSuppressNotify#0",
+        "name": "endSuppressNotify",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 3,
+        "id": "Method:lib/src/chat_session/chat_session_controller.dart:ChatSessionController.notifyIfAllowedForTest#1",
+        "name": "notifyIfAllowedForTest",
+        "filePath": "lib/src/chat_session/chat_session_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,23 @@
+Future<OpenHydrateResult>? _findOpenHydrateInFlight(String conversationID) {
+    final trimmed = conversationID.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final direct = _openHydrateInFlightByConv[trimmed];
+    if (direct != null) {
+      return direct;
+    }
+    final normalized = _normalizeConversationID(trimmed);
+    if (normalized.isNotEmpty) {
+      final byNorm = _openHydrateInFlightByConv[normalized];
+      if (byNorm != null) {
+        return byNorm;
+      }
+    }
+    for (final entry in _openHydrateInFlightByConv.entries) {
+      if (_isSameConversationID(entry.key, trimmed)) {
+        return entry.value;
+      }
+    }
+    return null;
+  }

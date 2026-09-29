@@ -405,6 +405,17 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
   void _applyWalletPayloadInPlace(Map<String, dynamic> data) {
     final prevData = _walletData;
     _walletData = data;
+    final stateChanged = prevData != null &&
+        ('${prevData['cardStateVersion']}' != '${data['cardStateVersion']}' ||
+            '${prevData['status']}' != '${data['status']}' ||
+            '${prevData['remainingCount']}' != '${data['remainingCount']}');
+    if (stateChanged) {
+      // IM changes invalidate display caches; the wallet API remains authoritative,
+      // including the current user's own claimed state.
+      _invalidateWalletCardCache(data);
+      _scheduleWalletQuietRefresh(data);
+      return;
+    }
     final card = _walletCard;
     if (card == null || !card.ok || card.invalid) {
       return;
@@ -414,7 +425,7 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
         ? card
         : retainWalletCardDisplayAmount(
             next: card.copyWith(
-              status: local.status,
+              status: card.status,
               amount: local.amount.isNotEmpty ? local.amount : card.amount,
               coin: local.coin.isNotEmpty ? local.coin : card.coin,
               msg: local.msg.isNotEmpty ? local.msg : card.msg,
@@ -581,6 +592,10 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
     int attempt = 0,
   }) {
     if (!mounted || _walletCacheKey != cacheKey) return;
+    if ('${data['cardStateVersion']}' !=
+        '${_walletData?['cardStateVersion']}') {
+      return;
+    }
     final globalModel = Provider.of<TUIChatGlobalModel>(context, listen: false);
     if (!isFirstPaint && globalModel.isChatListUserScrolling && attempt < 12) {
       Future<void>.delayed(const Duration(milliseconds: 120), () {
@@ -671,6 +686,12 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
       );
     } finally {
       _walletQuietRefreshInFlight = false;
+      final latest = _walletData;
+      if (mounted && latest != null &&
+          '${latest['cardStateVersion']}' != '${data['cardStateVersion']}') {
+        _invalidateWalletCardCache(latest);
+        _scheduleWalletQuietRefresh(latest);
+      }
     }
   }
 
@@ -722,14 +743,9 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
     required Map<String, dynamic> data,
     WalletOrderCardDto? previous,
   }) {
-    if (!secured.invalid) return secured;
-    if (previous != null && previous.ok && !previous.invalid) {
-      return previous;
-    }
-    if (!(widget.message.isSelf ?? false)) {
-      return null;
-    }
-    return _walletLocalCardFromData(data);
+    // A backend rejection or identity mismatch overrides any previously visible
+    // local shell, including our own message. Cached appearance is not proof.
+    return secured;
   }
 
   void _scheduleWalletInvalidRetry(Map<String, dynamic> data) {
@@ -1527,6 +1543,11 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
             '',
       };
       for (final key in const [
+        'cardStateVersion',
+        'remainingCount',
+        'remainingAmount',
+        'packetStatus',
+        'expiresAt',
         'packetCount',
         'count',
         'cnt',

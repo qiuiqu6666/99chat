@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-27T19:10:10.151502+00:00",
+  "head": "0e7aa83bc5b096a99ff8bb424842404a3c901cb7",
+  "files": [
+    {
+      "path": "lib/src/services/friend_realtime_service.dart",
+      "sha256": "e060aa73f9ae5619887e48b29f041b7ec4aecf7603c5805f3276ce62b8b02dd5"
+    },
+    {
+      "path": "lib/src/services/livekit_call_session.dart",
+      "sha256": "d6d5dbc715f4569f4b3cf1653f798ef84bd5aaec7ee4df23d5261d13ec342217"
+    },
+    {
+      "path": "lib/src/services/im_sdk_relationship_directory.dart",
+      "sha256": "5d2d4fc28a5386a7a3b644f52af8fada8d5fd3630db5771b111c6e8ea0a444f0"
+    },
+    {
+      "path": "lib/src/services/friend_local/contacts_protocol_sync_service.dart",
+      "sha256": "97e40ccd53761ce13d65b01d7ba2e473139b65f0d7b47112d5dfb8ce7ace5643"
+    },
+    {
+      "path": "lib/src/services/history_window_store.dart",
+      "sha256": "144b04c0f18c73c155b3e9b48795ccdaef4fb433dd98a45638fca68462d0dd08"
+    },
+    {
+      "path": "lib/src/services/im/message_persist_coordinator.dart",
+      "sha256": "8cec05277ccf38a2f71f83d64b4a350ba061dbebe3f35c51b27f40e132f47ba4"
+    },
+    {
+      "path": "lib/src/pages/wallet/wallet_controller.dart",
+      "sha256": "62529b57008900379fed0314802327db70c06bbd1aa22099a15475787950d345"
+    },
+    {
+      "path": "lib/src/pages/wallet/wallet_screen.dart",
+      "sha256": "ddd021957aa85725b2528d41b4f136cc8ff8fb0a759ed6fdb2183584287012d8"
+    },
+    {
+      "path": "lib/src/services/startup_perf_log.dart",
+      "sha256": "a97751d1ef1af656f1d5bfc78f8d95fc160db941a68aafec824ea28cb9c119c8"
+    }
+  ]
+}

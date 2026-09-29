@@ -1,0 +1,73 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/services/chat_viewport/open_viewport_cache.dart:OpenViewportCache.prepareVisible#3",
+    "name": "prepareVisible",
+    "kind": "Method",
+    "filePath": "lib/src/services/chat_viewport/open_viewport_cache.dart",
+    "startLine": 116,
+    "endLine": 120
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/services/chat_viewport/open_viewport_cache.dart:OpenViewportCache",
+        "name": "OpenViewportCache",
+        "filePath": "lib/src/services/chat_viewport/open_viewport_cache.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/chat_open_perf_log.dart:ChatOpenPerfLog.mark#4",
+        "name": "mark",
+        "filePath": "lib/src/services/chat_open_perf_log.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_viewport/chat_viewport_readiness.dart:ChatViewportReadiness.takeNewestContiguous#2",
+        "name": "takeNewestContiguous",
+        "filePath": "lib/src/services/chat_viewport/chat_viewport_readiness.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_viewport/open_viewport_cache.dart:OpenViewportCache.invalidate#1",
+        "name": "invalidate",
+        "filePath": "lib/src/services/chat_viewport/open_viewport_cache.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_viewport/open_viewport_cache.dart:OpenViewportCache.peek#1",
+        "name": "peek",
+        "filePath": "lib/src/services/chat_viewport/open_viewport_cache.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_viewport/open_viewport_cache.dart:OpenViewportCache.put#2",
+        "name": "put",
+        "filePath": "lib/src/services/chat_viewport/open_viewport_cache.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService.canPeek#1",
+        "name": "canPeek",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_peek_service.dart:ConversationPeekService.loadLocalForChatEntry#1",
+        "name": "loadLocalForChatEntry",
+        "filePath": "lib/src/services/conversation_peek_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/utils/conversation_preview_history_sync.dart:ConversationPreviewHistorySync.conversationMessageCacheKey#1",
+        "name": "conversationMessageCacheKey",
+        "filePath": "lib/src/utils/conversation_preview_history_sync.dart"
+      }
+    ],
+    "accesses": [
+      {
+        "uid": "Property:lib/src/services/chat_viewport/chat_viewport_models.dart:ChatOpenViewportResult.isViewportReady",
+        "name": "isViewportReady",
+        "filePath": "lib/src/services/chat_viewport/chat_viewport_models.dart"
+      }
+    ]
+  },
+  "processes": []
+}

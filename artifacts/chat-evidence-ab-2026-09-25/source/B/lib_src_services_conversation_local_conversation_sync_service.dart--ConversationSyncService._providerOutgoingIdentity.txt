@@ -1,0 +1,21 @@
+OutgoingIdentityContract? _providerOutgoingIdentity(
+    EventEnvelope<dynamic> event, {
+    required SessionIdentity identity,
+  }) {
+    if (event.kind != ImEventKind.realtimeMessage &&
+        event.kind != ImEventKind.messageMutation) {
+      return null;
+    }
+    final payload = event.payload;
+    final scope = event.scope;
+    if (payload is! V2TimMessage ||
+        payload.isSelf != true ||
+        scope == null ||
+        scope.ownerUserId != identity.ownerUserId) {
+      return null;
+    }
+    return OutgoingIdentityContract.fromCloudCustomData(
+      payload.cloudCustomData,
+      scope: scope,
+    );
+  }

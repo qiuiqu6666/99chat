@@ -1,0 +1,77 @@
+Future<V2TimValueCallback<V2TimMessage>?> _performFailedMessageResend({
+    required V2TimMessage message,
+    required String convID,
+    required ConvType convType,
+    required bool Function() canResend,
+  }) async {
+
+    if (isWalletCardMessage(message)) {
+      serviceLocator<CoreServicesImpl>().callOnCallback(
+        TIMCallback(
+          type: TIMCallbackType.INFO,
+          infoRecommendText: TIM_t("钱包消息不可转发"),
+        ),
+      );
+      return null;
+    }
+    final clientId = message.id?.trim() ?? '';
+    final msgID = message.msgID?.trim() ?? '';
+    _clearOutgoingMediaCancelled(clientId);
+    _clearOutgoingMediaCancelled(msgID);
+    final localPath = TencentUtils.checkString(
+          globalModel.getFileMessageLocation(clientId),
+        ) ??
+        TencentUtils.checkString(globalModel.getFileMessageLocation(msgID));
+    if (localPath != null) {
+      switch (message.elemType) {
+        case MessageElemType.V2TIM_ELEM_TYPE_IMAGE:
+          message.imageElem?.path = localPath;
+          break;
+        case MessageElemType.V2TIM_ELEM_TYPE_VIDEO:
+          message.videoElem?.videoPath = localPath;
+          break;
+        case MessageElemType.V2TIM_ELEM_TYPE_SOUND:
+          message.soundElem?.path = localPath;
+          break;
+        case MessageElemType.V2TIM_ELEM_TYPE_FILE:
+          message.fileElem?.path = localPath;
+          break;
+      }
+    }
+    final recreated = await recreateOutgoingMessage(_messageService, message);
+    final recreatedId = recreated?.id?.trim() ?? '';
+    final recreatedMessage = recreated?.messageInfo;
+    if (recreatedId.isEmpty || recreatedMessage == null || !canResend()) {
+      return null;
+    }
+    _removeOutgoingMessage(
+      convID: convID,
+      clientId: clientId.isEmpty ? null : clientId,
+      msgID: msgID.isEmpty ? null : msgID,
+    );
+    if (msgID.isNotEmpty) {
+      try {
+        await _messageService.deleteMessageFromLocalStorage(
+          msgID: msgID,
+          webMessageInstance: message.messageFromWeb,
+        );
+      } catch (_) {}
+    }
+    final outgoing = tools.setUserInfoForMessage(recreatedMessage, recreatedId);
+    applyOutgoingStableIdToMessage(outgoing, recreatedId);
+    outgoing.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+    addSendingMessageID(recreatedId);
+    _prependOutgoingMessageForConversation(
+      convID,
+      outgoing,
+      skipEnterAnimation: true,
+    );
+    return _sendMessage(
+      id: recreatedId,
+      convID: convID,
+      convType: convType,
+      messageInfo: outgoing,
+      cloudCustomData: TencentUtils.checkString(outgoing.cloudCustomData),
+      offlinePushInfo: tools.buildMessagePushInfo(outgoing, convID, convType),
+    );
+  }

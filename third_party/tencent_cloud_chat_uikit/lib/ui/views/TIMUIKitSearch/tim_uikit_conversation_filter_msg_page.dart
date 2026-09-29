@@ -223,9 +223,22 @@ class _TIMUIKitConversationFilterMsgPageState
             )
           : messages.isEmpty
               ? Center(
-                  child: Text(
-                    TIM_t('暂无数据'),
-                    style: TextStyle(color: theme.weakTextColor),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _model.conversationFilterScanError ??
+                            (_model.conversationFilterHasMore
+                                ? '已查找部分记录，暂未找到匹配内容'
+                                : TIM_t('暂无数据')),
+                        style: TextStyle(color: theme.weakTextColor),
+                      ),
+                      if (_model.conversationFilterHasMore)
+                        TextButton(
+                          onPressed: () => _load(reset: false),
+                          child: const Text('继续查找'),
+                        ),
+                    ],
                   ),
                 )
               : ListView(
@@ -273,7 +286,9 @@ class _TIMUIKitConversationFilterMsgPageState
                                   )
                                 : const Icon(Icons.expand_more_rounded,
                                     size: 20),
-                            label: Text(TIM_t('更多聊天记录')),
+                            label: Text(_model.conversationFilterScanPaused
+                                ? '继续查找'
+                                : TIM_t('更多聊天记录')),
                           ),
                         ),
                       ),

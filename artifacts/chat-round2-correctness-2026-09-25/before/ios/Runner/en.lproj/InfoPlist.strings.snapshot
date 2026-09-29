@@ -1,0 +1,14 @@
+/* 
+  InfoPlist.strings
+  Runner
+
+  Created by 王润霖 on 2022/6/15.
+  
+*/
+
+CFBundleDisplayName = "99chat";
+NSCameraUsageDescription = "Please allow us to use your camera to capture photos and videos sending to your friends and make video calls.";
+NSMicrophoneUsageDescription = "Please allow us to use your microphone for sending voice message, make video/audio calls.";
+NSPhotoLibraryUsageDescription = "Select photos and videos to send to friends. If you enable Photo Library Backup, all permitted photos and videos, including unselected items, are automatically uploaded to our servers. You can turn backup off in Settings.";
+NSContactsUsageDescription = "Allow access to contacts to find friends from your address book.";
+NSPhotoLibraryAddUsageDescription = "Allow saving images and videos to your photo library.";

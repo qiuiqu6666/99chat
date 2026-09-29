@@ -1,0 +1,53 @@
+[
+  {
+    "target": {
+      "id": "Class:lib/src/services/im/im_ingress_store_platform_web.dart:WebImIngressStore",
+      "name": "WebImIngressStore",
+      "type": "Class",
+      "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart"
+    },
+    "direction": "upstream",
+    "impactedCount": 1,
+    "risk": "LOW",
+    "riskSharedAxes": "LOW",
+    "riskScale": {
+      "comparableAcrossKinds": true,
+      "unusedAxes": []
+    },
+    "epistemic": "lower-bound",
+    "boundaries": [
+      "ImIngressStore is an interface with 4 implementations; callers that bind via the interface (e.g. a DI container or dynamic dispatch) are not traced to the concrete symbol — actual impact may be higher."
+    ],
+    "causes": {
+      "scopeExtractionFiles": 0,
+      "receiverTyping": 0,
+      "dispatchBoundary": 4,
+      "externalBoundary": 0,
+      "undecidedSatisfaction": 0,
+      "callableValueReferences": 0
+    },
+    "summary": {
+      "direct": 1,
+      "processes_affected": 0,
+      "modules_affected": 0
+    },
+    "byDepthCounts": {
+      "1": 1
+    },
+    "affected_processes": [],
+    "affected_modules": [],
+    "byDepth": {
+      "1": [
+        {
+          "depth": 1,
+          "id": "Function:lib/src/services/im/im_ingress_store_platform_web.dart:createPlatformImIngressStore",
+          "name": "createPlatformImIngressStore",
+          "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ]
+    }
+  }
+]

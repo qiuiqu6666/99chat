@@ -1,0 +1,30 @@
+@override
+  void deactivate() {
+    final route = ModalRoute.of(context);
+    final globalModel = serviceLocator<TUIChatGlobalModel>();
+    final leaveId = _resolvedConversationID();
+    OutgoingVisibleProbe.log(
+      'chat_deactivate',
+      conversationID: leaveId,
+      extras: <String, Object?>{
+        'routeCurrent': route?.isCurrent,
+        'mediaPreview': globalModel.isMediaPreviewOverlayOpen,
+        'walletOverlay': globalModel.isWalletOverlayOpen,
+        'pickerOverlay': globalModel.isMediaPickerOverlayOpen,
+        ...OutgoingVisibleProbe.trackedInList(
+          globalModel.rawMessageList(leaveId),
+        ),
+      },
+    );
+    if (route != null &&
+        !route.isCurrent &&
+        !globalModel.isMediaPreviewOverlayOpen &&
+        !globalModel.isWalletOverlayOpen &&
+        !globalModel.isMediaPickerOverlayOpen) {
+      // 被资料/代理页盖住：栈内仍开着 Chat，只标不可见，不 leave、不清未读、不交还列表。
+      ActiveChatRegistry.instance.updateRouteVisible(false);
+      _dismissChatInput();
+      unawaited(_persistChatLocalDraft());
+    }
+    super.deactivate();
+  }

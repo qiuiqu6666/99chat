@@ -1,0 +1,25 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":60276,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_dispatch_and_draft_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"suite":{"id":2,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_live_result_widget_test.dart"},"type":"suite","time":2}
+{"test":{"id":3,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_live_result_widget_test.dart","suiteID":2,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":2}
+{"count":2,"time":2,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":6090}
+{"group":{"id":4,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":5,"line":null,"column":null,"url":null},"type":"group","time":6091}
+{"test":{"id":5,"name":"two recovery coordinators invoke the SDK once; unknown outcome cannot redispatch","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":31,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_dispatch_and_draft_test.dart"},"type":"testStart","time":6091}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6125}
+{"test":{"id":6,"name":"matching local optimistic and failed SDK objects are not success evidence","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":61,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_dispatch_and_draft_test.dart"},"type":"testStart","time":6125}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6131}
+{"test":{"id":7,"name":"accepted A cannot erase a new identical-text B; old SDK write cannot restore A","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":98,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_dispatch_and_draft_test.dart"},"type":"testStart","time":6131}
+{"testID":7,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790285496350 conv=8cd90432dbeb draftLen=4 draftHash=0967115f2813 empty=false","type":"print","time":6147}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6147}
+{"test":{"id":8,"name":"one draft cannot be accepted by two operations; transaction rolls back second pair","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":139,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_dispatch_and_draft_test.dart"},"type":"testStart","time":6147}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6151}
+{"test":{"id":9,"name":"rejected prepared assessment does not accept or clear a new draft","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":156,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_dispatch_and_draft_test.dart"},"type":"testStart","time":6151}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6153}
+{"testID":3,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":9060}
+{"group":{"id":10,"suiteID":2,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":9060}
+{"test":{"id":11,"name":"already rendered failed UIKit row removes its real retry icon after committed success","suiteID":2,"groupIDs":[10],"metadata":{"skip":false,"skipReason":null},"line":174,"column":5,"url":"package:flutter_test/src/widget_tester.dart","root_line":26,"root_column":3,"root_url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_live_result_widget_test.dart"},"type":"testStart","time":9060}
+{"testID":11,"messageType":"print","message":"live-probe: stored=ImOutboxState.acknowledged row=2 effective=0","type":"print","time":9480}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":9481}
+{"success":true,"type":"done","time":9515}

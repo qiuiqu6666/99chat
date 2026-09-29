@@ -37,6 +37,8 @@ class IosApnsPushService {
   bool _installed = false;
   Future<void>? _syncTask;
   Future<void> Function()? _pendingTokenSync;
+  int _tokenSyncGeneration = 0;
+  bool _logoutBarrierActive = false;
   String? _lastSuccessfulSubmitKey;
   IosPushTapHandler? _onNotificationTap;
   IosPushTapHandler? _onVoipPush;
@@ -169,6 +171,7 @@ class IosApnsPushService {
   }
 
   Future<void> _startTokenSync(Future<void> Function() action) {
+    if (_logoutBarrierActive) return Future<void>.value();
     // Token/login callbacks arriving during an upload must get another pass.
     _pendingTokenSync = action;
     final running = _syncTask;
@@ -206,14 +209,31 @@ class IosApnsPushService {
     if (!Platform.isIOS) {
       return;
     }
+    await prepareForLogout();
     await _deleteServerTokenIfPossible(reason: 'logout');
     await clearLocalStateOnLogout();
+  }
+
+  /// Prevent a token POST from overtaking the logout DELETE. Any POST already
+  /// on the wire is allowed to settle first; callers then issue DELETE.
+  Future<void> prepareForLogout() async {
+    _logoutBarrierActive = true;
+    _tokenSyncGeneration++;
+    _pendingTokenSync = null;
+    final running = _syncTask;
+    if (running != null) await running;
+  }
+
+  /// Reopen token synchronization only after the next authenticated login.
+  void resumeTokenSyncAfterLogin() {
+    _logoutBarrierActive = false;
   }
 
   Future<void> clearLocalStateOnLogout() async {
     if (!Platform.isIOS) {
       return;
     }
+    await prepareForLogout();
     _cachedApnsToken = null;
     _cachedVoipToken = null;
     _lastSuccessfulSubmitKey = null;
@@ -438,7 +458,10 @@ class IosApnsPushService {
   }
 
   Future<void> _syncTokensOnce({required String reason}) async {
+    final syncGeneration = _tokenSyncGeneration;
+    if (!_isTokenSyncCurrent(syncGeneration)) return;
     await ApiClient.instance.ensureDeviceIdReady();
+    if (!_isTokenSyncCurrent(syncGeneration)) return;
     final authToken = ApiClient.instance.token;
     final credentialGeneration = ApiClient.instance.credentialGeneration;
     final ownerUserId = ApiClient.instance.authenticatedUserId;
@@ -473,6 +496,8 @@ class IosApnsPushService {
       } catch (_) {}
     }
 
+    if (!_isTokenSyncCurrent(syncGeneration)) return;
+
     if (apnsToken.isEmpty) {
       _trace('skip token sync: apns token empty reason=$reason');
       return;
@@ -506,7 +531,8 @@ class IosApnsPushService {
       return;
     }
 
-    if (ApiClient.instance.credentialGeneration != credentialGeneration) {
+    if (!_isTokenSyncCurrent(syncGeneration) ||
+        ApiClient.instance.credentialGeneration != credentialGeneration) {
       return;
     }
     try {
@@ -527,11 +553,13 @@ class IosApnsPushService {
       if (!result.ok) {
         throw const PushTokenApiException('PUSH_TOKEN_NOT_REGISTERED');
       }
-      if (ApiClient.instance.credentialGeneration != credentialGeneration) {
+      if (!_isTokenSyncCurrent(syncGeneration) ||
+          ApiClient.instance.credentialGeneration != credentialGeneration) {
         return;
       }
 
       if (voipToken.isNotEmpty && !result.hasVoipToken) {
+        if (!_isTokenSyncCurrent(syncGeneration)) return;
         final voipResult = await PushTokenApi.instance.registerVoipToken(
           token: voipToken,
           bundleId: bundleId.isNotEmpty ? bundleId : null,
@@ -541,7 +569,8 @@ class IosApnsPushService {
           throw const PushTokenApiException('VOIP_TOKEN_NOT_REGISTERED');
         }
       }
-      if (ApiClient.instance.credentialGeneration != credentialGeneration) {
+      if (!_isTokenSyncCurrent(syncGeneration) ||
+          ApiClient.instance.credentialGeneration != credentialGeneration) {
         return;
       }
       await PushTokenUploadLocalStore.instance.markSuccess(
@@ -550,7 +579,8 @@ class IosApnsPushService {
         platform: 'IOS',
         tokenKeyHash: tokenKeyHash,
       );
-      if (ApiClient.instance.credentialGeneration != credentialGeneration) {
+      if (!_isTokenSyncCurrent(syncGeneration) ||
+          ApiClient.instance.credentialGeneration != credentialGeneration) {
         return;
       }
       await prefs.setString(_lastSubmittedKey, submitKey);
@@ -566,6 +596,9 @@ class IosApnsPushService {
       }
     }
   }
+
+  bool _isTokenSyncCurrent(int generation) =>
+      !_logoutBarrierActive && generation == _tokenSyncGeneration;
 
   Future<void> _deleteServerTokenIfPossible({required String reason}) async {
     final authToken = ApiClient.instance.token;

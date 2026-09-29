@@ -149,6 +149,10 @@ void main() {
   test('relation shell stays unknown after disk reload and profile event',
       () async {
     await C2cFriendMessageGuard.refreshUiSnapshot(peer, forceNetwork: true);
+    // Permission lookups no longer author contact membership. Model an
+    // actual legacy/imported shell explicitly before checking its provenance.
+    expect(await friends.readByIds(friendUserIds: [peer]), isEmpty);
+    await friends.upsert(ownerUserId: owner, record: _legacyRelationShell(peer));
     await friends.closeIfOpen();
     final shell = (await friends.readByIds(friendUserIds: [peer])).single;
     expect(shell.remarkKnown, isFalse);
@@ -184,6 +188,8 @@ void main() {
 
   test('explicit clear of a relation shell persists in both stores', () async {
     await C2cFriendMessageGuard.refreshUiSnapshot(peer, forceNetwork: true);
+    expect(await friends.readByIds(friendUserIds: [peer]), isEmpty);
+    await friends.upsert(ownerUserId: owner, record: _legacyRelationShell(peer));
     await profiles.saveBackendProfile(userId: peer, nickname: 'Public Nick');
     DisplayNameStore.instance.setC2C(peer, 'Old Remark', notify: false);
     expect(
@@ -240,3 +246,13 @@ void main() {
         isTrue);
   });
 }
+
+MeFriendRecord _legacyRelationShell(String peer) => MeFriendRecord(
+    friendUserId: peer,
+    remark: '',
+    remarkKnown: false,
+    friendNickname: '',
+    friendAvatarUrl: '',
+    addedAt: 0,
+    peerDeletedMe: false,
+    canMessage: true);

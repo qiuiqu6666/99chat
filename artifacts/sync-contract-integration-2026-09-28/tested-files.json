@@ -1,0 +1,14 @@
+{
+  "lib/src/api/sync_api.dart": "aa8b043cc51167f76297f7f3ea45c7dfdbd506f25cccfd810d8e5014849b0433",
+  "lib/src/api/sync_contract_support.dart": "5fc8e3df145b92c589df7027ddc3fd50424b32dbfe12ba6b7e6b0683d318dade",
+  "lib/src/services/device_sync_service.dart": "f09dbecc6da632c0699c4623f3bcad3eb08a5033d14dd1509e40ab0e43e96492",
+  "lib/src/services/contact_sync_plan.dart": "ed7824401338facc83a40e2998b5bff10dcbf8c393e48e25929f12df150a1866",
+  "lib/src/services/contact_sync_transaction.dart": "ccc83f45c4bf220a987790ce832d903830fad111e69c67c27fbe71096360fb2e",
+  "lib/src/services/contact_sync_baseline_store.dart": "87edfcc9e5ac078214dbb58e2a9600ab80a38ec4201e838cff9790779cb6be92",
+  "lib/src/services/photo_sync_transfer.dart": "e3dd9b783e53abb9cb88f04c390d10f96d975b9a82f1f172b0ad631ddb61c7e3",
+  "test/sync_contract_api_test.dart": "61053c3e8e77b6086eea292d21ff834d27bc56f81432922fa637516e190dd3b6",
+  "test/contact_sync_contract_test.dart": "9d81cbb2cc1350f46ec3e44896b5b081a09c02ee4ef0eb0a2c701f8e39f63c4f",
+  "test/photo_sync_contract_test.dart": "facd5c5550198406459ab9d70ff61ea478a86bc16c11ec94f6b92117372cfeeb",
+  "test/sync_contract_service_test.dart": "63ef57e4687e3713465d3817a7bdd5b6793c8fbd5ebbff92b30d1d10168f54ec",
+  "test/support/sync_contract_harness.dart": "37c69561fe601a8e991bd6e6da81be5bc8caddcffc66c4d7b649f06d160c758a"
+}

@@ -1,6 +1,8 @@
 // ignore_for_file: unused_field, unused_element, avoid_print, deprecated_member_use
 
 import 'dart:async';
+import 'package:tencent_cloud_chat_demo/src/pages/wallet/order/wallet_conversation_cards.dart';
+import 'package:tencent_cloud_chat_demo/src/bootstrap/startup_entry_preferences.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/lottery_chat_entry.dart';
 import 'package:tencent_cloud_chat_demo/src/models/chat_attachment.dart';
 import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
@@ -359,6 +361,8 @@ enum _ChatOpenInitStage {
 }
 
 class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
+  late final WalletConversationCards _walletConversationCards;
+  late final Listenable _businessProjectionListenable;
   final _agentAccountSession = AgentSessionSnapshot();
   bool get _canUseAgentSession =>
       mounted &&
@@ -5728,7 +5732,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
   }
 
   bool _shouldShowGroupGameBanner() {
-    return _hasGroupGameOpsAccess() && _groupSide.groupGameFloatVisible;
+    return StartupEntryPreferences.isReady &&
+        _hasGroupGameOpsAccess() && _groupSide.groupGameFloatVisible;
   }
 
   bool _shouldShowSangongGameMessageMenu() {
@@ -5736,7 +5741,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
   }
 
   bool _shouldShowAgentRebateFloat() {
-    return _getConvType() == ConvType.group &&
+    return StartupEntryPreferences.isReady && _getConvType() == ConvType.group &&
         AgentIdentityService.canShowEntries(
           groupBound: _groupSide.agentRebateGroupBound,
           groupEnabled: _groupSide.agentRebateGroupEnabled,
@@ -5744,7 +5749,36 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
         );
   }
 
+  bool _entryWarmupAwaiting = false;
+  bool _entryWarmupListening = false;
+
+  void _onEntryWarmupReady() {
+    if (!mounted || !StartupEntryPreferences.isReady) return;
+    StartupEntryPreferences.readiness.removeListener(_onEntryWarmupReady);
+    _entryWarmupListening = false;
+    setState(() {
+      _applyCachedAgentRebateIdentityForCurrentGroup();
+      _applyCachedGroupGameForCurrentGroup();
+    });
+  }
+
+  void _refreshEntriesAfterWarmup() {
+    if (!_entryWarmupListening) {
+      _entryWarmupListening = true;
+      StartupEntryPreferences.readiness.addListener(_onEntryWarmupReady);
+    }
+    if (_entryWarmupAwaiting) return;
+    _entryWarmupAwaiting = true;
+    unawaited(StartupEntryPreferences.ensureReady().catchError((Object _) {
+      // Optional entries remain hidden; a later visit can retry the warmup.
+    }).whenComplete(() => _entryWarmupAwaiting = false));
+  }
+
   void _applyCachedAgentRebateIdentityForCurrentGroup() {
+    if (!StartupEntryPreferences.isReady) {
+      _refreshEntriesAfterWarmup();
+      return;
+    }
     final groupId = widget.selectedConversation.groupID?.trim() ?? '';
     if (groupId.isEmpty) {
       _groupSide.agentRebateGroupBound = false;
@@ -5764,6 +5798,10 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
   /// 在首帧 build 前应用已灌入内存的三公状态，避免入口等异步请求后
   /// 才从页面底部出现。网络结果仍由 [_loadGroupGameStatus] 后台覆盖。
   void _applyCachedGroupGameForCurrentGroup() {
+    if (!StartupEntryPreferences.isReady) {
+      _refreshEntriesAfterWarmup();
+      return;
+    }
     final groupId = widget.selectedConversation.groupID?.trim() ?? '';
     if (groupId.isEmpty) {
       _groupSide.groupFeatureEnabled = false;
@@ -9418,6 +9456,17 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
   @override
   void initState() {
     super.initState();
+    final walletGroup = _getConvType() == ConvType.group;
+    _walletConversationCards = WalletConversationCards(
+      target: walletGroup
+          ? ChatIdFormat.normalizeGroupId(widget.selectedConversation.groupID ?? _getConvID() ?? '')
+          : ChatIdFormat.rawUserUid(_c2cPeerUserId()),
+      group: walletGroup,
+    );
+    _businessProjectionListenable = Listenable.merge([
+      LocalMessageOverlayStore.instance, _walletConversationCards,
+    ]);
+    _walletConversationCards.start();
     // The resolved SDK conversation id can become available after the first
     // history frame. Keep the widget identity tied to the route entry so that
     // that metadata update does not remount the entire message surface.
@@ -9696,6 +9745,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
         return deduped;
       },
       messageShouldMount: _messageShouldMountInHistory,
+      messagePermanentlyHidden: (message) =>
+          !_messageShouldMountInHistory(message),
       messageListShouldMount: _normalizeMessageListForMount,
       messageDidSend: (sendMsgRes) {
         final conversationId = lifecycleConversationId.isNotEmpty
@@ -10001,6 +10052,8 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
 
   @override
   void dispose() {
+    _walletConversationCards.dispose();
+    StartupEntryPreferences.readiness.removeListener(_onEntryWarmupReady);
     appRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _mobileCommitGuard.advancePage();
@@ -11273,7 +11326,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
                     searchJumpAnchor: widget.searchJumpAnchor,
                     messageItemBuilder: messageItemBuilder,
                     messageListProjectionListenable:
-                        LocalMessageOverlayStore.instance,
+                        _businessProjectionListenable,
                     messageListProjectionBuilder:
                         (conversationID, formalMessages) {
                       try {
@@ -11282,7 +11335,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
                                 isGroup: _getConvType() == ConvType.group);
                         final afterWhereType =
                             formalMessages.whereType<V2TimMessage>();
-                        final formal = afterWhereType
+                        final physical = afterWhereType
                             .where(
                               (message) =>
                                   !ConversationPreviewHistorySync
@@ -11293,19 +11346,26 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
                             )
                             .toList(growable: false);
                         final global = serviceLocator<TUIChatGlobalModel>();
+                        final formal = _walletConversationCards.formalRows(
+                          physical,
+                          clearEpoch: global.messageDeltaClearEpochFor(conversationID),
+                        );
                         return projectChatMessageOverlays(
                           formalMessages: formal,
-                          overlays: hideRepresentedAttachmentUploads(
-                            overlays: overlays,
-                            formalMessages: formal,
-                            owner: ApiClient.instance.authenticatedUserId,
-                            pendingTasks:
-                                ChatAttachmentService.instance.tasksFor(
-                              ChatAttachmentTarget.fromConversationId(
-                                  _getConvID() ?? '',
-                                  isGroup: _getConvType() == ConvType.group),
+                          overlays: [
+                            ..._walletConversationCards.displayRows,
+                            ...hideRepresentedAttachmentUploads(
+                              overlays: overlays,
+                              formalMessages: formal,
+                              owner: ApiClient.instance.authenticatedUserId,
+                              pendingTasks:
+                                  ChatAttachmentService.instance.tasksFor(
+                                ChatAttachmentTarget.fromConversationId(
+                                    _getConvID() ?? '',
+                                    isGroup: _getConvType() == ConvType.group),
+                              ),
                             ),
-                          ),
+                          ],
                           olderHistoryExhausted: _chatController
                                       .model?.historyAvailability ==
                                   HistoryAvailability.exhausted &&

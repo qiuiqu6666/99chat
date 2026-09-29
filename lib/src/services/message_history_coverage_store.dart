@@ -501,8 +501,10 @@ class MessageHistoryCoverageStore implements MessageHistoryCoverageRepository {
     final opening = _dbOpenInFlight;
     if (opening != null) {
       try {
-        await opening.timeout(const Duration(milliseconds: 400));
-      } catch (_) {}
+        await opening;
+      } on SqfliteClosedForBackground {
+        // A late handle has already completed its real native close.
+      }
     }
     final db = _db;
     _db = null;

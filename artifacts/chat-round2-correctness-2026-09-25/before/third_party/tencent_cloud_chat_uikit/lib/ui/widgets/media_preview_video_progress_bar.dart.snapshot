@@ -1,0 +1,415 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_videoplayer.dart';
+
+/// 全屏视频预览底部可拖动进度条（与顶部/底部菜单同步显隐）。
+class MediaPreviewVideoProgressBar extends StatefulWidget {
+  const MediaPreviewVideoProgressBar({
+    super.key,
+    required this.playerKey,
+    this.attachmentChanges,
+    this.embedded = false,
+    this.enabled = true,
+    this.onScrubbingChanged,
+  });
+
+  final GlobalKey<TIMUIKitVideoPlayerState> playerKey;
+  final Listenable? attachmentChanges;
+  final bool embedded;
+  final bool enabled;
+  final ValueChanged<bool>? onScrubbingChanged;
+
+  @override
+  State<MediaPreviewVideoProgressBar> createState() =>
+      _MediaPreviewVideoProgressBarState();
+}
+
+class _MediaPreviewVideoProgressBarState
+    extends State<MediaPreviewVideoProgressBar> with WidgetsBindingObserver {
+  dynamic _controller;
+  bool _isDragging = false;
+  double _dragValue = 0;
+  bool _canShowProgress = false;
+  Timer? _attachTimer;
+  bool _visible = false;
+  bool _foreground = true;
+  bool get _active => mounted && _visible && _foreground && widget.enabled;
+  DateTime? _lastTickRebuild;
+  int _seekGeneration = 0;
+  Future<void>? _pauseForSeek;
+
+  static const Duration _progressRebuildInterval = Duration(milliseconds: 100);
+
+  bool _isInitialized(dynamic controller) {
+    final value = controller?.value;
+    if (value == null) {
+      return false;
+    }
+    try {
+      if (value.initialized == true) {
+        return true;
+      }
+    } catch (_) {}
+    try {
+      return value.isInitialized == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Duration _durationOf(dynamic controller) =>
+      controller?.value.duration ?? Duration.zero;
+
+  Duration _positionOf(dynamic controller) =>
+      controller?.value.position ?? Duration.zero;
+
+  bool _computeCanShow(dynamic controller) {
+    if (controller == null || !_isInitialized(controller)) {
+      return false;
+    }
+    return _durationOf(controller) > Duration.zero;
+  }
+
+  /// 根据当前 controller 刷新「能否展示」；有变化则 setState。
+  void _syncCanShow() {
+    final next = _computeCanShow(_controller);
+    if (next == _canShowProgress) {
+      return;
+    }
+    if (!mounted) {
+      _canShowProgress = next;
+      return;
+    }
+    setState(() => _canShowProgress = next);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    _foreground = lifecycle == null || lifecycle == AppLifecycleState.resumed;
+    widget.attachmentChanges?.addListener(_attachmentChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _visible = TickerMode.valuesOf(context).enabled &&
+        (ModalRoute.of(context)?.isCurrent ?? true);
+    _updateActivity();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _updateActivity();
+  }
+
+  void _updateActivity() {
+    _attachTimer?.cancel();
+    if (_active) {
+      _startAttachPolling();
+    } else {
+      _detachController();
+      _isDragging = false;
+    }
+  }
+
+  void _attachmentChanged() {
+    if (!_active) return;
+    _attachController();
+    _syncCanShow();
+  }
+
+  @override
+  void didUpdateWidget(covariant MediaPreviewVideoProgressBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.attachmentChanges != widget.attachmentChanges) {
+      oldWidget.attachmentChanges?.removeListener(_attachmentChanged);
+      widget.attachmentChanges?.addListener(_attachmentChanged);
+    }
+    if (oldWidget.playerKey != widget.playerKey) {
+      _detachController();
+      _canShowProgress = false;
+      _startAttachPolling();
+    }
+    if (oldWidget.enabled != widget.enabled) _updateActivity();
+  }
+
+  void _startAttachPolling() {
+    _attachTimer?.cancel();
+    if (!_active) return;
+    _attachController();
+    _syncCanShow();
+    // Production hosts notify on initialization. Legacy callers get a bounded
+    // fallback, which stops once a controller (even zero-duration) is attached.
+    if (_controller != null || widget.attachmentChanges != null) return;
+    var attempts = 0;
+    _attachTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (!_active || ++attempts >= 40) {
+        _attachTimer?.cancel();
+        return;
+      }
+      _attachController();
+      _syncCanShow();
+      if (_controller != null) _attachTimer?.cancel();
+    });
+  }
+
+  void _attachController() {
+    final next = widget.playerKey.currentState?.playbackController;
+    if (next == _controller) {
+      return;
+    }
+    _detachController();
+    _controller = next;
+    _controller?.addListener(_onPlaybackTick);
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _detachController() {
+    if (_isDragging && mounted) {
+      // Dependency changes may occur during build. Release the chrome's
+      // interaction lock after that frame, unless a new drag has started.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isDragging) widget.onScrubbingChanged?.call(false);
+      });
+    }
+    _seekGeneration++;
+    _isDragging = false;
+    _pauseForSeek = null;
+    _controller?.removeListener(_onPlaybackTick);
+    _controller = null;
+  }
+
+  void _onPlaybackTick() {
+    if (!_active || _isDragging) {
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastTickRebuild != null &&
+        now.difference(_lastTickRebuild!) < _progressRebuildInterval) {
+      // 节流期间仍同步「能否展示」，避免漏掉 initialized 跳变。
+      final next = _computeCanShow(_controller);
+      if (next != _canShowProgress) {
+        _lastTickRebuild = now;
+        setState(() => _canShowProgress = next);
+      }
+      return;
+    }
+    _lastTickRebuild = now;
+    final next = _computeCanShow(_controller);
+    setState(() => _canShowProgress = next);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    widget.attachmentChanges?.removeListener(_attachmentChanged);
+    _attachTimer?.cancel();
+    _detachController();
+    super.dispose();
+  }
+
+  String _formatDuration(Duration duration) {
+    final totalSeconds = duration.inSeconds;
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+    final mm = minutes.toString().padLeft(2, '0');
+    final ss = seconds.toString().padLeft(2, '0');
+    if (hours > 0) {
+      return '$hours:$mm:$ss';
+    }
+    return '$mm:$ss';
+  }
+
+  double _progressFor(Duration position, Duration duration) {
+    if (duration.inMilliseconds <= 0) {
+      return 0;
+    }
+    return (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
+  }
+
+  double? _bufferedProgress(Duration duration) {
+    try {
+      final ranges = _controller?.value.buffered as Iterable?;
+      if (ranges == null || ranges.isEmpty) return null;
+      var end = Duration.zero;
+      for (final range in ranges) {
+        final rangeEnd = range.end as Duration;
+        if (rangeEnd > end) end = rangeEnd;
+      }
+      return _progressFor(end, duration);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _startSeek(double value) {
+    _seekGeneration++;
+    setState(() {
+      _isDragging = true;
+      _dragValue = value;
+    });
+    widget.onScrubbingChanged?.call(true);
+    // Serialize pause → seek → resume, including slow native controller calls.
+    _pauseForSeek = Future<void>.sync(() async {
+      await _controller?.pause();
+    }).catchError((Object _) {});
+  }
+
+  Future<void> _finishSeek(double value, Duration duration) async {
+    final player = widget.playerKey.currentState;
+    final controller = _controller;
+    final generation = _seekGeneration;
+    bool isCurrent() =>
+        _active &&
+        generation == _seekGeneration &&
+        identical(controller, _controller) &&
+        identical(player, widget.playerKey.currentState);
+    try {
+      await _pauseForSeek;
+      if (!isCurrent()) return;
+      await player?.seekPlaybackTo(Duration(
+        milliseconds: (value * duration.inMilliseconds).round(),
+      ));
+      if (!isCurrent()) return;
+      player?.resumePlayback();
+    } finally {
+      if (mounted && generation == _seekGeneration) {
+        setState(() => _isDragging = false);
+        widget.onScrubbingChanged?.call(false);
+      }
+    }
+  }
+
+  Future<void> _cyclePlaybackSpeed() async {
+    final player = widget.playerKey.currentState;
+    if (!widget.enabled || player == null) return;
+    const speeds = <double>[1.0, 1.5, 2.0];
+    final currentIndex = speeds.indexOf(player.playbackSpeed);
+    final nextSpeed = speeds[(currentIndex + 1) % speeds.length];
+    await player.setPlaybackSpeed(nextSpeed);
+    if (mounted && identical(player, widget.playerKey.currentState)) {
+      setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    final ready =
+        _canShowProgress && controller != null && _isInitialized(controller);
+    if (!ready && !widget.embedded) {
+      return const SizedBox.shrink();
+    }
+
+    final duration = ready ? _durationOf(controller) : Duration.zero;
+    final position = ready ? _positionOf(controller) : Duration.zero;
+    final sliderValue =
+        _isDragging ? _dragValue : _progressFor(position, duration);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    const timeShadow = <Shadow>[
+      Shadow(color: Colors.black, blurRadius: 2),
+      Shadow(
+        color: Color(0xCC000000),
+        blurRadius: 4,
+        offset: Offset(0, 1),
+      ),
+    ];
+
+    final currentTime = _formatDuration(
+      _isDragging
+          ? Duration(
+              milliseconds: (sliderValue * duration.inMilliseconds).round(),
+            )
+          : position,
+    );
+    final totalTime = _formatDuration(duration);
+    final speed = widget.playerKey.currentState?.playbackSpeed ?? 1.0;
+    final timeline = SizedBox(
+      height: 44,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Text(
+                '$currentTime / $totalTime',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                  shadows: timeShadow,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                key: const ValueKey('video-playback-speed'),
+                onPressed: ready && widget.enabled
+                    ? () => unawaited(_cyclePlaybackSpeed())
+                    : null,
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  disabledForegroundColor: Colors.white38,
+                  minimumSize: const Size(48, 28),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  '${speed.toStringAsFixed(1)}×',
+                  style: const TextStyle(fontSize: 13, shadows: timeShadow),
+                ),
+              ),
+            ],
+          ),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: widget.embedded ? 2 : 3,
+                thumbShape: RoundSliderThumbShape(
+                    enabledThumbRadius: _isDragging ? 7 : 4),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+                activeTrackColor: Colors.white,
+                inactiveTrackColor: const Color(0xFF303030),
+                secondaryActiveTrackColor: const Color(0xFF48484A),
+                disabledActiveTrackColor: Colors.white38,
+                disabledInactiveTrackColor: Colors.white24,
+                thumbColor: Colors.white,
+                overlayColor: Colors.white12,
+              ),
+              child: Slider(
+                value: sliderValue,
+                secondaryTrackValue: ready ? _bufferedProgress(duration) : null,
+                semanticFormatterCallback: (value) => _formatDuration(Duration(
+                  milliseconds: (value * duration.inMilliseconds).round(),
+                )),
+                onChangeStart: ready ? _startSeek : null,
+                onChanged: !ready
+                    ? null
+                    : (value) {
+                        setState(() => _dragValue = value);
+                      },
+                onChangeEnd:
+                    ready ? (value) => _finishSeek(value, duration) : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (widget.embedded) return timeline;
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: bottomInset + 56,
+      child: timeline,
+    );
+  }
+}

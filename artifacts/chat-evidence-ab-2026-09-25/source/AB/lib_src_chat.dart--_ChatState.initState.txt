@@ -1,0 +1,416 @@
+@override
+  void initState() {
+    super.initState();
+    // The resolved SDK conversation id can become available after the first
+    // history frame. Keep the widget identity tied to the route entry so that
+    // that metadata update does not remount the entire message surface.
+    final entryConversationId = _getConvID()?.trim() ?? '';
+    _stableChatWidgetKey = entryConversationId.isNotEmpty
+        ? entryConversationId
+        : 'chat_${widget.selectedConversation.type}_'
+            '${widget.selectedConversation.userID ?? widget.selectedConversation.groupID ?? widget.selectedConversation.conversationID}';
+    PerfTimeline.instant('chat_page_open', arguments: {
+      'conversationId': widget.selectedConversation.conversationID,
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        PerfTimeline.instant('chat_page_first_frame', arguments: {
+          'conversationId': _resolvedConversationID(),
+        });
+      }
+    });
+    // Pipeline [4] - init_begin：ChatState initState 入口（用 widget 原 conv 拼 key）
+    final initPipelineKey = ChatPipelineClock.normalizeKey(
+      rawConversationId: widget.selectedConversation.conversationID,
+      userId: widget.selectedConversation.userID,
+      groupId: widget.selectedConversation.groupID,
+    );
+    ChatPipelineClock.instance.trace(initPipelineKey, 'init_begin');
+    WidgetsBinding.instance.addObserver(this);
+    _chatOpenInitStopwatch.start();
+    _c2cPermission.onTransitionToBlocked = _syncInFlightOutgoingOnC2cBlocked;
+    _groupLiveState.addListener(_onGroupLiveStateChanged);
+    GroupLiveIndexStore.instance.addListener(_onGroupLiveIndexStoreChanged);
+    GroupLocalStore.instance.commitListenable.addListener(_onGroupStoreCommit);
+    GroupLocalStore.instance.cacheHydration.addListener(_onGroupCacheHydrated);
+    GroupMemberLocalStore.instance.commitListenable
+        .addListener(_onGroupMemberStoreCommit);
+    _openLifecycle.clearedExternalEntryOnDeactivate = false;
+    ConversationDeletedBus.instance.revision.addListener(
+      _onConversationDeletedBus,
+    );
+    _conversation = _normalizedConversationForChat(widget.selectedConversation);
+    _applyCachedAgentRebateIdentityForCurrentGroup();
+    _applyCachedGroupGameForCurrentGroup();
+    _beginChatOpenGeneration();
+    _firstViewportWindowLogged = false;
+    _chatOpenPhaseGeneration = _openLifecycle.beginConversation();
+
+    if (_getConvType() == ConvType.c2c) {
+      final peerId = widget.selectedConversation.userID?.trim() ?? '';
+      if (peerId.isNotEmpty) {
+        _peerLocalProfile = UserProfileLocalService.instance.readCached(peerId);
+        final cachedFace = UserAvatarHelper.usableAvatarOrEmpty(
+          _peerLocalProfile?.avatarUrl,
+        );
+        if (cachedFace.isNotEmpty) {
+          _resolvedPeerFaceUrl = cachedFace;
+          _resolvedPeerFaceUrlForId = peerId;
+          _conversation.faceUrl = cachedFace;
+          widget.selectedConversation.faceUrl = cachedFace;
+        }
+      }
+    }
+    final openedConversationId = _resolvedConversationID();
+    _pageScope = ChatPageScope.instance.attach(
+      conversationId: openedConversationId,
+      accountGeneration: SessionIdentityService.instance.generation,
+    );
+    final viewportKey = _getConvID()?.trim().isNotEmpty == true
+        ? _getConvID()!.trim()
+        : openedConversationId;
+    if (viewportKey.isNotEmpty) {
+      ChatViewportCollection.instance.attach(
+        conversationKey: viewportKey,
+        identity: SessionIdentityService.instance.capture(),
+        attachSource: 'chat_init',
+      );
+      _viewportConversationKey = viewportKey;
+      _viewportOpenGeneration = ChatViewportCollection.instance.openGeneration;
+    }
+    ChatImageMessagePrefetch.bindPageScope(_pageScope);
+    final openConvKey = _getConvID()?.trim() ?? '';
+    final openPreview = widget.selectedConversation.lastMessage;
+    final openGlobal = serviceLocator<TUIChatGlobalModel>();
+    final openWarm = openConvKey.isEmpty
+        ? const <V2TimMessage>[]
+        : (openGlobal.messageListMap[openConvKey] ?? const <V2TimMessage>[]);
+    final openWarmNewest =
+        openWarm.isEmpty ? 0 : (openWarm.first.timestamp ?? 0);
+    final openWarmOldest =
+        openWarm.isEmpty ? 0 : (openWarm.last.timestamp ?? 0);
+    ChatDiagLog.log(
+      'ChatHistory',
+      'chat_open',
+      conversationID: openedConversationId,
+      extras: <String, Object?>{
+        'convKey': openConvKey,
+        'type': _getConvType().name,
+        'entryUnread': widget.entryUnreadCount ?? 0,
+        'hasLastMessage': openPreview != null,
+        'lastMsgId': openPreview?.msgID?.trim() ?? '',
+        'cachedRaw':
+            openConvKey.isEmpty ? 0 : openGlobal.rawMessageCount(openConvKey),
+        'initialLoaded': openConvKey.isEmpty
+            ? false
+            : openGlobal.hasInitialHistoryLoaded(openConvKey),
+        'warmNewestTs': openWarmNewest,
+        'warmOldestTs': openWarmOldest,
+        'warmNewestId':
+            openWarm.isEmpty ? '' : (openWarm.first.msgID?.trim() ?? ''),
+        'rawAlsoCached':
+            openedConversationId.isEmpty || openedConversationId == openConvKey
+                ? 0
+                : openGlobal.rawMessageCount(openedConversationId),
+      },
+    );
+    ChatOpenPerfLog.mark(
+      'chat_init_state',
+      conversationID:
+          openConvKey.isNotEmpty ? openConvKey : openedConversationId,
+      extras: <String, Object?>{
+        'type': _getConvType().name,
+        'entryUnread': widget.entryUnreadCount ?? 0,
+        'cachedRaw':
+            openConvKey.isEmpty ? 0 : openGlobal.rawMessageCount(openConvKey),
+        'initialLoaded': openConvKey.isEmpty
+            ? false
+            : openGlobal.hasInitialHistoryLoaded(openConvKey),
+        'warmNewestTs': openWarmNewest,
+        'isGroup': _getConvType() == ConvType.group,
+      },
+    );
+    ChatJitterDiag.markChatOpen(
+      openConvKey.isNotEmpty ? openConvKey : openedConversationId,
+    );
+    ChatResourceSample.resetForChatOpen(
+      openConvKey.isNotEmpty ? openConvKey : openedConversationId,
+    );
+    // 首屏窗口已在内存时立刻尝试 100/500/1000 节点（不等上翻）。
+    final openCount =
+        openConvKey.isEmpty ? 0 : openGlobal.rawMessageCount(openConvKey);
+    if (openCount > 0) {
+      ChatResourceSample.onRawMessageCount(openCount);
+    }
+    ConversationUnreadClearService.beginConversationChatSession(
+      openedConversationId,
+    );
+    // Deep link / push / restart 这类入口绕过了会话列表点击预热；
+    // 在 initState 同步注册同样的 in-flight 任务，让首帧尽量命中本地缓存。
+    // in-flight 由 ChatOpenViewportCoordinator 保证去重，与 app_chat_route
+    // 的 await 预热天然合并。搜索/找消息场景走的是另一个特殊路径，跳过。
+    if (widget.initFindingMsg == null &&
+        widget.searchJumpAnchor == null &&
+        openedConversationId.isNotEmpty &&
+        ConversationPeekService.canPeek(_conversation)) {
+      unawaited((() async {
+        await ChatOpenViewportCoordinator.instance.prepareOpenViewport(
+          conversation: _conversation,
+          source: 'chat_init',
+        );
+        if (!mounted) {
+          return;
+        }
+        _onChatGlobalModelChanged();
+      })());
+    }
+    if (openedConversationId.isNotEmpty) {
+      ActiveChatRegistry.instance.enter(
+        openedConversationId,
+        conversationType: _getConvType(),
+      );
+      ExternalChatEntryService.instance.claimActiveChatSource(
+        _externalEntrySourceToken,
+      );
+    }
+    DeviceSyncService.instance.prepareForChatNavigation();
+    DeviceSyncService.instance.beginForegroundMediaWork(
+      reason: 'chat_open',
+      duration: const Duration(seconds: 3),
+    );
+    _cachedHeaderFaceUrl = _conversation.faceUrl;
+    _cachedHeaderShowName = _conversation.showName;
+    if (_getConvType() == ConvType.group) {
+      _logGroupHeaderAvatarSource(
+        source: 'selected_conversation',
+        currentFaceUrl: '',
+        candidateFaceUrl: _conversation.faceUrl ?? '',
+        applied: true,
+      );
+    }
+    _applyInitialC2cPermissionHint(resetIfMissing: true);
+    _seedGroupDisplayFromMemory();
+    _armOpenGroupNoticeAfterTransition();
+    _syncChatHeaderState(notify: false);
+    _seedGroupLiveFromIndex();
+    _syncChatTopFixState(notify: false);
+    _stopGroupLiveCurrentPoll();
+    _clearMountedDisplayListCache();
+    if (openedConversationId.isNotEmpty) {
+      unawaited(
+        ImChatNotificationClearService.instance
+            .clearChatNotificationsForConversation(
+          openedConversationId,
+          reason: 'chat_open',
+        ),
+      );
+    }
+    _schedulePostOpenFailedMessageRetry();
+    final convId = _getConvID()?.trim() ?? '';
+    if (convId.isNotEmpty) {
+      PushFocusService.instance.enterChat(
+        conversationType: _getConvType(),
+        peerOrGroupId: convId,
+      );
+    }
+    // Pipeline [5] - init_done：ChatState initState 同步段结束
+    ChatPipelineClock.instance.trace(
+      _resolvedConversationID(),
+      'init_done',
+      elapsedMs: _chatOpenInitStopwatch.elapsedMilliseconds,
+    );
+    // 生命周期回调可能在路由切换后才返回；草稿清理必须绑定本次打开的
+    // 会话，不能在回调时重新取“当前会话”，否则 A 发送成功会清掉 B 草稿。
+    final lifecycleConversationId = _resolvedConversationID();
+    _chatLifeCycle = ChatLifeCycle(
+      newMessageWillMount: (V2TimMessage message) async {
+        _handleGroupLiveIncomingMessage(message);
+        unawaited(
+          MessageMediaMetadataStore.instance.upsertFromMessage(message),
+        );
+        if (_getConvType() == ConvType.c2c) {
+          ChatImageMessagePrefetch.prefetchThumbnailForMessage(message);
+        }
+        if (ChatImageMessagePrefetch.needsOnlineUrlResolution(
+          message,
+          includeSelf: true,
+        )) {
+          unawaited(
+            ChatImageMessagePrefetch.resolveOnlineUrlsForMessages(
+              <V2TimMessage>[message],
+              includeSelf: true,
+            ),
+          );
+        }
+        return message;
+      },
+      didGetHistoricalMessageList: (List<V2TimMessage> messageList) async {
+        _completeChatOpenInitStage(
+          _ChatOpenInitStage.sdkReady,
+          count: messageList.length,
+          source: 'sdk_history_callback',
+        );
+        // Media metadata, sticker scans and image prefetch are enrichment.
+        // Keep the history callback limited to the authoritative list commit.
+        _pendingOpenHistoryMediaEnrichment = messageList;
+        // C2C/group histories can contain both the server lk_call terminal
+        // message and our local terminal projection for the same callId.
+        // Normalize call candidates on every conversation type so those two
+        // sources converge before the first history frame is mounted.
+        final normalized = CallBubbleDedupe.normalizeCallHistoryMessages(
+          messageList,
+          preserveTipIdentity: true,
+        );
+        final deduped = TUIChatGlobalModel.dedupeMessages(normalized);
+        _completeChatOpenInitStage(
+          _ChatOpenInitStage.historyReady,
+          count: deduped.length,
+          source: 'sdk_history_commit',
+        );
+        _markChatOpenHistoryReady();
+        RegExpProbe.dump(reason: 'didGetHistoricalMessageList');
+        return deduped;
+      },
+      messageShouldMount: _messageShouldMountInHistory,
+      messageListShouldMount: _normalizeMessageListForMount,
+      messageDidSend: (sendMsgRes) {
+        final conversationId = lifecycleConversationId.isNotEmpty
+            ? lifecycleConversationId
+            : _resolvedConversationID();
+        if (sendMsgRes.code == 0 && conversationId.isNotEmpty) {
+          unawaited(_clearChatLocalDraftAfterSend(conversationId));
+        }
+        // 己方发送不走通知侧 patch；SDK onConversationChanged 若因群 ID
+        // 形态/非成员门禁落库失败，列表预览会空，再进页会误标 empty-loaded。
+        if (sendMsgRes.code == 0 && conversationId.isNotEmpty) {
+          final sent = sendMsgRes.data;
+          OutgoingVisibleProbe.log(
+            'send_preview_patch_start',
+            conversationID: conversationId,
+            message: sent,
+            extras: <String, Object?>{
+              'hasData': sent != null,
+              'code': sendMsgRes.code,
+            },
+          );
+          unawaited(
+            () async {
+              // 好友刚通过时，本地乐观会话与 SDK 建会话存在竞态。己方首条
+              // 消息又不会走 onRecvNewMessage，因此不能只等待 SDK 的
+              // onConversationChanged；否则返回列表后可能一直没有该会话。
+              if (sent != null) {
+                unawaited(
+                  MessageMediaMetadataStore.instance.upsertFromMessage(sent),
+                );
+                if (ChatImageMessagePrefetch.needsOnlineUrlResolution(
+                  sent,
+                  includeSelf: true,
+                )) {
+                  unawaited(
+                    ChatImageMessagePrefetch.resolveOnlineUrlsForMessages(
+                      <V2TimMessage>[sent],
+                      includeSelf: true,
+                    ),
+                  );
+                }
+                await ChatSessionController.instance
+                    .patchConversationLastMessage(
+                  conversationID: conversationId,
+                  message: sent,
+                );
+                OutgoingVisibleProbe.log(
+                  'send_preview_patch_done',
+                  conversationID: conversationId,
+                  message: sent,
+                );
+              } else {
+                // Rare SDK success responses without message data cannot be
+                // patched optimistically. Use one authoritative fallback.
+                await ChatSessionController.instance.refreshConversationItem(
+                  conversationId,
+                );
+              }
+              // The optimistic preview patch already queries the SDK once
+              // and can create a local shell when the SDK conversation is
+              // still racing the first send. The ordinary SDK conversation
+              // callback supplies the later authoritative metadata; issuing
+              // another query plus RefreshBus query here tripled the work for
+              // every successful send.
+            }()
+                .catchError((Object error, StackTrace stack) {
+              OutgoingVisibleProbe.log(
+                'send_preview_patch_error',
+                conversationID: conversationId,
+                extras: <String, Object?>{'error': '$error'},
+              );
+            }),
+          );
+        }
+      },
+    );
+    // Telegram-style stable surface: the real chat tree exists on the first
+    // route frame. History readiness is represented inside that tree.
+    _mountStableChatBody(openConvKey: openConvKey);
+    _ensureMessageItemBuilder();
+    _chatGlobalModel = serviceLocator<TUIChatGlobalModel>();
+    _chatGlobalModel!.addListener(_onChatGlobalModelChanged);
+    _conversationViewModel.addListener(_onConversationViewModelChanged);
+    PeerProfileRefreshBus.instance.revision.addListener(_onPeerProfileRefresh);
+    serviceLocator<TUIFriendShipViewModel>().addListener(
+      _onFriendshipModelChanged,
+    );
+    GroupMemberStore.instance.addListener(_onGroupMemberStoreChanged);
+    unawaited(_loadPeerFaceUrl());
+    unawaited(_loadPeerLocalProfile());
+    WalletOrderEvents.chatCardPayload.addListener(_onWalletChatCard);
+    WalletOrderEvents.chatCardSendFailedPayload.addListener(
+      _onWalletChatCardSendFailed,
+    );
+    CallResultRepository.instance.revision.addListener(
+      _onCallResultRepositoryChanged,
+    );
+    ChatHistoryRefreshBus.instance.revision.addListener(
+      _onExternalChatHistoryRefreshRequested,
+    );
+    GroupNoticeRefreshBus.instance.lastRefresh.addListener(
+      _onGroupNoticeRefreshRequested,
+    );
+    GroupSyncService.instance.lastChanged.addListener(_onGroupRealtimeChanged);
+    ConversationHistoryWarmScheduler.instance.pauseForActiveChat(
+      reason: 'chat_open',
+    );
+    // 轻壳首帧就尽量带上真实聊天背景，避免转场结束后再换底。
+    unawaited(_prefetchShellBackground());
+    _schedulePostOpenTasks();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ChatOpenPerfLog.mark(
+        'chat_first_frame',
+        conversationID:
+            openConvKey.isNotEmpty ? openConvKey : openedConversationId,
+        extras: <String, Object?>{
+          'rawCount':
+              openConvKey.isEmpty ? 0 : openGlobal.rawMessageCount(openConvKey),
+          'gateActive': _openLifecycle.openHistoryGate != null,
+        },
+      );
+      _attachLocalSettingListener();
+      _publishExternalEntryState();
+      unawaited(_activatePendingExternalEntryOnInit());
+      final openConvResolved = _resolvedConversationID();
+      if (openConvResolved.isNotEmpty) {
+        CallBubbleInsertService.instance.ensureConversationBubbles(
+          openConvResolved,
+          reason: 'chat_open',
+        );
+      }
+      _schedulePeerMessagePermissionSync(
+        forceNetwork: _c2cPermission.trustedInitialCanMessage,
+      );
+    });
+    // if (IMDemoConfig.customerServiceUserList.contains(widget.selectedConversation.userID)) {
+    //   TencentCloudChatCustomerServicePlugin.sendCustomerServiceStartMessage(_chatController.sendMessage);
+    // }
+  }

@@ -168,7 +168,10 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
     );
   }
 
+  double? _originalDownloadProgress;
+
   Future<void> _precachePreviewImage(ImageProvider provider) async {
+    _originalDownloadProgress = null;
     final config = createLocalImageConfiguration(context);
     final stream = provider.resolve(config);
     final completer = Completer<void>();
@@ -180,6 +183,14 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
         if (!completer.isCompleted) {
           completer.complete();
         }
+      },
+      onChunk: (event) {
+        if (!mounted) return;
+        final progress = imagePreviewDownloadProgress(event);
+        if (_originalDownloadProgress == progress) return;
+        setState(() {
+          _originalDownloadProgress = progress;
+        });
       },
       onError: (error, stackTrace) {
         stream.removeListener(listener);
@@ -536,6 +547,7 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
           ? FilterQuality.medium
           : FilterQuality.low,
       enableLoadState: true,
+      handleLoadingProgress: true,
       extendedImageGestureKey: _gestureKey,
       enableSlideOutPage: true,
       mode: ExtendedImageMode.gesture,
@@ -566,6 +578,7 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
         switch (state.extendedImageLoadState) {
           case LoadState.loading:
             return ImagePreviewLoadingLayer(
+              progress: imagePreviewDownloadProgress(state.loadingProgress),
               placeholder: _placeholderForItem(),
               fit: imagePreviewPaintFit(display),
               alignment: display.alignment,
@@ -689,8 +702,8 @@ class _ChatMediaGalleryImagePageState extends State<ChatMediaGalleryImagePage>
       children: [
         child,
         if (_lowResolutionRefreshInFlight && !_originalUpgradeCompleted)
-          const IgnorePointer(
-            child: Center(child: ImagePreviewCenterLoadingIndicator()),
+          IgnorePointer(
+            child: Center(child: ImagePreviewCenterLoadingIndicator(progress: _originalDownloadProgress)),
           ),
       ],
     );

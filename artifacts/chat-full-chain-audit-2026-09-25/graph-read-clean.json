@@ -1,0 +1,178 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService.scheduleSdkUnreadClean#3",
+    "name": "scheduleSdkUnreadClean",
+    "kind": "Method",
+    "filePath": "lib/src/services/conversation_unread_clear_service.dart",
+    "startLine": 1047,
+    "endLine": 1051
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService",
+        "name": "ConversationUnreadClearService",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Function:test/conversation_unread_clear_service_test.dart:main",
+        "name": "main",
+        "filePath": "test/conversation_unread_clear_service_test.dart"
+      },
+      {
+        "uid": "Function:test/conversation_unread_clear_service_test.dart:main",
+        "name": "main",
+        "filePath": "test/conversation_unread_clear_service_test.dart"
+      },
+      {
+        "uid": "Function:test/conversation_unread_clear_service_test.dart:main",
+        "name": "main",
+        "filePath": "test/conversation_unread_clear_service_test.dart"
+      },
+      {
+        "uid": "Function:test/conversation_unread_clear_service_test.dart:main",
+        "name": "main",
+        "filePath": "test/conversation_unread_clear_service_test.dart"
+      },
+      {
+        "uid": "Function:test/conversation_unread_clear_service_test.dart:main",
+        "name": "main",
+        "filePath": "test/conversation_unread_clear_service_test.dart"
+      },
+      {
+        "uid": "Function:test/conversation_unread_clear_service_test.dart:main",
+        "name": "main",
+        "filePath": "test/conversation_unread_clear_service_test.dart"
+      },
+      {
+        "uid": "Function:test/conversation_unread_clear_service_test.dart:main",
+        "name": "main",
+        "filePath": "test/conversation_unread_clear_service_test.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat.dart:_ChatState._publishExternalEntryState#1",
+        "name": "_publishExternalEntryState",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "Method:lib/src/conversation.dart:_ArchivedConversationPageState._cleanConversationUnread#2",
+        "name": "_cleanConversationUnread",
+        "filePath": "lib/src/conversation.dart"
+      },
+      {
+        "uid": "Method:lib/src/conversation.dart:_ConversationState._cleanConversationUnread#2",
+        "name": "_cleanConversationUnread",
+        "filePath": "lib/src/conversation.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._finalizeConversationLeave#7",
+        "name": "_finalizeConversationLeave",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._persistOpenReadIntentAndDispatch#5",
+        "name": "_persistOpenReadIntentAndDispatch",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._recoverPendingReadOutbox#0",
+        "name": "_recoverPendingReadOutbox",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._restartTrailingSdkCleanIfDue#1",
+        "name": "_restartTrailingSdkCleanIfDue",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._runQueuedSdkUnreadClean#2",
+        "name": "_runQueuedSdkUnreadClean",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService.clearForOpen#2",
+        "name": "clearForOpen",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService.clearSdkUnreadAsync#2",
+        "name": "clearSdkUnreadAsync",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/group_conversation_unread_helper.dart:GroupConversationUnreadHelper.clearConversationUnread#2",
+        "name": "clearConversationUnread",
+        "filePath": "lib/src/services/group_conversation_unread_helper.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._armReadOutboxRetryTimer#1",
+        "name": "_armReadOutboxRetryTimer",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._drainSdkClean#5",
+        "name": "_drainSdkClean",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._isCurrentSession#1",
+        "name": "_isCurrentSession",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_clear_service.dart:ConversationUnreadClearService._restartTrailingSdkCleanIfDue#1",
+        "name": "_restartTrailingSdkCleanIfDue",
+        "filePath": "lib/src/services/conversation_unread_clear_service.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_trace.dart:ConversationUnreadTrace.log#5",
+        "name": "log",
+        "filePath": "lib/src/services/conversation_unread_trace.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_trace.dart:ConversationUnreadTrace.log#5",
+        "name": "log",
+        "filePath": "lib/src/services/conversation_unread_trace.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_trace.dart:ConversationUnreadTrace.log#5",
+        "name": "log",
+        "filePath": "lib/src/services/conversation_unread_trace.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_trace.dart:ConversationUnreadTrace.log#5",
+        "name": "log",
+        "filePath": "lib/src/services/conversation_unread_trace.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_trace.dart:ConversationUnreadTrace.log#5",
+        "name": "log",
+        "filePath": "lib/src/services/conversation_unread_trace.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_trace.dart:ConversationUnreadTrace.log#5",
+        "name": "log",
+        "filePath": "lib/src/services/conversation_unread_trace.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_trace.dart:ConversationUnreadTrace.log#5",
+        "name": "log",
+        "filePath": "lib/src/services/conversation_unread_trace.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/conversation_unread_trace.dart:ConversationUnreadTrace.log#5",
+        "name": "log",
+        "filePath": "lib/src/services/conversation_unread_trace.dart"
+      }
+    ]
+  },
+  "processes": []
+}

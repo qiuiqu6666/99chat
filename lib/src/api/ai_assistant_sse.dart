@@ -15,8 +15,7 @@ class AiAssistantSseParser {
         break;
       }
       final block = _buffer.substring(0, boundary);
-      final separatorLength =
-          _buffer.startsWith('\r\n\r\n', boundary) ? 4 : 2;
+      final separatorLength = _buffer.startsWith('\r\n\r\n', boundary) ? 4 : 2;
       _buffer = _buffer.substring(boundary + separatorLength);
       _parseBlock(block, onEvent);
     }
@@ -24,6 +23,18 @@ class AiAssistantSseParser {
 
   void reset() {
     _buffer = '';
+  }
+
+  /// A transport EOF must not silently discard a partially delivered event.
+  void finish() {
+    final incomplete = _buffer.split('\n').any((line) {
+      final value = line.trim();
+      return value.isNotEmpty && !value.startsWith(':');
+    });
+    reset();
+    if (incomplete) {
+      throw const FormatException('Incomplete SSE event at end of stream');
+    }
   }
 
   static int _findEventBoundary(String source) {

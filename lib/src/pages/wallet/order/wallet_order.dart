@@ -216,6 +216,7 @@ class WalletOrderDraft {
   final String cardSendStatus;
   final int cardSendRetryCount;
   final String lastCardSendAt;
+  final bool serverManagedCard;
 
   const WalletOrderDraft({
     this.ownerUserId = '',
@@ -243,10 +244,11 @@ class WalletOrderDraft {
     this.cardSendStatus = 'idle',
     this.cardSendRetryCount = 0,
     this.lastCardSendAt = '',
+    this.serverManagedCard = false,
   });
 
   bool get needsChatCard {
-    return conversationId.trim().isNotEmpty &&
+    return !serverManagedCard && conversationId.trim().isNotEmpty &&
         (businessType == 'wallet_red_packet' ||
             businessType == 'wallet_transfer' ||
             businessType == 'wallet_group_transfer');
@@ -270,6 +272,7 @@ class WalletOrderDraft {
   /// 是否需要向服务端查询订单状态（已成功且仅需补卡的不查单）。
   bool get needsOrderStatusQuery {
     final state = WalletOrderStateX.fromName(orderState);
+    if (serverManagedCard && state == WalletOrderState.success) return !cardSent;
     if (state == WalletOrderState.failed ||
         state == WalletOrderState.expired ||
         state == WalletOrderState.cancelled ||
@@ -323,6 +326,7 @@ class WalletOrderDraft {
       'cardSendStatus': cardSendStatus,
       'cardSendRetryCount': cardSendRetryCount,
       'lastCardSendAt': lastCardSendAt,
+      'serverManagedCard': serverManagedCard,
     };
   }
 
@@ -366,6 +370,7 @@ class WalletOrderDraft {
       cardSendStatus: json['cardSendStatus']?.toString() ?? 'idle',
       cardSendRetryCount: asInt(json['cardSendRetryCount']),
       lastCardSendAt: json['lastCardSendAt']?.toString() ?? '',
+      serverManagedCard: json['serverManagedCard'] == true,
     );
   }
   WalletOrderDraft copyWith({
@@ -407,6 +412,7 @@ class WalletOrderDraft {
       cardSendStatus: cardSendStatus ?? this.cardSendStatus,
       cardSendRetryCount: cardSendRetryCount ?? this.cardSendRetryCount,
       lastCardSendAt: lastCardSendAt ?? this.lastCardSendAt,
+      serverManagedCard: serverManagedCard,
     );
   }
 }

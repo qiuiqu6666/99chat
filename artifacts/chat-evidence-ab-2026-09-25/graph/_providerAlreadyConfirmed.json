@@ -1,0 +1,31 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Function:lib/src/services/im/outgoing_send_coordinator.dart:_providerAlreadyConfirmed",
+    "name": "_providerAlreadyConfirmed",
+    "kind": "Function",
+    "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+    "startLine": 617,
+    "endLine": 621
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.send#21",
+        "name": "send",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.recoverOutbox#2",
+        "name": "recoverOutbox",
+        "filePath": "lib/src/services/im/im05_persistence.dart"
+      }
+    ]
+  },
+  "processes": []
+}

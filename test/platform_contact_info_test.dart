@@ -34,6 +34,7 @@ void main() {
       expect(info.version, '3.0.1');
       expect(info.build, '2');
       expect(info.downloadUrl, 'https://down.99chat.vip');
+      expect(info.apkUrl, isEmpty);
       expect(info.platform, 'ios');
       expect(info.updateType, 'FORCE');
       expect(info.minVersion, '2');
@@ -74,6 +75,15 @@ void main() {
       expect(info.splash, isNotNull);
       expect(info.splash!.enabled, isFalse);
       expect(info.splash!.hasDownloadableImage, isFalse);
+    });
+
+    test('Android APK 直链与网页下载地址分别解析', () {
+      final info = PlatformContactInfo.fromJson(<String, dynamic>{
+        'downloadUrl': 'https://down.99chat.vip',
+        'apkUrl': 'https://cdn.example.com/release?id=21',
+      });
+      expect(info.downloadUrl, 'https://down.99chat.vip');
+      expect(info.apkUrl, 'https://cdn.example.com/release?id=21');
     });
 
     test('updateType 大小写不敏感（force / Force 都归一为 FORCE）', () {

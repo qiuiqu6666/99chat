@@ -1,0 +1,41 @@
+
+  GitNexus Impact (1.6.12)
+{
+  "target": {
+    "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart:HistoryPaginationLoadRunner._commitHistoryWindowPage#5",
+    "name": "_commitHistoryWindowPage",
+    "type": "Method",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 2,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 1,
+    "processes_affected": 0,
+    "modules_affected": 2
+  },
+  "byDepthCounts": {
+    "1": 1,
+    "2": 1
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Separate_models",
+      "hits": 1,
+      "impact": "direct"
+    },
+    {
+      "name": "View_models",
+      "hits": 1,
+      "impact": "indirect"
+    }
+  ]
+}

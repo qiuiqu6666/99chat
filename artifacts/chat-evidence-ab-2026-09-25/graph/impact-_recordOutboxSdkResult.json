@@ -1,0 +1,93 @@
+{
+  "target": {
+    "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence._recordOutboxSdkResult#9",
+    "name": "_recordOutboxSdkResult",
+    "type": "Method",
+    "filePath": "lib/src/services/im/im05_persistence.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 5,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 2,
+    "processes_affected": 0,
+    "modules_affected": 2
+  },
+  "byDepthCounts": {
+    "1": 2,
+    "2": 2,
+    "3": 1
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "Im",
+      "hits": 3,
+      "impact": "direct"
+    },
+    {
+      "name": "Services",
+      "hits": 2,
+      "impact": "indirect"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.recordOutboxSdkFailed#8",
+        "name": "recordOutboxSdkFailed",
+        "filePath": "lib/src/services/im/im05_persistence.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:lib/src/services/im/im05_persistence.dart:Im05Persistence.recordOutboxSdkSucceeded#8",
+        "name": "recordOutboxSdkSucceeded",
+        "filePath": "lib/src/services/im/im05_persistence.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/chat_failed_message_retry_service.dart:ChatFailedMessageRetryService.recordOutboxFailureForStuckMessage#4",
+        "name": "recordOutboxFailureForStuckMessage",
+        "filePath": "lib/src/services/chat_failed_message_retry_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.send#21",
+        "name": "send",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "3": [
+      {
+        "depth": 3,
+        "id": "Method:lib/src/services/chat_failed_message_retry_service.dart:ChatFailedMessageRetryService.settleStuckSendingAsFailed#3",
+        "name": "settleStuckSendingAsFailed",
+        "filePath": "lib/src/services/chat_failed_message_retry_service.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}

@@ -203,6 +203,7 @@ void main() {
   late Directory directory;
   late _RollbackPauseStore store;
   late TUIChatSeparateViewModel model;
+  var modelDisposed = false;
   late TUIChatGlobalModel global;
   late _Sdk sdk;
   String getConv() => model.conversationID;
@@ -215,6 +216,7 @@ void main() {
   }
 
   setUp(() async {
+    modelDisposed = false;
     _Sdk.history = null;
     _Sdk.historyCalls = 0;
     _Sdk.historyTypes.clear();
@@ -255,7 +257,7 @@ void main() {
     await SqfliteLifecycleHost.handle(AppLifecycleState.resumed);
     if (!sdk.completion.isCompleted) sdk.completion.complete(0);
     await settle();
-    model.dispose();
+    if (!modelDisposed) model.dispose();
     ArchiveHistoryProvider.register(null);
     HistoryWindowRepositoryProvider.repository = null;
     await store.closeIfOpen();
@@ -667,8 +669,9 @@ void main() {
   });
 
   for (final revoke in [false, true]) {
+    for (final disposePage in [false, true]) {
     test(
-        'SDK failure reverses durable ${revoke ? 'revoke' : 'delete'} after route and session eviction',
+        'SDK failure reverses durable ${revoke ? 'revoke' : 'delete'} after route and session eviction (disposed=$disposePage)',
         () async {
       final oldConv = getConv();
       final oldScope = getScope();
@@ -680,6 +683,10 @@ void main() {
       for (var index = 0; index < 5; index++)
         global.historyWindowScopeFor('@TGS#evict-$index');
       expect(global.isHistoryWindowScopeCurrent(oldScope), isFalse);
+      if (disposePage) {
+        model.dispose();
+        modelDisposed = true;
+      }
       sdk.completion.complete(1);
       await settle();
       final reopened = global.historyWindowScopeFor(oldConv)!;
@@ -693,6 +700,7 @@ void main() {
       expect(warm.map((m) => m.msgID), contains('m100'));
       expect(warm.firstWhere((m) => m.msgID == 'm100').status, 2);
     });
+    }
   }
 
   for (final revoke in [false, true]) {
@@ -830,7 +838,7 @@ void main() {
 
   for (final success in [false, true]) {
     test(
-        'return latest success=$success controls watermark ack and snapshot session renewal',
+        'return latest success=$success preserves receipts until visible proof',
         () async {
       final conv = getConv();
       model.dispose();
@@ -860,11 +868,21 @@ void main() {
       final now = getScope();
       expect(now.sessionID == oldScope.sessionID, !success);
       final remaining = await store.deferredState(now);
-      expect(remaining.receivedCount, success ? 1 : 2);
+      expect(remaining.receivedCount, 2,
+          reason: 'loading a page cannot acknowledge that it was displayed');
       if (success) {
         expect(
             () => global.noteHistoryWindowSnapshot(conv, 999), returnsNormally);
         expect(currentIDs(), ['m999']);
+        expect(await model.confirmVisibleLatestWindow(
+            visibleMessages: [row(999, conv)],
+            isStillAtLatestEdge: () => false), isFalse);
+        expect((await store.deferredState(getScope())).receivedCount, 2);
+        expect(await model.confirmVisibleLatestWindow(
+            visibleMessages: [row(999, conv)],
+            isStillAtLatestEdge: () => true), isTrue);
+        expect((await store.deferredState(getScope())).receivedCount, 1,
+            reason: 'arrival after the captured watermark survives confirmation');
       } else {
         expect(currentIDs(), ['m100', 'm99']);
       }

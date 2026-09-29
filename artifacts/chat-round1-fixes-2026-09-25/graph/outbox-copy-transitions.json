@@ -1,0 +1,65 @@
+{
+  "status": "ambiguous",
+  "message": "Found 2 symbols matching 'isValidImOutboxRecoveryTransition'. Blast radius differs per candidate (max 6 impacted at risk MEDIUM). Disambiguate with target_uid (or file_path/kind) for a single authoritative result.",
+  "target": {
+    "name": "isValidImOutboxRecoveryTransition"
+  },
+  "direction": "upstream",
+  "totalCandidates": 2,
+  "impactedCount": null,
+  "risk": "UNKNOWN",
+  "maxImpactedCount": 6,
+  "maxRisk": "MEDIUM",
+  "candidates": [
+    {
+      "uid": "Function:artifacts/chat-round1-fixes-2026-09-25/before/lib/src/services/im/im05_contracts.dart:isValidImOutboxRecoveryTransition",
+      "name": "isValidImOutboxRecoveryTransition",
+      "kind": "Function",
+      "filePath": "artifacts/chat-round1-fixes-2026-09-25/before/lib/src/services/im/im05_contracts.dart",
+      "line": 423,
+      "score": 0.56,
+      "impactedCount": 6,
+      "risk": "MEDIUM",
+      "riskSharedAxes": "MEDIUM",
+      "riskScale": {
+        "comparableAcrossKinds": false,
+        "unusedAxes": [
+          {
+            "axis": "processes",
+            "reason": "enrichment-skipped"
+          },
+          {
+            "axis": "modules",
+            "reason": "enrichment-skipped"
+          }
+        ]
+      },
+      "direct": 6
+    },
+    {
+      "uid": "Function:lib/src/services/im/im05_contracts.dart:isValidImOutboxRecoveryTransition",
+      "name": "isValidImOutboxRecoveryTransition",
+      "kind": "Function",
+      "filePath": "lib/src/services/im/im05_contracts.dart",
+      "line": 423,
+      "score": 0.56,
+      "impactedCount": 1,
+      "risk": "LOW",
+      "riskSharedAxes": "LOW",
+      "riskScale": {
+        "comparableAcrossKinds": false,
+        "unusedAxes": [
+          {
+            "axis": "processes",
+            "reason": "enrichment-skipped"
+          },
+          {
+            "axis": "modules",
+            "reason": "enrichment-skipped"
+          }
+        ]
+      },
+      "direct": 1
+    }
+  ]
+}

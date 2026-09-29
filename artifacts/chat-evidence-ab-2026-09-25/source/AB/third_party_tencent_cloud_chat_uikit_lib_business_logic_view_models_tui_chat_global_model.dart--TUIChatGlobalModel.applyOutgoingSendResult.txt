@@ -1,0 +1,46 @@
+bool applyOutgoingSendResult(
+    V2TimValueCallback<V2TimMessage> sendMsgRes,
+    String convID,
+    String clientId,
+    ConvType convType,
+    GroupReceiptAllowType? groupType,
+    ValueChanged<String>? setInputField,
+  ) {
+    final dataMsgID = sendMsgRes.data?.msgID;
+    if (isOutgoingMediaCancelled(clientId) ||
+        isOutgoingMediaCancelled(dataMsgID)) {
+      return false;
+    }
+    try {
+      updateMessage(
+        sendMsgRes,
+        convID,
+        clientId,
+        convType,
+        groupType,
+        setInputField,
+      );
+      if (sendMsgRes.code != 0) {
+        markOutgoingSendFailedByIdentity(
+          conversationID: convID,
+          clientId: clientId,
+          msgID: dataMsgID,
+          sendFailCode: sendMsgRes.code,
+          reason: 'sdk_send_failed',
+        );
+      }
+      return true;
+    } catch (e) {
+      outputLogger.i('updateMessage error: $e');
+      if (sendMsgRes.code != 0) {
+        markOutgoingSendFailedByIdentity(
+          conversationID: convID,
+          clientId: clientId,
+          msgID: dataMsgID,
+          sendFailCode: sendMsgRes.code,
+          reason: 'sdk_send_failed',
+        );
+      }
+      return false;
+    }
+  }

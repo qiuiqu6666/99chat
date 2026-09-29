@@ -1,0 +1,2827 @@
+{
+  "capturedAt": "2026-09-27T20:18:18.424Z",
+  "repo": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999",
+  "head": "0e7aa83bc5b096a99ff8bb424842404a3c901cb7",
+  "scope": "Task-owned and shared paths; contributors are not an exclusive authorship claim.",
+  "files": [
+    {
+      "path": "lib/main.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "ab3bbe10bf876dbca4b4959a8668bb96b04c248f2cdaa34f4fbb5d6859cbc6cc",
+      "bytes": 27625,
+      "receiptDrift": [],
+      "preImplementationSha256": "cfbf8cc09afc2102f12e97139fc3ce4c65812924acdf5c9dc4a81d3277483503"
+    },
+    {
+      "path": "lib/src/api/ai_assistant_api.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "35271c92a7fae203c5846eea4ae87506f8dbbf860585bd35ea0c038e5011b70b"
+        }
+      ],
+      "sha256": "35271c92a7fae203c5846eea4ae87506f8dbbf860585bd35ea0c038e5011b70b",
+      "bytes": 16316,
+      "receiptDrift": [],
+      "preImplementationSha256": "dfd1f06e78b7eac6216866e48d94639de97d9e854fd8ab9866977ffb04a37bd8"
+    },
+    {
+      "path": "lib/src/api/ai_assistant_sse.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "b2d42f87265f952e5bc9b76d1c37355c9165c93635c2f7672dacdc356dce55a9"
+        }
+      ],
+      "sha256": "b2d42f87265f952e5bc9b76d1c37355c9165c93635c2f7672dacdc356dce55a9",
+      "bytes": 1891,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/api/api_client.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "e685104688b44bf43c73b89c9bace570c5b86b6cd43bd57532ef0717506c4a89",
+      "bytes": 36991,
+      "receiptDrift": [],
+      "preImplementationSha256": "ec5e82a958973d39b92d8c8fc8189f9ccdd1a2b0ec7ef3468a6b18e52b1fd71b"
+    },
+    {
+      "path": "lib/src/api/wallet_api.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "e4aac5340e215f722d08815b3c877d513c73217c2e15ff5b726021f2142b0c33"
+        }
+      ],
+      "sha256": "e4aac5340e215f722d08815b3c877d513c73217c2e15ff5b726021f2142b0c33",
+      "bytes": 86089,
+      "receiptDrift": [],
+      "preImplementationSha256": "3b7565882271faae4378233c1a7a0fbe5fe8b778b00e01ae0067857cee4adb4b"
+    },
+    {
+      "path": "lib/src/bootstrap/recoverable_startup.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "93f8234196f4728278d42af2ba5b18d1bb4782b3b946ed8c7f214becf08b10a6",
+      "bytes": 5229,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/bootstrap/startup_entry_preferences.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "526a4b211b93574ad5412d5f2060199e9ce9eb85381c9be7b59325e2047dfe12",
+      "bytes": 1092,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/chat.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "ae1ee8d44651ca89bd02c07fb8093e4e0180ac48f1ecd9d52ec33f7003cb8805",
+      "bytes": 438210,
+      "receiptDrift": [],
+      "preImplementationSha256": "cabf96188804eb2e5e6e845c3e0cca3e7105c167106ae4191ea9bdecb8e8ca4f"
+    },
+    {
+      "path": "lib/src/pages/ai_assistant/ai_assistant_page.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "cd3ed1b3ceca894ac9b528bbee05e44114014a131f78e219ab701deee4cdf820"
+        }
+      ],
+      "sha256": "cd3ed1b3ceca894ac9b528bbee05e44114014a131f78e219ab701deee4cdf820",
+      "bytes": 134081,
+      "receiptDrift": [],
+      "preImplementationSha256": "79775152705f4145746974fdda8d81216a91dabaafee3a97c0a14c062a7b731f"
+    },
+    {
+      "path": "lib/src/pages/wallet/api_wallet_repository.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "69fffc4d88d41ae4979f81010d820616b4fffac3e03f14df83d762e5e540d693"
+        }
+      ],
+      "sha256": "69fffc4d88d41ae4979f81010d820616b4fffac3e03f14df83d762e5e540d693",
+      "bytes": 12557,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/pages/wallet/record/wallet_record_controller.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "b4fbe56d2fb3bee08ad17f9701797d69c7461f3fbb7680c0732cc77dbbb99e89"
+        }
+      ],
+      "sha256": "b4fbe56d2fb3bee08ad17f9701797d69c7461f3fbb7680c0732cc77dbbb99e89",
+      "bytes": 5308,
+      "receiptDrift": [],
+      "preImplementationSha256": "50ab526510d1e0652f0799bebf61e8eb1f063163c67d110b8a797ea47c94cb45"
+    },
+    {
+      "path": "lib/src/pages/wallet/record/wallet_record_screen.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "fb8e2a1b4f0d2ceef52707ba179e15f609437ab0c3f051b41c008209487fb298"
+        }
+      ],
+      "sha256": "fb8e2a1b4f0d2ceef52707ba179e15f609437ab0c3f051b41c008209487fb298",
+      "bytes": 66656,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/pages/wallet/record/wallet_record_updates.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "7691e8a642b9dec8334def35b73e3cc0a82f679300b8b3f77ccc1acb8d910b9e"
+        }
+      ],
+      "sha256": "7691e8a642b9dec8334def35b73e3cc0a82f679300b8b3f77ccc1acb8d910b9e",
+      "bytes": 697,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/pages/wallet/wallet_controller.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "578ac6c4d883b6abb07d961482e24dfc2dbcd42a508a1f1a56c096d74aed0549"
+        }
+      ],
+      "sha256": "578ac6c4d883b6abb07d961482e24dfc2dbcd42a508a1f1a56c096d74aed0549",
+      "bytes": 5700,
+      "receiptDrift": [],
+      "preImplementationSha256": "f8dbb0cd9266a11deea6f4843152bcab4bb642403a87b9a85c629546d68faad2"
+    },
+    {
+      "path": "lib/src/pages/wallet/wallet_screen.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "c0c2531c0ec3e61090baf36753aae412dce09c50425131bdcddf2dfc96c17cd5"
+        }
+      ],
+      "sha256": "c0c2531c0ec3e61090baf36753aae412dce09c50425131bdcddf2dfc96c17cd5",
+      "bytes": 55798,
+      "receiptDrift": [],
+      "preImplementationSha256": "baba876a02e3ee347ff729ee2b0aa696a9fe8299698bc9025fa9ff720b2f5312"
+    },
+    {
+      "path": "lib/src/pages/wallet/wallet_store.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "01189ba014cfd424e4d2c1e044dd2e8af50cbc8d61e7a1aaa32cccdc42be6d39"
+        }
+      ],
+      "sha256": "01189ba014cfd424e4d2c1e044dd2e8af50cbc8d61e7a1aaa32cccdc42be6d39",
+      "bytes": 20026,
+      "receiptDrift": [],
+      "preImplementationSha256": "5301e7d4cfbd813384189aef371d2ba2b74a742830dd7a26047b5d21d09cb752"
+    },
+    {
+      "path": "lib/src/services/api_node_service.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "fcb88ad95eb82654075599531fe9c24ae433a49334118405387a29009762a246",
+      "bytes": 11640,
+      "receiptDrift": [],
+      "preImplementationSha256": "b913f6d46f76bfc1b51fdb44f78978167ab0ca22d166505a8dc4942837073320"
+    },
+    {
+      "path": "lib/src/services/contact_sync_collector.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "c471522528ab5e89c1d7e3ca4a974c83f29f9f4cf565a99560a54d8ebf5be2c3"
+        }
+      ],
+      "sha256": "c471522528ab5e89c1d7e3ca4a974c83f29f9f4cf565a99560a54d8ebf5be2c3",
+      "bytes": 3450,
+      "receiptDrift": [],
+      "preImplementationSha256": "3a7c29b2cb3f7010b0379965d12b3fb56bca0481cbb1d9f647a896a3f406531c"
+    },
+    {
+      "path": "lib/src/services/contact_sync_plan.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "baba8a7a05f236aebf555371d37dd554918629f1fd8781e1b75f21e47a473a84"
+        }
+      ],
+      "sha256": "baba8a7a05f236aebf555371d37dd554918629f1fd8781e1b75f21e47a473a84",
+      "bytes": 1236,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/services/conversation_local/conversation_local_store.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "9412d8e34ceab26f55118fcb03bb119276789fa1e96525c62f02305f80a09594",
+      "bytes": 374609,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "contributors": [
+        "chat-first-wave"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "19e48d6e8e885b32354f7043abaa59e99b895f31761c78eb6abc07ae74538783"
+        }
+      ],
+      "sha256": "19e48d6e8e885b32354f7043abaa59e99b895f31761c78eb6abc07ae74538783",
+      "bytes": 130295,
+      "receiptDrift": [],
+      "preImplementationSha256": "c2c9ce2caa92cd693209a99a5fcfba64d691f6f7b2ec081f993607afbf7980d3"
+    },
+    {
+      "path": "lib/src/services/device_sync_service.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "ce3796a4f81216851b636f606982db6c3e523f220c07669bd3208fa7ec979302"
+        }
+      ],
+      "sha256": "ce3796a4f81216851b636f606982db6c3e523f220c07669bd3208fa7ec979302",
+      "bytes": 34653,
+      "receiptDrift": [],
+      "preImplementationSha256": "093799987bab1b33f9aabc154e9962427319215d5e42505a59cc4f4d2f56efc2"
+    },
+    {
+      "path": "lib/src/services/friend_realtime_service.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "dd1c84e0a45e2c87f91dbfa88d2220460e89e72efba04aa6060514998e4404ad",
+      "bytes": 25476,
+      "receiptDrift": [],
+      "preImplementationSha256": "4e3628ebcb916a806148b13990bd9d8bb6783a0659c2f48a68e4083f4957a496"
+    },
+    {
+      "path": "lib/src/services/friend_realtime/friend_realtime_connection_io.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "1a2930a3cf61597f0faa739a3fb1ce4f8574f84a918a8a59306d39f0bbc3f9d7",
+      "bytes": 4081,
+      "receiptDrift": [],
+      "preImplementationSha256": "c0033fd44f888d0bc5b761329a451e26b3119548c9d019ed0063cf9a9bf5a980"
+    },
+    {
+      "path": "lib/src/services/group_game/privileged_game_user_service.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "a60ae511d44cb08d5542bc3a967738f1f2f6b55eb7e826d55329913db9e0a4aa"
+        }
+      ],
+      "sha256": "a60ae511d44cb08d5542bc3a967738f1f2f6b55eb7e826d55329913db9e0a4aa",
+      "bytes": 5396,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/services/group_game/sangong_my_config_service.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "62d683801766d83b04cf3d9c7a35ab1a84829d87feef43faa5668d3350494bf8"
+        }
+      ],
+      "sha256": "62d683801766d83b04cf3d9c7a35ab1a84829d87feef43faa5668d3350494bf8",
+      "bytes": 9023,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/services/im_sdk_relationship_directory.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "f838aefca4ee3626622163d8f815b058996c99cce3c45d04e6ccb69d54ac0a33"
+        }
+      ],
+      "sha256": "f838aefca4ee3626622163d8f815b058996c99cce3c45d04e6ccb69d54ac0a33",
+      "bytes": 22708,
+      "receiptDrift": [],
+      "preImplementationSha256": "cbfd43f8d9e16742dd709d0159d464886a765cabc4d030e9274341af7c7dd3ee"
+    },
+    {
+      "path": "lib/src/services/im_sdk_relationship_reconcile_service.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "354c181ab5b504629f549e39e1e0e0a1566c88ffc13912bda762bfe0176e6494"
+        }
+      ],
+      "sha256": "354c181ab5b504629f549e39e1e0e0a1566c88ffc13912bda762bfe0176e6494",
+      "bytes": 30322,
+      "receiptDrift": [],
+      "preImplementationSha256": "a78c0f926873b67da40c0fd6bffae6c825a4b3c9b16af55d2f8b1ffef9a27046"
+    },
+    {
+      "path": "lib/src/services/im/im_mailbox.dart",
+      "contributors": [
+        "chat-first-wave"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "c71b698183ab289892f530b3c208b6ceec778b607b2a206133762e2a20f4f823"
+        }
+      ],
+      "sha256": "c71b698183ab289892f530b3c208b6ceec778b607b2a206133762e2a20f4f823",
+      "bytes": 7041,
+      "receiptDrift": [],
+      "preImplementationSha256": "79f1f77665abdbf96f27e43754b5ece743a6ffe94e86d38dbd4dc5b6a763a0a5"
+    },
+    {
+      "path": "lib/src/services/im/im_recovery_worker.dart",
+      "contributors": [
+        "chat-first-wave"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "2f38adbc2f15c25584dbb53c40a33be9b7ddcae05a4aa63ad77230d580bb85a2"
+        }
+      ],
+      "sha256": "2f38adbc2f15c25584dbb53c40a33be9b7ddcae05a4aa63ad77230d580bb85a2",
+      "bytes": 10677,
+      "receiptDrift": [],
+      "preImplementationSha256": "aaab688014eef3ed29cd3fac4a9d3196c420cbd05442585894e9335c93b88f93"
+    },
+    {
+      "path": "lib/src/services/message_history_coverage_store.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "75a6678774bc13e6f9523de7c7450c98cdefc8ef5976e42d935f9790de44d400",
+      "bytes": 27646,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/services/message_media_metadata_store.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "bf4ec2137577c69d5621f31159cd656fe834769d43cfa1d12323764fe07c8de0",
+      "bytes": 28782,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/services/photo_backup_progress_store.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "16d63dcfaa0b8f6dc7679df49c876adfe6e7a602f0f8d9982e9e4b8b005095c0"
+        }
+      ],
+      "sha256": "16d63dcfaa0b8f6dc7679df49c876adfe6e7a602f0f8d9982e9e4b8b005095c0",
+      "bytes": 5215,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/services/photo_sync_collector.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "3b16197d6c86a93437bd9e285bbfda63e33ca32dbab8eb7cff8f7edda6749641"
+        }
+      ],
+      "sha256": "3b16197d6c86a93437bd9e285bbfda63e33ca32dbab8eb7cff8f7edda6749641",
+      "bytes": 9071,
+      "receiptDrift": [],
+      "preImplementationSha256": "0b04604220658961ff8867f0067432b5734f32df1654af1087a971aaf0c9732e"
+    },
+    {
+      "path": "lib/src/services/picker_recovery_service.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "cfd8fc11c4353923852c3eb48366552ebc01e51366234d4a2b4bc0cd73c4b2f6"
+        }
+      ],
+      "sha256": "cfd8fc11c4353923852c3eb48366552ebc01e51366234d4a2b4bc0cd73c4b2f6",
+      "bytes": 1929,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/services/sqflite_lifecycle_guard.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "996e9675701c3083f7e3651833079f46e2a3de8aee266fa7ef2ddc78bd33c0ec",
+      "bytes": 1566,
+      "receiptDrift": [],
+      "preImplementationSha256": "b293c8e1fc201d1f7b4c2e4752b07900d5d9076ee9227b83121fd91f259ed181"
+    },
+    {
+      "path": "lib/src/services/sqflite_lifecycle_host.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "243f40439dea705ef222f5a45f4511162698169ee7219cc11d1841045cc14f79",
+      "bytes": 10568,
+      "receiptDrift": [],
+      "preImplementationSha256": "a9dac5a913c620e3e40f6e61d948ade94b2b3571d64b7ec565d4fb1bd90678ba"
+    },
+    {
+      "path": "lib/src/services/startup_perf_log.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "a97751d1ef1af656f1d5bfc78f8d95fc160db941a68aafec824ea28cb9c119c8",
+      "bytes": 6139,
+      "receiptDrift": [],
+      "preImplementationSha256": "fb02c4509e519e0cb8d7598475dfe408cee1e8e317378d01ac496dd65cce7081"
+    },
+    {
+      "path": "lib/src/services/system_media_picker.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "6ad9196069c087ec6ca42ebedab59adc257c3db602ba3364654ef7309307b73e"
+        }
+      ],
+      "sha256": "6ad9196069c087ec6ca42ebedab59adc257c3db602ba3364654ef7309307b73e",
+      "bytes": 4715,
+      "receiptDrift": [],
+      "preImplementationSha256": "09ddf7b236b21370bfa4aaf9eb3176846e155793100c9266faa477f44f424143"
+    },
+    {
+      "path": "lib/src/session/session_manager.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "4b83b7a63e732095dd510dc79b3d7ffe5f514e4f56113757294f507673b0b2f7",
+      "bytes": 26218,
+      "receiptDrift": [],
+      "preImplementationSha256": "0b98dfbabd54aaec9896ff5940d79b6207973adef824ffb48f3ea09b0494b227"
+    },
+    {
+      "path": "lib/src/session/session_store.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "18cb3494ea85d87a921dcd56c5820d455d4d90a22d3d22b8160ed870d12685b4"
+        }
+      ],
+      "sha256": "18cb3494ea85d87a921dcd56c5820d455d4d90a22d3d22b8160ed870d12685b4",
+      "bytes": 2711,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/widgets/contact_list_with_presence.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "f4f13c7888afcd6096595c4fcefa885ecfb29c3b09aec6781fe262f33d14723e"
+        }
+      ],
+      "sha256": "f4f13c7888afcd6096595c4fcefa885ecfb29c3b09aec6781fe262f33d14723e",
+      "bytes": 48308,
+      "receiptDrift": [],
+      "preImplementationSha256": "52c6004e30dffd52338fbdb4115c0b394cc19ba4adf4556e1720683eac8d8637"
+    },
+    {
+      "path": "lib/src/widgets/contact_projection_merge.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "3d3e20ab7ab5b8789bbe7844a211bd38fa2f9967adfb66ce4f8277ed529c1103"
+        }
+      ],
+      "sha256": "3d3e20ab7ab5b8789bbe7844a211bd38fa2f9967adfb66ce4f8277ed529c1103",
+      "bytes": 771,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/widgets/group_live/group_live_watch_float.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "965b0985208063609c8ff20493d92062e1db947182c12c56bdedba05467cbec6",
+      "bytes": 14345,
+      "receiptDrift": []
+    },
+    {
+      "path": "lib/src/widgets/picker_recovery_notice.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "de76c4eb5725831e92c5b30f9daa71033257908b4b7a189c90951f138e8a4dfc",
+      "bytes": 5486,
+      "receiptDrift": []
+    },
+    {
+      "path": "pubspec.lock",
+      "contributors": [
+        "media",
+        "root"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "41bebe91801a972a7c02a94870f1a4de1a832a929d74dfee93f8681dd9f5f157"
+        }
+      ],
+      "sha256": "41bebe91801a972a7c02a94870f1a4de1a832a929d74dfee93f8681dd9f5f157",
+      "bytes": 81842,
+      "receiptDrift": [],
+      "preImplementationSha256": "f821eddf61a3254182c69efbc504d529568e233dd0dacea2ac3aef817040ca40"
+    },
+    {
+      "path": "pubspec.yaml",
+      "contributors": [
+        "media",
+        "root"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "786092c4844572a38580bcbaaf87542910da63590a3bfec010ea39c95fdca96b"
+        }
+      ],
+      "sha256": "786092c4844572a38580bcbaaf87542910da63590a3bfec010ea39c95fdca96b",
+      "bytes": 9961,
+      "receiptDrift": [],
+      "preImplementationSha256": "3400ffd5bce25928ff68dda7b0629c8885c76bd4976ff8bf55c72973d2c6cc3f"
+    },
+    {
+      "path": "test/ai_assistant_turn_lifecycle_test.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "a87ac5d0b99c2b524a9848d9c9d74da85e5b774cc6a7ce8542f2043e2ca5c49f"
+        }
+      ],
+      "sha256": "a87ac5d0b99c2b524a9848d9c9d74da85e5b774cc6a7ce8542f2043e2ca5c49f",
+      "bytes": 16041,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/chat_scroll_ack_dedup_test.dart",
+      "contributors": [
+        "chat-first-wave"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "1fe65936893f635515e4169ab81c9f114dab680f00faf737ff8752665e03f2a7"
+        }
+      ],
+      "sha256": "1fe65936893f635515e4169ab81c9f114dab680f00faf737ff8752665e03f2a7",
+      "bytes": 18394,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/chat_system_picker_failure_test.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "8fc41a6e5b3919b502f049c3f2628e221397f69a7ceaf7cd1bc30de54cfe3269"
+        }
+      ],
+      "sha256": "8fc41a6e5b3919b502f049c3f2628e221397f69a7ceaf7cd1bc30de54cfe3269",
+      "bytes": 6128,
+      "receiptDrift": [],
+      "preImplementationSha256": "80aefced9a271d30d84c8c9ddd83ae51c6e8e5a9b5a73b15e605542858157916"
+    },
+    {
+      "path": "test/conversation_tab_read_deadline_test.dart",
+      "contributors": [
+        "chat-first-wave"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "82dd9dfb24d8c257c880cf630ce63e8be4d4649be28518c325f6fb0298250749"
+        }
+      ],
+      "sha256": "82dd9dfb24d8c257c880cf630ce63e8be4d4649be28518c325f6fb0298250749",
+      "bytes": 4675,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/group_game_floating_entry_test.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "dfe9e1dc633bcf3f56e9f9fe5baa497c46fb89d800f189bd01fe473cc6b28d31",
+      "bytes": 3702,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/history_mutation_close_recovery_test.dart",
+      "contributors": [
+        "chat-W7"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-W7",
+          "sha256": "5ee1eed6f98c608e1e951c483ca11b6424679d6aa679682cc84ac1a597616440"
+        }
+      ],
+      "sha256": "5ee1eed6f98c608e1e951c483ca11b6424679d6aa679682cc84ac1a597616440",
+      "bytes": 18256,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/im_recovery_bounded_admission_test.dart",
+      "contributors": [
+        "chat-first-wave"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "0b3a518c4a4b439905328b64a2aa3aa981cc4115c8dd5864d5a10313f59be5de"
+        }
+      ],
+      "sha256": "0b3a518c4a4b439905328b64a2aa3aa981cc4115c8dd5864d5a10313f59be5de",
+      "bytes": 6759,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/media_decode_safety_test.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "1e35e288ba31c5ac7792fe5977eaa57a9d0929fc931fb15b2cf7199a747222f7"
+        }
+      ],
+      "sha256": "1e35e288ba31c5ac7792fe5977eaa57a9d0929fc931fb15b2cf7199a747222f7",
+      "bytes": 3942,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/picker_recovery_coordinator_test.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "622c5a2d4a36f26c06a1c20d774b3699cfff45d33c1a24ba525838ed32e3a6bf"
+        }
+      ],
+      "sha256": "622c5a2d4a36f26c06a1c20d774b3699cfff45d33c1a24ba525838ed32e3a6bf",
+      "bytes": 6171,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/recoverable_startup_test.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "1eb304d56a155c1189f4349ce1d2abb0ec78da5ad355f612be642997596b562d",
+      "bytes": 2023,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/search_filter_request_scope_test.dart",
+      "contributors": [
+        "chat-first-wave"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "b460bf23137f3e2fc14bfd1e2df182002b0633afe4aa92f094b05cb5f60a7690"
+        }
+      ],
+      "sha256": "b460bf23137f3e2fc14bfd1e2df182002b0633afe4aa92f094b05cb5f60a7690",
+      "bytes": 11166,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/search_jump_reentry_test.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "8e261e63bdb2635ab55abb88056d69df69173d59745831931925b62647239909",
+      "bytes": 12837,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/session_teardown_serialization_test.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "b038fe449dce5047af98d93f13820e1836854cbf7d2e39f52de30bbe3d86ea11",
+      "bytes": 2889,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/sqflite_bounded_lifecycle_test.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "4ba09d12ecc3c82739ce976278711d06c53da25747cf0772e995380ee3864103",
+      "bytes": 4273,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/sqflite_late_open_fence_test.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "d2dfb1ff2cf06dfe306570db9979d5b9c8df8d193f4a4d56bbdc01c43067b8a9",
+      "bytes": 2828,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/sqflite_late_secondary_open_fence_test.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "96c6b74122b71d7883cc1f2c8364aeee62012651dc6e89e2e59eea9be0bc9231",
+      "bytes": 3650,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/sqflite_native_close_contract_test.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "dd8e983328908ca98f07461d09593a7bc8b6f104d109a0132784cdd435f8ae3a",
+      "bytes": 1682,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/stability_contact_projection_test.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "565349396d6935fc5c177e34d49c3ba01f8fd8782ed5120eab11f2fe2f2fdda9"
+        }
+      ],
+      "sha256": "565349396d6935fc5c177e34d49c3ba01f8fd8782ed5120eab11f2fe2f2fdda9",
+      "bytes": 5243,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/stability_data_capabilities_test.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "79543097d77d4baf78bcaaa2ec63c8436a6cb32ee538514691051b65702a666e"
+        }
+      ],
+      "sha256": "79543097d77d4baf78bcaaa2ec63c8436a6cb32ee538514691051b65702a666e",
+      "bytes": 5325,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/stability_device_sync_test.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "a1e1c7ff852c486a31065fbe3af8734bd70c4739589294246223e1ce9da0a640"
+        }
+      ],
+      "sha256": "a1e1c7ff852c486a31065fbe3af8734bd70c4739589294246223e1ce9da0a640",
+      "bytes": 5883,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/stability_entry_service_ownership_test.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "58fd6f81aa829511496773606ee55af72cb04751a5cf0a5a3b5d2fa8f55df767"
+        }
+      ],
+      "sha256": "58fd6f81aa829511496773606ee55af72cb04751a5cf0a5a3b5d2fa8f55df767",
+      "bytes": 4899,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/stability_relationship_ownership_test.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "34b4858a9b4f233a8d2fb783bab8faa6e88b4b33bff6c2d34086bf101571d7c1"
+        }
+      ],
+      "sha256": "34b4858a9b4f233a8d2fb783bab8faa6e88b4b33bff6c2d34086bf101571d7c1",
+      "bytes": 4319,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/stability_session_store_serialization_test.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "e8a2816c970afb644da288afbd78896d910eeaa53443bb4f9ccfa482c6016685"
+        }
+      ],
+      "sha256": "e8a2816c970afb644da288afbd78896d910eeaa53443bb4f9ccfa482c6016685",
+      "bytes": 2911,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/stability_wallet_background_commit_test.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "803b92de5fdc6aaec455f9aff34d88525547578db552139f5668ab4a07a9f50d"
+        }
+      ],
+      "sha256": "803b92de5fdc6aaec455f9aff34d88525547578db552139f5668ab4a07a9f50d",
+      "bytes": 3585,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/stability_wallet_ownership_test.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "cdb86f1b26f0ce8bbbc5d6fd16f4860d44db3d502520f98628e0bca61b33113e"
+        }
+      ],
+      "sha256": "cdb86f1b26f0ce8bbbc5d6fd16f4860d44db3d502520f98628e0bca61b33113e",
+      "bytes": 8092,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/stability_wallet_visibility_test.dart",
+      "contributors": [
+        "data"
+      ],
+      "receipts": [
+        {
+          "owner": "data",
+          "sha256": "ac9c96396b9c69a84b8842637301c2cdc4f31e659f38072d00592b987ba5749e"
+        }
+      ],
+      "sha256": "ac9c96396b9c69a84b8842637301c2cdc4f31e659f38072d00592b987ba5749e",
+      "bytes": 5930,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/startup_entry_preferences_test.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "aab06956d191d8073673e49fbebe0db3c86107e7dc026abc74ac1c18174daaf4",
+      "bytes": 4287,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/support/controlled_database.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "60db8cdf2a683b2b6221c93595c4fb75d725984c41572079ae2ff8f08acd55d2",
+      "bytes": 1659,
+      "receiptDrift": []
+    },
+    {
+      "path": "test/w0_w2_network_session_repair_test.dart",
+      "contributors": [
+        "root"
+      ],
+      "receipts": [],
+      "sha256": "3c0162405fcfe0c73243e5f89a01eb33e22a35261ecb8106b47ef9fdbf76be99",
+      "bytes": 14416,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/build.gradle.kts",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "7bdf38d4b24d0f469d9704c3eb318cda2f66d108064ea040ce9816e5b6ce9859"
+        }
+      ],
+      "sha256": "7bdf38d4b24d0f469d9704c3eb318cda2f66d108064ea040ce9816e5b6ce9859",
+      "bytes": 2140,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/gradle.properties",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "622a3c6053f7d1429ef926700e2859ddcf2da8e58581de4621b5b601074508ba"
+        }
+      ],
+      "sha256": "622a3c6053f7d1429ef926700e2859ddcf2da8e58581de4621b5b601074508ba",
+      "bytes": 64,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/settings.gradle.kts",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "66438c10cc93f35ab471d6bb88c4c3889f12b2cb8eef8c8a7f2e4c5a8b638aee"
+        }
+      ],
+      "sha256": "66438c10cc93f35ab471d6bb88c4c3889f12b2cb8eef8c8a7f2e4c5a8b638aee",
+      "bytes": 42,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/main/AndroidManifest.xml",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "61349e6a391f437624fbbda8c3a1d97d206295d3f3a54edf364393af14b677c6"
+        }
+      ],
+      "sha256": "61349e6a391f437624fbbda8c3a1d97d206295d3f3a54edf364393af14b677c6",
+      "bytes": 1222,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ExifDataCopier.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "070a37b3b97f7345d1150b896d5efb24c6966eb2b14e4f70bf0f9c6f36107978"
+        }
+      ],
+      "sha256": "070a37b3b97f7345d1150b896d5efb24c6966eb2b14e4f70bf0f9c6f36107978",
+      "bytes": 6632,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/FileUtils.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "cf1c9161ab205a21df42cdd4c994a9510850d086121b525331384ee862db37bc"
+        }
+      ],
+      "sha256": "cf1c9161ab205a21df42cdd4c994a9510850d086121b525331384ee862db37bc",
+      "bytes": 7909,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ImagePickerCache.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "efc93547a7e8b77721ff45b32145e08ef808a7d37718462b10190631edc487ce"
+        }
+      ],
+      "sha256": "efc93547a7e8b77721ff45b32145e08ef808a7d37718462b10190631edc487ce",
+      "bytes": 10209,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ImagePickerDelegate.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "b48bce976fb76faf0320c77b742889ea355b673d3a16c1f5e540671c840caf52"
+        }
+      ],
+      "sha256": "b48bce976fb76faf0320c77b742889ea355b673d3a16c1f5e540671c840caf52",
+      "bytes": 37979,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ImagePickerFileProvider.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "09ee51148dd1fbda018bbaff226e2fdd91575e2c74910c2b971825a89acac8b3"
+        }
+      ],
+      "sha256": "09ee51148dd1fbda018bbaff226e2fdd91575e2c74910c2b971825a89acac8b3",
+      "bytes": 494,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ImagePickerPlugin.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "fd934202917443793f5f49b14dbf84566b571cb3ac22d518ef862b1a2663667d"
+        }
+      ],
+      "sha256": "fd934202917443793f5f49b14dbf84566b571cb3ac22d518ef862b1a2663667d",
+      "bytes": 13165,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ImagePickerUtils.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "36d0bca6b6bcc8b160f82fd0870cb5ba1793cb5cefe4c99f2617dad538256c58"
+        }
+      ],
+      "sha256": "36d0bca6b6bcc8b160f82fd0870cb5ba1793cb5cefe4c99f2617dad538256c58",
+      "bytes": 3297,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/main/java/io/flutter/plugins/imagepicker/ImageResizer.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "0260ec5b78364084c3bed64a75a9e56a526aed2e4585db2f41954fd47cf70d5e"
+        }
+      ],
+      "sha256": "0260ec5b78364084c3bed64a75a9e56a526aed2e4585db2f41954fd47cf70d5e",
+      "bytes": 7076,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/main/kotlin/io/flutter/plugins/imagepicker/Messages.kt",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "e3d79315e5db293507a237fea8b1a838e1bbec8dd90e7a70ec1f16f7d101437c"
+        }
+      ],
+      "sha256": "e3d79315e5db293507a237fea8b1a838e1bbec8dd90e7a70ec1f16f7d101437c",
+      "bytes": 23428,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/main/kotlin/io/flutter/plugins/imagepicker/ResultUtils.kt",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "01328ed31588e53ea49a1d6c1f00f9d286083f2dd40262db7929924add2fdacd"
+        }
+      ],
+      "sha256": "01328ed31588e53ea49a1d6c1f00f9d286083f2dd40262db7929924add2fdacd",
+      "bytes": 450,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/main/res/xml/flutter_image_picker_file_paths.xml",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "2306c13b644f2b0c95b78de7e91f738569451ffa811e361c9bee86042959b2c0"
+        }
+      ],
+      "sha256": "2306c13b644f2b0c95b78de7e91f738569451ffa811e361c9bee86042959b2c0",
+      "bytes": 103,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/ExifDataCopierTest.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "30094d2646736701ec198eb54364f737f2dcfa6830ebc2f6a8dfeb3ef949016c"
+        }
+      ],
+      "sha256": "30094d2646736701ec198eb54364f737f2dcfa6830ebc2f6a8dfeb3ef949016c",
+      "bytes": 4339,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/FileUtilTest.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "886fc411774678dc1b0f960fdffef1ab4a4f6ed89658f0a01c6d9addbbe3e5e5"
+        }
+      ],
+      "sha256": "886fc411774678dc1b0f960fdffef1ab4a4f6ed89658f0a01c6d9addbbe3e5e5",
+      "bytes": 9352,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/ImagePickerCacheTest.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "e4bd8ad7f5665f40824c21cd0d35791fcdd1155698bf40d337a6f28f51a07afd"
+        }
+      ],
+      "sha256": "e4bd8ad7f5665f40824c21cd0d35791fcdd1155698bf40d337a6f28f51a07afd",
+      "bytes": 5012,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/ImagePickerDelegateTest.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "0225e72ce8e0dcb78ba5f435d575df570112af2364adc8cc1d94d0d13c18abdd"
+        }
+      ],
+      "sha256": "0225e72ce8e0dcb78ba5f435d575df570112af2364adc8cc1d94d0d13c18abdd",
+      "bytes": 38666,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/ImagePickerPluginTest.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "f0ed2f61134256816ea495c3d34cb606a63660c973bb35714b549a11d0b3d5d3"
+        }
+      ],
+      "sha256": "f0ed2f61134256816ea495c3d34cb606a63660c973bb35714b549a11d0b3d5d3",
+      "bytes": 14049,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/ImageResizerTest.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "6d3d274a1a3d2675f967d4e6f19ce9b44ceb5fcf3342155a1d6c97127f87cef7"
+        }
+      ],
+      "sha256": "6d3d274a1a3d2675f967d4e6f19ce9b44ceb5fcf3342155a1d6c97127f87cef7",
+      "bytes": 9286,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/java/io/flutter/plugins/imagepicker/PickerRecoveryCacheTest.java",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "1b3af3df4377b1b05b11219b790af0816f0cbd40aa4d921428a2b8cd5979620c"
+        }
+      ],
+      "sha256": "1b3af3df4377b1b05b11219b790af0816f0cbd40aa4d921428a2b8cd5979620c",
+      "bytes": 2206,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/kotlin/io/flutter/plugins/imagepicker/TestResultUtils.kt",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "93d95fd463c809ef857cf8b31118289358efb63900ae9f89caa9c0bfe67f6cc3"
+        }
+      ],
+      "sha256": "93d95fd463c809ef857cf8b31118289358efb63900ae9f89caa9c0bfe67f6cc3",
+      "bytes": 968,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/resources/flutter_image.svg",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "55effcbd51457e9f2bfc25194e7be6fec83368634b339131e578bd95643362de"
+        }
+      ],
+      "sha256": "55effcbd51457e9f2bfc25194e7be6fec83368634b339131e578bd95643362de",
+      "bytes": 1196,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/resources/jpgImageTall.jpg",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "f14f59b8162c5511a5a15005adb5a08137a61da6dcf79d7a2290c653a4f367e5"
+        }
+      ],
+      "sha256": "f14f59b8162c5511a5a15005adb5a08137a61da6dcf79d7a2290c653a4f367e5",
+      "bytes": 3390,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/resources/jpgImageWide.jpg",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "242206e6ecb0fc340dd86f4d32e50e4d2ae21dbaf7389e099133a916f1d0c4b8"
+        }
+      ],
+      "sha256": "242206e6ecb0fc340dd86f4d32e50e4d2ae21dbaf7389e099133a916f1d0c4b8",
+      "bytes": 3290,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "ad854cde62cc375ac4d837bcd1769fb17feb26bd4096ce837ca9164903514e93"
+        }
+      ],
+      "sha256": "ad854cde62cc375ac4d837bcd1769fb17feb26bd4096ce837ca9164903514e93",
+      "bytes": 17,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/android/src/test/resources/pngImage.png",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "40054377e1e084f44f4410ce8f44c210aba945dfc55ed0ef23bdf9469e32f8d3"
+        }
+      ],
+      "sha256": "40054377e1e084f44f4410ce8f44c210aba945dfc55ed0ef23bdf9469e32f8d3",
+      "bytes": 629,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/AUTHORS",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "7614dfe5993b2751dd929dd062a5b04ae279997ff59f8817cb5a44f1aeee1019"
+        }
+      ],
+      "sha256": "7614dfe5993b2751dd929dd062a5b04ae279997ff59f8817cb5a44f1aeee1019",
+      "bytes": 2525,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/CHANGELOG.md",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "e26b70a1a0f3bcd52b3cc04c4efdf24e1cb3facfbe1d21b13907410e429d8c04"
+        }
+      ],
+      "sha256": "e26b70a1a0f3bcd52b3cc04c4efdf24e1cb3facfbe1d21b13907410e429d8c04",
+      "bytes": 7936,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/lib/image_picker_android.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "c2ca62970c0060c5de3c153fd61623905ee48953d5bb23f4f04bb1682fc3e6ea"
+        }
+      ],
+      "sha256": "c2ca62970c0060c5de3c153fd61623905ee48953d5bb23f4f04bb1682fc3e6ea",
+      "bytes": 13498,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/lib/src/messages.g.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "62f60cfa36e4b7ec30c5bee31f3a1eef1c45dd6024f45727bd73ea09f1ebcfb7"
+        }
+      ],
+      "sha256": "62f60cfa36e4b7ec30c5bee31f3a1eef1c45dd6024f45727bd73ea09f1ebcfb7",
+      "bytes": 17796,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/LICENSE",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "8e22fae63e4e8ac897f0cb3018ed94ed730b3e5da5d42c6856a26ba524f0fd88"
+        }
+      ],
+      "sha256": "8e22fae63e4e8ac897f0cb3018ed94ed730b3e5da5d42c6856a26ba524f0fd88",
+      "bytes": 12953,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/pigeons/copyright.txt",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "8389b4e4116894c3d8b31c0619df9e131555acafdc9486b7e7db5bb483d2a957"
+        }
+      ],
+      "sha256": "8389b4e4116894c3d8b31c0619df9e131555acafdc9486b7e7db5bb483d2a957",
+      "bytes": 133,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/pigeons/messages.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "9ef241a06d7d343363dbe3ef625c4e496135b317d872c34c1d37456c5ec2d231"
+        }
+      ],
+      "sha256": "9ef241a06d7d343363dbe3ef625c4e496135b317d872c34c1d37456c5ec2d231",
+      "bytes": 3564,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/pubspec.yaml",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "dd12c6ccd666f70538f9057c7838e73d61299b1413baa8d049348553f0d12117"
+        }
+      ],
+      "sha256": "dd12c6ccd666f70538f9057c7838e73d61299b1413baa8d049348553f0d12117",
+      "bytes": 882,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/README.md",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "28c71bdc8fa8d3c20bcb911c095d688d2ba0ffe984e2f5706993d4075a25cee0"
+        }
+      ],
+      "sha256": "28c71bdc8fa8d3c20bcb911c095d688d2ba0ffe984e2f5706993d4075a25cee0",
+      "bytes": 1722,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_android/test/image_picker_android_test.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "74c5aada9a5ac277a24495c19e56826a508246c9ee454fe23ed3dd855cb04eaf"
+        }
+      ],
+      "sha256": "74c5aada9a5ac277a24495c19e56826a508246c9ee454fe23ed3dd855cb04eaf",
+      "bytes": 32091,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/AUTHORS",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "e89602d9d136178bcf1e20cbdfe98c236050f7fefcd8e9a03a18fbc4aa771af4"
+        }
+      ],
+      "sha256": "e89602d9d136178bcf1e20cbdfe98c236050f7fefcd8e9a03a18fbc4aa771af4",
+      "bytes": 2454,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/CHANGELOG.md",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "4398b91eefe6ee72e7b7f5ad4658c713e6ada88640441663a1cbba3847a990e7"
+        }
+      ],
+      "sha256": "4398b91eefe6ee72e7b7f5ad4658c713e6ada88640441663a1cbba3847a990e7",
+      "bytes": 5038,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios.podspec",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "bde2b6015c7f452c8ccfe19ba6bd5674d233439f17b1875333acf41709fb4880"
+        }
+      ],
+      "sha256": "bde2b6015c7f452c8ccfe19ba6bd5674d233439f17b1875333acf41709fb4880",
+      "bytes": 1323,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Package.swift",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "5fbe6de1fb566aaf11079ab2b50cd052153ae45e47f7fed67ebb02d85b2c5765"
+        }
+      ],
+      "sha256": "5fbe6de1fb566aaf11079ab2b50cd052153ae45e47f7fed67ebb02d85b2c5765",
+      "bytes": 724,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/FIPViewProvider.m",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "e2a66b6e7f0b9e8656da953504ccc53fbccfc4dc237f1bc21f36ff5ea24d90a6"
+        }
+      ],
+      "sha256": "e2a66b6e7f0b9e8656da953504ccc53fbccfc4dc237f1bc21f36ff5ea24d90a6",
+      "bytes": 645,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/FLTImagePickerImageUtil.m",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "25e409145372cbd4fa9611b47ef918053cbb9d88661b62a0216d0b12139103d8"
+        }
+      ],
+      "sha256": "25e409145372cbd4fa9611b47ef918053cbb9d88661b62a0216d0b12139103d8",
+      "bytes": 6352,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/FLTImagePickerMetaDataUtil.m",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "fe367a23737c73627e691c678a23b14c480f29e44ed63f39e4927843b05cb379"
+        }
+      ],
+      "sha256": "fe367a23737c73627e691c678a23b14c480f29e44ed63f39e4927843b05cb379",
+      "bytes": 3264,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/FLTImagePickerPhotoAssetUtil.m",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "8e60047b4f365ac0b1a4e5748241b7356a50159da8024592710e5f052ad2bbec"
+        }
+      ],
+      "sha256": "8e60047b4f365ac0b1a4e5748241b7356a50159da8024592710e5f052ad2bbec",
+      "bytes": 6349,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/FLTImagePickerPlugin.m",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "12631fd3d344f5cbb158550cb476ae5c447147104ea6b9a48360c0394984c4e9"
+        }
+      ],
+      "sha256": "12631fd3d344f5cbb158550cb476ae5c447147104ea6b9a48360c0394984c4e9",
+      "bytes": 32811,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/FLTPHPickerSaveImageToPathOperation.m",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "4f4d804695a142ec2ec02fd289e05dacdf150ca0390e011b866a7fda096f23df"
+        }
+      ],
+      "sha256": "4f4d804695a142ec2ec02fd289e05dacdf150ca0390e011b866a7fda096f23df",
+      "bytes": 13479,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios-umbrella.h",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "2a17b405b86d1f3879590d02c70debb59bed24879b956f6ca6f8070a859c7d8b"
+        }
+      ],
+      "sha256": "2a17b405b86d1f3879590d02c70debb59bed24879b956f6ca6f8070a859c7d8b",
+      "bytes": 227,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FIPViewProvider.h",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "c51f3233e9d76037fabdd4035face7f7ba45a2580058b8eba919a74d9aded343"
+        }
+      ],
+      "sha256": "c51f3233e9d76037fabdd4035face7f7ba45a2580058b8eba919a74d9aded343",
+      "bytes": 819,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FLTImagePickerImageUtil.h",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "94294c2cc97a85ae62c8dd69ca7f37315e4412e8f2109efd616d924aaf4d7a79"
+        }
+      ],
+      "sha256": "94294c2cc97a85ae62c8dd69ca7f37315e4412e8f2109efd616d924aaf4d7a79",
+      "bytes": 1043,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FLTImagePickerMetaDataUtil.h",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "f1e34c0b8cc5dfbabf7b5c3b0150c156be501624e15731a2fedf9d02583708e0"
+        }
+      ],
+      "sha256": "f1e34c0b8cc5dfbabf7b5c3b0150c156be501624e15731a2fedf9d02583708e0",
+      "bytes": 1758,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FLTImagePickerPhotoAssetUtil.h",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "d1c1559c54d587f731842859630fde385bc54beece5c1e2311016e737cbae2c9"
+        }
+      ],
+      "sha256": "d1c1559c54d587f731842859630fde385bc54beece5c1e2311016e737cbae2c9",
+      "bytes": 1347,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FLTImagePickerPlugin_Test.h",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "5bcb3ac2d168a9157db862013d21fedf475bc4e7c1e7851409ade7592cd9a057"
+        }
+      ],
+      "sha256": "5bcb3ac2d168a9157db862013d21fedf475bc4e7c1e7851409ade7592cd9a057",
+      "bytes": 3788,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FLTImagePickerPlugin.h",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "d7b3e43c3ab4c9cb332abe8e8723d384dc7771a1d448d0cc43233d783d2a10ba"
+        }
+      ],
+      "sha256": "d7b3e43c3ab4c9cb332abe8e8723d384dc7771a1d448d0cc43233d783d2a10ba",
+      "bytes": 464,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/FLTPHPickerSaveImageToPathOperation.h",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "42bd0de02241d7a206b31519cd8d22d3f4f86b0ee52c720f1c6c6f4a3dda1094"
+        }
+      ],
+      "sha256": "42bd0de02241d7a206b31519cd8d22d3f4f86b0ee52c720f1c6c6f4a3dda1094",
+      "bytes": 1332,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/image_picker_ios/messages.g.h",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "e8981fbf411c0bb7438a6a9c4b2c988749d7218f43701ba8af12ebe0a49a9111"
+        }
+      ],
+      "sha256": "e8981fbf411c0bb7438a6a9c4b2c988749d7218f43701ba8af12ebe0a49a9111",
+      "bytes": 4596,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/include/ImagePickerPlugin.modulemap",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "41b6dacc38e06d5c56d1697aac2745575eedbcab6ee5e3c1a0385e0fb5dc9307"
+        }
+      ],
+      "sha256": "41b6dacc38e06d5c56d1697aac2745575eedbcab6ee5e3c1a0385e0fb5dc9307",
+      "bytes": 399,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/messages.g.m",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "704559ddbad66b9875c63eb207ecd0eddeef105bd4d3798c26de3749db2835a6"
+        }
+      ],
+      "sha256": "704559ddbad66b9875c63eb207ecd0eddeef105bd4d3798c26de3749db2835a6",
+      "bytes": 21121,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/ios/image_picker_ios/Sources/image_picker_ios/Resources/PrivacyInfo.xcprivacy",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "6d2da0d8d930227d428c1d9363b0ad6e3a12e2c9b68c5ce297158a7412fc8c31"
+        }
+      ],
+      "sha256": "6d2da0d8d930227d428c1d9363b0ad6e3a12e2c9b68c5ce297158a7412fc8c31",
+      "bytes": 373,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/lib/image_picker_ios.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "0b068dae61d20e522fad38ac07e9bb6e56a6d551acc3f4fbf8dcd11e55316a74"
+        }
+      ],
+      "sha256": "0b068dae61d20e522fad38ac07e9bb6e56a6d551acc3f4fbf8dcd11e55316a74",
+      "bytes": 10645,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/lib/src/messages.g.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "fb0dd8c181a66674d408087f7c5d46d3a5c798089707de6a98784dfb32aff6be"
+        }
+      ],
+      "sha256": "fb0dd8c181a66674d408087f7c5d46d3a5c798089707de6a98784dfb32aff6be",
+      "bytes": 13116,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/LICENSE",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "8e22fae63e4e8ac897f0cb3018ed94ed730b3e5da5d42c6856a26ba524f0fd88"
+        }
+      ],
+      "sha256": "8e22fae63e4e8ac897f0cb3018ed94ed730b3e5da5d42c6856a26ba524f0fd88",
+      "bytes": 12953,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/pigeons/copyright.txt",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "8389b4e4116894c3d8b31c0619df9e131555acafdc9486b7e7db5bb483d2a957"
+        }
+      ],
+      "sha256": "8389b4e4116894c3d8b31c0619df9e131555acafdc9486b7e7db5bb483d2a957",
+      "bytes": 133,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/pigeons/messages.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "a9232f37d23e4fea6feaeb1dc7da6e53f99f0ffe3b3f93ce84a953fe437d1324"
+        }
+      ],
+      "sha256": "a9232f37d23e4fea6feaeb1dc7da6e53f99f0ffe3b3f93ce84a953fe437d1324",
+      "bytes": 2283,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/pubspec.yaml",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "ca60210b6a93f911955127da923662ce4f106655cff56b92b51fc02602e7a478"
+        }
+      ],
+      "sha256": "ca60210b6a93f911955127da923662ce4f106655cff56b92b51fc02602e7a478",
+      "bytes": 774,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/README.md",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "09ed80401e64abd8040ec31a3884f060fd76f6c46d4ff4a274fa47ef026c5a47"
+        }
+      ],
+      "sha256": "09ed80401e64abd8040ec31a3884f060fd76f6c46d4ff4a274fa47ef026c5a47",
+      "bytes": 510,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/image_picker_ios/test/image_picker_ios_test.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "bf6a2ae0dde2727eb456c2ac9825f1cfa0ecb11a60ef4a592c14c75177e914cb"
+        }
+      ],
+      "sha256": "bf6a2ae0dde2727eb456c2ac9825f1cfa0ecb11a60ef4a592c14c75177e914cb",
+      "bytes": 28318,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/99CHAT_PATCH.md",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "58730770e786391f4f9974001a3a14f7694516587a31ed57e7a0f8ae7ed52da7",
+      "bytes": 631,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/CHANGELOG.md",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "cd4ba6eece6fbea04f16c28550d5de813b19ec4ae99ac7e9391262b250c9f3ab",
+      "bytes": 2310,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/sqflite_dev.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "77158a38fecf80ee366f5d545b8c4e35ee2c6890f89ba917e9a1d69454d6fcf5",
+      "bytes": 981,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/sqflite_logger.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "a3e92ac67bf449923d9d2d46673b09777e6596eb3d61b4c63fd3c878e1a87483",
+      "bytes": 768,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/sqflite.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "cfafd5aba59b0c72dc0095efa5fcef50a479e5190b4c91f51323d0a5524ea62d",
+      "bytes": 4422,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/sql.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "3f34915e2b6fa152a0327e8125dc8e157efeda721bab156cabf7eab1074d2d94",
+      "bytes": 186,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/sqlite_api.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "48099d2f9bcb98800ff3ea870e1eefbb1368b495de46d69b19b9458e8b60d373",
+      "bytes": 23872,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/arg_utils.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "89d798944fa5446ecfbb9663f84e790694fd7f96154d5b0f41171dd88bd4518b",
+      "bytes": 901,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/batch.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "c2b50ece4cd56cd21b042c0dbb5fc4da86e5208d6d4d2f9bbe76df7d44e394dc",
+      "bytes": 6295,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/collection_utils.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "9139e0cff087681646b85096cf40ce98559f02d38835302c3800d85ae8a17074",
+      "bytes": 5792,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/compat.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "942034fff5f825b26f856e8e6f6f569026d8cbb8112dc63befe0c48c71bebd1c",
+      "bytes": 1563,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/constant.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "db33164972f1678974a970136b27beeed5c53a679c9b944e4dd6b2824eaa8aeb",
+      "bytes": 4986,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/cursor.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "7376fc9f6bd64d5a2911db9a4db5e998383afdfa794fb233f9eb4673c00c4b6b",
+      "bytes": 1052,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/database_executor_iterate_ext.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "ee4af2a7bd93a8ebecef9530144c7d15717e6d28cfdff2eca1c4471934d50288",
+      "bytes": 1809,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/database_ext.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "c50149e76ab95402d56da17765f071c3679272f4316ce374c46dbd91062cc00e",
+      "bytes": 811,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/database_file_system_io.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "cec9ef0cd7350c725190a2233baaf59095b920a9c91fc47cdddc8bfb3d172290",
+      "bytes": 1336,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/database_file_system.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "af1f8b2df14c508073e510bd2722f3851423f5ac7aed7ed28baeaa738c64e49b",
+      "bytes": 512,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/database_mixin.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "27ac1852ec635424dfac6877b849395269e2fd1b1b5c5d0f275f88480bae7ab0",
+      "bytes": 36035,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/database.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "2448844a10f3b0feef3a11906f9741a7e832d001824c5b49ea5b34cbc1125993",
+      "bytes": 3873,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/dev_utils.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "e53b70b91c5a0874a7add01387d7df98dc7bcf043eb11f5bfd6d80d4e002b19b",
+      "bytes": 375,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/env_utils.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "ced79c527571c1df72031bb26ef0eb105f0b94aef8c780248dabf8a465b483e3",
+      "bytes": 555,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/exception.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "43b1d0c105e8799d2c7d6b9138bcacb70036f6b773bf2a842bf6877a68281817",
+      "bytes": 6140,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/factory_mixin.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "bc7701844eff878e78dc06bf1dfb7c0fecc79eaa2d78d0f4d2904c00b7cc0aac",
+      "bytes": 9549,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/factory.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "12d3e0273d7e2222612d5e465e0952249728895d6f14f9479bc4635f7341bc6a",
+      "bytes": 1156,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/internals.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "3eebffc8716e39c5c8ad58f0a9cd28be1f2e3e9f3af6d2f55d54b112492de420",
+      "bytes": 947,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/log_level.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/logger/sqflite_logger.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "6bb2ceb5daddf5aec3738b0b95ab6f10730a67a736b3bde0b50432d38f226c8f",
+      "bytes": 26046,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/method_call.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "844da4ec0da9c156cdb28385a88c8998e7d6e24fc9fbd9283eb7f27969c7c7eb",
+      "bytes": 887,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/mixin.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "9876bf791c198cf9e715e544573b7fcc08af2f48475f1a0af776b7ab9d71f9c5",
+      "bytes": 156,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/mixin/constant.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "3d06866f4655497af33942d42b16254eab15381e557167f2d8b14462fdee2e39",
+      "bytes": 77,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/mixin/dev_utils.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "306f88c476c2b2640f5188bd724fd84785f594362fe88cd23afb0b50e56ccaa7",
+      "bytes": 152,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/mixin/factory.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "15a704e3b31190c40ab10f1e0eab074dd9b830f004f518515cde87d992381224",
+      "bytes": 1147,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/mixin/import_mixin.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "5cddd4f37dbd7be7755127eaf9536c9b3dbaba66cf858d2e75561c06381f7d4c",
+      "bytes": 1289,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/mixin/platform.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "5376630ba256078e9290c4b1a2479dd856e6672a216b3b77f2de9e327cb5e4c9",
+      "bytes": 179,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/open_options.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "087a8897e786311a11b53c77b575437f322ce1028c6d1438969cdaf0fc71d460",
+      "bytes": 1417,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/path_utils.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "ca290d7cdde3c582297986897c11f4931912131e0cd1e787d98dcd62f9311464",
+      "bytes": 512,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/platform/platform_io.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "a4302b5a15390fe6f415589661dcb2c6edd1ed417089c87a99d86d5df8e69ba4",
+      "bytes": 672,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/platform/platform_web.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "34684f6e759ed0784e9f028ca29ce582b7cb10f3551cba340997654c1fc02057",
+      "bytes": 382,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/platform/platform.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "bb31ce3d037fe1d643da231bfa2d695eccf139f761e3a4e3f989773f3f001652",
+      "bytes": 576,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/sqflite_database_factory.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "5f7bf15d203e8938074dc8be690f79431257c14b15dcb4b20889cd9d1f6f3390",
+      "bytes": 1809,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/sqflite_debug.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "0721d94abeb023fd4a108e1249aefad67b3be233641b9230b4a3313ed81a7101",
+      "bytes": 859,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/sqflite_import.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "e8e2929c4132e2107c774dadf8c101b42b1a9fd61b983d29325d5ee04c764e9e",
+      "bytes": 1195,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/sql_builder.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "c949fb0aac9b8f81816427f6544557ed9d6b33b2e63b1cb59d0fc15d478d7fb0",
+      "bytes": 15515,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/sql_command_executor_ext.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "d441d37cdd50a65dea09d67973d94c02c46c67b0b3ee5d54768b39752c07c145",
+      "bytes": 1469,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/sql_command.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "e4cdc6bc98ba942f1badbdd2cb58822018b232cde1e12a6e13cf8a192d2a3f95",
+      "bytes": 3906,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/transaction.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "067a2c8b4cbc6ef9e5c988edd45494b38e6871d664a33f469ae4e5ea347e5657",
+      "bytes": 2017,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/utils.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "515bec9b4e79b0148c0cf3b8ac512c13ccae0cf3b6d23ecec082a7a040ed9e00",
+      "bytes": 1865,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/src/value_utils.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "9a4f9fdd0bde59bea64d1e8b4efc7afcb7af16b4af63eb5d0122327f7f3f206e",
+      "bytes": 1792,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/lib/utils/utils.dart",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "7e7f916119a0a9e19a3b1313c1016e8874c54afb6c0be23be03e1645d6915544",
+      "bytes": 2187,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/LICENSE",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "c81f9454cf3107c116bc3c1fd22b7d751523a2b11e17cf90c0db3327d3c9e0da",
+      "bytes": 1328,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/pubspec.yaml",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "6ba121446e714f5d94145cade947b8cd1a0ab648b7529945f583323dce4e39c3",
+      "bytes": 541,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/sqflite_common/README.md",
+      "contributors": [
+        "root-vendored-sqflite"
+      ],
+      "receipts": [],
+      "sha256": "d7c3df20041524ea94b067df39b88a93d7a853dbe787e82a7d735880cf51cf51",
+      "bytes": 756,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "contributors": [
+        "chat-W7"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-W7",
+          "sha256": "bb56a4548303504b2d648c4b97da3ffd4cb9fb8b72c355a49f7715fc03d4790d"
+        }
+      ],
+      "sha256": "bb56a4548303504b2d648c4b97da3ffd4cb9fb8b72c355a49f7715fc03d4790d",
+      "bytes": 351487,
+      "receiptDrift": [],
+      "preImplementationSha256": "b168275cd130eaa0cb489dde606fac32fa579f8225a8bf0919ec7b4322bea127"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_bounded_history.dart",
+      "contributors": [
+        "chat-first-wave",
+        "chat-W7"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "05f07aeb4fc87a17ee25310215416400208c66e74ed6153344cf6ab6c1b80fb1"
+        },
+        {
+          "owner": "chat-W7",
+          "sha256": "dd57a6c62a5d330072c1714f4b55cfd9b94501098f5566cb773a76099bb821dd"
+        }
+      ],
+      "sha256": "dd57a6c62a5d330072c1714f4b55cfd9b94501098f5566cb773a76099bb821dd",
+      "bytes": 66315,
+      "receiptDrift": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "05f07aeb4fc87a17ee25310215416400208c66e74ed6153344cf6ab6c1b80fb1"
+        }
+      ],
+      "preImplementationSha256": "a615bf24adc1be273faa67af0f58481176902e5340ffbcde5efddb18ce121316"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_search_view_model.dart",
+      "contributors": [
+        "chat-first-wave"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "15e10f874af35f557c31f25cc6e15054004eea22bd23890a666873afad5d3aa2"
+        }
+      ],
+      "sha256": "15e10f874af35f557c31f25cc6e15054004eea22bd23890a666873afad5d3aa2",
+      "bytes": 85204,
+      "receiptDrift": [],
+      "preImplementationSha256": "149f0d9403dc8824be61a11a0bcb834875f2ef8f31c68df4e400c6d7a0aebd58"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/data_services/message/outgoing_media_work_queue.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "32b4dad6f3b8e9b8fe22ed3d5666b201b39b1a9587e75f9feb903eb346cbd7a2"
+        }
+      ],
+      "sha256": "32b4dad6f3b8e9b8fe22ed3d5666b201b39b1a9587e75f9feb903eb346cbd7a2",
+      "bytes": 1939,
+      "receiptDrift": [],
+      "preImplementationSha256": "93996ecd7d1ccbf6fd121ed8fed9a9be28311aaf3e93113c14c9613ea0423b9d"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_gallery_pick_utils.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "a6642b2e5e0407d0bebbeb3252458d12b21ce90cbf8cb0e8d6509d116d8304b8"
+        }
+      ],
+      "sha256": "a6642b2e5e0407d0bebbeb3252458d12b21ce90cbf8cb0e8d6509d116d8304b8",
+      "bytes": 8290,
+      "receiptDrift": [],
+      "preImplementationSha256": "41b336b8bf7e37ee0e19decc69d02aca0ad9b590b8180161697500b8ddbfb5db"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_media_send_utils.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "1e2c1ea80b15a8f398318dea069c46b389167c2c678d5bdf287aeec8917237a6"
+        }
+      ],
+      "sha256": "1e2c1ea80b15a8f398318dea069c46b389167c2c678d5bdf287aeec8917237a6",
+      "bytes": 46412,
+      "receiptDrift": [],
+      "preImplementationSha256": "ace5b725fe30ca9e166dc8479f7183243fe904d54f206bd09df0c4983c5fd719"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_message_preview_image_resolver.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "bff5f1bec3ca933e2cba1e46cf45e95d10144ae575bea809d407717a5b15e3fe"
+        }
+      ],
+      "sha256": "bff5f1bec3ca933e2cba1e46cf45e95d10144ae575bea809d407717a5b15e3fe",
+      "bytes": 18399,
+      "receiptDrift": [],
+      "preImplementationSha256": "a758706aa9ae9da50d20f7cb9b2c78881efba11c4a07419ea65ae38a96e05693"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/image_preview_resolution_utils.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "09c500aa2108c6076cacf8ccdd36994b6888901059deb480a3572207f6685b4a"
+        }
+      ],
+      "sha256": "09c500aa2108c6076cacf8ccdd36994b6888901059deb480a3572207f6685b4a",
+      "bytes": 38158,
+      "receiptDrift": [],
+      "preImplementationSha256": "d6dcc0a3b1d4461cc5fdba52b93a22750ce0639bdabfd90e0d3912060e300240"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/picker_recovery_coordinator.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "a5c1dbec2b75693bfadc277b3a4a5e89148fbb5073c8edae7e248f858ccbadf8"
+        }
+      ],
+      "sha256": "a5c1dbec2b75693bfadc277b3a4a5e89148fbb5073c8edae7e248f858ccbadf8",
+      "bytes": 12238,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart",
+      "contributors": [
+        "chat-first-wave"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "09e6129d9fa01dbd06e96ca137e3d465083b5ce8b294c395e99a9207ca7d25fe"
+        }
+      ],
+      "sha256": "09e6129d9fa01dbd06e96ca137e3d465083b5ce8b294c395e99a9207ca7d25fe",
+      "bytes": 617853,
+      "receiptDrift": [],
+      "preImplementationSha256": "67f898bd6039baa2018d8b096b473ad9de1cee82b1781b21df5cb59aedb49f9c"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_more_panel.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "247657becb8299ad9beb652d7d28eb917b797b8475f0ee9c9f47d33ba1492461"
+        }
+      ],
+      "sha256": "247657becb8299ad9beb652d7d28eb917b797b8475f0ee9c9f47d33ba1492461",
+      "bytes": 95154,
+      "receiptDrift": [],
+      "preImplementationSha256": "35d8f4a971fb770fb0c07dcdcea11e6c587ac59ace810ffda2e2ed8e98b33449"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_conversation_filter_msg_page.dart",
+      "contributors": [
+        "chat-first-wave"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "5e0cdb7d64edd8fe3ce2256383c17efa5d2c513c70a5613531e2528fcbf588ff"
+        }
+      ],
+      "sha256": "5e0cdb7d64edd8fe3ce2256383c17efa5d2c513c70a5613531e2528fcbf588ff",
+      "bytes": 11606,
+      "receiptDrift": [],
+      "preImplementationSha256": "2967e5ce76b6f6c36f720abe6d04f5404ebe1f7378beb5898e4875e0aa9274be"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitSearch/tim_uikit_conversation_media_file_page.dart",
+      "contributors": [
+        "chat-first-wave"
+      ],
+      "receipts": [
+        {
+          "owner": "chat-first-wave",
+          "sha256": "e9c30a916ba1a5bfdf2125f7a37a054bd7d14e7c4921b93fcbed53cec163b34f"
+        }
+      ],
+      "sha256": "e9c30a916ba1a5bfdf2125f7a37a054bd7d14e7c4921b93fcbed53cec163b34f",
+      "bytes": 35308,
+      "receiptDrift": []
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/image_screen.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "01083a5c0e2e66898633e19453186f1181bf84e680b114851c5ce508aad582f8"
+        }
+      ],
+      "sha256": "01083a5c0e2e66898633e19453186f1181bf84e680b114851c5ce508aad582f8",
+      "bytes": 81331,
+      "receiptDrift": [],
+      "preImplementationSha256": "978dfd5f27a8c3b47f3b37e0aafc614edfa0affdfa16bbe22513b5c3835b0e2f"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/test/gallery_adjacent_decode_budget_test.dart",
+      "contributors": [
+        "media"
+      ],
+      "receipts": [
+        {
+          "owner": "media",
+          "sha256": "6b6c666e513454f4f2d20246ce12fddfe948ee8bc63bf58fe14ff23fef56e06e"
+        }
+      ],
+      "sha256": "6b6c666e513454f4f2d20246ce12fddfe948ee8bc63bf58fe14ff23fef56e06e",
+      "bytes": 3960,
+      "receiptDrift": []
+    }
+  ]
+}

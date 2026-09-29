@@ -1,0 +1,14 @@
+Future<void> awaitOpenHydrateInFlight(
+    String conversationID, {
+    Duration timeout = const Duration(milliseconds: 450),
+  }) async {
+    final inFlight = _findOpenHydrateInFlight(conversationID);
+    if (inFlight == null) {
+      return;
+    }
+    try {
+      await inFlight.timeout(timeout);
+    } on TimeoutException {
+      // hydrate 自行兜底。
+    }
+  }

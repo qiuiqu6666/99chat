@@ -1,0 +1,9 @@
+{
+  "linksValid": true,
+  "issues": [],
+  "changedSinceCandidateSnapshot": [
+    "lib/src/services/im_sdk_relationship_directory.dart",
+    "lib/src/services/sqflite_lifecycle_host.dart",
+    "lib/src/services/sqflite_lifecycle_guard.dart"
+  ]
+}

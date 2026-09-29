@@ -28,10 +28,13 @@ import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_demo/utils/conversation_c2c_show_name_prefer.dart';
 import 'package:tencent_cloud_chat_demo/utils/conversation_last_message_prefer.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/services/display_name_store.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 import 'package:tencent_cloud_chat_sdk/enum/conversation_type.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitConversation/archived_conversation_store.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
+    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_conversation_filter.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_conversation_filter.dart';
 import 'package:tencent_cloud_chat_sdk/tencent_im_sdk_plugin.dart';
@@ -200,6 +203,73 @@ class ConversationTabStore extends ChangeNotifier {
   // Only the SDK callback entry buffers work. User mutations and synchronous
   // reads drain it first, so older callbacks cannot overwrite later actions.
   final Map<String, V2TimConversation> _pendingRealtimeRows = {};
+  // A message can arrive before its SDK row or while that row is outside the
+  // loaded window. Retain the preview without inventing membership or unread.
+  final Map<String, V2TimMessage> _unloadedMessagePreviews = {};
+
+  void rememberUnloadedMessagePreview(String id, V2TimMessage message) {
+    if (!MessageConversationId.messageBelongsToConversation(message, id)) return;
+    final key = _projectionKey(id);
+    if (key.isEmpty) return;
+    final preferred = ConversationLastMessagePrefer.preferLastMessage(
+        existing: _unloadedMessagePreviews[key], incoming: message);
+    if (preferred == null) return;
+    _unloadedMessagePreviews.remove(key);
+    // Native toJson serializes elemList/private timestamps, while received
+    // and locally patched messages can have newer public preview fields.
+    _unloadedMessagePreviews[key] = V2TimMessage.fromJson(preferred.toJson())
+      ..msgID = preferred.msgID
+      ..timestamp = preferred.timestamp
+      ..seq = preferred.seq
+      ..status = preferred.status
+      ..userID = preferred.userID
+      ..groupID = preferred.groupID
+      ..sender = preferred.sender
+      ..nickName = preferred.nickName
+      ..nameCard = preferred.nameCard
+      ..friendRemark = preferred.friendRemark
+      ..isSelf = preferred.isSelf
+      ..elemType = preferred.elemType
+      ..textElem = preferred.textElem
+      ..customElem = preferred.customElem
+      ..imageElem = preferred.imageElem
+      ..soundElem = preferred.soundElem
+      ..videoElem = preferred.videoElem
+      ..fileElem = preferred.fileElem
+      ..locationElem = preferred.locationElem
+      ..faceElem = preferred.faceElem
+      ..mergerElem = preferred.mergerElem
+      ..groupTipsElem = preferred.groupTipsElem
+      ..streamElem = preferred.streamElem;
+    while (_unloadedMessagePreviews.length > 512) {
+      _unloadedMessagePreviews.remove(_unloadedMessagePreviews.keys.first);
+    }
+    ChatRecoveryTrace.log('conversation_preview_waiting_for_row',
+        conversationID: id,
+        messageID: preferred.msgID,
+        fields: {'pending': _unloadedMessagePreviews.length});
+  }
+
+  V2TimConversation _withUnloadedMessagePreview(V2TimConversation row) {
+    final key = _projectionKey(row.conversationID);
+    final pending = _unloadedMessagePreviews[key];
+    if (pending == null) return row;
+    final preferred = ConversationLastMessagePrefer.preferLastMessage(
+        existing: row.lastMessage, incoming: pending);
+    if (identical(preferred, row.lastMessage)) {
+      _unloadedMessagePreviews.remove(key);
+      return row;
+    }
+    final merged = mergePatchRow(
+        existing: row, incoming: row, preserveStructureFields: true)
+      ..lastMessage = preferred;
+    ChatRecoveryTrace.log('conversation_pending_preview_applied',
+        conversationID: row.conversationID,
+        messageID: preferred?.msgID,
+        fields: {'timestamp': preferred?.timestamp, 'unread': row.unreadCount});
+    return merged;
+  }
+
   Timer? _realtimeBatchTimer;
   bool _realtimePreserveOrder = false;
   bool _flushingRealtimeBatch = false;
@@ -519,6 +589,14 @@ class ConversationTabStore extends ChangeNotifier {
     ConversationType.V2TIM_GROUP: <String, V2TimConversation>{},
   };
   final Map<int, Future<void>?> _loadInFlight = <int, Future<void>?>{};
+  final Map<int, Object> _readAttempts = <int, Object>{};
+  final Map<int,
+      ({int generation, bool reset, int count, String? viewportAnchorId})>
+      _pendingPhysicalReadRequests = {};
+  // An SDK timeout cannot cancel native work. Keep its physical slot until
+  // completion, including across clear/login, so retries cannot pile up.
+  final Set<int> _physicalReads = <int>{};
+  static const Duration _readDeadline = Duration(seconds: 8);
   // Only retain changes while a page is in flight. A late page must not
   // resurrect deletes or replace a newer SDK callback with older fields.
   final Map<int, Map<String, ({V2TimConversation? row, bool draft, bool last})>>
@@ -742,13 +820,29 @@ class ConversationTabStore extends ChangeNotifier {
   // 否则同一会话在 build 之间位置反复跳变。
   // 解冻时只重排排序字段发生变化的类型；无变化的滚动不额外通知。
   final Set<int> _sortDirtyTypes = {};
+  final Set<Object> _scrollFreezeOwners = {};
   bool _sortFrozenByScroll = false;
   bool get isSortFrozenByScroll => _sortFrozenByScroll;
 
-  void setSortFrozenByScroll(bool frozen) {
+  void setSortFrozenByScroll(bool frozen, {Object? owner}) {
+    final changed = frozen
+        ? _scrollFreezeOwners.add(owner ?? this)
+        : _scrollFreezeOwners.remove(owner ?? this);
+    // Position reconciliation can run every frame. Repeated ownership does
+    // not force-drain the SDK batch on every scroll offset notification.
+    if (!changed) return;
+    frozen = _scrollFreezeOwners.isNotEmpty;
     flushRealtimePatches();
     if (_sortFrozenByScroll == frozen) return;
     _sortFrozenByScroll = frozen;
+    ChatRecoveryTrace.log('conversation_sort_freeze',
+        conversationID: '',
+        fields: {
+          'frozen': frozen,
+          'owners': _scrollFreezeOwners.length,
+          'dirtyTypes': _sortDirtyTypes.length,
+          'pinDeferred': _pinSortDeferred
+        });
     BackgroundMediaGate.instance.setBusy(this, frozen);
     if (frozen || _pinSortDeferred) {
       return;
@@ -1320,7 +1414,12 @@ class ConversationTabStore extends ChangeNotifier {
         .map(_projectionKey)
         .where((id) => id.isNotEmpty)
         .toSet();
-    for (final incomingRow in incoming) {
+    for (final inputRow in incoming) {
+      final previewKey = _projectionKey(inputRow.conversationID);
+      if (explicitLastMessageKeys.contains(previewKey)) {
+        _unloadedMessagePreviews.remove(previewKey);
+      }
+      final incomingRow = _withUnloadedMessagePreview(inputRow);
       final aggregate = ConversationUnreadAggregate.instance;
       final count = aggregate.sdkUnreadCountFor(incomingRow.conversationID);
       final raw = aggregate.usesSdkUnread && count != null
@@ -1880,6 +1979,9 @@ class ConversationTabStore extends ChangeNotifier {
 
   void applyDeleted(List<String> ids, {bool notify = true}) {
     flushRealtimePatches();
+    for (final id in ids) {
+      _unloadedMessagePreviews.remove(_projectionKey(id));
+    }
     if (ids.isEmpty) {
       return;
     }
@@ -2678,6 +2780,8 @@ class ConversationTabStore extends ChangeNotifier {
   }
 
   void clear() {
+    _unloadedMessagePreviews.clear();
+    _scrollFreezeOwners.clear();
     _realtimeBatchTimer?.cancel();
     _realtimeBatchTimer = null;
     _pendingRealtimeRows.clear();
@@ -2698,6 +2802,9 @@ class ConversationTabStore extends ChangeNotifier {
     _sessionGeneration++;
     _restoreReads.clear();
     _loadInFlight.clear();
+    _readAttempts.clear();
+    _pendingPhysicalReadRequests.clear();
+    _pageChanges.clear();
     _resetRequested.clear();
     _clearDeferredCommittedProjection();
     _coldStartWindowActive = true;
@@ -2783,13 +2890,37 @@ class ConversationTabStore extends ChangeNotifier {
       return;
     }
     final generation = _sessionGeneration;
+    if (_physicalReads.contains(type)) {
+      final previous = _pendingPhysicalReadRequests[type];
+      if (previous == null || reset || !previous.reset) {
+        _pendingPhysicalReadRequests[type] = (
+          generation: generation,
+          reset: reset,
+          count: count,
+          viewportAnchorId: viewportAnchorId,
+        );
+      }
+      _failedLoadTypes.add(type);
+      notifyListeners();
+      return;
+    }
+    final attempt = Object();
+    _readAttempts[type] = attempt;
     final task = _loadOnce(
       type: type,
       reset: reset,
       count: count,
       generation: generation,
+      attempt: attempt,
       viewportAnchorId: viewportAnchorId,
-    );
+    ).timeout(_readDeadline, onTimeout: () {
+      if (generation == _sessionGeneration &&
+          identical(_readAttempts[type], attempt)) {
+        _readAttempts.remove(type);
+        _pageChanges.remove(type);
+        _failedLoadTypes.add(type);
+      }
+    });
     _loadInFlight[type] = task;
     try {
       await task;
@@ -2799,6 +2930,8 @@ class ConversationTabStore extends ChangeNotifier {
     } finally {
       if (identical(_loadInFlight[type], task)) {
         _loadInFlight[type] = null;
+        if (identical(_readAttempts[type], attempt)) _readAttempts.remove(type);
+        if (generation == _sessionGeneration) notifyListeners();
       }
     }
   }
@@ -2831,6 +2964,7 @@ class ConversationTabStore extends ChangeNotifier {
     required bool reset,
     required int count,
     required int generation,
+    required Object attempt,
     String? viewportAnchorId,
   }) async {
     flushRealtimePatches();
@@ -2858,13 +2992,16 @@ class ConversationTabStore extends ChangeNotifier {
         nextSeq: seq,
         count: pageCount,
       );
+      if (generation != _sessionGeneration ||
+          !identical(_readAttempts[type], attempt)) return;
       // Commit pending callbacks while this page's change journal is live.
       // Otherwise a fast SDK response could install an older snapshot first.
       flushRealtimePatches();
     } finally {
       if (identical(_pageChanges[type], changes)) _pageChanges.remove(type);
     }
-    if (generation != _sessionGeneration) {
+    if (generation != _sessionGeneration ||
+        !identical(_readAttempts[type], attempt)) {
       return;
     }
     if (fetched.code != 0) {
@@ -2887,7 +3024,7 @@ class ConversationTabStore extends ChangeNotifier {
       final key = _projectionKey(fetchedRow.conversationID);
       final changed = changes[key];
       if (changed != null && changed.row == null) continue;
-      final c = changed == null
+      var c = changed == null
           ? fetchedRow
           : mergePatchRow(
               existing: fetchedRow,
@@ -2895,6 +3032,7 @@ class ConversationTabStore extends ChangeNotifier {
               useIncomingUnread: changed.row!.unreadCount != null,
               useIncomingDraft: changed.draft,
               useIncomingLastMessage: changed.last);
+      c = _withUnloadedMessagePreview(c);
       ConversationLocalStore.decorateConversationForUi(c);
       ConversationPinSyncService.instance.applySdkPinProjection(c);
       if (_isExcludedFromMainList(c)) {
@@ -3075,36 +3213,64 @@ class ConversationTabStore extends ChangeNotifier {
     required String nextSeq,
     required int count,
   }) async {
-    final override = debugFetchOverride;
-    if (override != null) {
-      return override(
-        convType: convType,
-        nextSeq: nextSeq,
-        count: count,
-      );
+    if (!_physicalReads.add(convType)) {
+      throw StateError('Conversation SDK read is still in flight');
     }
-    final seqInt = int.tryParse(nextSeq.trim()) ?? 0;
-    final res = await TencentImSDKPlugin.v2TIMManager
-        .getConversationManager()
-        .getConversationListByFilter(
-          filter: V2TimConversationFilter(conversationType: convType),
-          nextSeq: seqInt,
+    try {
+      final override = debugFetchOverride;
+      if (override != null) {
+        return await override(
+          convType: convType,
+          nextSeq: nextSeq,
           count: count,
         );
-    final data = res.data;
-    final list = <V2TimConversation>[];
-    for (final item in data?.conversationList ?? const <V2TimConversation?>[]) {
-      if (item != null) {
-        list.add(item);
+      }
+      final seqInt = int.tryParse(nextSeq.trim()) ?? 0;
+      final res = await TencentImSDKPlugin.v2TIMManager
+          .getConversationManager()
+          .getConversationListByFilter(
+            filter: V2TimConversationFilter(conversationType: convType),
+            nextSeq: seqInt,
+            count: count,
+          );
+      final data = res.data;
+      final list = <V2TimConversation>[];
+      for (final item
+          in data?.conversationList ?? const <V2TimConversation?>[]) {
+        if (item != null) {
+          list.add(item);
+        }
+      }
+      return (
+        conversationList: list,
+        nextSeq: data?.nextSeq?.toString() ?? '0',
+        isFinished: data?.isFinished == true,
+        code: res.code,
+        desc: res.desc,
+      );
+    } finally {
+      _physicalReads.remove(convType);
+      final pending = _pendingPhysicalReadRequests.remove(convType);
+      if (pending != null && pending.generation == _sessionGeneration) {
+        scheduleMicrotask(() {
+          if (pending.generation != _sessionGeneration ||
+              _physicalReads.contains(convType)) {
+            return;
+          }
+          unawaited(_load(
+            type: convType,
+            reset: pending.reset,
+            count: pending.count,
+            viewportAnchorId: pending.viewportAnchorId,
+          ).catchError((Object error, StackTrace stack) {
+            if (pending.generation == _sessionGeneration) {
+              _failedLoadTypes.add(convType);
+              notifyListeners();
+            }
+          }));
+        });
       }
     }
-    return (
-      conversationList: list,
-      nextSeq: data?.nextSeq?.toString() ?? '0',
-      isFinished: data?.isFinished == true,
-      code: res.code,
-      desc: res.desc,
-    );
   }
 
   bool _isExcludedFromMainList(V2TimConversation conversation) {
@@ -3268,6 +3434,7 @@ class ConversationTabStore extends ChangeNotifier {
     if (ids.isEmpty) {
       return const <V2TimConversation>[];
     }
+    final generation = _sessionGeneration;
     final out = <V2TimConversation>[];
     final missing = <String>[];
     final cache = _detachedRows[type]!;
@@ -3308,7 +3475,9 @@ class ConversationTabStore extends ChangeNotifier {
         }
       }
     }
-    return _orderHydratedRows(ids, out);
+    if (generation != _sessionGeneration) return const <V2TimConversation>[];
+    return _orderHydratedRows(
+        ids, out.map(_withUnloadedMessagePreview).toList(growable: false));
   }
 
   bool _shouldAdmitHot(

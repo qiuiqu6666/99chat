@@ -1,0 +1,631 @@
+99chat 跨模块稳定性与性能静态审查
+
+基线：qiuiqu6666/99chat@0e7aa83bc5b096a99ff8bb424842404a3c901cb7（main，版本提交 3.0.1+20）。
+审查方式：通过 GitHub 连接器只读检查所列源文件和调用链，并核对 Dart/Flutter 官方 API 行为。没有修改仓库，没有执行 Flutter/Dart 构建、单元测试或真机复现。当前环境没有可用的 Flutter/Dart 命令。用户受影响安装包与此提交的映射尚未确认。
+
+结论边界
+
+“静态缺陷”表示代码控制流、协议处理或状态组合本身有可证明的缺口，不表示已经证明它解释了全部线上投诉。“额外工作”表示调用/循环确实存在，是否造成明显掉帧仍需 Profile。“条件风险”必须以故障注入或用户现场日志确认。重启恢复同时重置连接、队列、缓存和内存状态，不能单独证明内存泄漏。
+
+本轮覆盖启动、前后台生命周期、登录/重连、API节点切换、自建实时TCP、关系校准、共享SQLite门槛、设备通讯录/相册、首页Tab保活、钱包刷新、AI流式状态与渲染，以及上轮聊天关键路径。不是全仓每一行都完成验证，也没有替代后端服务、原生媒体组件、推送渠道和实体设备的运行审计。
+
+问题索引
+
+编号
+
+优先级
+
+证据性质
+
+问题
+
+A01
+
+高
+
+静态协议缺陷
+
+TCP 与 AI SSE 逐个网络块解码 UTF-8
+
+A02
+
+高
+
+静态分类缺陷
+
+用户主动取消请求也被算成 API 节点故障
+
+A03
+
+高
+
+静态健康判定不一致
+
+测速把 502/503/504 也标记为正常节点
+
+A04
+
+高
+
+静态恢复路径缺陷及超时风险
+
+业务 TCP 认证失败后 force 重连被提前拦截
+
+A05
+
+中高
+
+确定调用路径；成本待测
+
+回前台可能重复业务验证和两次 SDK login 调用
+
+A06
+
+高
+
+静态并发缺口
+
+重连入口没有把自己登记为在途操作
+
+A07
+
+中高
+
+静态调度行为确定
+
+好友/群校准等待 15 秒后绕过聊天让路
+
+A08
+
+高
+
+静态代次隔离缺口
+
+关系校准的旧异步任务能修改新会话的阶段标记
+
+A09
+
+高
+
+条件性共享等待风险
+
+iOS 关库链阻塞时，回前台无法恢复写入
+
+A10
+
+中高
+
+确定前置依赖；延迟待测
+
+移动端 runApp 仍被多项非首屏初始化串行挡住
+
+A11
+
+中
+
+确定额外工作；后端语义待核
+
+手机通讯录 INCREMENTAL 仍上传全部当前记录
+
+A12
+
+中高
+
+确定重复工作；卡顿幅度待测
+
+相册快照逐项全量重写，超大视频先哈希后跳过
+
+A13
+
+高
+
+静态状态缺陷
+
+AI 停止回复后残留 streaming；旧错误可作用于新回复
+
+A14
+
+中高
+
+确定高频工作；帧耗时待测
+
+AI 每个 delta 页面 setState 并强制跳到底部
+
+A15
+
+中
+
+确定隐藏页面工作；影响待测
+
+钱包离开 Tab 后仍因余额事件刷新页面数据
+
+A16
+
+高
+
+已有静态控制流缺陷及视口风险
+
+聊天撤回失效后缺少退出；保留白屏/滚动状态排查
+
+A17
+
+独立高优先级
+
+确定默认行为与传输风险
+
+相册权限自动开启备份；默认业务链路包含明文
+
+A01 · TCP 与 AI SSE 逐个网络块解码 UTF-8
+
+优先级： 高。证据性质： 静态协议缺陷。
+
+源码位置（固定在上述提交）：
+
+lib/src/services/friend_realtime/friend_realtime_connection_io.dart — connect / _onChunk
+
+lib/src/api/ai_assistant_api.dart — stream
+
+已确认代码事实： TCP 的 onData 调用 _onChunk(utf8.decode(data))；AI 的成功 SSE 路径调用 parser.feed(utf8.decode(chunk), ...)。两处都在字节流分块边界重新创建单次解码过程。
+
+触发条件： 响应包含未转义的中文、表情等多字节字符，而且接收块恰好从字符中间分开。不是每次网络回调都会触发；服务端只发送 ASCII 转义字符时，这个条件不成立。
+
+可能影响与边界： 完整数据原本合法，独立解码其中一个不完整块仍可抛出 FormatException。TCP 字符串按换行缓存发生在解码之后，不能修补这一问题；AI 会进入服务不可用错误路径。不能据此宣称腾讯 IM 消息传输本身已坏：这里是应用自建 TCP 与 AI HTTP 流。
+
+建议修改方向： 对整条字节流使用有状态 UTF-8 decoder，再做换行或 SSE 帧解析。不要改为 allowMalformed 来隐藏问题；还应限定单帧缓冲大小、明确解码错误后的断连/重试策略。
+
+待执行验收： 构造包含中文和 emoji 的业务 JSON、SSE 帧，遍历所有字节切分点，再测试多帧合并、半个换行和最后一帧结束。应完整还原事件，无丢字、重复或误报服务不可用。
+
+A02 · 用户主动取消请求也被算成 API 节点故障
+
+优先级： 高。证据性质： 静态分类缺陷。
+
+源码位置（固定在上述提交）：
+
+lib/src/api/api_client.dart — _isNodeTransportFailure / onError
+
+lib/src/services/api_node_service.dart — noteRequestFailure / _failoverAfterFailures
+
+已确认代码事实： _isNodeTransportFailure 在 error.response == null 时直接返回 true，没有先排除 DioErrorType.cancel；节点服务累计三次失败后测速、切换节点并触发业务 TCP 重连。
+
+触发条件： 取消的请求经过公共 Dio 的 onError，且失败计数在达到阈值前没有被成功响应清零。不能把任意三个点击取消都断言为必然切线。
+
+可能影响与边界： 退出页面、取消上传或取消流式请求可能被当作网络故障，触发无必要的探测与切线。属于连接稳定性问题，不是直接证明 UI 掉帧。
+
+建议修改方向： 先分类本地主动取消、账号/页面过期取消，再计数真实传输错误。请求携带节点身份与切线代次，旧节点晚到结果不能污染新节点健康状态。
+
+待执行验收： 连续制造三个经过公共拦截器的取消错误：失败计数不得增加，不得测速或切节点；另外验证真实超时仍按策略累计。
+
+A03 · 测速把 502/503/504 也标记为正常节点
+
+优先级： 高。证据性质： 静态健康判定不一致。
+
+源码位置（固定在上述提交）：
+
+lib/src/services/api_node_service.dart — probeNode / pickFastestNormal
+
+lib/src/api/api_client.dart — _isNodeTransportFailure
+
+已确认代码事实： probeNode 的 validateStatus 接受所有状态，收到响应直接标记 normal；但公共 API 将 502/503/504 判定为节点传输故障。
+
+触发条件： 某节点可以快速返回网关错误，另一节点业务响应较慢。
+
+可能影响与边界： 自动选择可能倾向快速失败的节点。当前测速实际上测的是可达性，选择逻辑却把它当成可用性。
+
+建议修改方向： 分开记录 reachability、serviceHealth、latency；健康探针检查明确的状态和轻量响应结构。保留按业务约定处理 401/403 的空间，不把任意有响应都叫正常。合并同时进行的 probeAll 任务。
+
+待执行验收： 模拟一个节点 20ms 返回 503，另一个 200ms 返回符合契约的健康响应。失败节点不得成为 healthy 候选；测速并发时必须等待同一个结果。
+
+A04 · 业务 TCP 认证失败后 force 重连被提前拦截
+
+优先级： 高。证据性质： 静态恢复路径缺陷及超时风险。
+
+源码位置（固定在上述提交）：
+
+lib/src/services/friend_realtime_service.dart — ensureConnected / _connect / _startPing / _handleLine / stop
+
+lib/src/services/friend_realtime/friend_realtime_connection_io.dart — connect / send / close
+
+已确认代码事实： ensureConnected 先检查 _authFailed 并 return，之后才有 force 分支将 _authFailed=false。因此这个重置分支在认证失败时不可达。stop 会重置该标志，不能声称只有杀进程才可恢复。另有 TCP connect 超时和 last_seen 请求超时，但未见独立认证应答截止时间或 pong 存活判断。
+
+触发条件： 发生 auth_fail 后业务端取得新的有效凭证并尝试 force 重连；或者 socket 已连接但认证应答一直不来，或连接半断而本地对象仍存在。
+
+可能影响与边界： 自建 TCP 的重连/就绪状态可能长期停在错误状态。具体调用链是否已有 stop/start 补偿需要结合故障日志核对。
+
+建议修改方向： 按凭证代次区分终止性认证失败与可恢复失败，只在新凭证确认有效后重新开启连接流程。不要对无效账号盲目无限重试。增加认证应答与心跳存活阶段的截止时间及当前连接代次校验。
+
+待执行验收： auth_fail -> 有效新凭证 -> 恢复，无需退出进程；无效凭证不得反复认证。另测连接成功但不发 auth_ok、吞掉所有 pong、前后台切换。
+
+A05 · 回前台可能重复业务验证和两次 SDK login 调用
+
+优先级： 中高。证据性质： 确定调用路径；成本待测。
+
+源码位置（固定在上述提交）：
+
+lib/src/pages/app.dart — _scheduleResumeCheck / _checkIfConnected
+
+lib/src/services/login_coordinator.dart — recoverOnForeground
+
+lib/src/session/session_manager.dart — restore / _restoreInternal / _refreshCredentialInternal
+
+lib/src/session/im_client.dart — connect
+
+已确认代码事实： 前台恢复进入 SessionManager.restore；无在途任务时创建恢复流程，即使此前已 ready。命中缓存凭证时调用一次 _im.connect，随后刷新凭证，满足 ready 条件时再调用一次 _im.connect。ImClient.connect 直接调用 SDK login。
+
+触发条件： 回前台满足 App 的恢复节流条件，缓存凭证路径成功，并且刷新凭证成功。
+
+可能影响与边界： 会反复产生本地凭证读写、HTTP 请求和 SDK 登录调用。SDK 可能内部快速处理同账号登录，所以不能说每次必然建立两次完整网络连接，也不能给出未测耗时。
+
+建议修改方向： 把进程冷恢复、普通短暂 inactive/resumed、断线恢复、凭证到期分开。保留必须的业务鉴权，在线且凭证新鲜时不要重走完整 SDK 登录；刷新可用凭证与重建连接分别处理。
+
+待执行验收： 有效在线会话连续前后台切换，记录 fetchMe、取签名、SDK login、监听绑定次数。正常短切换不得无条件重走整套登录；过期和踢下线场景仍按安全逻辑退出或恢复。
+
+A06 · 重连入口没有把自己登记为在途操作
+
+优先级： 高。证据性质： 静态并发缺口。
+
+源码位置（固定在上述提交）：
+
+lib/src/session/session_manager.dart — _reconnect / scheduleReconnect / _establish
+
+lib/src/session/im_client.dart — connect
+
+已确认代码事实： _reconnect 会检查 _activeOperation != null，但自身直接 await _establish，没有设置 _activeOperation 或另一个重连 in-flight。重试定时器触发前会被清空。
+
+触发条件： 一次 _establish 尚未完成，新的断线事件又安排重试；下一次定时器到达时 _activeOperation 仍为 null。
+
+可能影响与边界： 可能有两个同代次认证/SDK 登录流程交错，造成状态覆盖和重复工作。现有账号 generation 不能区分同账号同代次的两个竞争尝试。
+
+建议修改方向： 让恢复、重新登录、重连共享明确的 single-flight 所有者，或使用统一连接协调器。登记任务、按 identical 释放，旧尝试不再提交状态。不要仅加入固定延迟。
+
+待执行验收： 将取签名或 SDK login 保持 pending，连续触发断线和多个重试定时器。任何时刻有效登录尝试数量应为 1；前一次结束后才能启动下一次。
+
+A07 · 好友/群校准等待 15 秒后绕过聊天让路
+
+优先级： 中高。证据性质： 静态调度行为确定。
+
+源码位置（固定在上述提交）：
+
+lib/src/services/im_sdk_relationship_reconcile_service.dart — _waitUntilRunnable / _request / _productionCanRun / _loadGroups
+
+lib/src/services/im_sdk_relationship_perf.dart — uiIdleTimeout
+
+已确认代码事实： _productionCanRun 在有活动聊天时返回 false；_waitUntilRunnable 最多轮询 15 秒，超时后自然返回，_request 随后继续执行校准。
+
+触发条件： 用户进入聊天并持续使用超过等待期限；任务在此前因聊天活动被延后。
+
+可能影响与边界： 所谓空闲任务可能在聊天进行中启动。群路径会获取已加入群列表，好友路径根据自建关系配置进入联系人协议同步。实际 CPU/数据库影响由账号规模和同步实现决定。
+
+建议修改方向： 等待结果应区分 runnable、deferred、cancelled；未空闲时延后而不是默认放行。必须及时执行的正确性同步应分块、有预算，并在批次之间再次检查交互和账号。
+
+待执行验收： 持续模拟活动聊天超过 15 秒：可选全量校准不得偷偷启动。退出聊天后允许恢复；实时必要事件仍可处理。
+
+A08 · 关系校准的旧异步任务能修改新会话的阶段标记
+
+优先级： 高。证据性质： 静态代次隔离缺口。
+
+源码位置（固定在上述提交）：
+
+lib/src/services/im_sdk_relationship_reconcile_service.dart — resetForSession / _request / _runFriends / _runGroups
+
+lib/src/services/im_sdk_relationship_directory.dart — reset / capture
+
+已确认代码事实： resetForSession 重置阶段和目录；外层 _request 在等待后、完成和异常路径修改共享 phase 时没有捕获并验证最初 session generation。部分内部数据路径有 owner 校验，但外层阶段写入没有同等保护。
+
+触发条件： 旧任务等待中切换账号或重建 session，新会话已开始 scheduled，旧任务随后完成或报错。
+
+可能影响与边界： 旧任务可能把新阶段改为 completed/idle；新任务醒来后看到阶段不再 scheduled 而退出。这里确认的是控制状态隔离缺口，不等于已经证明跨账号消息或联系人数据泄漏。
+
+建议修改方向： 每个请求捕获 session/job/reconnect generation，所有 phase 写入、释放 flight、错误回退都检查所有权。目录 capture 也应含代次或避免重复身份。
+
+待执行验收： 用可控制的 Future 暂停旧会话校准；reset 后启动新会话；按各种顺序完成旧、新任务。旧任务不得改变新阶段，当前会话最终应有正确的完成信号。
+
+A09 · iOS 关库链阻塞时，回前台无法恢复写入
+
+优先级： 高。证据性质： 条件性共享等待风险。
+
+源码位置（固定在上述提交）：
+
+lib/src/services/sqflite_lifecycle_host.dart — handle / _closeDatabases / waitUntilWritesAllowed
+
+lib/src/services/sqflite_lifecycle_guard.dart — closeDatabase
+
+已确认代码事实： iOS pause 会等待多个 Store 的 closeIfOpen；resumed 在相同生命周期串行链后排队。waitUntilWritesAllowed 等待 close/open gate；Guard.closeDatabase 直接 await db.close，没有取消或总截止时间。
+
+触发条件： 某个原生关库或其前置操作一直没有完成。没有真机证据证明当前用户已触发该条件。
+
+可能影响与边界： 联系人、会话、消息、红包、资料等依赖写入许可的功能可同时等待。属于业务活性问题，不等于 UI 绘制线程必然被阻塞。
+
+建议修改方向： 按 Store 记录关闭开始/结束/年龄、连接代次和当前生命周期。设计受控失败与句柄隔离恢复；不能 timeout 后直接复用或并发重开仍在关闭的同一连接。
+
+待执行验收： 故障注入一个 close 永不完成、一个 close 晚完成，验证不会静默永久等待；旧句柄晚到不能覆盖新句柄；后台不能重新放开 SQLite 写入。
+
+A10 · 移动端 runApp 仍被多项非首屏初始化串行挡住
+
+优先级： 中高。证据性质： 确定前置依赖；延迟待测。
+
+源码位置（固定在上述提交）：
+
+lib/main.dart — _startApp / finishDeferredBootstrap
+
+已确认代码事实： 原生路径在 runApp 前等待节点恢复、读水位、API bootstrap、启动配置、本地设置、部分业务缓存/配置预热、通知点击处理和 Android 性能档位等。Web 与原生的调用顺序不同。
+
+触发条件： 其中任意前置依赖变慢，或异常越过内部保护。
+
+可能影响与边界： Flutter 页面尚未创建时用户看到启动界面停滞，而不是可交互的降级页面。这不能自动解释已进入聊天后的白屏。
+
+建议修改方向： 最小应用壳先挂载；身份和隐私门槛继续保留，不展示未确认归属的数据。把非首屏预热移后，必需阶段有可视化失败/重试，不依赖顶层日志代替界面。
+
+待执行验收： 分别延迟/失败每项前置服务，验证始终有明确的启动状态；区分 native splash 时长、Flutter 首帧和首页数据可用时间。
+
+A11 · 手机通讯录 INCREMENTAL 仍上传全部当前记录
+
+优先级： 中。证据性质： 确定额外工作；后端语义待核。
+
+源码位置（固定在上述提交）：
+
+lib/src/services/device_sync_service.dart — _syncContacts
+
+已确认代码事实： 根据历史状态选择 INCREMENTAL 后仍 collectAll，遍历全部 current 按每批 100 条上传。previousSnapshot 只用于算删除 ID，没有按 fingerprint 过滤未变化联系人。
+
+触发条件： 手机通讯录较大且触发多次同步。
+
+可能影响与边界： 没有变化的记录也会重复采集、序列化和上传。这里是设备通讯录同步，不是腾讯 IM 好友列表分页。
+
+建议修改方向： 先核对服务端 FULL/INCREMENTAL 契约，再决定只上报变化记录；若服务端依赖全快照完成语义，应修改协议或明确限速，不能直接删除上传步骤。
+
+待执行验收： 准备大量联系人但只改一条，对比实际上传条数、字节数及服务端最终联系人/删除状态。未变化记录是否可以省略要由契约测试确认。
+
+A12 · 相册快照逐项全量重写，超大视频先哈希后跳过
+
+优先级： 中高。证据性质： 确定重复工作；卡顿幅度待测。
+
+源码位置（固定在上述提交）：
+
+lib/src/services/device_sync_service.dart — _syncAuthorizedAlbum / _uploadOnePhoto
+
+lib/src/services/photo_sync_collector.dart — prepareOne
+
+lib/src/services/sync_fingerprint.dart — fileContentHash
+
+已确认代码事实： 每项成功或 skipped 后，把整个累计 snapshot jsonEncode 并 setString；视频 prepareOne 先读取原文件并完整哈希，而 104857600 字节上限在之后的 _uploadOnePhoto 才检查。
+
+触发条件： 已允许并开启备份，满足前台、允许的首页 Tab、非聊天、空闲 3 分钟、Wi-Fi/以太网等限制；本次有大量新/变化项目或超限视频。
+
+可能影响与边界： N 个新项目逐项扩张快照时，总序列化工作可按 1+2+...+N 增长。超限文件仍付出了完整哈希成本。已有空闲、批次间隔和取消限制，不能说它一直在用户滑动中无条件备份。
+
+建议修改方向： 优先保证显式备份授权；大小/类型检查前置。增量索引按行存储或按批提交；大文件哈希等可选 CPU 工作分块/隔离，并支持在用户活动后及时让路。
+
+待执行验收： 大量新照片及超限视频：记录序列化次数、写入字节、prepare/hash 耗时；触摸开始后不再启动下一项。保持进度恢复和取消后数据一致性。
+
+A13 · AI 停止回复后残留 streaming；旧错误可作用于新回复
+
+优先级： 高。证据性质： 静态状态缺陷。
+
+源码位置（固定在上述提交）：
+
+lib/src/pages/ai_assistant/ai_assistant_page.dart — _stopAssistantReply / _sendComposer / _hasStreamingHistory / _beginAssistantReply
+
+lib/src/api/ai_assistant_api.dart — uploadFile
+
+已确认代码事实： delta 创建 status=streaming、time为空的消息；stop 保留 last.status，仅把 _replying=false。_sendComposer 还会检查任意 streaming 历史，因此继续拒绝发送。AI 异常分支只在旧 token 且 error.cancelled 时返回；旧 token 的非取消错误仍可修改当前最后一条回复。上传接口没有接收该流 token。
+
+触发条件： 至少收到一个 delta 后点击停止；另一条路径是在上传阶段停止并发起新请求，旧上传随后非取消失败。
+
+可能影响与边界： 前者可使当前 AI 页面持续提示 CHAT_BUSY；后者有覆盖新回复/提前清除 replying 的风险。没有声称已在真机复现。
+
+建议修改方向： 引入明确 stopped/interrupted 状态，当前在途请求而不是任意历史状态决定可发送性；每个异步成功/错误路径都校验请求和账号所有权。停止上传与停止生成的后端语义要分别定义。
+
+待执行验收： 首个 delta 后停止再发送；只存在旧 streaming 历史时恢复；上传停止后新请求开始，再注入旧非取消错误。新回复不得被旧结果覆盖。
+
+A14 · AI 每个 delta 页面 setState 并强制跳到底部
+
+优先级： 中高。证据性质： 确定高频工作；帧耗时待测。
+
+源码位置（固定在上述提交）：
+
+lib/src/pages/ai_assistant/ai_assistant_page.dart — _beginAssistantReply / _scrollToEnd / _replaceLastMessage
+
+已确认代码事实： delta 到达时拼接 assembled，页面级 setState，更新最后消息，之后每次注册 post-frame jumpTo(index:0)。搜索打开时还会重算匹配。未见该路径的按帧合并和用户离底判断。
+
+触发条件： 长回复、高频分片、复杂 Markdown，或用户回复中上滑阅读。
+
+可能影响与边界： 增加文本和页面重建工作，并可能和用户滚动意图冲突。Flutter 同一帧可能合并多次 build，不能把 delta 数直接当成实际全页绘制次数。
+
+建议修改方向： 缓冲分片后按帧/可配置节奏局部更新当前回答；用户离底时停止跟随，给新内容提示。只允许一个待执行滚动回调，完整回答后再做终态刷新。
+
+待执行验收： 高速长回复同时上滑、打开搜索、切换应用，测 UI/Raster 和滚动回调数量；用户手势不得被每块内容拉回底部。
+
+A15 · 钱包离开 Tab 后仍因余额事件刷新页面数据
+
+优先级： 中。证据性质： 确定隐藏页面工作；影响待测。
+
+源码位置（固定在上述提交）：
+
+lib/src/navigation/home_tab_stack.dart — build
+
+lib/src/pages/wallet/wallet_screen.dart — _WalletTabLifecycle
+
+lib/src/pages/wallet/wallet_controller.dart — _onBalanceChanged / load
+
+lib/src/pages/wallet/order/wallet_pending_recovery_service.dart — _run
+
+已确认代码事实： 已访问 Tab 保活。钱包 Controller 在构造时订阅余额事件直到 dispose；_onBalanceChanged 不检查 Tab/路由活动，直接 load(force)。页面激活有 10 秒节流，恢复服务也有合并/5秒限制，但这些不等于隐藏页面停止视图刷新。
+
+触发条件： 用户访问过钱包后切到其他页面，后台产生余额更新事件。
+
+可能影响与边界： 隐藏视图仍可能取钱包、恢复待处理状态并通知观察者。不能据此断言无限请求循环。
+
+建议修改方向： 区分必须继续的资金/订单最终状态恢复与仅为显示的页面刷新；后者离屏置 dirty、合并更新、再激活时读取。不要暂停或丢弃必要的资金状态一致性处理。
+
+待执行验收： 访问钱包后离开，批量发送余额事件，记录必要订单恢复次数和钱包视图请求数；重新进入数据正确，不能重复发起支付或转账。
+
+A16 · 聊天撤回失效后缺少退出；保留白屏/滚动状态排查
+
+优先级： 高。证据性质： 已有静态控制流缺陷及视口风险。
+
+源码位置（固定在上述提交）：
+
+third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart — revokeMsg / deleteMsg
+
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/tim_uikit_chat_history_message_list.dart
+
+third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKItMessageList/TIMUIKitTongue/tim_uikit_chat_history_message_list_tongue_container.dart
+
+lib/src/services/history_window_store.dart — _persistOnePage
+
+lib/src/services/im/message_persist_coordinator.dart — _execute
+
+已确认代码事实： revokeMsg 在本地写入后发现 scope 失效，清理后仍继续提交，而 deleteMsg 同分支会 return。消息视图有透明/禁触摸 gate；回到底部有 25秒截止、在途跳过和 finally；历史缓存事务中会等待编码。
+
+触发条件： 撤回写入中窗口/会话失效；视口定位或媒体预览恢复的状态组合异常；单个串行任务长时间不结束。
+
+可能影响与边界： 撤回控制流问题成立；白屏、滑不动和胶囊无响应的具体现场仍需日志验证。不能说没有 watchdog、没有 finally 或完全没有后台编码，它们已经存在。
+
+建议修改方向： 补全失效后的退出并验证命令的明确所有者；把视图显示、触摸、定位、数据库等待分别记录。保留消息连续性和撤回/删除权威记录，不以清空所有状态掩盖错误。
+
+待执行验收： 延迟撤回写入后退出/切会话；图片返回、键盘收放、历史分页与持续新消息交叉；验证用户手势优先、显示 gate 有明确失败出口、队列耗时可定位。
+
+A17 · 相册权限自动开启备份；默认业务链路包含明文
+
+优先级： 独立高优先级。证据性质： 确定默认行为与传输风险。
+
+源码位置（固定在上述提交）：
+
+lib/src/services/photo_backup_consent.dart — enableIfUnset / request
+
+lib/src/services/device_sync_service.dart — installPermissionHooks / handlePhotosAccessGranted
+
+lib/src/services/api_node_service.dart — catalog
+
+lib/src/api/api_client.dart — _build
+
+lib/src/services/friend_realtime_service.dart — _connect
+
+lib/src/services/friend_realtime/friend_realtime_connection_io.dart — connect
+
+已确认代码事实： enableIfUnset 在备份配置不存在时写 true，照片访问许可回调调用该路径；默认节点为 HTTP，业务请求可附带 Bearer，TCP 认证帧发送业务 token，非 TLS 节点使用普通 Socket。
+
+触发条件： 用户未明确设置备份开关，但授权了相册访问；或安装包使用当前默认非 TLS 节点。已明确关闭备份的 false 会被保留。
+
+可能影响与边界： 相册访问许可与上传备份目的授权被混在一起，存在用户预期和隐私风险。明文应用链路存在凭证/内容暴露风险，但没有证据表明已发生泄漏。不是直接的帧率根因，也不是法律合规结论。
+
+建议修改方向： 备份默认关闭，仅明确目的授权后启用；停止后取消任务且不得被照片选择重新启用。业务 API/TCP 使用经过验证的 TLS，失败不能自动降级明文；迁移要兼顾旧版兼容和证书验证。
+
+待执行验收： 新账号授权相册但未启用备份：不得上传；已关闭状态不会被后续选择图片覆盖。检查正式安装包的实际 endpoint 与传输，故障切线不可降级到明文。
+
+已存在的保护，不应重复当成“缺失功能”
+
+首页使用已访问 Tab 懒加载/保活，不是冷启动就初始化五个完整页面（home_page.dart、home_tab_stack.dart）。
+
+在线状态已有行级更新与合并缓存，presence 快照有容量/账号数量限制（presence_provider.dart、coalesced_presence_cache.dart、contact_social_cache_store.dart）。
+
+AI 文件加载器已有并发、队列和 24MiB 缓存预算，不能仅凭看见 Map 就断言无限内存泄漏（bounded_file_loader.dart）。
+
+聊天已有消息窗口、懒构建、首屏 watchdog、回到底部取消/finally、图片档位和持久化优先级。问题应落到失效边界、单任务占用和所有权，不是把所有保护删除。
+
+钱包已有请求合并、身份隔离、快照和超时，订单恢复也有限频；离屏刷新问题不等于没有任何节流或必然无限循环。
+
+优先执行次序
+
+第一批：A01、A02、A03、A04、A06、A08、A13、A16 的控制流/协议边界测试与小范围修复。A17 的目的授权和明文传输单独高优先级整改，不等待帧率优化。
+第二批：A05、A07、A09、A10，把前台恢复、调度和数据库生命周期梳理成可观测的任务状态。注意 Future.timeout 只是停止等待，不会自动终止底层操作；不能 timeout 后并发重复登录或重开同一数据库句柄。
+第三批：A11、A12、A14、A15，以大账号、长文本和真实媒体数据做 Profile，缩短确实占用资源的工作。不要不经测量就扩大缓存、增加重试或大范围重写。
+
+全 App 验收矩阵（以下均为待执行计划，不是已通过结果）
+
+组合场景
+
+要注入的条件
+
+观察和判定
+
+冷启动 / 首次登录
+
+本地设置或单项预热慢、网络断开
+
+有明确界面和错误出口；区分启动壳首帧、首页数据可用、IM就绪
+
+普通前后台 / 系统权限弹窗
+
+短 inactive、短 paused、长后台
+
+恢复流程不重复登录；必要鉴权和踢下线仍有效
+
+节点切换
+
+主动取消、真实超时、502、晚到旧节点响应
+
+取消不计故障；坏节点不入健康候选；旧响应不污染新节点
+
+业务 TCP / AI SSE
+
+中文emoji任意拆包、认证无应答、半断连接
+
+协议解码准确，连接与请求能进入明确失败/恢复状态
+
+账号切换 / session重建
+
+旧请求延迟、晚失败、同账号重新登录
+
+新账号/新代次不被旧结果或旧 phase 覆盖
+
+联系人/群规模
+
+小账号与数千联系人/群条目
+
+首屏、排序/投影、校准批次、上传条数分别测量
+
+已开启备份的大相册
+
+大量新照片、超限视频、处理中触摸/导航
+
+不未授权上传；不先做可避免的大哈希；交互后及时让路
+
+钱包与消息并行
+
+访问钱包后离开，余额事件持续到达
+
+资金恢复正常，隐藏视图刷新可合并；不得重复支付
+
+AI 长回复
+
+高频delta、停止再发、旧上传晚失败、上滑搜索
+
+无streaming永久锁；旧错误不覆盖新请求；用户滚动不被强抢
+
+混合消息与媒体
+
+分页、持续收消息、撤回、看图返回、键盘
+
+连续性正确，锁有释放，胶囊可重试，不依赖杀进程
+
+长时间运行
+
+同一套流程持续重复并定期恢复前台
+
+活跃Listener/Timer/队列年龄/内存是否回落，不能只看一次首屏
+
+建议新增的最小诊断字段
+
+为共享任务统一记录 operationId、module、stage、start/end/error/cancel、monotonicElapsed、ownerHash、accountGeneration、pageGeneration、nodeId、connectionGeneration、activeRoute/Tab、appLifecycle、queueDepth、oldestJobAge。关键数据库操作再加 dbName、handleGeneration、writesAllowed、closeInFlight。
+记录输入事件是否到达、何时被门槛拒绝、何时发布状态；区分 UI/Raster 掉帧、原生平台线程卡顿、异步任务等待、触摸被屏蔽、重复网络恢复。
+现有 MessagePersistCoordinator 的完整指标在成功路径后写入，失败或一直 pending 的任务也需要开始/阶段/失败快照。不要只记录最终成功耗时。诊断使用有界环形缓冲、采样和用户确认的导出；不记录 token、消息正文、联系人号码、相册内容。
+
+源码取证定位
+
+每条源码位置均可在固定提交中按函数名定位。本报告没有把旧 artifacts/before 副本当作运行实现。复核时首先确认正式安装包是否含本报告基线；若后续提交已修复，应将对应项标记为历史问题并重跑行为测试。
+
+官方 API / 性能资料
+
+以下资料仅用于核对框架语义，不代替项目实测：
+
+https://api.dart.dev/dart-convert/Utf8Codec/decode.html
+https://api.dart.dev/dart-convert/Utf8Decoder-class.html
+https://api.dart.dev/dart-async/Future/timeout.html
+https://docs.flutter.dev/perf/ui-performance
+
+Dart 默认 UTF-8 单次解码对非法/未完成序列抛异常，有状态流解码用于跨块转换。Future.timeout 不取消原 Future。Flutter 性能分析应以代表性实体设备的 Profile 为主，并区分 UI 与 Raster；用户线上故障还需要 Release 版本号和有限遥测关联。
+
+禁止用来掩盖问题的“修复”
+
+不要统一清空全部本地库、丢弃消息权威记录、无差别放开触摸锁、扩大所有缓存、为所有失败增加无限重试、timeout 后立即重用旧数据库连接，或为了钱包首屏刷新而重复提交资金交易。改造必须保留账号隔离、消息连续性、撤回/删除一致性和订单幂等语义。

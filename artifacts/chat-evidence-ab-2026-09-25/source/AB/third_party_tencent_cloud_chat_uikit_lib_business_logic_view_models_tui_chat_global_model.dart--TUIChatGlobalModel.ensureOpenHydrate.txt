@@ -1,0 +1,142 @@
+/// The route, page and UIKit share one task and its terminal result.
+  /// A caller timing out does not remove the underlying task.
+  Future<OpenHydrateResult> ensureOpenHydrate(
+    String conversationID, {
+    required String requestSignature,
+    required Future<bool> Function() load,
+    required bool Function() canPublish,
+  }) {
+    final key = conversationID.trim();
+    final existing = _findOpenHydrateInFlight(key);
+    if (existing != null && (_openHydrateCanPublish[existing]?.call() ?? true)) {
+      final joinTrace = ChatOpenPerfLog.captureCurrent(conversationKey: key);
+      ChatOpenPerfLog.markHydrateJoined(
+        ChatOpenPerfLog.lastPrepareRequestId,
+        trace: joinTrace,
+      );
+      ChatOpenPerfLog.mark(
+        'app_hydrate_join',
+        conversationID: key,
+        extras: <String, Object?>{
+          'requestId': joinTrace.requestId,
+          'prepareId': joinTrace.requestId,
+        },
+        trace: joinTrace,
+      );
+      if (_isSameConversationID(_openBottomCapsuleLockConvId, key)) {
+        _openBottomCapsuleHydrateSettled = false;
+      }
+      return existing;
+    }
+    final previous = openHydrateResultFor(key);
+    if (previous != null &&
+        previous.requestSignature == requestSignature &&
+        previous.shouldSuppressOrdinaryLoad &&
+        hasInitialHistoryLoaded(key)) {
+      final reuseTrace = ChatOpenPerfLog.captureCurrent(conversationKey: key);
+      ChatOpenPerfLog.mark(
+        'app_hydrate_reuse',
+        conversationID: key,
+        extras: <String, Object?>{
+          'requestId': reuseTrace.requestId,
+          'prepareId': reuseTrace.requestId,
+          'hydrateKind': previous.kind.name,
+        },
+        trace: reuseTrace,
+      );
+      markOpenChatHydrateSettled(key);
+      return Future.value(previous);
+    }
+    clearOpenHydrateResult(key);
+    final generation = _messageHistoryCoverageSessionGeneration;
+    final clearEpoch = messageDeltaClearEpochFor(key);
+    final ownerTrace = ChatOpenPerfLog.captureCurrent(conversationKey: key);
+    final ownerRequestId = ownerTrace.requestId;
+    ChatOpenPerfLog.markHydrateOwner(ownerRequestId, trace: ownerTrace);
+    ChatOpenPerfLog.mark(
+      'app_hydrate_registered',
+      conversationID: key,
+      extras: <String, Object?>{
+        'requestId': ownerRequestId,
+        'prepareId': ownerRequestId,
+      },
+      trace: ownerTrace,
+    );
+    late final Future<OpenHydrateResult> task;
+    task = Future<OpenHydrateResult>.microtask(() async {
+      var kind = OpenHydrateResultKind.aborted;
+      ChatOpenPerfLog.mark(
+        'app_hydrate_started',
+        conversationID: key,
+        extras: <String, Object?>{
+          'requestId': ownerRequestId,
+          'prepareId': ownerRequestId,
+        },
+        trace: ownerTrace,
+      );
+      try {
+        if (canPublish() && await load()) {
+          kind = rawMessageCount(key) > 0
+              ? OpenHydrateResultKind.committedMessages
+              : OpenHydrateResultKind.committedEmpty;
+        }
+      } catch (_) {
+        kind = OpenHydrateResultKind.failed;
+      }
+      final current = generation == _messageHistoryCoverageSessionGeneration &&
+          clearEpoch == messageDeltaClearEpochFor(key) &&
+          identical(_findOpenHydrateInFlight(key), task) &&
+          canPublish();
+      if (!current) kind = OpenHydrateResultKind.aborted;
+      final result = OpenHydrateResult(
+        kind: kind,
+        conversationKey: key,
+        resultCount: current ? rawMessageCount(key) : 0,
+        firstWindowCommitted: current &&
+            (kind == OpenHydrateResultKind.committedMessages ||
+                kind == OpenHydrateResultKind.committedEmpty),
+        generation: generation,
+        completedAtMs: DateTime.now().millisecondsSinceEpoch,
+        requestSignature: requestSignature,
+      );
+      if (current) {
+        publishOpenHydrateResult(key, result);
+        ChatOpenPerfLog.mark(
+          'app_hydrate_commit',
+          conversationID: key,
+          extras: <String, Object?>{
+            'requestId': ownerRequestId,
+            'prepareId': ownerRequestId,
+            'hydrateKind': kind.name,
+          },
+          trace: ownerTrace,
+        );
+      } else {
+        ChatOpenPerfLog.mark(
+          'app_hydrate_aborted',
+          conversationID: key,
+          extras: <String, Object?>{
+            'requestId': ownerRequestId,
+            'prepareId': ownerRequestId,
+            'hydrateKind': kind.name,
+            'staleReason': 'hydrateAborted',
+          },
+          trace: ownerTrace,
+        );
+      }
+      return result;
+    }).whenComplete(() {
+      final stillOwner = identical(_findOpenHydrateInFlight(key), task);
+      _openHydrateInFlightByConv
+          .removeWhere((_, value) => identical(value, task));
+      if (stillOwner) markOpenChatHydrateSettled(key);
+    });
+    _openHydrateCanPublish[task] = canPublish;
+    for (final alias in _historyFlagKeys(key)) {
+      _openHydrateInFlightByConv[alias] = task;
+    }
+    if (_isSameConversationID(_openBottomCapsuleLockConvId, key)) {
+      _openBottomCapsuleHydrateSettled = false;
+    }
+    return task;
+  }

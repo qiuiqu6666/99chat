@@ -1,0 +1,39 @@
+Future<void> _createConversationTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE $_table (
+        owner_user_id TEXT NOT NULL,
+        conversation_id TEXT NOT NULL,
+        conv_type INTEGER NOT NULL DEFAULT 0,
+        user_id TEXT NOT NULL DEFAULT '',
+        group_id TEXT NOT NULL DEFAULT '',
+        show_name TEXT NOT NULL DEFAULT '',
+        face_url TEXT NOT NULL DEFAULT '',
+        unread_count INTEGER NOT NULL DEFAULT 0,
+        recv_opt INTEGER NOT NULL DEFAULT 0,
+        group_type TEXT NOT NULL DEFAULT '',
+        is_pinned INTEGER NOT NULL DEFAULT 0,
+        order_key INTEGER NOT NULL DEFAULT 0,
+        sdk_order_key INTEGER NOT NULL DEFAULT 0,
+        active_time INTEGER NOT NULL DEFAULT 0,
+        raw_json TEXT NOT NULL,
+        raw_json_fingerprint TEXT NOT NULL DEFAULT '',
+        updated_at INTEGER NOT NULL DEFAULT 0,
+        read_cleared_at INTEGER NOT NULL DEFAULT 0,
+        history_cleared_at INTEGER NOT NULL DEFAULT 0,
+        local_draft_text TEXT NOT NULL DEFAULT '',
+        local_draft_updated_at INTEGER NOT NULL DEFAULT 0,
+        last_msg_id TEXT NOT NULL DEFAULT '',
+        preview_text TEXT NOT NULL DEFAULT '',
+        preview_elem_type INTEGER NOT NULL DEFAULT 0,
+        preview_sender TEXT NOT NULL DEFAULT '',
+        preview_sender_name TEXT NOT NULL DEFAULT '',
+        preview_timestamp INTEGER NOT NULL DEFAULT 0,
+        preview_status INTEGER NOT NULL DEFAULT 0,
+        preview_is_self INTEGER NOT NULL DEFAULT 0,
+        preview_client_id TEXT NOT NULL DEFAULT '',
+        preview_is_peer_read INTEGER NOT NULL DEFAULT 0,
+        preview_projection_version INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (owner_user_id, conversation_id)
+      )
+    ''');
+  }

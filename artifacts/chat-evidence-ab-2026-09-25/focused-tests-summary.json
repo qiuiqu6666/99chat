@@ -1,0 +1,26 @@
+[
+  {
+    "file": "focused-tests.jsonl",
+    "passed": 38,
+    "failed": 0,
+    "skipped": 0,
+    "completion": {
+      "success": true,
+      "type": "done",
+      "time": 4232
+    },
+    "errors": []
+  },
+  {
+    "file": "draft-service-tests.jsonl",
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "completion": {
+      "success": true,
+      "type": "done",
+      "time": 4551
+    },
+    "errors": []
+  }
+]

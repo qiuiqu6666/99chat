@@ -1,0 +1,191 @@
+void initForEachConversation(
+    ConvType convType,
+    String convID,
+    ValueChanged<String>? onChangeInputField, {
+    String? groupID,
+    String? groupType,
+    List<V2TimGroupMemberFullInfo?>? preGroupMemberList,
+  }) async {
+    if (_isInit) {
+      syncHaveMoreDataFromCachedHistory(
+        mayHaveOlder: globalModel.mayHaveOlderHistory(conversationID),
+      );
+      return;
+    }
+    setInputField = onChangeInputField;
+    conversationType = convType;
+    _groupType = null;
+    if (convType == ConvType.group) {
+      final normalizedGroupType = groupType?.trim().toLowerCase();
+      _groupType = switch (normalizedGroupType) {
+        'meeting' => GroupReceiptAllowType.meeting,
+        'public' => GroupReceiptAllowType.public,
+        'work' => GroupReceiptAllowType.work,
+        'community' => GroupReceiptAllowType.community,
+        _ => null,
+      };
+    }
+    // 消息列表 / hydrate / 归档一律用裸会话 ID（@TGS#…），勿带 group_。
+    final previousConversationID = conversationID;
+    conversationID = _storageConversationId(convID);
+    if (previousConversationID != conversationID) {
+      _mediaCommitGuard.advanceConversation();
+    }
+    _disposed = false;
+    final initGeneration = ++_chatOpenGeneration;
+    final initConversationID = conversationID;
+    // Establish the visit boundary before the first await or incoming callback.
+    // Failure keeps the baseline pending; admission/return retries it in order.
+    unawaited(globalModel.beginHistoryUnreadVisit(conversationID).catchError(
+      (Object error, StackTrace stack) {
+        ChatHistoryTrace.log('unread_visit_baseline_retry_required',
+            conversationID: initConversationID);
+      },
+    ));
+    _preGroupMemberListForOpen = preGroupMemberList;
+    _openProfileEnrichmentInFlight = null;
+    _pagination.resetForConversationInit();
+
+    var warmOnStorage = globalModel.rawMessageCount(conversationID);
+    final warmOnRaw = globalModel.rawMessageCount(convID);
+    final idMismatchRisk = warmOnStorage == 0 && warmOnRaw > 0;
+    ChatHistoryTrace.log(
+      'init_conv',
+      conversationID: conversationID,
+      extras: <String, Object?>{
+        'rawConvID': convID,
+        'warmOnStorage': warmOnStorage,
+        'warmOnRaw': warmOnRaw,
+        'loadedStorage': globalModel.hasInitialHistoryLoaded(conversationID),
+        'loadedRaw': globalModel.hasInitialHistoryLoaded(convID),
+        'idMismatchRisk': idMismatchRisk,
+      },
+    );
+
+    // 暖窗写在 raw/group_ 桶、页面已收成裸 storageId：迁到 storage，避免假空。
+    if (idMismatchRisk) {
+      final aliasWindow = globalModel.rawMessageList(convID);
+      if (aliasWindow != null && aliasWindow.isNotEmpty) {
+        final historyIsCurrent = _historyPublicationFence();
+        final authoritative = await globalModel.applyHistoryWindowMutations(
+            conversationID, List<V2TimMessage>.from(aliasWindow));
+        if (!historyIsCurrent()) return;
+        final commit = globalModel.setMessageList(
+          conversationID,
+          authoritative,
+          needResetNewMessageCount: false,
+          replace: true,
+        );
+        globalModel.markInitialHistoryLoaded(conversationID);
+        final mayOlder = globalModel.mayHaveOlderHistory(convID) ||
+            aliasWindow.length >=
+                HistoryMessageDartConstant.initialOpenFetchCount;
+        globalModel.markInitialHistoryMayHaveOlder(
+          conversationID,
+          mayHaveOlder: mayOlder,
+        );
+        warmOnStorage = commit.rawCount;
+        ChatHistoryTrace.log(
+          'init_conv_migrate_alias_window',
+          conversationID: conversationID,
+          extras: <String, Object?>{
+            'fromKey': convID,
+            'toKey': conversationID,
+            'count': aliasWindow.length,
+            'mayHaveOlder': mayOlder,
+            'warmOnStorageAfter': warmOnStorage,
+          },
+        );
+      }
+    }
+
+    if (globalModel.hasInitialHistoryLoaded(conversationID) &&
+        globalModel.rawMessageCount(conversationID) > 0) {
+      final mayOlder = globalModel.mayHaveOlderHistory(conversationID);
+      haveMoreData = mayOlder ||
+          globalModel.rawMessageCount(conversationID) >=
+              HistoryMessageDartConstant.initialOpenFetchCount;
+    } else if (globalModel.hasInitialHistoryLoaded(convID) &&
+        globalModel.rawMessageCount(convID) > 0) {
+      // 兼容进页瞬间仍用旧 key（group_）写暖窗的情况。
+      final mayOlder = globalModel.mayHaveOlderHistory(convID);
+      haveMoreData = mayOlder ||
+          globalModel.rawMessageCount(convID) >=
+              HistoryMessageDartConstant.initialOpenFetchCount;
+    } else {
+      _pagination.markHistoryUnknown();
+    }
+    haveMoreLatestData = false;
+
+    isGroupExist = true;
+    _groupInfo = null;
+    groupMemberList = null;
+    selfMemberInfo = null;
+    groupMemberListComplete = false;
+    _idleFullMemberLoadGeneration++;
+    _fullMemberLoadInFlight = null;
+    _openShellGeneration++;
+    _openShellInFlight = null;
+    _openShellCompletedGid = null;
+    _warmOpenHistoryReconcileScheduled = false;
+    _warmOpenTowardLocalScheduled = false;
+    _fillTowardOlderHistoryResumeTimer?.cancel();
+    _fillTowardOlderHistoryResumeTimer = null;
+    _lastPeekIsFinished = false;
+    _sdkOlderPageTail = null;
+
+    globalModel.setCurrentConversation(
+      CurrentConversation(conversationID, conversationType ?? ConvType.c2c),
+      notify: false,
+    );
+    globalModel.lifeCycle = lifeCycle;
+    if (globalModel.hasPendingScrollRestore(conversationID)) {
+      globalModel.setMessageListPosition(
+        conversationID,
+        HistoryMessagePosition.notShowLatest,
+        notify: false,
+      );
+    } else {
+      globalModel.setMessageListPosition(
+        conversationID,
+        HistoryMessagePosition.bottom,
+        notify: false,
+      );
+    }
+    globalModel.setChatConfig(chatConfig);
+
+    if (globalModel.hasInitialHistoryLoaded(convID) &&
+        globalModel.rawMessageCount(convID) > 0) {
+      syncHaveMoreDataFromCachedHistory(
+        mayHaveOlder: globalModel.mayHaveOlderHistory(convID),
+      );
+    }
+
+    if (conversationType == ConvType.group) {
+      _groupID = groupID;
+      final resolvedGroupId = groupID ?? convID;
+      final selfId = selfModel.loginInfo?.userID?.trim() ?? '';
+      if (selfId.isNotEmpty) {
+        final cachedSelf = GroupMemberStore.instance.memberOf(
+          resolvedGroupId,
+          selfId,
+        );
+        if (cachedSelf != null) {
+          selfMemberInfo = cachedSelf;
+        }
+      }
+      final skipOpenNotify = globalModel.hasInitialHistoryLoaded(convID) &&
+          globalModel.rawMessageCount(convID) > 0;
+      if (!skipOpenNotify) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_isChatGenerationCurrent(initGeneration, initConversationID)) {
+            _notify();
+          }
+        });
+      }
+    }
+
+    globalModel.removeRoamingSyncListener(_onRoamingSyncFinished);
+    globalModel.addRoamingSyncListener(_onRoamingSyncFinished);
+    _isInit = true;
+  }

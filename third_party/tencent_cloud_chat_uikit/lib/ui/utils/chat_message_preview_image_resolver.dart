@@ -517,7 +517,8 @@ class ChatMessagePreviewImageResolver {
     if (route == ImagePreviewDecodeRoute.tiled) {
       return provider;
     }
-    if (provider is FileImage && route == ImagePreviewDecodeRoute.normal) {
+    if (provider is FileImage && route == ImagePreviewDecodeRoute.normal &&
+        imagePreviewMetaSizeFromMessage(message) != null) {
       return provider;
     }
     final target = imagePreviewDecodeTargetForMessage(

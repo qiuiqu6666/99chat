@@ -1,0 +1,75 @@
+[
+  {
+    "target": {
+      "id": "Function:lib/src/services/im/im05_contracts.dart:imOutboxToStorageMap",
+      "name": "imOutboxToStorageMap",
+      "type": "Function",
+      "filePath": "lib/src/services/im/im05_contracts.dart"
+    },
+    "direction": "upstream",
+    "impactedCount": 4,
+    "risk": "LOW",
+    "riskSharedAxes": "LOW",
+    "riskScale": {
+      "comparableAcrossKinds": true,
+      "unusedAxes": []
+    },
+    "epistemic": "exact",
+    "summary": {
+      "direct": 4,
+      "processes_affected": 0,
+      "modules_affected": 1
+    },
+    "byDepthCounts": {
+      "1": 4
+    },
+    "affected_processes": [],
+    "affected_modules": [
+      {
+        "name": "Im",
+        "hits": 3,
+        "impact": "direct"
+      }
+    ],
+    "byDepth": {
+      "1": [
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im_ingress_store.dart:_SqliteImIngressTransaction.insertOutboxIfAbsent#1",
+          "name": "insertOutboxIfAbsent",
+          "filePath": "lib/src/services/im/im_ingress_store.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im_ingress_store.dart:_SqliteImIngressTransaction.updateOutboxIfCurrent#5",
+          "name": "updateOutboxIfCurrent",
+          "filePath": "lib/src/services/im/im_ingress_store.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:_WebImIngressTransaction.insertOutboxIfAbsent#1",
+          "name": "insertOutboxIfAbsent",
+          "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:_WebImIngressTransaction.updateOutboxIfCurrent#5",
+          "name": "updateOutboxIfCurrent",
+          "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ]
+    }
+  }
+]

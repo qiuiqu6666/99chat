@@ -1,0 +1,11 @@
+[
+ ["_performChatHistoryAfterOverlayReturn","lib/src/chat.dart"],
+ ["AppChatRouteRegistry","lib/src/navigation/app_chat_route.dart"],
+ ["appChatRoute","lib/src/navigation/app_chat_route.dart"],
+ ["openOrReuseAppChat","lib/src/navigation/app_chat_route.dart"],
+ ["ConversationReadOutboxStore","lib/src/services/im/read_outbox_store.dart"],
+ ["_watermarkFor","lib/src/services/conversation_unread_clear_service.dart"],
+ ["_runSdkClean","lib/src/services/conversation_unread_clear_service.dart"],
+ ["recoverPendingReadOutbox","lib/src/services/conversation_unread_clear_service.dart"],
+ ["cleanUnread","lib/src/services/im/tencent_conversation_read_service.dart"]
+]

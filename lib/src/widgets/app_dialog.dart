@@ -114,10 +114,12 @@ class AppDialog {
     String confirmText = '立即更新',
     required VoidCallback onConfirm,
     bool showCloseButton = false,
+    ValueChanged<ModalRoute<dynamic>?>? onRouteReady,
   }) async {
     await show<void>(
       barrierDismissible: false,
       builder: (dialogContext) {
+        onRouteReady?.call(ModalRoute.of(dialogContext));
         return PopScope(
           canPop: false,
           child: _LegacyImageUpdateDialog(

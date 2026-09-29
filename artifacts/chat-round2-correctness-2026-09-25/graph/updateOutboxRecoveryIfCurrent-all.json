@@ -1,0 +1,40 @@
+[
+  {
+    "target": {
+      "id": "Method:lib/src/services/im/im_ingress_store_platform_web.dart:_WebImIngressTransaction.updateOutboxRecoveryIfCurrent#5",
+      "name": "updateOutboxRecoveryIfCurrent",
+      "type": "Method",
+      "filePath": "lib/src/services/im/im_ingress_store_platform_web.dart"
+    },
+    "direction": "upstream",
+    "impactedCount": 0,
+    "risk": "UNKNOWN",
+    "riskSharedAxes": "UNKNOWN",
+    "riskScale": {
+      "comparableAcrossKinds": true,
+      "unusedAxes": []
+    },
+    "riskNote": "No callers resolved. Absence of edges is not evidence the symbol is unused: a caller reaching it through a reference class this index does not record — plain-object property access, a bare-identifier read of a module-scope const — produces no edge to find. Confirm with a text search before treating the change as safe.",
+    "epistemic": "lower-bound",
+    "boundaries": [
+      "updateOutboxRecoveryIfCurrent is an interface with 3 implementations; callers that bind via the interface (e.g. a DI container or dynamic dispatch) are not traced to the concrete symbol — actual impact may be higher."
+    ],
+    "causes": {
+      "scopeExtractionFiles": 0,
+      "receiverTyping": 0,
+      "dispatchBoundary": 3,
+      "externalBoundary": 0,
+      "undecidedSatisfaction": 0,
+      "callableValueReferences": 0
+    },
+    "summary": {
+      "direct": 0,
+      "processes_affected": 0,
+      "modules_affected": 0
+    },
+    "byDepthCounts": {},
+    "affected_processes": [],
+    "affected_modules": [],
+    "byDepth": {}
+  }
+]

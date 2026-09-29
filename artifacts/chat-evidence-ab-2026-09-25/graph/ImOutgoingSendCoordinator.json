@@ -1,0 +1,101 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator",
+    "name": "ImOutgoingSendCoordinator",
+    "kind": "Class",
+    "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+    "startLine": 48,
+    "endLine": 615
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "imports": [
+      {
+        "uid": "File:lib/src/services/chat_external_message_sender.dart",
+        "name": "chat_external_message_sender.dart",
+        "filePath": "lib/src/services/chat_external_message_sender.dart"
+      },
+      {
+        "uid": "File:lib/src/services/im/im.dart",
+        "name": "im.dart",
+        "filePath": "lib/src/services/im/im.dart"
+      },
+      {
+        "uid": "File:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+        "name": "tui_chat_separate_view_model.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart"
+      },
+      {
+        "uid": "File:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+        "name": "tui_chat_global_model.dart",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.ImOutgoingSendCoordinator#0",
+        "name": "ImOutgoingSendCoordinator",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "Constructor:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator._",
+        "name": "_",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator._nextTransientIngressSequence#0",
+        "name": "_nextTransientIngressSequence",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.abandonOutcomeUnknown#3",
+        "name": "abandonOutcomeUnknown",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.adoptProviderHistory#1",
+        "name": "adoptProviderHistory",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.completeSuccessfulProjection#1",
+        "name": "completeSuccessfulProjection",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.send#21",
+        "name": "send",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator._sendOperationGeneration",
+        "name": "_sendOperationGeneration",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator._transientIngressSequence",
+        "name": "_transientIngressSequence",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.instance",
+        "name": "instance",
+        "filePath": "lib/src/services/im/outgoing_send_coordinator.dart"
+      }
+    ]
+  },
+  "typed_properties": [
+    {
+      "uid": "Property:lib/src/services/im/outgoing_send_coordinator.dart:ImOutgoingSendCoordinator.instance",
+      "name": "instance",
+      "filePath": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "declaredType": "ImOutgoingSendCoordinator"
+    }
+  ],
+  "processes": []
+}

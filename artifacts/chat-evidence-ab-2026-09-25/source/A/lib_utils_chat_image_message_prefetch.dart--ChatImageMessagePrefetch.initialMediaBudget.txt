@@ -1,0 +1,4 @@
+/// Media is allowed to use a small, bounded part of the chat-open budget.
+  /// URL lookup is intentionally shorter than image warming so a slow IM
+  /// endpoint can never hold the history gate for the whole route transition.
+  static const Duration initialMediaBudget = Duration(milliseconds: 220);

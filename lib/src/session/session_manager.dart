@@ -13,6 +13,11 @@ import 'package:tencent_cloud_chat_demo/src/services/im_connect_status_service.d
 import 'package:tencent_cloud_chat_demo/src/platform/listener_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im_sdk_relationship_reconcile_service.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
+import 'package:tencent_cloud_chat_demo/src/services/startup_perf_log.dart';
+
+class _SessionOperationSuperseded implements Exception {
+  const _SessionOperationSuperseded();
+}
 
 class SessionManager extends ChangeNotifier {
   static final SessionManager instance = SessionManager();
@@ -20,6 +25,9 @@ class SessionManager extends ChangeNotifier {
     SessionStore? store,
     AuthRepository? auth,
     ImClient? im,
+    this.restoreWaitBudget = const Duration(seconds: 8),
+    this.imOperationWaitBudget = const Duration(seconds: 20),
+    this.signOutWaitBudget = const Duration(seconds: 8),
     this.onSessionInvalidated,
   })  : _store = store ?? SessionStore(),
         _auth = auth ?? AuthRepository(),
@@ -61,7 +69,7 @@ class SessionManager extends ChangeNotifier {
       onUserSigExpired: () {
         final userId = _state.userId;
         if (userId != null && userId.isNotEmpty) {
-          unawaited(_refreshCredential(userId));
+          unawaited(_refreshCredential(userId, reconnect: true));
         }
       },
     ));
@@ -70,6 +78,9 @@ class SessionManager extends ChangeNotifier {
   final SessionStore _store;
   final AuthRepository _auth;
   final ImClient _im;
+  final Duration restoreWaitBudget;
+  final Duration imOperationWaitBudget;
+  final Duration signOutWaitBudget;
 
   /// App-level cleanup, user feedback and navigation for terminal IM events.
   Future<void> Function(SessionInvalidationReason reason)? onSessionInvalidated;
@@ -78,6 +89,12 @@ class SessionManager extends ChangeNotifier {
   int _sessionGeneration = 0;
   Future<void>? _activeOperation;
   Future<void>? _credentialRefreshInFlight;
+  Future<void> _imLoginTail = Future<void>.value();
+  int _imLoginRevision = 0;
+  int? _credentialRefreshGeneration;
+  bool _credentialReconnectRequested = false;
+  Future<void>? _signOutInFlight;
+  Completer<void>? _invalidationDone;
   bool _signingOut = false;
   SessionState _state = const SessionState.unknown();
 
@@ -91,11 +108,14 @@ class SessionManager extends ChangeNotifier {
   bool get isOnline => _state.phase == SessionPhase.ready;
 
   Future<void> restore() async {
+    await _waitForTeardown();
     final generation = _sessionGeneration;
     var active = _activeOperation;
     if (active == null) {
       late final Future<void> operation;
-      operation = _restoreInternal().whenComplete(() {
+      operation =
+          (_state.isReady ? _validateReadySession() : _restoreInternal())
+              .whenComplete(() {
         if (identical(_activeOperation, operation)) _activeOperation = null;
       });
       _activeOperation = operation;
@@ -103,20 +123,96 @@ class SessionManager extends ChangeNotifier {
     }
     // Budget only the UI wait. Keep the actual operation single-flight until
     // it settles: timeout cannot cancel an SDK login or suppress a late 401.
-    await active.timeout(const Duration(seconds: 8), onTimeout: () {
-      final owner = _state.userId;
+    await active.timeout(restoreWaitBudget, onTimeout: () {
+      final storedOwner = _state.userId?.trim() ?? '';
+      final fallbackOwner = ApiClient.instance.authenticatedUserId.trim();
+      final owner = storedOwner.isNotEmpty ? storedOwner : fallbackOwner;
+      final businessToken = ApiClient.instance.token;
       if (generation != _sessionGeneration ||
           _state.isLoggedOut ||
           _state.isReady ||
-          owner == null ||
-          owner.isEmpty) {
+          owner.isEmpty ||
+          !ApiClient.isValidJwt(businessToken)) {
         return;
       }
+      // A slow secure-store read is not evidence that credentials are absent.
+      // Keep a confirmed local business session in its account and let the
+      // single-flight restore continue in the background.
       _set(SessionState(
           phase: SessionPhase.offline,
           userId: owner,
-          error: TimeoutException('Session restore is still connecting')));
+          error: TimeoutException('Session credentials are still restoring')));
     });
+  }
+
+  Future<void> _validateReadySession() async {
+    final generation = _sessionGeneration;
+    final owner = _state.userId;
+    if (owner == null || owner.isEmpty) return;
+    try {
+      final token = await _store.readBusinessToken();
+      if (generation != _sessionGeneration) return;
+      if (ApiClient.isJwtExpired(token ?? ApiClient.instance.token)) {
+        await _handleSessionInvalidated(
+            SessionInvalidationReason.credentialsExpired);
+        return;
+      }
+      final me = await _auth.fetchMe();
+      if (generation != _sessionGeneration) return;
+      if (me.userId != owner) throw const SessionAuthExpiredException();
+    } on SessionAuthExpiredException {
+      if (generation == _sessionGeneration) {
+        await _handleSessionInvalidated(
+            SessionInvalidationReason.credentialsExpired);
+      }
+    } catch (_) {
+      // A business health probe cannot invalidate an otherwise connected SDK.
+      // SDK disconnection remains the owner of transport recovery.
+    }
+  }
+
+  Future<void> _connectIm(
+      {required String userId,
+      required int sdkAppId,
+      required String userSig,
+      required int generation}) {
+    final previous = _imLoginTail;
+    final operation = () async {
+      await previous;
+      if (generation != _sessionGeneration || _signingOut) {
+        throw const _SessionOperationSuperseded();
+      }
+      final watch = Stopwatch()..start();
+      StartupPerfLog.markTagged('im_login_start',
+          category: 'session',
+          details: {'generation': generation, 'active': 1});
+      try {
+        await _im.initialize(sdkAppId);
+        if (generation != _sessionGeneration || _signingOut) {
+          throw const _SessionOperationSuperseded();
+        }
+        await _im.connect(userId: userId, userSig: userSig);
+        if (generation != _sessionGeneration || _signingOut) {
+          throw const _SessionOperationSuperseded();
+        }
+        _imLoginRevision++;
+      } finally {
+        StartupPerfLog.markTagged('im_login_end',
+            category: 'session',
+            details: {
+              'generation': generation,
+              'elapsedMs': watch.elapsedMilliseconds,
+              'active': 0
+            });
+      }
+    }();
+    // Errors reach the caller; the physical SDK lane itself remains usable.
+    _imLoginTail =
+        operation.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    // Bound the caller's wait without replacing the physical SDK lane. A
+    // timeout cannot cancel the native login, so logout and later logins must
+    // still serialize behind [operation] until it really settles.
+    return operation.timeout(imOperationWaitBudget);
   }
 
   Future<void> _restoreInternal() async {
@@ -177,9 +273,11 @@ class SessionManager extends ChangeNotifier {
       try {
         _set(SessionState(
             phase: SessionPhase.connectingIm, userId: effectiveUserId));
-        await _im.initialize(cached.$1);
-        if (generation != _sessionGeneration) return;
-        await _im.connect(userId: effectiveUserId, userSig: cached.$2);
+        await _connectIm(
+            userId: effectiveUserId,
+            sdkAppId: cached.$1,
+            userSig: cached.$2,
+            generation: generation);
         if (generation != _sessionGeneration) return;
         _retryTimer?.cancel();
         _retryAttempt = 0;
@@ -218,9 +316,17 @@ class SessionManager extends ChangeNotifier {
     required String token,
     required String userId,
   }) async {
+    await _waitForTeardown();
     _cancelReconnect();
+    final generation = ++_sessionGeneration;
+    final previous = _activeOperation;
     final operation = () async {
-      final generation = ++_sessionGeneration;
+      if (previous != null) {
+        try {
+          await previous;
+        } catch (_) {}
+      }
+      if (generation != _sessionGeneration) return;
       await _store.saveBusinessSession(token: token, userId: userId);
       if (generation != _sessionGeneration) return;
       await _establish(userId: userId, generation: generation);
@@ -258,10 +364,12 @@ class SessionManager extends ChangeNotifier {
         expiresIn: sig.expiresIn,
       );
       if (generation != _sessionGeneration) return;
-      await _im.initialize(sig.sdkAppId);
-      if (generation != _sessionGeneration) return;
       _set(SessionState(phase: SessionPhase.connectingIm, userId: sig.userId));
-      await _im.connect(userId: sig.userId, userSig: sig.userSig);
+      await _connectIm(
+          userId: sig.userId,
+          sdkAppId: sig.sdkAppId,
+          userSig: sig.userSig,
+          generation: generation);
       if (generation != _sessionGeneration) return;
       _retryTimer?.cancel();
       _retryAttempt = 0;
@@ -289,13 +397,19 @@ class SessionManager extends ChangeNotifier {
     }
   }
 
-  Future<void> _refreshCredential(String userId) {
+  Future<void> _refreshCredential(String userId, {bool reconnect = false}) {
     final running = _credentialRefreshInFlight;
-    if (running != null) return running;
+    if (running != null && _credentialRefreshGeneration == _sessionGeneration) {
+      _credentialReconnectRequested |= reconnect;
+      return running;
+    }
+    _credentialRefreshGeneration = _sessionGeneration;
+    _credentialReconnectRequested = reconnect;
     late final Future<void> operation;
     operation = _refreshCredentialInternal(userId).whenComplete(() {
       if (identical(_credentialRefreshInFlight, operation)) {
         _credentialRefreshInFlight = null;
+        _credentialRefreshGeneration = null;
       }
     });
     _credentialRefreshInFlight = operation;
@@ -304,19 +418,49 @@ class SessionManager extends ChangeNotifier {
 
   Future<void> _refreshCredentialInternal(String userId) async {
     final generation = _sessionGeneration;
+    final loginRevision = _imLoginRevision;
     try {
       final sig = await _auth.fetchImCredential();
-      if (generation != _sessionGeneration || sig.userId != userId) return;
+      if (generation != _sessionGeneration ||
+          sig.userId != userId ||
+          loginRevision != _imLoginRevision) {
+        return;
+      }
       await _store.saveImCredential(
         sdkAppId: sig.sdkAppId,
         userSig: sig.userSig,
         expiresIn: sig.expiresIn,
       );
       if (generation != _sessionGeneration) return;
-      if (generation == _sessionGeneration &&
+      if (_credentialReconnectRequested &&
+          generation == _sessionGeneration &&
           _state.isReady &&
           _state.userId == userId) {
-        await _im.connect(userId: sig.userId, userSig: sig.userSig);
+        // Wait for/occupy the same operation slot as foreground and retry.
+        // A cache refresh may be promoted by an expiration callback mid-flight.
+        while (_activeOperation != null &&
+            !identical(_activeOperation, _credentialRefreshInFlight)) {
+          try {
+            await _activeOperation;
+          } catch (_) {}
+          if (generation != _sessionGeneration ||
+              loginRevision != _imLoginRevision) {
+            return;
+          }
+        }
+        final ownOperation = _credentialRefreshInFlight;
+        _activeOperation = ownOperation;
+        try {
+          await _connectIm(
+              userId: sig.userId,
+              sdkAppId: sig.sdkAppId,
+              userSig: sig.userSig,
+              generation: generation);
+        } finally {
+          if (identical(_activeOperation, ownOperation)) {
+            _activeOperation = null;
+          }
+        }
         // IMP(M.3): UserSig 刷新后的重新登录同样需要配置 IM06 scope。
         // 幂等安全：configureMessageWriterScopeForSession 对相同
         // owner/generation 不重置 coordinator。
@@ -328,13 +472,16 @@ class SessionManager extends ChangeNotifier {
         }
       }
     } on SessionAuthExpiredException {
-      if (generation == _sessionGeneration) {
+      if (generation == _sessionGeneration &&
+          loginRevision == _imLoginRevision) {
         await _handleSessionInvalidated(
           SessionInvalidationReason.credentialsExpired,
         );
       }
     } catch (error) {
-      if (generation != _sessionGeneration || _state.userId != userId) {
+      if (generation != _sessionGeneration ||
+          _state.userId != userId ||
+          loginRevision != _imLoginRevision) {
         return;
       }
       if (error is ImClientException && error.isCredentialRejected) {
@@ -343,6 +490,7 @@ class SessionManager extends ChangeNotifier {
         );
         return;
       }
+      if (!_credentialReconnectRequested && _state.isReady) return;
       _set(SessionState(
         phase: SessionPhase.offline,
         userId: userId,
@@ -354,10 +502,23 @@ class SessionManager extends ChangeNotifier {
 
   Future<void> _reconnect(String userId) async {
     // A UI timeout must not create overlapping authentication/SDK logins.
-    if (_activeOperation != null) return;
+    final running = _activeOperation;
+    if (running != null) {
+      await running;
+      if (!_state.isReady && !_state.isLoggedOut && _state.userId == userId) {
+        scheduleReconnect(userId);
+      }
+      return;
+    }
     final generation = _sessionGeneration;
     if (_state.isLoggedOut || _state.userId != userId) return;
-    await _establish(userId: userId, generation: generation);
+    late final Future<void> operation;
+    operation =
+        _establish(userId: userId, generation: generation).whenComplete(() {
+      if (identical(_activeOperation, operation)) _activeOperation = null;
+    });
+    _activeOperation = operation;
+    await operation;
   }
 
   void scheduleReconnect(String userId) {
@@ -387,6 +548,8 @@ class SessionManager extends ChangeNotifier {
     SessionInvalidationReason reason,
   ) async {
     if (_state.isLoggedOut || _signingOut) return;
+    final invalidation = Completer<void>();
+    _invalidationDone = invalidation;
     // Fence in-flight refresh/login work before awaiting account cleanup.
     _sessionGeneration++;
     _activeOperation = null;
@@ -407,13 +570,26 @@ class SessionManager extends ChangeNotifier {
           '[SessionManager] session invalidation cleanup failed: $error');
     } finally {
       _signingOut = false;
+      if (identical(_invalidationDone, invalidation)) _invalidationDone = null;
+      invalidation.complete();
+    }
+  }
+
+  Future<void> _waitForTeardown() async {
+    // New credentials must not be written before the old owner's cleanup.
+    // Never use _activeOperation here: invalidation can originate inside it.
+    while (_invalidationDone != null || _signOutInFlight != null) {
+      final pending = _invalidationDone?.future ?? _signOutInFlight!;
+      await pending;
     }
   }
 
   Future<void> signOut({
     bool invalidateIdentity = true,
     String reason = 'sign_out',
-  }) async {
+  }) {
+    final running = _signOutInFlight;
+    if (running != null) return running;
     _sessionGeneration++;
     // SessionManager is also used by the cold-start/foreground path directly,
     // without AccountSessionService. Keep the process-wide identity fence in
@@ -426,19 +602,51 @@ class SessionManager extends ChangeNotifier {
     _cancelReconnect();
     _signingOut = true;
     _set(const SessionState(phase: SessionPhase.loggedOut));
-    try {
+    final previousLogin = _imLoginTail;
+    final completion = Completer<void>();
+    _signOutInFlight = completion.future;
+    // Clear credentials immediately, independently from an SDK login that may
+    // never return. The physical teardown must not clear them again later, or
+    // a newly established account could lose its credentials after a timeout.
+    final storeClear = _store.clear();
+    final teardown = () async {
       try {
-        await _im.disconnect();
-      } finally {
+        await previousLogin;
         try {
-          await _im.dispose();
+          await _im.disconnect();
         } finally {
-          await _store.clear();
+          await _im.dispose();
         }
+      } finally {
+        _signingOut = false;
       }
-    } finally {
+    }();
+    _imLoginTail =
+        teardown.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    final boundedCleanup = () async {
+      // Do not let a hung native login block logout navigation indefinitely.
+      // The actual teardown remains the tail above, so a future login cannot
+      // overlap the still-running native operation.
+      await storeClear;
+      try {
+        await teardown.timeout(signOutWaitBudget);
+      } on TimeoutException {
+        _signingOut = false;
+      }
+    }();
+    boundedCleanup.then((_) {
+      if (identical(_signOutInFlight, completion.future)) {
+        _signOutInFlight = null;
+      }
+      completion.complete();
+    }, onError: (Object error, StackTrace stack) {
       _signingOut = false;
-    }
+      if (identical(_signOutInFlight, completion.future)) {
+        _signOutInFlight = null;
+      }
+      completion.completeError(error, stack);
+    });
+    return completion.future;
   }
 
   void _set(SessionState value) {

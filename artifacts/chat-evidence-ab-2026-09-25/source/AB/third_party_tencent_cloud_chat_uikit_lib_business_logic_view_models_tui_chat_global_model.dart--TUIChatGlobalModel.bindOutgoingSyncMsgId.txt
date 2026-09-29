@@ -1,0 +1,63 @@
+/// Binds SDK-assigned [msgID] to a sending placeholder before send completes.
+  void bindOutgoingSyncMsgId(
+    String conversationID,
+    String clientId,
+    String msgID,
+  ) {
+    final id = clientId.trim();
+    final serverMsgID = msgID.trim();
+    if (id.isEmpty || serverMsgID.isEmpty) {
+      return;
+    }
+    final storageKey = _resolveMessageListStorageKey(conversationID);
+    if (storageKey.isEmpty) {
+      return;
+    }
+
+    final current = _mergedAliasMessageList(storageKey);
+    final index = current.indexWhere(
+      (item) =>
+          item.isSelf == true &&
+          item.id == id &&
+          (item.msgID == null || item.msgID!.isEmpty || item.msgID == id),
+    );
+    if (index < 0) {
+      return;
+    }
+
+    final previous = current[index];
+    final updated = _cloneMessage(previous);
+    updated.msgID = serverMsgID;
+    final stableIdentity = readOutgoingStableId(previous) ?? id;
+    final commit = commitMessageDelta(
+      MessageDelta<V2TimMessage>(
+        conversationKey: storageKey,
+        eventID: 'send_bind:$id:$serverMsgID',
+        kind: MessageDeltaKind.optimisticAdoption,
+        source: MessageDeltaSource.sendPipeline,
+        generation: messageDeltaGenerationFor(storageKey),
+        clearEpoch: messageDeltaClearEpochFor(storageKey),
+        upserts: <MessageReconciliationRecord<V2TimMessage>>[
+          MessageReconciliationRecord<V2TimMessage>(
+            value: updated,
+            msgID: updated.msgID,
+            localID: updated.id,
+            outgoingStableID: stableIdentity,
+            seq: updated.seq,
+          ),
+        ],
+      ),
+    );
+    if (commit == null) {
+      // Rejected/stale/active-history binds must not mutate the formal list.
+      return;
+    }
+    _chatUiStateStore.bindMessageAlias(
+      storageKey,
+      id,
+      ChatUiStateStore.messageKeyOf(updated),
+    );
+    ChatMessageHeightCache.instance.rememberAlias(id, serverMsgID);
+    _markMessageRowChanged(storageKey, updated, extraKey: id);
+    _markNeedsNotify();
+  }

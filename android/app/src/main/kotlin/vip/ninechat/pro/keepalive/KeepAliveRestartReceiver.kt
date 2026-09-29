@@ -8,6 +8,10 @@ import vip.ninechat.pro.logging.SilentLog as Log
 class KeepAliveRestartReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         val action = intent?.action ?: return
+        if (!KeepAliveScheduler.isEnabled(context)) {
+            Log.d(TAG, "ignore boot/package event while disabled action=$action")
+            return
+        }
         Log.d(TAG, "boot/package event action=$action")
         KeepAliveForegroundService.start(context.applicationContext, "boot")
     }

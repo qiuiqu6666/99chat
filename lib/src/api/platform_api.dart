@@ -95,6 +95,7 @@ class PlatformContactInfo {
     required this.version,
     required this.build,
     required this.downloadUrl,
+    this.apkUrl = '',
     this.platform = '',
     this.updateType = 'OPTIONAL',
     this.minVersion,
@@ -110,6 +111,8 @@ class PlatformContactInfo {
   final String version;
   final String build;
   final String downloadUrl;
+  /// Direct Android APK response. `downloadUrl` may be an HTML landing page.
+  final String apkUrl;
   final String platform;
   /// 'FORCE' | 'OPTIONAL'，大小写不敏感
   final String updateType;
@@ -173,6 +176,7 @@ class PlatformContactInfo {
       version: json['version']?.toString() ?? '',
       build: json['build']?.toString() ?? '',
       downloadUrl: json['downloadUrl']?.toString() ?? '',
+      apkUrl: json['apkUrl']?.toString().trim() ?? '',
       platform: json['platform']?.toString() ?? '',
       updateType: updateTypeRaw.isEmpty ? 'OPTIONAL' : updateTypeRaw,
       minVersion: _nullableTrim(json['minVersion']),

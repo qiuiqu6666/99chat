@@ -1,0 +1,232 @@
+Future<ConversationDatabaseCommitResult<V2TimConversation>>
+      commitCoordinatorPlan({
+    required ConversationDatabaseCommitPlan<V2TimConversation> plan,
+  }) async {
+    _profileCoordinatorPlanCommits++;
+    final owner = plan.ownerUserId.trim();
+    final canonicalId = plan.canonicalConversationId.trim();
+    if (owner.isEmpty || canonicalId.isEmpty) {
+      return ConversationDatabaseCommitResult<V2TimConversation>(
+        disposition:
+            ConversationDatabaseCommitDisposition.rejectedEmptyIdentity,
+        plan: plan,
+      );
+    }
+    final state = await _loadCoordinatorCommitState(
+      owner: owner,
+      canonicalConversationId: canonicalId,
+    );
+    Future<void> acceptState({required int? tombstoneGeneration}) async {
+      state
+        ..generation = plan.generation
+        ..tombstoneGeneration = tombstoneGeneration;
+      state.idempotencyKeys.add(plan.idempotencyKey);
+      await _persistCoordinatorCommitState(
+        owner: owner,
+        canonicalConversationId: canonicalId,
+        state: state,
+      );
+    }
+
+    if (state.idempotencyKeys.contains(plan.idempotencyKey)) {
+      return ConversationDatabaseCommitResult<V2TimConversation>(
+        disposition: ConversationDatabaseCommitDisposition.ignoredDuplicate,
+        plan: plan,
+      );
+    }
+    if (plan.generation < state.generation) {
+      return ConversationDatabaseCommitResult<V2TimConversation>(
+        disposition:
+            ConversationDatabaseCommitDisposition.rejectedStaleGeneration,
+        plan: plan,
+      );
+    }
+    final tombstoneGeneration = state.tombstoneGeneration;
+    if (tombstoneGeneration != null &&
+        plan.changeType == ConversationDatabaseChangeType.upsert &&
+        !_isDraftOnlyCoordinatorPatch(plan.fieldPatch)) {
+      final canRecreate = plan.recreatesDeletedConversation &&
+          plan.generation > tombstoneGeneration;
+      if (!canRecreate) {
+        return ConversationDatabaseCommitResult<V2TimConversation>(
+          disposition:
+              ConversationDatabaseCommitDisposition.rejectedByTombstone,
+          plan: plan,
+        );
+      }
+    }
+    if (plan.changeType == ConversationDatabaseChangeType.upsert) {
+      if (_isDraftOnlyCoordinatorPatch(plan.fieldPatch)) {
+        final draft =
+            plan.fieldPatch[ConversationMutationField.draft]?.toString() ?? '';
+        final updated = draft.trim().isEmpty
+            ? await clearLocalDraft(
+                conversationID: canonicalId,
+                ownerUserId: owner,
+              )
+            : await updateLocalDraft(
+                conversationID: canonicalId,
+                draftText: draft,
+                ownerUserId: owner,
+              );
+        await acceptState(tombstoneGeneration: null);
+        return ConversationDatabaseCommitResult<V2TimConversation>(
+          disposition: updated == null
+              ? ConversationDatabaseCommitDisposition.noop
+              : ConversationDatabaseCommitDisposition.applied,
+          plan: plan,
+          upsertedSnapshots: updated == null
+              ? const <V2TimConversation>[]
+              : <V2TimConversation>[updated],
+          shouldNotifyUi: updated != null,
+        );
+      }
+      if (_isMarkReadCoordinatorPatch(plan.fieldPatch)) {
+        final updated = await markConversationReadLocally(
+          canonicalId,
+          ownerUserId: owner,
+        );
+        await acceptState(tombstoneGeneration: null);
+        return ConversationDatabaseCommitResult<V2TimConversation>(
+          disposition: updated == null
+              ? ConversationDatabaseCommitDisposition.noop
+              : ConversationDatabaseCommitDisposition.applied,
+          plan: plan,
+          upsertedSnapshots: updated == null
+              ? const <V2TimConversation>[]
+              : <V2TimConversation>[updated],
+          shouldNotifyUi: updated != null,
+        );
+      }
+      if (_isUnreadCountCoordinatorPatch(plan.fieldPatch)) {
+        final updated = await updateConversationUnreadCountLocally(
+          conversationID: canonicalId,
+          unreadCount: plan.fieldPatch[ConversationMutationField.unread] as int,
+          ownerUserId: owner,
+          snapshot: plan.fullSnapshot,
+        );
+        await acceptState(tombstoneGeneration: null);
+        return ConversationDatabaseCommitResult<V2TimConversation>(
+          disposition: updated == null
+              ? ConversationDatabaseCommitDisposition.noop
+              : ConversationDatabaseCommitDisposition.applied,
+          plan: plan,
+          upsertedSnapshots: updated == null
+              ? const <V2TimConversation>[]
+              : <V2TimConversation>[updated],
+          shouldNotifyUi: updated != null,
+        );
+      }
+      if (_isPinOnlyCoordinatorPatch(plan.fieldPatch)) {
+        final updated = await updateConversationPinnedLocally(
+          conversationID: canonicalId,
+          isPinned: plan.fieldPatch[ConversationMutationField.pin] == true,
+          ownerUserId: owner,
+          snapshot: plan.fullSnapshot,
+        );
+        await acceptState(tombstoneGeneration: null);
+        return ConversationDatabaseCommitResult<V2TimConversation>(
+          disposition: updated == null
+              ? ConversationDatabaseCommitDisposition.noop
+              : ConversationDatabaseCommitDisposition.applied,
+          plan: plan,
+          upsertedSnapshots: updated == null
+              ? const <V2TimConversation>[]
+              : <V2TimConversation>[updated],
+          shouldNotifyUi: updated != null,
+        );
+      }
+      if (_isMuteOnlyCoordinatorPatch(plan.fieldPatch)) {
+        final updated = await updateConversationRecvOptLocally(
+          conversationID: canonicalId,
+          recvOpt: plan.fieldPatch[ConversationMutationField.mute] as int,
+          ownerUserId: owner,
+          snapshot: plan.fullSnapshot,
+        );
+        await acceptState(tombstoneGeneration: null);
+        return ConversationDatabaseCommitResult<V2TimConversation>(
+          disposition: updated == null
+              ? ConversationDatabaseCommitDisposition.noop
+              : ConversationDatabaseCommitDisposition.applied,
+          plan: plan,
+          upsertedSnapshots: updated == null
+              ? const <V2TimConversation>[]
+              : <V2TimConversation>[updated],
+          shouldNotifyUi: updated != null,
+        );
+      }
+      if (_isMetadataCoordinatorPatch(plan.fieldPatch)) {
+        final updated = await updateConversationMetadataLocally(
+          conversationID: canonicalId,
+          showName: plan.fieldPatch[ConversationMutationField.name] as String?,
+          faceUrl: plan.fieldPatch[ConversationMutationField.avatar] as String?,
+          ownerUserId: owner,
+          snapshot: plan.fullSnapshot,
+        );
+        await acceptState(tombstoneGeneration: null);
+        return ConversationDatabaseCommitResult<V2TimConversation>(
+          disposition: updated == null
+              ? ConversationDatabaseCommitDisposition.noop
+              : ConversationDatabaseCommitDisposition.applied,
+          plan: plan,
+          upsertedSnapshots: updated == null
+              ? const <V2TimConversation>[]
+              : <V2TimConversation>[updated],
+          shouldNotifyUi: updated != null,
+        );
+      }
+      final snapshot = plan.fullSnapshot;
+      if (snapshot == null) {
+        return ConversationDatabaseCommitResult<V2TimConversation>(
+          disposition:
+              ConversationDatabaseCommitDisposition.rejectedMissingSnapshot,
+          plan: plan,
+        );
+      }
+      final existed =
+          await conversationById(canonicalId, ownerUserId: owner) != null;
+      final upserted = await _upsertBatchImpl(
+        conversations: <V2TimConversation>[snapshot],
+        ownerUserId: owner,
+      );
+      await acceptState(tombstoneGeneration: null);
+      return ConversationDatabaseCommitResult<V2TimConversation>(
+        disposition: upserted.isEmpty
+            ? ConversationDatabaseCommitDisposition.noop
+            : ConversationDatabaseCommitDisposition.applied,
+        plan: plan,
+        upsertedSnapshots: upserted,
+        shouldNotifyUi: upserted.isNotEmpty,
+        structureChanged: !existed && upserted.isNotEmpty,
+      );
+    }
+
+    final previousGeneration = state.generation;
+    final previousTombstoneGeneration = state.tombstoneGeneration;
+    state
+      ..generation = plan.generation
+      ..tombstoneGeneration = plan.generation;
+    state.idempotencyKeys.add(plan.idempotencyKey);
+    late final List<String> deleted;
+    try {
+      deleted = await _deleteWithCoordinatorState(
+        owner: owner,
+        canonicalConversationId: canonicalId,
+        state: state,
+      );
+    } catch (_) {
+      state
+        ..generation = previousGeneration
+        ..tombstoneGeneration = previousTombstoneGeneration;
+      state.idempotencyKeys.remove(plan.idempotencyKey);
+      rethrow;
+    }
+    return ConversationDatabaseCommitResult<V2TimConversation>(
+      disposition: deleted.isEmpty
+          ? ConversationDatabaseCommitDisposition.noop
+          : ConversationDatabaseCommitDisposition.applied,
+      plan: plan,
+      deletedConversationIds: deleted,
+      shouldNotifyUi: deleted.isNotEmpty,
+    );
+  }

@@ -1,0 +1,1138 @@
+{
+  "summary": {
+    "changed_count": 161,
+    "affected_count": 0,
+    "changed_files": 146,
+    "risk_level": "low"
+  },
+  "changed_symbols": [
+    {
+      "id": "Function:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_epoch_probe_test.dart:main",
+      "name": "main",
+      "type": "Function",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_epoch_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:row",
+      "name": "row",
+      "type": "Function",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_RollbackPauseStore",
+      "name": "_RollbackPauseStore",
+      "type": "Class",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_RollbackPauseStore._RollbackPauseStore#1",
+      "name": "_RollbackPauseStore",
+      "type": "Constructor",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_RollbackPauseStore.interruptRollbackRead",
+      "name": "interruptRollbackRead",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_RollbackPauseStore._closeNextRead",
+      "name": "_closeNextRead",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_RollbackPauseStore._holdResumedRead",
+      "name": "_holdResumedRead",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_RollbackPauseStore._invalidateNextRead",
+      "name": "_invalidateNextRead",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_RollbackPauseStore.recordMutation#1",
+      "name": "recordMutation",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_RollbackPauseStore.applyMutations#2",
+      "name": "applyMutations",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_Sdk",
+      "name": "_Sdk",
+      "type": "Class",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_Sdk.historyCalls",
+      "name": "historyCalls",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_Sdk.cursorCalls",
+      "name": "cursorCalls",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_Sdk.historyTypes",
+      "name": "historyTypes",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_Sdk.calls",
+      "name": "calls",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_Sdk.getHistoryMessageListWithStatus#11",
+      "name": "getHistoryMessageListWithStatus",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_Sdk.getHistoryMessageListWithComplete#11",
+      "name": "getHistoryMessageListWithComplete",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_Sdk.deleteMessages#2",
+      "name": "deleteMessages",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_Sdk.lastRevokeMessage",
+      "name": "lastRevokeMessage",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_Sdk.revokeMessage#3",
+      "name": "revokeMessage",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_Sdk.noSuchMethod#1",
+      "name": "noSuchMethod",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_LatestModel",
+      "name": "_LatestModel",
+      "type": "Class",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_LatestModel.succeed",
+      "name": "succeed",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:_LatestModel.loadChatRecord#7",
+      "name": "loadChatRecord",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart:main",
+      "name": "main",
+      "type": "Function",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:_row",
+      "name": "_row",
+      "type": "Function",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Enum:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:_PageMode",
+      "name": "_PageMode",
+      "type": "Enum",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "TypeAlias:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:_Request",
+      "name": "_Request",
+      "type": "TypeAlias",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:_CommunitySdk",
+      "name": "_CommunitySdk",
+      "type": "Class",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:_CommunitySdk.mode",
+      "name": "mode",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:_CommunitySdk.recovered",
+      "name": "recovered",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:_CommunitySdk.gatedCalls",
+      "name": "gatedCalls",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:_CommunitySdk.activeCalls",
+      "name": "activeCalls",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:_CommunitySdk.getHistoryMessageListWithStatus#11",
+      "name": "getHistoryMessageListWithStatus",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:_CommunitySdk.noSuchMethod#1",
+      "name": "noSuchMethod",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:_ReadingModel",
+      "name": "_ReadingModel",
+      "type": "Class",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:_ReadingModel.markMessageAsRead#2",
+      "name": "markMessageAsRead",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart:main",
+      "name": "main",
+      "type": "Function",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_history_short_viewport_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_HistorySdk",
+      "name": "_HistorySdk",
+      "type": "Class",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_HistorySdk.calls",
+      "name": "calls",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_HistorySdk.code",
+      "name": "code",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_HistorySdk.newest",
+      "name": "newest",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_HistorySdk.getHistoryMessageListWithStatus#11",
+      "name": "getHistoryMessageListWithStatus",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_HistorySdk.noSuchMethod#1",
+      "name": "noSuchMethod",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_ChatModel",
+      "name": "_ChatModel",
+      "type": "Class",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_ChatModel.readReports",
+      "name": "readReports",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_ChatModel.newestReloadsInFlight",
+      "name": "newestReloadsInFlight",
+      "type": "Property",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_ChatModel.reloadNewestMessageWindow#3",
+      "name": "reloadNewestMessageWindow",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_ChatModel.markMessageAsRead#2",
+      "name": "markMessageAsRead",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_AckStore",
+      "name": "_AckStore",
+      "type": "Class",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_AckStore._AckStore#1",
+      "name": "_AckStore",
+      "type": "Constructor",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_AckStore.deferredState#1",
+      "name": "deferredState",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_AckStore.acknowledgeVisibleDeferred#4",
+      "name": "acknowledgeVisibleDeferred",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:_AckStore.acknowledgeDeferred#2",
+      "name": "acknowledgeDeferred",
+      "type": "Method",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:main",
+      "name": "main",
+      "type": "Function",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart:main.receive@295:2.pending@298:4",
+      "name": "pending",
+      "type": "Function",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/repro/_audit_unread_probe_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/修复说明.md:L1:聊天页四项缺陷修复 — 2026-09-22",
+      "name": "聊天页四项缺陷修复 — 2026-09-22",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/修复说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/修复说明.md:L5:修复行为",
+      "name": "修复行为",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/修复说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/修复说明.md:L12:测试记录",
+      "name": "测试记录",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/修复说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/修复说明.md:L39:验证边界",
+      "name": "验证边界",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/修复说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L1:聊天页复杂度审查 — 2026-09-22",
+      "name": "聊天页复杂度审查 — 2026-09-22",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L7:建议先处理的确定冗余",
+      "name": "建议先处理的确定冗余",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L9:1. 永远返回 false，却保留“恢复成功”的整段处理",
+      "name": "1. 永远返回 false，却保留“恢复成功”的整段处理",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L19:2. 回到底部的同一组提交前检查写了两份",
+      "name": "2. 回到底部的同一组提交前检查写了两份",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L29:3. 云端空页后，回退流程重复查询一次相同云页",
+      "name": "3. 云端空页后，回退流程重复查询一次相同云页",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L41:4. 已退役的归档分页仍留有只初始化、重置或打印的状态",
+      "name": "4. 已退役的归档分页仍留有只初始化、重置或打印的状态",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L51:5. 常量关闭的短历史顶对齐，仍带着整套测高和 spacer 逻辑",
+      "name": "5. 常量关闭的短历史顶对齐，仍带着整套测高和 spacer 逻辑",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L61:收益较大、需要分阶段收敛的实现",
+      "name": "收益较大、需要分阶段收敛的实现",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L63:6. 同一分页结果在没有新异步间隔时被反复读取和合并",
+      "name": "6. 同一分页结果在没有新异步间隔时被反复读取和合并",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L73:7. 底部按钮同时消费两份“新消息数”，展示来源应统一",
+      "name": "7. 底部按钮同时消费两份“新消息数”，展示来源应统一",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L83:8. 加载一页历史有多个 UI 调度入口和分散的状态所有权",
+      "name": "8. 加载一页历史有多个 UI 调度入口和分散的状态所有权",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L93:其他可局部改进的点",
+      "name": "其他可局部改进的点",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L98:不应为了“简单”删掉的逻辑",
+      "name": "不应为了“简单”删掉的逻辑",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/复杂度审查.md:L107:实施顺序与检查范围",
+      "name": "实施顺序与检查范围",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/复杂度审查.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/审查报告.md:L1:聊天对话页深入检查 — 2026-09-22",
+      "name": "聊天对话页深入检查 — 2026-09-22",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/审查报告.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/审查报告.md:L11:1. P1：历史浏览或后台收消息时，底部新消息计数漏记",
+      "name": "1. P1：历史浏览或后台收消息时，底部新消息计数漏记",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/审查报告.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/审查报告.md:L28:2. P1：SDK 整页被本地删除规则过滤后，历史分页游标不前进",
+      "name": "2. P1：SDK 整页被本地删除规则过滤后，历史分页游标不前进",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/审查报告.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/审查报告.md:L42:3. P2：锁屏时首次清空版本同步失败，被永久当成同步完成",
+      "name": "3. P2：锁屏时首次清空版本同步失败，被永久当成同步完成",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/审查报告.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/审查报告.md:L56:4. P2：列表不足一屏，自动补历史无进展后，手机拖动不再重试",
+      "name": "4. P2：列表不足一屏，自动补历史无进展后，手机拖动不再重试",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/审查报告.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/审查报告.md:L70:空白问题：已核实防护，但未证明全部组合安全",
+      "name": "空白问题：已核实防护，但未证明全部组合安全",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/审查报告.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-audit-2026-09-22/审查报告.md:L83:测试结果与限制",
+      "name": "测试结果与限制",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-audit-2026-09-22/审查报告.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/实施说明.md:L1:聊天页面简化实施记录",
+      "name": "聊天页面简化实施记录",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/实施说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/实施说明.md:L5:实现",
+      "name": "实现",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/实施说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/实施说明.md:L15:验证记录",
+      "name": "验证记录",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/实施说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/实施说明.md:L38:验证边界",
+      "name": "验证边界",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/实施说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md:L1:旧未读回归失败基线分类",
+      "name": "旧未读回归失败基线分类",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md:L3:修复调度差异后的最终结果",
+      "name": "修复调度差异后的最终结果",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md:L19:中间版本 after 比较",
+      "name": "中间版本 after 比较",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md:L42:两项敏感差异的独立串行核验",
+      "name": "两项敏感差异的独立串行核验",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md:L55:定位与修复后的敏感项复核",
+      "name": "定位与修复后的敏感项复核",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md:L63:修改前基线",
+      "name": "修改前基线",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md:L73:文件计数",
+      "name": "文件计数",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md:L83:首个断言分类",
+      "name": "首个断言分类",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md:L96:精确比较文件",
+      "name": "精确比较文件",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/旧回归失败基线分类.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/滚动分页调度.md:L1:滚动分页调度收敛",
+      "name": "滚动分页调度收敛",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/滚动分页调度.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/滚动分页调度.md:L7:实际简化",
+      "name": "实际简化",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/滚动分页调度.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/滚动分页调度.md:L19:行为验证",
+      "name": "行为验证",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/滚动分页调度.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/滚动分页调度.md:L31:旧敏感失败位置变化的复核",
+      "name": "旧敏感失败位置变化的复核",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/滚动分页调度.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/滚动分页调度.md:L47:影响分析",
+      "name": "影响分析",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/滚动分页调度.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/跟随提交与未读展示.md:L1:跟随提交与未读展示收敛",
+      "name": "跟随提交与未读展示收敛",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/跟随提交与未读展示.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/跟随提交与未读展示.md:L3:改动",
+      "name": "改动",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/跟随提交与未读展示.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/跟随提交与未读展示.md:L12:图影响",
+      "name": "图影响",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/跟随提交与未读展示.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/chat-page-simplification-2026-09-22/跟随提交与未读展示.md:L16:验证",
+      "name": "验证",
+      "type": "Section",
+      "filePath": "artifacts/chat-page-simplification-2026-09-22/跟随提交与未读展示.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/conversation-folder-flash-2026-09-22/修复说明.md:L1:顶部自定义分组切换闪空修复",
+      "name": "顶部自定义分组切换闪空修复",
+      "type": "Section",
+      "filePath": "artifacts/conversation-folder-flash-2026-09-22/修复说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/conversation-folder-flash-2026-09-22/修复说明.md:L5:原因与修改",
+      "name": "原因与修改",
+      "type": "Section",
+      "filePath": "artifacts/conversation-folder-flash-2026-09-22/修复说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/conversation-folder-flash-2026-09-22/修复说明.md:L14:验证",
+      "name": "验证",
+      "type": "Section",
+      "filePath": "artifacts/conversation-folder-flash-2026-09-22/修复说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/conversation-folder-flash-2026-09-22/修复说明.md:L26:影响分析",
+      "name": "影响分析",
+      "type": "Section",
+      "filePath": "artifacts/conversation-folder-flash-2026-09-22/修复说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/conversation-folder-flash-2026-09-22/截图反馈补修.md:L1:顶部分组切走再回来才有会话：补修",
+      "name": "顶部分组切走再回来才有会话：补修",
+      "type": "Section",
+      "filePath": "artifacts/conversation-folder-flash-2026-09-22/截图反馈补修.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:artifacts/image-preview-size-audit/size_matrix_test.dart:main",
+      "name": "main",
+      "type": "Function",
+      "filePath": "artifacts/image-preview-size-audit/size_matrix_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/image-preview-size-audit/优化完成说明.md:L1:全屏图片预览自适应优化完成记录",
+      "name": "全屏图片预览自适应优化完成记录",
+      "type": "Section",
+      "filePath": "artifacts/image-preview-size-audit/优化完成说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/image-preview-size-audit/优化完成说明.md:L5:行为",
+      "name": "行为",
+      "type": "Section",
+      "filePath": "artifacts/image-preview-size-audit/优化完成说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/image-preview-size-audit/优化完成说明.md:L16:验证",
+      "name": "验证",
+      "type": "Section",
+      "filePath": "artifacts/image-preview-size-audit/优化完成说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/image-preview-size-audit/优化完成说明.md:L26:影响分析",
+      "name": "影响分析",
+      "type": "Section",
+      "filePath": "artifacts/image-preview-size-audit/优化完成说明.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/image-preview-size-audit/检查与兼容建议.md:L1:全屏图片预览尺寸审查",
+      "name": "全屏图片预览尺寸审查",
+      "type": "Section",
+      "filePath": "artifacts/image-preview-size-audit/检查与兼容建议.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/image-preview-size-audit/检查与兼容建议.md:L5:验证",
+      "name": "验证",
+      "type": "Section",
+      "filePath": "artifacts/image-preview-size-audit/检查与兼容建议.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/image-preview-size-audit/检查与兼容建议.md:L11:发现",
+      "name": "发现",
+      "type": "Section",
+      "filePath": "artifacts/image-preview-size-audit/检查与兼容建议.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Section:artifacts/image-preview-size-audit/检查与兼容建议.md:L20:建议的统一策略（待视觉验证的起点）",
+      "name": "建议的统一策略（待视觉验证的起点）",
+      "type": "Section",
+      "filePath": "artifacts/image-preview-size-audit/检查与兼容建议.md",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/chat_session/chat_session_controller.dart:ChatSessionController",
+      "name": "ChatSessionController",
+      "type": "Class",
+      "filePath": "lib/src/chat_session/chat_session_controller.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/conversation.dart:_ConversationState",
+      "name": "_ConversationState",
+      "type": "Class",
+      "filePath": "lib/src/conversation.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/conversation.dart:_ConversationPreviewProjectionEntry",
+      "name": "_ConversationPreviewProjectionEntry",
+      "type": "Class",
+      "filePath": "lib/src/conversation.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:lib/src/conversation.dart:_ConversationPreviewProjectionEntry._ConversationPreviewProjectionEntry#2",
+      "name": "_ConversationPreviewProjectionEntry",
+      "type": "Constructor",
+      "filePath": "lib/src/conversation.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/conversation.dart:_ConversationPreviewProjectionEntry.messageFingerprint",
+      "name": "messageFingerprint",
+      "type": "Property",
+      "filePath": "lib/src/conversation.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/lottery_back_gesture.dart:LotteryBackGesture",
+      "name": "LotteryBackGesture",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/lottery_back_gesture.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/lottery_back_gesture.dart:LotteryBackGesture.child",
+      "name": "child",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/lottery_back_gesture.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/settings/lottery_back_gesture.dart:LotteryBackGesture.createState#0",
+      "name": "createState",
+      "type": "Method",
+      "filePath": "lib/src/pages/settings/lottery_back_gesture.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/lottery_back_gesture.dart:_LotteryBackGestureState",
+      "name": "_LotteryBackGestureState",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/lottery_back_gesture.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/lottery_back_gesture.dart:_LotteryBackGestureState._distance",
+      "name": "_distance",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/lottery_back_gesture.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/pages/settings/lottery_back_gesture.dart:_LotteryBackGestureState._popping",
+      "name": "_popping",
+      "type": "Property",
+      "filePath": "lib/src/pages/settings/lottery_back_gesture.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/settings/lottery_back_gesture.dart:_LotteryBackGestureState.build#1",
+      "name": "build",
+      "type": "Method",
+      "filePath": "lib/src/pages/settings/lottery_back_gesture.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/pages/settings/test_page.dart:TestPage",
+      "name": "TestPage",
+      "type": "Class",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/pages/settings/test_page.dart:TestPage.build#1",
+      "name": "build",
+      "type": "Method",
+      "filePath": "lib/src/pages/settings/test_page.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_local/conversation_row_view.dart:ConversationRowView",
+      "name": "ConversationRowView",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_local/conversation_row_view.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_row_view.dart:ConversationRowView.previewFingerprint",
+      "name": "previewFingerprint",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_row_view.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore",
+      "name": "ConversationTabStore",
+      "type": "Class",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._pendingRealtimeRows",
+      "name": "_pendingRealtimeRows",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._realtimeBatchTimer",
+      "name": "_realtimeBatchTimer",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._realtimePreserveOrder",
+      "name": "_realtimePreserveOrder",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore._flushingRealtimeBatch",
+      "name": "_flushingRealtimeBatch",
+      "type": "Property",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.enqueueRealtimePatches#3",
+      "name": "enqueueRealtimePatches",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.flushRealtimePatches#0",
+      "name": "flushRealtimePatches",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:lib/src/services/conversation_local/conversation_tab_store.dart:ConversationTabStore.countForType#1",
+      "name": "countForType",
+      "type": "Method",
+      "filePath": "lib/src/services/conversation_local/conversation_tab_store.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:lib/src/utils/conversation_preview_fingerprint.dart:conversationPreviewFingerprint",
+      "name": "conversationPreviewFingerprint",
+      "type": "Function",
+      "filePath": "lib/src/utils/conversation_preview_fingerprint.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:test/conversation_preview_content_invalidation_test.dart:_textMessage",
+      "name": "_textMessage",
+      "type": "Function",
+      "filePath": "test/conversation_preview_content_invalidation_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:test/conversation_preview_content_invalidation_test.dart:main",
+      "name": "main",
+      "type": "Function",
+      "filePath": "test/conversation_preview_content_invalidation_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:test/conversation_realtime_batch_test.dart:row",
+      "name": "row",
+      "type": "Function",
+      "filePath": "test/conversation_realtime_batch_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:test/conversation_realtime_batch_test.dart:main",
+      "name": "main",
+      "type": "Function",
+      "filePath": "test/conversation_realtime_batch_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:test/image_preview_tiled_download_test.dart:_Downloads",
+      "name": "_Downloads",
+      "type": "Class",
+      "filePath": "test/image_preview_tiled_download_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Constructor:test/image_preview_tiled_download_test.dart:_Downloads._Downloads#1",
+      "name": "_Downloads",
+      "type": "Constructor",
+      "filePath": "test/image_preview_tiled_download_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:test/image_preview_tiled_download_test.dart:_Downloads.path",
+      "name": "path",
+      "type": "Property",
+      "filePath": "test/image_preview_tiled_download_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:test/image_preview_tiled_download_test.dart:_Downloads.downloads",
+      "name": "downloads",
+      "type": "Property",
+      "filePath": "test/image_preview_tiled_download_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:test/image_preview_tiled_download_test.dart:_Downloads.received",
+      "name": "received",
+      "type": "Property",
+      "filePath": "test/image_preview_tiled_download_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:test/image_preview_tiled_download_test.dart:_Downloads.getMessageOnlineUrl#2",
+      "name": "getMessageOnlineUrl",
+      "type": "Method",
+      "filePath": "test/image_preview_tiled_download_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:test/image_preview_tiled_download_test.dart:_Downloads.downloadMessage#7",
+      "name": "downloadMessage",
+      "type": "Method",
+      "filePath": "test/image_preview_tiled_download_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:test/image_preview_tiled_download_test.dart:main",
+      "name": "main",
+      "type": "Function",
+      "filePath": "test/image_preview_tiled_download_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Function:test/lottery_back_gesture_test.dart:main",
+      "name": "main",
+      "type": "Function",
+      "filePath": "test/lottery_back_gesture_test.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_message_preview_image_resolver.dart:ChatMessagePreviewImageResolver",
+      "name": "ChatMessagePreviewImageResolver",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/utils/chat_message_preview_image_resolver.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Class:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart:_TiledImagePreviewState",
+      "name": "_TiledImagePreviewState",
+      "type": "Class",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart:_TiledImagePreviewState._loadFailed",
+      "name": "_loadFailed",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Property:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart:_TiledImagePreviewState._loadGeneration",
+      "name": "_loadGeneration",
+      "type": "Property",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart:_TiledImagePreviewState._retry#0",
+      "name": "_retry",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart",
+      "change_type": "touched"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart:_TiledImagePreviewState._buildPreview#1",
+      "name": "_buildPreview",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/tiled_image_preview.dart",
+      "change_type": "touched"
+    }
+  ],
+  "affected_processes": []
+}

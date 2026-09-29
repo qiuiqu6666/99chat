@@ -1,0 +1,66 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":3168,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/chat_draft_submission_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/chat_draft_submission_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"suite":{"id":2,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"suite","time":2}
+{"test":{"id":3,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart","suiteID":2,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":3}
+{"count":2,"time":3,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":6095}
+{"group":{"id":4,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":10,"line":null,"column":null,"url":null},"type":"group","time":6096}
+{"test":{"id":5,"name":"late send success preserves B, its debounce and its leave save","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":14,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_draft_submission_test.dart"},"type":"testStart","time":6097}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6109}
+{"test":{"id":6,"name":"same text is a new edit; old submissions and old loads are rejected","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":32,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_draft_submission_test.dart"},"type":"testStart","time":6109}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6111}
+{"test":{"id":7,"name":"persisted B survives A completion, page disposal and reopen","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":52,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_draft_submission_test.dart"},"type":"testStart","time":6112}
+{"testID":7,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790282949933 conv=ce0bc751d59a draftLen=0 draftHash= empty=true","type":"print","time":6122}
+{"testID":7,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790282949936 conv=ce0bc751d59a draftLen=1 draftHash=df7e70e50215 empty=false","type":"print","time":6122}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6122}
+{"test":{"id":8,"name":"new edit invalidates queued clear before debounce has persisted","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":73,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_draft_submission_test.dart"},"type":"testStart","time":6122}
+{"testID":8,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790282949940 conv=9086baec1111 draftLen=1 draftHash=df7e70e50215 empty=false","type":"print","time":6124}
+{"testID":8,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6124}
+{"test":{"id":9,"name":"new page takes over unsaved B without revision collision or lost write","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":88,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_draft_submission_test.dart"},"type":"testStart","time":6125}
+{"testID":9,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790282949942 conv=ce0bc751d59a draftLen=1 draftHash=df7e70e50215 empty=false","type":"print","time":6126}
+{"testID":9,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790282949942 conv=ce0bc751d59a draftLen=1 draftHash=df7e70e50215 empty=false","type":"print","time":6126}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6126}
+{"test":{"id":10,"name":"in-flight old SDK clear cannot publish its mirror over new B","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":108,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_draft_submission_test.dart"},"type":"testStart","time":6127}
+{"testID":10,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790282949944 conv=ce0bc751d59a draftLen=1 draftHash=df7e70e50215 empty=false","type":"print","time":6128}
+{"testID":10,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6128}
+{"test":{"id":11,"name":"account switch and same-owner relogin reject old captured tokens","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":131,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_draft_submission_test.dart"},"type":"testStart","time":6128}
+{"testID":11,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6130}
+{"test":{"id":12,"name":"SDK error leaves mirror unchanged and the next edit can save","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":145,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_draft_submission_test.dart"},"type":"testStart","time":6130}
+{"testID":12,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_failed t=1790282949948 conv=ce0bc751d59a draftLen=-1 draftHash= empty=false code=1","type":"print","time":6134}
+{"testID":12,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790282949950 conv=ce0bc751d59a draftLen=1 draftHash=df7e70e50215 empty=false","type":"print","time":6134}
+{"testID":12,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6134}
+{"test":{"id":13,"name":"SDK success plus mirror failure repairs from SDK without a resend","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":158,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_draft_submission_test.dart"},"type":"testStart","time":6134}
+{"testID":13,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790282949951 conv=ce0bc751d59a draftLen=1 draftHash=559aead08264 empty=false","type":"print","time":6136}
+{"testID":13,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6136}
+{"test":{"id":14,"name":"a late SDK draft load cannot restore A over new B","suiteID":0,"groupIDs":[4],"metadata":{"skip":false,"skipReason":null},"line":176,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/chat_draft_submission_test.dart"},"type":"testStart","time":6136}
+{"testID":14,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790282949954 conv=ce0bc751d59a draftLen=1 draftHash=df7e70e50215 empty=false","type":"print","time":6138}
+{"testID":14,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6138}
+{"testID":3,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":6428}
+{"group":{"id":15,"suiteID":2,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":7,"line":null,"column":null,"url":null},"type":"group","time":6428}
+{"test":{"id":16,"name":"every committed canonical send state has a newer version","suiteID":2,"groupIDs":[15],"metadata":{"skip":false,"skipReason":null},"line":19,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6428}
+{"testID":16,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6447}
+{"test":{"id":17,"name":"terminal truth survives recovery payload garbage collection","suiteID":2,"groupIDs":[15],"metadata":{"skip":false,"skipReason":null},"line":31,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6448}
+{"testID":17,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6451}
+{"test":{"id":18,"name":"committed success actively notifies an already displayed failure","suiteID":2,"groupIDs":[15],"metadata":{"skip":false,"skipReason":null},"line":46,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6451}
+{"testID":18,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6455}
+{"test":{"id":19,"name":"a caller timeout cannot release the SDK draft write queue","suiteID":2,"groupIDs":[15],"metadata":{"skip":false,"skipReason":null},"line":64,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6455}
+{"testID":19,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790282950281 conv=8cd90432dbeb draftLen=1 draftHash=df7e70e50215 empty=false","type":"print","time":6467}
+{"testID":19,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6467}
+{"test":{"id":20,"name":"storage error is unavailable, never legacy missing or retry permission","suiteID":2,"groupIDs":[15],"metadata":{"skip":false,"skipReason":null},"line":89,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6467}
+{"testID":20,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6469}
+{"test":{"id":21,"name":"SQLite commit failure emits nothing; two adapters share committed truth and GC version","suiteID":2,"groupIDs":[15],"metadata":{"skip":false,"skipReason":null},"line":96,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6470}
+{"testID":21,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=87 created=true","type":"print","time":6592}
+{"testID":21,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=7.1 deltaMs=7.1 prev=message_core_db_open durationMs=94","type":"print","time":6597}
+{"testID":21,"messageType":"print","message":"commit_probe: handle","type":"print","time":6614}
+{"testID":21,"messageType":"print","message":"commit_probe: armed","type":"print","time":6617}
+{"testID":21,"messageType":"print","message":"commit_probe: rejected","type":"print","time":6625}
+{"testID":21,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=38.0 deltaMs=30.9 prev=message_core_db_ready durationMs=2 created=false","type":"print","time":6628}
+{"testID":21,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=39.3 deltaMs=1.3 prev=message_core_db_open durationMs=4","type":"print","time":6629}
+{"testID":21,"messageType":"print","message":"commit_probe: readable","type":"print","time":6630}
+{"testID":21,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=51.8 deltaMs=12.5 prev=message_core_db_ready durationMs=2 created=false","type":"print","time":6642}
+{"testID":21,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=53.4 deltaMs=1.5 prev=message_core_db_open durationMs=3","type":"print","time":6643}
+{"testID":21,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6648}
+{"test":{"id":22,"name":"concurrent same-operation attempts get exactly one SDK dispatch permit","suiteID":2,"groupIDs":[15],"metadata":{"skip":false,"skipReason":null},"line":150,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":6648}
+{"testID":22,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":6650}
+{"success":true,"type":"done","time":6684}

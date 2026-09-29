@@ -158,6 +158,28 @@ class UploadApi {
     return parseUserAvatarUploadResponse(res);
   }
 
+  Future<UserAvatarUploadResult> uploadUserAvatarBytes({
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    if (bytes.isEmpty || bytes.length > 10 * 1024 * 1024) {
+      throw ArgumentError('Invalid avatar size');
+    }
+    final lower = filename.toLowerCase();
+    final type = lower.endsWith('.png')
+        ? 'png'
+        : lower.endsWith('.webp')
+            ? 'webp'
+            : 'jpeg';
+    final response = await _dio.post('/me/avatar',
+        data: FormData.fromMap({
+          'file': MultipartFile.fromBytes(bytes,
+              filename: 'avatar.$type', contentType: MediaType('image', type))
+        }),
+        options: Options(contentType: 'multipart/form-data'));
+    return parseUserAvatarUploadResponse(response);
+  }
+
   @visibleForTesting
   UserAvatarUploadResult parseUserAvatarUploadResponse(
     Response<dynamic> res,

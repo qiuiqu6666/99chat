@@ -1,0 +1,59 @@
+
+  GitNexus Context (1.6.12)
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart:HistoryPaginationLoadRunner.loadChatRecord#7",
+    "name": "loadChatRecord",
+    "kind": "Method",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart",
+    "startLine": 235,
+    "endLine": 243
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart:HistoryPaginationLoadRunner",
+        "name": "HistoryPaginationLoadRunner",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_history_pagination_load.dart"
+      }
+    ],
+    "accesses": [
+      {
+        "uid": "Property:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel._historyLoadRunner",
+        "name": "_historyLoadRunner",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "accesses": [
+      {
+        "name": "olderAvailability"
+      },
+      {
+        "name": "olderAvailability"
+      },
+      {
+        "name": "haveMoreLatestData"
+      },
+      {
+        "name": "haveMoreLatestData"
+      },
+      {
+        "name": "haveMoreLatestData"
+      },
+      {
+        "name": "haveMoreLatestData"
+      },
+      {
+        "name": "haveMoreLatestData"
+      },
+      {
+        "name": "haveMoreLatestData"
+      }
+    ]
+  },
+  "processes": []
+}

@@ -1,0 +1,154 @@
+[
+  {
+    "target": {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart:_InputTextFieldState._observeTextSubmission#2",
+      "name": "_observeTextSubmission",
+      "type": "Method",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart"
+    },
+    "direction": "upstream",
+    "impactedCount": 7,
+    "risk": "LOW",
+    "riskSharedAxes": "LOW",
+    "riskScale": {
+      "comparableAcrossKinds": true,
+      "unusedAxes": []
+    },
+    "epistemic": "exact",
+    "summary": {
+      "direct": 2,
+      "processes_affected": 1,
+      "modules_affected": 2
+    },
+    "byDepthCounts": {
+      "1": 2,
+      "2": 3,
+      "3": 2
+    },
+    "affected_processes": [
+      {
+        "name": "tuiBuild",
+        "type": "Function",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitProfile/tim_uikit_profile.dart",
+        "affected_process_count": 3,
+        "total_hits": 5,
+        "earliest_broken_step": 3
+      }
+    ],
+    "affected_modules": [
+      {
+        "name": "TIMUIKitTextField",
+        "hits": 2,
+        "impact": "indirect"
+      },
+      {
+        "name": "Widgets",
+        "hits": 2,
+        "impact": "indirect"
+      }
+    ],
+    "byDepth": {
+      "1": [
+        {
+          "depth": 1,
+          "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart:_InputTextFieldState._onEmojiSubmitted#0",
+          "name": "_onEmojiSubmitted",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 1,
+          "id": "Constructor:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart:_InputTextFieldState.onSubmitted#0",
+          "name": "onSubmitted",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        }
+      ],
+      "2": [
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_emoji_panel.dart:EmojiPanel.tuiBuild#2",
+          "name": "tuiBuild",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_emoji_panel.dart",
+          "relationType": "CALLS",
+          "confidence": 0.5,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart:_InputTextFieldState.handleDesktopKeyEvent#2",
+          "name": "handleDesktopKeyEvent",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 2,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/text_input_bottom_sheet.dart:TextInputBottomSheet.inputBoxContent#9",
+          "name": "inputBoxContent",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/text_input_bottom_sheet.dart",
+          "relationType": "CALLS",
+          "confidence": 0.5,
+          "processes": [
+            {
+              "id": "proc_322_tuibuild",
+              "label": "TuiBuild → _classifyBySize",
+              "processType": "cross_community",
+              "step": 4
+            },
+            {
+              "id": "proc_321_tuibuild",
+              "label": "TuiBuild → PlatformUtils",
+              "processType": "cross_community",
+              "step": 4
+            }
+          ]
+        }
+      ],
+      "3": [
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart:_InputTextFieldState.initState#0",
+          "name": "initState",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": []
+        },
+        {
+          "depth": 3,
+          "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/widgets/text_input_bottom_sheet.dart:TextInputBottomSheet.showTextInputBottomSheet#7",
+          "name": "showTextInputBottomSheet",
+          "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/widgets/text_input_bottom_sheet.dart",
+          "relationType": "CALLS",
+          "confidence": 0.85,
+          "processes": [
+            {
+              "id": "proc_104_tuibuild",
+              "label": "TuiBuild → TUIKitDragArea",
+              "processType": "cross_community",
+              "step": 3
+            },
+            {
+              "id": "proc_321_tuibuild",
+              "label": "TuiBuild → PlatformUtils",
+              "processType": "cross_community",
+              "step": 3
+            },
+            {
+              "id": "proc_322_tuibuild",
+              "label": "TuiBuild → _classifyBySize",
+              "processType": "cross_community",
+              "step": 3
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

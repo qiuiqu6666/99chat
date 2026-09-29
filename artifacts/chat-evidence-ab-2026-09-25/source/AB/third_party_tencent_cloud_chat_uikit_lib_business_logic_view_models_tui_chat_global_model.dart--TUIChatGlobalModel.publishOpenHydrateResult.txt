@@ -1,0 +1,10 @@
+void publishOpenHydrateResult(
+    String conversationID,
+    OpenHydrateResult result,
+  ) {
+    final key = conversationID.trim();
+    if (key.isEmpty) return;
+    for (final alias in _historyFlagKeys(key)) {
+      _openHydrateResultByConv[alias] = result;
+    }
+  }

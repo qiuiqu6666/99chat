@@ -1,0 +1,122 @@
+MessageCommitResult? completeHistoryReconciliation({
+    required MessageReconciliationRequest request,
+    required Iterable<V2TimMessage> history,
+    required MessageReconciliationSource actualSource,
+    required MessageReconciliationNetworkState networkState,
+    bool applyMemoryWindow = true,
+    bool memoryWindowPreferLatest = false,
+    String historyCommitSource = 'reconciliation',
+    bool cloudHasMoreNewer = false,
+    MessageHistoryBatchKind batchKind = MessageHistoryBatchKind.olderPage,
+    bool? historyIsFinished,
+    int? clearEpoch,
+    MessageHistoryCursor? requestedCursor,
+    MessageHistoryBounds? returnedBounds,
+    MessageHistoryProofKind? proofKind,
+    bool? cloudResponseProven,
+    Iterable<String> explicitDeletes = const <String>[],
+    Iterable<String> tombstones = const <String>[],
+    bool skipEquivalentHistoryWindow = false,
+
+    /// Already canonical window captured by the pagination caller. Reusing it
+    /// avoids a second alias merge/dedupe while committing an older page.
+    List<V2TimMessage>? currentWindowOverride,
+  }) {
+    // Include direct row-local/self-send commits made while the request was in
+    // flight. Inbound callbacks are already held in pendingRealtime.
+    final historyList = history.toList(growable: false);
+    final effectiveClearEpoch =
+        clearEpoch ?? messageDeltaClearEpochFor(request.conversationKey);
+    final current = currentWindowOverride ??
+        _mergedAliasMessageList(request.conversationKey);
+    final authoritativeBase =
+        batchKind == MessageHistoryBatchKind.latestWindow &&
+                actualSource == MessageReconciliationSource.cloud
+            ? _authoritativeBaseForCloudLatestWindow(
+                conversationID: request.conversationKey,
+                current: current,
+                cloudWindow: historyList,
+              )
+            : current;
+    final resolvedProofKind = proofKind ??
+        (cloudResponseProven != null
+            ? (cloudResponseProven
+                ? MessageHistoryProofKind.transportObserved
+                : MessageHistoryProofKind.none)
+            : actualSource == MessageReconciliationSource.cloud &&
+                    networkState == MessageReconciliationNetworkState.online
+                ? MessageHistoryProofKind.transportObserved
+                : MessageHistoryProofKind.none);
+    final commit = _messageReconciliationWriter.completeHistory(
+      request: request,
+      history: _reconciliationRecords(historyList),
+      authoritativeBase: _reconciliationRecords(authoritativeBase),
+      actualSource: actualSource,
+      networkState: networkState,
+      clearEpoch: effectiveClearEpoch,
+      cloudHasMoreNewer: cloudHasMoreNewer,
+      batchKind: batchKind,
+      proofKind: resolvedProofKind,
+      historyIsFinished: historyIsFinished,
+      explicitDeletes: explicitDeletes,
+      tombstones: tombstones,
+    );
+    if (commit == null) {
+      return null;
+    }
+    final result = setMessageList(
+      commit.conversationKey,
+      _messageReconciliationWriter.valuesFor(commit.conversationKey),
+      needResetNewMessageCount: false,
+      replace: true,
+      applyMemoryWindow: applyMemoryWindow,
+      memoryWindowPreferLatest: memoryWindowPreferLatest,
+      skipEquivalentHistoryWindow: true,
+      writerCommit: commit,
+      historyCommitSource: skipEquivalentHistoryWindow
+          ? historyCommitSource
+          : '$historyCommitSource:r${commit.revision}',
+    );
+    final resolvedMetadataKey = _resolveMessageListStorageKey(
+      commit.conversationKey,
+    );
+    final metadataKey = resolvedMetadataKey.isEmpty
+        ? commit.conversationKey.trim()
+        : resolvedMetadataKey;
+    _lastHistoryCommitMetadataByConv[metadataKey] =
+        MessageHistoryCommitMetadata(
+      conversationKey: metadataKey,
+      source: actualSource,
+      batchKind: batchKind,
+      generation: request.generation,
+      revision: commit.revision,
+      resultCount: result.rawCount,
+      proofKind: resolvedProofKind,
+      clearEpoch: effectiveClearEpoch,
+    );
+    _recordMessageHistoryCoverageAfterCommit(
+      request: request,
+      batchKind: batchKind,
+      actualSource: actualSource,
+      networkState: networkState,
+      history: historyList,
+      historyIsFinished: historyIsFinished,
+      cloudHasMoreNewer: cloudHasMoreNewer,
+      clearEpoch: effectiveClearEpoch,
+      requestedCursor: requestedCursor,
+      returnedBounds: returnedBounds,
+      proofKind: resolvedProofKind,
+    );
+    unawaited(
+      ImOutgoingSendCoordinator.instance
+          .adoptProviderHistory(historyList)
+          .catchError((Object error) {
+        debugPrint(
+          'OUTBOX_HISTORY_ADOPTION_FAILURE '
+          'errorType=${error.runtimeType}',
+        );
+        return 0;
+      }),
+    );
+    return result;
+  }

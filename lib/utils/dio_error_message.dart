@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:tencent_cloud_chat_demo/src/api/auth_failure_policy.dart';
 import 'package:tencent_cloud_chat_demo/src/api/api_client.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/auth_localizations.dart';
@@ -43,6 +44,10 @@ class DioErrorMessage {
   }
 
   static String fromAuth(DioError e, AuthLocalizations strings) {
+    final locked = AuthFailurePolicy.passwordLockMessage(e.response);
+    if (locked != null) return locked;
+    final version = AuthFailurePolicy.versionFailure(e.response);
+    if (version != null) return version.message;
     final disabledMessage = ApiClient.accountDisabledMessage(e.response);
     if (disabledMessage != null) return disabledMessage;
     final status = e.response?.statusCode;

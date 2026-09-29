@@ -145,8 +145,8 @@ class _ResetContext {
 
 /// Owns the "continuous latest window" recovery after a real reconnect.
 ///
-/// One operation per conversation key. A first-open operation never shows a
-/// stale cache and installs only a validated window; an in-page operation
+/// One operation per conversation key. C2C opens can display a freshly read
+/// SDK-local snapshot while cloud trust remains pending; an in-page operation
 /// re-checks the user's position before any visible change and narrows the
 /// visible window through `restampVisibleWindowToLatest`. The operation stays
 /// alive (fast then slow retries) until a window is trusted or the page /
@@ -488,9 +488,23 @@ class ChatLatestWindowResetService {
     }
 
     if (!op.inPage) {
-      // Never show a stale window, even briefly (unless the coordinator
-      // already cleared it synchronously before locking the first frame).
+      // Discard the old projection, then re-read SDK local history for C2C.
+      // Cloud verification must not gate visibility of that real snapshot.
       _wipeOnce(op);
+      // A C2C cloud verification must not hide real SDK-local history.
+      // Local visibility is provisional; only the cloud can establish trust.
+      if (!_isGroup(op.conversation)) {
+        try {
+          await _installLocalProvisional(
+            op: op,
+            lifeCycle: lifeCycle,
+            onFirstWindowCommitted: onFirstWindowCommitted,
+          );
+        } catch (error) {
+          _trace('latest_window_local_failed', op,
+              extras: {'errorType': error.runtimeType.toString()});
+        }
+      }
     }
 
     final isGroup = _isGroup(op.conversation);
@@ -510,7 +524,7 @@ class ChatLatestWindowResetService {
         });
         continue;
       }
-      if (op.inPage) {
+      if (op.inPage || op.installedProvisional) {
         if (!await _waitUntilUserAllowsReset(op)) return _endInvalid(op);
       } else if (op.globalModel.hasActiveHistoryReconciliation(key)) {
         // Another owner is mid-flight; give it a tick before taking the lane
@@ -643,7 +657,7 @@ class ChatLatestWindowResetService {
       );
       return _AttemptOutcome.superseded;
     }
-    if (op.inPage && !_userAllowsVisibleResetAfterFetch(op)) {
+    if ((op.inPage || op.installedProvisional) && !_userAllowsVisibleResetAfterFetch(op)) {
       // Second position check: the user moved into history while the request
       // was in flight. Do not touch the visible timeline.
       globalModel.failHistoryReconciliation(
@@ -727,7 +741,7 @@ class ChatLatestWindowResetService {
       );
     }
     if (!_opIsCurrent(op) ||
-        (op.inPage && !_userAllowsVisibleResetAfterFetch(op))) {
+        ((op.inPage || op.installedProvisional) && !_userAllowsVisibleResetAfterFetch(op))) {
       globalModel.failHistoryReconciliation(
         request: request,
         reason: 'latest_window_reset_stale_before_commit',
@@ -872,6 +886,17 @@ class ChatLatestWindowResetService {
     ChatLifeCycle? lifeCycle,
     void Function()? onFirstWindowCommitted,
   }) async {
+    return _installLocalProvisional(
+      op: op, lifeCycle: lifeCycle,
+      onFirstWindowCommitted: onFirstWindowCommitted,
+    );
+  }
+
+  Future<LatestWindowResetOutcome> _installLocalProvisional({
+    required _ResetOperation op,
+    ChatLifeCycle? lifeCycle,
+    void Function()? onFirstWindowCommitted,
+  }) async {
     final key = op.conversationKey;
     final globalModel = op.globalModel;
     final conversation = op.conversation;
@@ -886,7 +911,15 @@ class ChatLatestWindowResetService {
       requestedSource: MessageReconciliationSource.local,
       networkState: networkState,
     );
-    final local = await _env.loadLocal(conversation);
+    final ConversationPeekLoadResult local;
+    try {
+      local = await _env.loadLocal(conversation)
+          .timeout(const Duration(milliseconds: 900));
+    } catch (_) {
+      globalModel.failHistoryReconciliation(
+          request: request, reason: 'latest_window_local_failed');
+      rethrow;
+    }
     if (!_opIsCurrent(op)) {
       globalModel.failHistoryReconciliation(
         request: request,
@@ -903,6 +936,11 @@ class ChatLatestWindowResetService {
         conversationID: key,
         messages: messages,
       );
+    }
+    if (!_opIsCurrent(op)) {
+      globalModel.failHistoryReconciliation(
+          request: request, reason: 'latest_window_local_superseded');
+      return LatestWindowResetOutcome.skipped;
     }
     final window = TUIChatGlobalModel.sortMessagesNewestFirst(
       isGroup
@@ -960,7 +998,8 @@ class ChatLatestWindowResetService {
       notify: true,
     );
     onFirstWindowCommitted?.call();
-    _trace('latest_window_offline_installed', op, extras: <String, Object?>{
+    op.installedProvisional = true;
+    _trace('latest_window_local_installed', op, extras: <String, Object?>{
       'count': window.length,
       'localCount': local.messages.length,
     });

@@ -1,0 +1,24 @@
+void restoreDurableConversationState({
+    required String ownerUserId,
+    required String conversationId,
+    required int generation,
+    required bool tombstoned,
+  }) {
+    final owner = ownerUserId.trim();
+    final type = _conversationTypeFromId(conversationId);
+    if (owner.isEmpty || type == null) {
+      return;
+    }
+    _ensureOwner(owner);
+    final canonical = canonicalizeConversationMutationId(conversationId, type);
+    if (canonical.isEmpty) {
+      return;
+    }
+    final current = _conversationGenerations[canonical] ?? 0;
+    if (generation > current) {
+      _conversationGenerations[canonical] = generation;
+    }
+    if (tombstoned) {
+      _tombstoned.add(canonical);
+    }
+  }

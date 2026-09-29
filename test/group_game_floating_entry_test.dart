@@ -32,6 +32,7 @@ void main() {
             children: [
               GroupGameFloatingEntry(
                 theme: const TUITheme(),
+                conversationId: 'floating-actions-test',
                 onOpenCutoff: () => cutoff++,
                 onOpenSettle: () => settle++,
                 onSendSettleImage: () => settleImage++,
@@ -90,6 +91,7 @@ void main() {
             children: [
               GroupGameFloatingEntry(
                 theme: const TUITheme(),
+                conversationId: 'floating-resettle-test',
                 settleActionLabel: '冲正重结',
                 onOpenCutoff: () {},
                 onOpenSettle: () {},

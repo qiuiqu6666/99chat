@@ -87,7 +87,8 @@ void main() {
     final hiddenBuilds = rowBuilds;
     final hiddenAvatars = avatarResolutions;
     for (var i = 0; i < 10; i++) {
-      store.applyPatches([row('first', unread: i + 2)], reason: 'sdk_realtime');
+      store.applyPatches([row('first', unread: i + 2)],
+          reason: 'sdk_realtime', explicitUnreadIds: {'c2c_hidden'});
       await tester.pump(const Duration(milliseconds: 60));
       await tester.pumpWidget(host(active: false));
     }

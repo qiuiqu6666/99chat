@@ -135,8 +135,8 @@ void main() {
       'third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/'
       'TIMUIKitTextField/tim_uikit_more_panel.dart',
     ).readAsStringSync();
-    expect(panel,
-        contains('ChatGalleryPickUtils.pickSystemGalleryMedia(perf: perf)'));
+    expect(panel, contains('ChatGalleryPickUtils.pickSystemGalleryMedia('));
+    expect(panel, contains('recoveryDestination: destination'));
     expect(panel, isNot(contains('_pickSystemGalleryMedia(')));
     expect(panel,
         isNot(contains('system media picker unavailable, use fallback')));

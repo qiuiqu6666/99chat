@@ -1,0 +1,57 @@
+/// 进聊天前快速清零未读：内存同帧清零，持久化完成后立即上报 SDK。
+  static Future<void> clearLocalForOpenFast({
+    required V2TimConversation conversation,
+    void Function(String conversationID)? markViewModelReadLocally,
+  }) async {
+    final sessionGeneration = SessionIdentityService.instance.generation;
+    final conversationID = conversation.conversationID.trim();
+    if (conversationID.isEmpty) {
+      return;
+    }
+    final unreadBefore = conversation.unreadCount ?? 0;
+    final aggregate = ConversationUnreadAggregate.instance;
+    final aggregateBefore =
+        '${aggregate.c2cNotifiableUnreadSum}/${aggregate.groupNotifiableUnreadSum}';
+    final owner = ConversationLocalStore.instance.resolvedOwnerUserId();
+    final watermark = _watermarkFor(conversation);
+    beginConversationChatSession(conversationID);
+    aggregate.clearSdkTotalForLocalProjection();
+    ChatSessionController.instance.zeroUnreadLocally(conversationID);
+    conversation.unreadCount = 0;
+    ConversationLocalStore.instance.recordReadClearedAnchor(
+      conversationID,
+      lastMessageId: conversation.lastMessage?.msgID,
+    );
+    markViewModelReadLocally?.call(conversationID);
+    ConversationUnreadTrace.log(
+      'clear_local_open_fast',
+      conversationID: conversationID,
+      unreadBefore: unreadBefore,
+      unreadAfter: 0,
+      extras: <String, Object?>{
+        'path': 'fast',
+        'scope': isGroupConversation(conversation) ? 'group' : 'c2c',
+        'aggregateBefore': aggregateBefore,
+        'aggregateAfter':
+            '${aggregate.c2cNotifiableUnreadSum}/${aggregate.groupNotifiableUnreadSum}',
+      },
+    );
+    unawaited(
+      ConversationSyncService.instance.markConversationReadLocally(
+        conversationID,
+        forceImmediateUi: true,
+      ),
+    );
+    if (owner.isEmpty || unreadBefore <= 0) {
+      return;
+    }
+    unawaited(
+      _persistOpenReadIntentAndDispatch(
+        ownerUserId: owner,
+        conversationID: conversationID,
+        lastReadMessageId: conversation.lastMessage?.msgID ?? '',
+        watermark: watermark,
+        sessionGeneration: sessionGeneration,
+      ),
+    );
+  }

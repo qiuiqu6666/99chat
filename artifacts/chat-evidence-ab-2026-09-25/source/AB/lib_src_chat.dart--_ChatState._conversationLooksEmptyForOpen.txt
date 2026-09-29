@@ -1,0 +1,24 @@
+/// 列表侧已无真实历史证据时，进页应直接空态，而不是先转圈拉历史。
+  bool _conversationLooksEmptyForOpen(String convKey) {
+    if (convKey.isEmpty) {
+      return false;
+    }
+    final globalModel = serviceLocator<TUIChatGlobalModel>();
+    if (globalModel.rawMessageCount(convKey) > 0) {
+      return false;
+    }
+    final conv = widget.selectedConversation;
+    if ((conv.unreadCount ?? 0) > 0) {
+      return false;
+    }
+    final last = conv.lastMessage;
+    // 仅 lastMessage 缺失才预判空。最新一条是 tip/灰字不代表 SDK 无历史；
+    // 冷开并行 peek 前误标 empty-loaded 会 hydrate_keep_empty → 灰屏。
+    //
+    // 社群：列表预览因 ID/落库失败暂时为 null 时，禁止预判空——否则再进页
+    // 会 clearLocalHistoryAsEmptyLoaded，跳过云端拉历史，聊天记录整页空白。
+    if (last == null && _getConvType() == ConvType.group) {
+      return false;
+    }
+    return last == null;
+  }

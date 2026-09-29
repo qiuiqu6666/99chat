@@ -1,0 +1,56 @@
+@override
+  void didUpdateWidget(TIMUIKitChat oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_searchTargetKey(widget) != _searchTargetKey(oldWidget)) {
+      // A desktop pane may reuse this State for another result in the same chat.
+      isInit = false;
+    }
+    if (widget.conversationID != oldWidget.conversationID) {
+      model.stopVoiceAutoPlay();
+      _keyboardCoordinator.reset();
+      serviceLocator<ChatUiStateStore>().clearConversationState(
+        oldWidget.conversationID ?? '',
+      );
+      isInit = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+      chatGlobalModel.clearCurrentConversation();
+      _updateJoinInGroupCallWidget();
+      final existing = widget.controller?.model;
+      if (existing != null &&
+          existing.conversationID == widget.conversationID) {
+        model = existing;
+      } else {
+        model = TUIChatSeparateViewModel();
+      }
+      model.abstractMessageBuilder = widget.abstractMessageBuilder;
+      model.onTapAvatar = widget.onTapAvatar;
+      Future.delayed(const Duration(milliseconds: 50), () {
+        updateDraft();
+        try {
+          if (autoController.hasClients &&
+              !chatGlobalModel.hasPendingScrollRestore(widget.conversationID)) {
+            autoController.jumpTo(autoController.position.minScrollExtent);
+          }
+          // ignore: empty_catches
+        } catch (e) {}
+      });
+    }
+    if (oldWidget.textFieldBuilder != null && widget.textFieldBuilder == null) {
+      textFieldController = TIMUIKitInputTextFieldController();
+    }
+    if (oldWidget.groupMemberList != widget.groupMemberList) {
+      model.groupMemberList = widget.groupMemberList == null
+          ? null
+          : List<V2TimGroupMemberFullInfo?>.from(widget.groupMemberList!);
+    }
+    if (oldWidget.config?.stickerPanelConfig?.customStickerPackages !=
+            widget.config?.stickerPanelConfig?.customStickerPackages ||
+        oldWidget.customEmojiStickerList != widget.customEmojiStickerList) {
+      _cachedEmojiPackages = null;
+      _cachedEmojiConfigKey = null;
+    }
+  }

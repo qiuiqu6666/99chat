@@ -1,0 +1,169 @@
+@override
+  void dispose() {
+    appRouteObserver.unsubscribe(this);
+    WidgetsBinding.instance.removeObserver(this);
+    _mobileCommitGuard.advancePage();
+    _chatOpenGeneration++;
+    ChatImageMessagePrefetch.cancelForPageDispose();
+    ChatPageScope.instance.invalidate(_pageScope);
+    _pageScope = null;
+    final viewportKey = _viewportConversationKey;
+    if (viewportKey != null && viewportKey.isNotEmpty) {
+      ChatViewportCollection.instance.detachUi(
+        conversationKey: viewportKey,
+        openGeneration: _viewportOpenGeneration,
+      );
+    }
+    _pendingOpenHistoryMediaEnrichment = null;
+    ConversationDeletedBus.instance.revision.removeListener(
+      _onConversationDeletedBus,
+    );
+    // 真正离页时再腾出气泡位图并预热列表头像（勿放 deactivate：进资料页也会覆盖路由）。
+    _cancelChatOpenSideEffects(reason: 'chat_dispose');
+    _clearRouteTransitionListeners();
+    final gateConv = _openLifecycle.openHistoryGateConvKey;
+    if (gateConv.isNotEmpty) {
+      ChatHistoryOpenLayoutReady.cancel(gateConv);
+    }
+    _openLifecycle.resetForDispose();
+    _releaseBubbleCacheAndWarmListAvatar();
+    ChatJitterDiag.logImageCache('chat_dispose');
+    // Persist the draft before handing the conversation back to the list.
+    // The old fire-and-forget ordering let the list refresh against the
+    // previous snapshot, so the draft disappeared until the chat was opened
+    // again and loaded directly from the draft store.
+    final draftPersist = _persistChatLocalDraft();
+    _draft.dispose();
+    _headerState.dispose();
+    _groupLiveState.removeListener(_onGroupLiveStateChanged);
+    GroupLiveIndexStore.instance.removeListener(_onGroupLiveIndexStoreChanged);
+    GroupLocalStore.instance.commitListenable.removeListener(
+      _onGroupStoreCommit,
+    );
+    GroupLocalStore.instance.cacheHydration.removeListener(
+      _onGroupCacheHydrated,
+    );
+    GroupMemberLocalStore.instance.commitListenable
+        .removeListener(_onGroupMemberStoreCommit);
+    _stopGroupLiveCurrentPoll();
+    _groupLiveState.dispose();
+    _topFixState.dispose();
+    _peerPermissionSyncDebounce?.cancel();
+    _c2cPermission.nextRequestSeq();
+    _c2cPermission.dispose();
+    _lastCloudVerifyAtMs.clear();
+    final convType = _getConvType();
+    final convId = _getConvID()?.trim() ?? '';
+    final leaveConversationId = _resolvedConversationID();
+    ConversationHistorySyncCoordinator.instance.cancelConversation(
+      leaveConversationId,
+    );
+    OutgoingVisibleProbe.log(
+      'chat_dispose',
+      conversationID: leaveConversationId,
+      extras: OutgoingVisibleProbe.trackedInList(
+        serviceLocator<TUIChatGlobalModel>().rawMessageList(
+          leaveConversationId.isNotEmpty ? leaveConversationId : convId,
+        ),
+      ),
+    );
+    if (leaveConversationId.isNotEmpty) {
+      unawaited(
+        ConversationUnreadClearService.finalizeConversationLeaveOnce(
+          conversationID: leaveConversationId,
+          lastMessageId: _lastVisibleMessageIdForLeave(),
+          entryUnreadCount: widget.entryUnreadCount ?? 0,
+          markViewModelReadLocally:
+              _conversationViewModel.markConversationReadLocally,
+        ),
+      );
+    }
+    if (convId.isNotEmpty) {
+      PushFocusService.instance.leaveChat(
+        chatType: convType == ConvType.group ? 'group' : 'c2c',
+        peerOrGroupId: convId,
+      );
+    }
+    // Fix unread-list-doesnt-update-on-return: ensure the registry flushes
+    // before any later dispose step can throw and orphan _conversationId.
+    // When the route leaves, downstream UI projection would otherwise stay
+    // stuck behind `deferTabStoreProjectionWhileActiveChat` until the next
+    // chat_leave flush, but that flush never comes when dispose itself is
+    // the only signal that the chat is gone.
+    if (leaveConversationId.isNotEmpty) {
+      ConversationDraftLeaveTrace.focus(leaveConversationId);
+      ConversationDraftLeaveTrace.stage(
+        'chat_pop',
+        conversationId: leaveConversationId,
+        extras: const <String, Object?>{'hasOpenChat': true},
+      );
+      ActiveChatRegistry.instance.leave(leaveConversationId);
+      unawaited(
+        draftPersist.whenComplete(() {
+          _flushConversationListUiAfterChatLeave(
+            reason: 'chat_dispose_leave_after_draft',
+            leftConversationId: leaveConversationId,
+          );
+        }),
+      );
+    }
+    _chatGlobalModel?.removeListener(_onChatGlobalModelChanged);
+    _chatGlobalModel = null;
+    _clearMountedDisplayListCache();
+    if (!_openLifecycle.clearedExternalEntryOnDeactivate) {
+      _clearExternalEntryState();
+    }
+    DeviceSyncService.instance.onChatClosed();
+    DeviceSyncService.instance.endForegroundMediaWork(
+      reason: 'chat_open_dispose',
+      cooldown: const Duration(seconds: 3),
+    );
+    _dismissChatInput();
+    _conversationViewModel.removeListener(_onConversationViewModelChanged);
+    PeerProfileRefreshBus.instance.revision.removeListener(
+      _onPeerProfileRefresh,
+    );
+    serviceLocator<TUIFriendShipViewModel>().removeListener(
+      _onFriendshipModelChanged,
+    );
+    GroupMemberStore.instance.removeListener(_onGroupMemberStoreChanged);
+    WalletOrderEvents.chatCardPayload.removeListener(_onWalletChatCard);
+    WalletOrderEvents.chatCardSendFailedPayload.removeListener(
+      _onWalletChatCardSendFailed,
+    );
+    CallResultRepository.instance.revision.removeListener(
+      _onCallResultRepositoryChanged,
+    );
+    ChatHistoryRefreshBus.instance.revision.removeListener(
+      _onExternalChatHistoryRefreshRequested,
+    );
+    GroupNoticeRefreshBus.instance.lastRefresh.removeListener(
+      _onGroupNoticeRefreshRequested,
+    );
+    GroupSyncService.instance.lastChanged.removeListener(
+      _onGroupRealtimeChanged,
+    );
+    _reconnectRecoveryTimer?.cancel();
+    _groupMemberAvatarRefreshDebounce?.cancel();
+    _postOpenScheduler.dispose();
+    _releaseSangongRealtimeSubscription();
+    _localSetting?.removeListener(_onLocalSettingChanged);
+    // registry leave + UI flush already ran earlier (chat_dispose_leave_early);
+    // the release handle here only schedules background post-pop work.
+    final releaseConvId = leaveConversationId;
+    if (releaseConvId.isNotEmpty) {
+      ChatSessionController.instance.schedulePostPopCoalesceWindow(
+        conversationID: releaseConvId,
+      );
+      ConversationHistoryWarmScheduler.instance.scheduleReleaseAfterChatLeave(
+        releaseConvId,
+      );
+    }
+    _chatController.model?.disableVoiceAutoPlayChain();
+    unawaited(SoundPlayer.stop());
+    OrphanOverlayGuard.scheduleCleanup(
+      reason: 'chat_leave_dispose',
+      hideLoading: true,
+    );
+    super.dispose();
+  }

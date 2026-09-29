@@ -1,0 +1,121 @@
+{
+  "processes": [],
+  "process_symbols": [],
+  "definitions": [
+    {
+      "id": "Class:lib/src/widgets/sticker/sticker_chat_panel.dart:StickerChatPanel",
+      "name": "StickerChatPanel",
+      "filePath": "lib/src/widgets/sticker/sticker_chat_panel.dart",
+      "startLine": 15,
+      "endLine": 43
+    },
+    {
+      "id": "Method:lib/src/widgets/sticker/sticker_chat_panel.dart:StickerChatPanel.build#10",
+      "name": "build",
+      "filePath": "lib/src/widgets/sticker/sticker_chat_panel.dart",
+      "startLine": 21,
+      "endLine": 32
+    },
+    {
+      "id": "File:lib/src/widgets/sticker/sticker_chat_panel.dart",
+      "name": "sticker_chat_panel.dart",
+      "filePath": "lib/src/widgets/sticker/sticker_chat_panel.dart"
+    },
+    {
+      "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart:TUIChatSeparateViewModel.sendTextMessage#3",
+      "name": "sendTextMessage",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "startLine": 7622,
+      "endLine": 7626,
+      "module": "Separate_models"
+    },
+    {
+      "id": "File:third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "name": "tui_chat_separate_view_model.dart",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart"
+    },
+    {
+      "id": "Class:lib/utils/favorite_message_chat_sender.dart:FavoriteMessageChatSender",
+      "name": "FavoriteMessageChatSender",
+      "filePath": "lib/utils/favorite_message_chat_sender.dart",
+      "startLine": 13,
+      "endLine": 168
+    },
+    {
+      "id": "File:lib/utils/favorite_message_chat_sender.dart",
+      "name": "favorite_message_chat_sender.dart",
+      "filePath": "lib/utils/favorite_message_chat_sender.dart"
+    },
+    {
+      "id": "TypeAlias:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/custom_sticker_panel.dart:CustomStickerPanel",
+      "name": "CustomStickerPanel",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/custom_sticker_panel.dart",
+      "startLine": 4,
+      "endLine": 13
+    },
+    {
+      "id": "File:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/custom_sticker_panel.dart",
+      "name": "custom_sticker_panel.dart",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/custom_sticker_panel.dart"
+    },
+    {
+      "id": "File:test/c2c_send_without_relation_lookup_test.dart",
+      "name": "c2c_send_without_relation_lookup_test.dart",
+      "filePath": "test/c2c_send_without_relation_lookup_test.dart"
+    },
+    {
+      "id": "File:test/im08_send_production_wiring_test.dart",
+      "name": "im08_send_production_wiring_test.dart",
+      "filePath": "test/im08_send_production_wiring_test.dart"
+    },
+    {
+      "id": "File:test/sender_own_sent_visible_contract_test.dart",
+      "name": "sender_own_sent_visible_contract_test.dart",
+      "filePath": "test/sender_own_sent_visible_contract_test.dart"
+    },
+    {
+      "id": "File:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/narrow.dart",
+      "name": "narrow.dart",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/narrow.dart"
+    },
+    {
+      "id": "File:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart",
+      "name": "tim_uikit_text_field.dart",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field.dart"
+    },
+    {
+      "id": "File:lib/src/widgets/in_app_message_notification_banner.dart",
+      "name": "in_app_message_notification_banner.dart",
+      "filePath": "lib/src/widgets/in_app_message_notification_banner.dart"
+    },
+    {
+      "id": "File:artifacts/chat-full-chain-2026-09-22/chat-full-chain-analysis.md",
+      "name": "chat-full-chain-analysis.md",
+      "filePath": "artifacts/chat-full-chain-2026-09-22/chat-full-chain-analysis.md"
+    },
+    {
+      "id": "File:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart",
+      "name": "wide.dart",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_text_field_layout/wide.dart"
+    },
+    {
+      "id": "File:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_send_sound_message.dart",
+      "name": "tim_uikit_send_sound_message.dart",
+      "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitChat/TIMUIKitTextField/tim_uikit_send_sound_message.dart"
+    },
+    {
+      "id": "File:lib/src/chat.dart",
+      "name": "chat.dart",
+      "filePath": "lib/src/chat.dart"
+    }
+  ],
+  "timing": {
+    "vector": 3.3,
+    "bm25": 196.7,
+    "merge": 0.1,
+    "symbol_lookup": 19.7,
+    "ranking": 0,
+    "formatting": 0,
+    "wall": 216.8
+  }
+}

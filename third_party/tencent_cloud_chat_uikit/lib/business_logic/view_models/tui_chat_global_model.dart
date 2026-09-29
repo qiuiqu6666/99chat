@@ -80,6 +80,7 @@ import 'package:tencent_cloud_chat_uikit/ui/constants/history_message_constant.d
 import 'package:tencent_cloud_chat_uikit/ui/utils/error_message_converter.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/outgoing_send_status.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_history_trace.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 import 'package:tencent_cloud_chat_demo/src/services/chat_open_perf_log.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_main_thread_perf.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/outgoing_visible_probe.dart';
@@ -4176,6 +4177,61 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     return true;
   }
 
+  /// Permanent business filtering is distinct from a row not being mounted
+  /// yet. Never infer it from messageShouldMount or the current display window.
+  bool isPermanentlyHiddenHistoryMessage(V2TimMessage message) =>
+      (message.elemType == MessageElemType.V2TIM_ELEM_TYPE_GROUP_TIPS &&
+          message.groupTipsElem == null) ||
+      (_lifeCycle?.messagePermanentlyHidden?.call(message) ?? false);
+
+  V2TimMessage? newestDisplayableConfirmedMessage(String conversationID) {
+    for (final message in rawMessageList(conversationID) ??
+        const <V2TimMessage>[]) {
+      if (isConfirmedProjectionMessage(message) &&
+          !isPermanentlyHiddenHistoryMessage(message)) {
+        return message;
+      }
+    }
+    return null;
+  }
+
+  bool hasOnlyPermanentlyHiddenConfirmedMessages(String conversationID) {
+    var foundConfirmed = false;
+    for (final message in rawMessageList(conversationID) ??
+        const <V2TimMessage>[]) {
+      if (!isConfirmedProjectionMessage(message)) {
+        continue;
+      }
+      if (!isPermanentlyHiddenHistoryMessage(message)) {
+        return false;
+      }
+      foundConfirmed = true;
+    }
+    return foundConfirmed;
+  }
+
+  void _retirePermanentlyHiddenIncoming(
+      _InboundUnreadState state, Iterable<V2TimMessage> messages) {
+    for (final message in messages) {
+      if (!isPermanentlyHiddenHistoryMessage(message)) {
+        continue;
+      }
+      final id = liveIncomingIdentity(message);
+      if (id.isEmpty) {
+        continue;
+      }
+      state.remainingLiveIncomingIds.remove(id);
+      state.seenLiveIncomingIds.add(id);
+      if (state.revealedUnreadMessageIDs.remove(id)) {
+        state.receivedCount = max(0, state.receivedCount - 1);
+        state.unreadCount =
+            max(state.lockedEntryUnreadCount, state.unreadCount - 1);
+      }
+    }
+    // Keep buffered bodies and SQL receipts until their raw history boundary
+    // has been loaded. Hiding a reminder must not discard synchronization data.
+  }
+
   void markLiveIncomingSeen({
     required String conversationID,
     required Iterable<String> ids,
@@ -4198,6 +4254,10 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
 
   void _recordBufferedLiveIncoming(_InboundUnreadState state, V2TimMessage message) {
     if (message.isSelf == true) {
+      return;
+    }
+    if (isPermanentlyHiddenHistoryMessage(message)) {
+      _retirePermanentlyHiddenIncoming(state, [message]);
       return;
     }
     final id = liveIncomingIdentity(message);
@@ -7441,9 +7501,22 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   }
 
   set lifeCycle(ChatLifeCycle? value) {
+    final policyChanged = !identical(_lifeCycle, value);
     _lifeCycle = value;
     // messageShouldMount 变更后必须失效展示缓存，否则会继续用带「零高度行」的旧列表。
     _messageListDisplayCache.clear();
+    if (!policyChanged) {
+      return;
+    }
+    // A presentation policy may be installed after cached/deferred arrivals.
+    // Repair those old identities without clearing unrelated live messages.
+    for (final entry in _inboundUnreadStateByConversation.entries) {
+      _retirePermanentlyHiddenIncoming(entry.value, [
+        ...?rawMessageList(entry.key),
+        ...entry.value.bufferedMessages,
+        ...entry.value.pendingLegacyMessages.values,
+      ]);
+    }
   }
 
   set groupApplicationList(List<V2TimGroupApplication> value) {
@@ -9277,6 +9350,10 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   void _recordVisibleLiveIncoming(String convID, List<V2TimMessage> messages) {
     final state = _inboundUnreadStateFor(convID);
     for (final message in messages) {
+      if (isPermanentlyHiddenHistoryMessage(message)) {
+        _retirePermanentlyHiddenIncoming(state, [message]);
+        continue;
+      }
       final id = liveIncomingIdentity(message);
       // Publication is not a read. Retry and history replay do not create
       // another reminder; measured visible coverage consumes this ledger.

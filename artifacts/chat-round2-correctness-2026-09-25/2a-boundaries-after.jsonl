@@ -1,0 +1,25 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":60708,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_outbox_boundaries_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":1,"time":3,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":3283}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":7,"line":null,"column":null,"url":null},"type":"group","time":3284}
+{"test":{"id":3,"name":"every committed canonical send state has a newer version","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":19,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":3284}
+{"testID":3,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3304}
+{"test":{"id":4,"name":"terminal truth survives recovery payload garbage collection","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":31,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":3304}
+{"testID":4,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3308}
+{"test":{"id":5,"name":"committed success actively notifies an already displayed failure","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":46,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":3308}
+{"testID":5,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3312}
+{"test":{"id":6,"name":"a caller timeout cannot release the SDK draft write queue","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":64,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":3312}
+{"testID":6,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790282074031 conv=8cd90432dbeb draftLen=1 draftHash=df7e70e50215 empty=false","type":"print","time":3324}
+{"testID":6,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3325}
+{"test":{"id":7,"name":"storage error is unavailable, never legacy missing or retry permission","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":89,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":3325}
+{"testID":7,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":3327}
+{"test":{"id":8,"name":"SQLite commit failure emits nothing; two adapters share committed truth and GC version","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":96,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":3327}
+{"testID":8,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=30 created=true","type":"print","time":3392}
+{"testID":8,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=7.6 deltaMs=7.6 prev=message_core_db_open durationMs=38","type":"print","time":3397}
+{"testID":8,"error":"TimeoutException after 0:00:30.000000: Test timed out after 30 seconds. See https://pub.dev/packages/test#timeouts","stackTrace":"dart:isolate  _RawReceivePort._handleMessage\n","isFailure":false,"type":"error","time":33459}
+{"testID":8,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":33459}
+{"test":{"id":9,"name":"concurrent same-operation attempts get exactly one SDK dispatch permit","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":145,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_outbox_boundaries_test.dart"},"type":"testStart","time":33459}
+{"testID":9,"result":"success","skipped":false,"hidden":false,"type":"testDone","time":33462}
+{"success":false,"type":"done","time":33506}

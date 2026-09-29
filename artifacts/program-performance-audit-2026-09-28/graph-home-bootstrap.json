@@ -1,0 +1,73 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Method:lib/src/bootstrap/home_bootstrap.dart:HomeBootstrap._run#5",
+    "name": "_run",
+    "kind": "Method",
+    "filePath": "lib/src/bootstrap/home_bootstrap.dart",
+    "startLine": 120,
+    "endLine": 126
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "has_method": [
+      {
+        "uid": "Class:lib/src/bootstrap/home_bootstrap.dart:HomeBootstrap",
+        "name": "HomeBootstrap",
+        "filePath": "lib/src/bootstrap/home_bootstrap.dart"
+      }
+    ],
+    "calls": [
+      {
+        "uid": "Method:lib/src/bootstrap/home_bootstrap.dart:HomeBootstrap.start#3",
+        "name": "start",
+        "filePath": "lib/src/bootstrap/home_bootstrap.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "calls": [
+      {
+        "uid": "Function:third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitConversation/archived_conversation_store.dart:ensureArchivedConversationIDsLoaded",
+        "name": "ensureArchivedConversationIDsLoaded",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/views/TIMUIKitConversation/archived_conversation_store.dart"
+      },
+      {
+        "uid": "Method:lib/src/bootstrap/home_bootstrap.dart:HomeBootstrap._isCurrent#2",
+        "name": "_isCurrent",
+        "filePath": "lib/src/bootstrap/home_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/bootstrap/home_bootstrap.dart:HomeBootstrap._onRealtimeReady#3",
+        "name": "_onRealtimeReady",
+        "filePath": "lib/src/bootstrap/home_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/bootstrap/home_bootstrap.dart:HomeBootstrap._runWithRetry#3",
+        "name": "_runWithRetry",
+        "filePath": "lib/src/bootstrap/home_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/bootstrap/home_bootstrap.dart:HomeBootstrap._scheduleOtherTabPrime#1",
+        "name": "_scheduleOtherTabPrime",
+        "filePath": "lib/src/bootstrap/home_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/bootstrap/home_bootstrap.dart:HomeBootstrap._startGroupIdleSync#3",
+        "name": "_startGroupIdleSync",
+        "filePath": "lib/src/bootstrap/home_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/bootstrap/home_bootstrap.dart:HomeBootstrap._startIdentityBindings#3",
+        "name": "_startIdentityBindings",
+        "filePath": "lib/src/bootstrap/home_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/bootstrap/home_bootstrap.dart:HomeBootstrap._startLowPriorityNetworkIdle#2",
+        "name": "_startLowPriorityNetworkIdle",
+        "filePath": "lib/src/bootstrap/home_bootstrap.dart"
+      }
+    ]
+  },
+  "processes": []
+}

@@ -1,0 +1,84 @@
+/// 首帧前只展示本地 SDK 快照。首帧稳定后由统一 Coordinator 负责云端
+  /// 校验、重试和 gap repair；这里不再根据会话预览决定是否同步。
+  void _scheduleDeferredHistoryVerification(int generation) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          generation != _chatOpenPhaseGeneration ||
+          !_isCurrentConversation(_resolvedConversationID())) {
+        return;
+      }
+      // DIAG: 首帧稳定后 dump 当前会话元信息 + IM06 scope 状态。
+      // 目的：让日志能精准关联到用户看到的会话（如"无边心是岸"）。
+      try {
+        final convID = _getConvID()?.trim() ?? '';
+        final convType = _getConvType();
+        final peerID = convType == ConvType.group
+            ? (_conversation.groupID?.trim() ?? '')
+            : (_conversation.userID?.trim() ?? '');
+        final displayName = _conversation.showName?.trim() ??
+            widget.selectedConversation.showName?.trim() ??
+            '';
+        final globalModel = serviceLocator<TUIChatGlobalModel>();
+        ChatHistoryTrace.log(
+          'diag_chat_open',
+          conversationID: convID,
+          extras: <String, Object?>{
+            'convType': convType.name,
+            'peerID': peerID,
+            'displayName': displayName,
+            'openGeneration': generation,
+            'im06ScopeConfigured': globalModel.im06WriterScopeConfigured,
+            'im06ScopeOwnerUserID': globalModel.im06WriterOwnerUserID ?? '',
+            'im06AccountGen': globalModel.im06WriterAccountGeneration ?? -1,
+            'im06DomainGen': globalModel.im06WriterDomainGeneration ?? -1,
+          },
+        );
+      } catch (_) {
+        // 诊断日志失败不影响主链路。
+      }
+      // The remote gate protects only the route's first frame. Release it
+      // independently from scroll position so an early upward gesture can
+      // always fall through from the local SDK cache to cloud pagination.
+      _chatController.model?.allowRemoteHistoryAfterFirstFrame();
+      // History verification is the only automatic cloud history task after
+      // the first frame. Older group history is loaded only when the user
+      // scrolls upward; do not proactively backfill a time window.
+      final conversationKey = _getConvID()?.trim() ?? '';
+      if (conversationKey.isEmpty) {
+        return;
+      }
+      final globalModel = serviceLocator<TUIChatGlobalModel>();
+      final completeLocalWindow =
+          ConversationPreviewHistorySync.isCompleteOpenHistoryWindow(
+        globalModel: globalModel,
+        conversationKey: conversationKey,
+      );
+      // Thin snapshots need history just as urgently as empty ones. Only a
+      // complete first window can defer verification without delaying reveal.
+      final previewAhead = ConversationPreviewHistorySync.isPreviewAheadOfCachedHistory(
+        preview: _conversation.lastMessage,
+        cached: globalModel.rawMessageList(conversationKey) ?? const <V2TimMessage>[],
+      );
+      final delay = completeLocalWindow && !previewAhead
+          ? const Duration(milliseconds: 700)
+          : Duration.zero;
+      final verification = _runDeferredHistoryVerification(
+        generation: generation,
+        conversationKey: conversationKey,
+        delay: delay,
+        logTrace: ChatOpenPerfLog.captureCurrent(
+          conversationKey: conversationKey,
+        ),
+      );
+      // Media prefetch runs after history verification so it cannot compete
+      // with the first cloud recovery request for the same conversation.
+      unawaited(verification.whenComplete(() {
+        if (!mounted ||
+            generation != _chatOpenPhaseGeneration ||
+            !_isCurrentConversation(_resolvedConversationID())) {
+          return;
+        }
+        unawaited(_prefetchMediaByType());
+      }));
+    });
+  }

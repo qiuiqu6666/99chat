@@ -1,0 +1,19 @@
+Future<void> _runDeferredHistoryVerification({
+    required int generation,
+    required String conversationKey,
+    required Duration delay,
+    required ChatOpenTraceContext logTrace,
+  }) async {
+    final key = '$generation|$conversationKey';
+    if (!_pendingDeferredHistoryVerifications.add(key)) return;
+    try {
+      await _performDeferredHistoryVerification(
+        generation: generation,
+        conversationKey: conversationKey,
+        delay: delay,
+        logTrace: logTrace,
+      );
+    } finally {
+      _pendingDeferredHistoryVerifications.remove(key);
+    }
+  }

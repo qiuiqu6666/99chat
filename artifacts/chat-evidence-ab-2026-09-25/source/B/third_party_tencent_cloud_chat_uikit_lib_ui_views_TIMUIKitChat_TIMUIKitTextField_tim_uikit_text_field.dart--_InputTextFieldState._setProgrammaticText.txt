@@ -1,0 +1,18 @@
+/// 更新输入框内容时一次性提交 text/selection/composing，避免 iOS 中文输入法
+  /// 在拼音组合期间收到“先改 text、再改 selection”的两次状态同步后切换输入模式。
+  void _setProgrammaticText(
+    String text, {
+    int? selectionOffset,
+    bool notifyChanged = true,
+  }) {
+    final previousText = textEditingController.text;
+    final offset = (selectionOffset ?? text.length).clamp(0, text.length);
+    textEditingController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: offset),
+      composing: TextRange.empty,
+    );
+    if (notifyChanged && previousText != text) {
+      widget.onChanged?.call(text);
+    }
+  }

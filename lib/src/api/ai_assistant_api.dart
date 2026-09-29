@@ -215,7 +215,8 @@ class AiAssistantStreamEvent {
       case 'delta':
         return AiAssistantStreamEvent(
           kind: AiAssistantStreamKind.delta,
-          text: _asString(json['text']),
+          // Delta boundaries are transport boundaries, not word boundaries.
+          text: json['text']?.toString() ?? '',
         );
       case 'done':
         return AiAssistantStreamEvent(
@@ -302,6 +303,7 @@ class AiAssistantApi {
     String? path,
     Uint8List? bytes,
     String? mimeType,
+    CancelToken? cancelToken,
   }) async {
     final safeName = AiAssistantUploadMime.ensureFileName(fileName, mimeType);
     final mime = (mimeType ?? '').trim().isNotEmpty
@@ -332,6 +334,7 @@ class AiAssistantApi {
       final res = await _dio.post<dynamic>(
         '$prefix/files',
         data: FormData.fromMap(<String, dynamic>{'file': part}),
+        cancelToken: cancelToken,
         options: Options(
           sendTimeout: 60000,
           receiveTimeout: 60000,
@@ -390,7 +393,7 @@ class AiAssistantApi {
     AiAssistantAnalyze? analyze,
     List<String>? fileIds,
     CancelToken? cancelToken,
-  }) {
+  }) async* {
     final body = <String, dynamic>{
       'content': content,
     };
@@ -404,70 +407,57 @@ class AiAssistantApi {
     if (fileIds != null && fileIds.isNotEmpty) {
       body['fileIds'] = fileIds;
     }
-    final controller = StreamController<AiAssistantStreamEvent>();
-    () async {
-      try {
-        final response = await _dio.post<ResponseBody>(
-          '$prefix/stream',
-          data: body,
-          cancelToken: cancelToken,
-          options: Options(
-            headers: const <String, dynamic>{
-              'Accept': 'text/event-stream',
-              'Cache-Control': 'no-cache',
-            },
-            responseType: ResponseType.stream,
-            sendTimeout: 60000,
-            receiveTimeout: 0,
-            validateStatus: (status) => true,
-          ),
-        );
-        final status = response.statusCode ?? 0;
-        final payload = response.data;
-        if (payload == null) {
-          throw const AiAssistantException('MAIN_UNAVAILABLE', '助手服务不可用');
-        }
-        final contentType =
-            response.headers.value(Headers.contentTypeHeader) ?? '';
-        if (status != 200 || !contentType.contains('text/event-stream')) {
-          final text = await utf8.decoder.bind(payload.stream).join();
-          throw _fromBody(text, status);
-        }
-        final parser = AiAssistantSseParser();
-        await for (final chunk in payload.stream) {
-          if (controller.isClosed) {
-            break;
+    try {
+      final response = await _dio.post<ResponseBody>(
+        '$prefix/stream',
+        data: body,
+        cancelToken: cancelToken,
+        options: Options(
+          headers: const <String, dynamic>{
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+          },
+          responseType: ResponseType.stream,
+          sendTimeout: 60000,
+          receiveTimeout: 0,
+          validateStatus: (status) => true,
+        ),
+      );
+      final status = response.statusCode ?? 0;
+      final payload = response.data;
+      if (payload == null) {
+        throw const AiAssistantException('MAIN_UNAVAILABLE', '助手服务不可用');
+      }
+      final contentType =
+          response.headers.value(Headers.contentTypeHeader) ?? '';
+      if (status != 200 || !contentType.contains('text/event-stream')) {
+        final text = await utf8.decoder.bind(payload.stream).join();
+        throw _fromBody(text, status);
+      }
+      final parser = AiAssistantSseParser();
+      await for (final chunk in utf8.decoder.bind(payload.stream)) {
+        final events = <AiAssistantStreamEvent>[];
+        parser.feed(chunk, (event, data) {
+          final parsed = AiAssistantStreamEvent.parse(event, data);
+          if (parsed != null) {
+            events.add(parsed);
           }
-          parser.feed(utf8.decode(chunk), (event, data) {
-            final parsed = AiAssistantStreamEvent.parse(event, data);
-            if (parsed != null && !controller.isClosed) {
-              controller.add(parsed);
-            }
-          });
-        }
-        if (!controller.isClosed) {
-          await controller.close();
-        }
-      } on AiAssistantException catch (error) {
-        if (!controller.isClosed) {
-          controller.addError(error);
-          await controller.close();
-        }
-      } on DioError catch (error) {
-        if (!controller.isClosed) {
-          controller.addError(await _fromDio(error));
-          await controller.close();
-        }
-      } catch (error) {
-        if (!controller.isClosed) {
-          controller.addError(
-            AiAssistantException('MAIN_UNAVAILABLE', error.toString()),
-          );
-          await controller.close();
+        });
+        for (final event in events) {
+          if (cancelToken?.isCancelled ?? false) {
+            throw const AiAssistantException('CANCELLED', '');
+          }
+          yield event;
         }
       }
-    }();
-    return controller.stream;
+      parser.finish();
+    } on AiAssistantException {
+      rethrow;
+    } on DioError catch (error) {
+      throw await _fromDio(error);
+    } catch (error) {
+      throw AiAssistantException('MAIN_UNAVAILABLE', error.toString());
+    }
   }
 
   void _ensureSuccess(dynamic raw) {

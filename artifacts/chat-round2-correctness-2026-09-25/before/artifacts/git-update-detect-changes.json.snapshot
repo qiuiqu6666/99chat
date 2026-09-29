@@ -1,0 +1,30 @@
+Changes: 28 files, 23 symbols
+Affected processes: 7
+Risk level: high
+
+Changed symbols:
+  Class MeGroupApi → lib/src/api/me_group_api.dart
+  Class MeGroupRecord → lib/src/models/me_group_record.dart
+  Class PresenceProvider → lib/src/provider/presence_provider.dart
+  Method _writeLastSeen → lib/src/provider/presence_provider.dart
+  Class CoalescedPresenceCache → lib/src/services/coalesced_presence_cache.dart
+  Constructor CoalescedPresenceCache → lib/src/services/coalesced_presence_cache.dart
+  Property preserveMaxNumbers → lib/src/services/coalesced_presence_cache.dart
+  Method _mergeValue → lib/src/services/coalesced_presence_cache.dart
+  Class ContactSocialCacheStore → lib/src/services/contact_social_cache_store.dart
+  Property _presenceWrites → lib/src/services/contact_social_cache_store.dart
+  Class GroupLocalStore → lib/src/services/group_local/group_local_store.dart
+  Method upsert → lib/src/services/group_local/group_local_store.dart
+  Class GroupMembershipSyncService → lib/src/services/group_local/group_membership_sync_service.dart
+  Class GroupLiveTopBanner → lib/src/widgets/group_live/group_live_top_banner.dart
+  Function main → test/group_name_local_regression_test.dart
+... and 8 more
+
+Affected execution flows:
+  • Build → LoginInfo (8 steps) — changed: CoreServicesImpl
+  • Build → LoginInfo (6 steps) — changed: CoreServicesImpl
+  • Build → LoginInfo (6 steps) — changed: CoreServicesImpl
+  • Build → LoginInfo (6 steps) — changed: CoreServicesImpl
+  • Build → LoginInfo (6 steps) — changed: CoreServicesImpl
+  • Build → LoginInfo (6 steps) — changed: CoreServicesImpl
+  • Build → LoginInfo (5 steps) — changed: CoreServicesImpl

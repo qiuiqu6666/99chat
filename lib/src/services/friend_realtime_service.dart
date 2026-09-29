@@ -10,13 +10,36 @@ import 'package:tencent_cloud_chat_demo/src/services/friend_realtime/friend_real
 import 'package:tencent_cloud_chat_demo/src/services/friend_realtime/friend_realtime_endpoint.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_realtime/friend_realtime_event.dart';
 import 'package:tencent_cloud_chat_demo/src/services/friend_realtime/presence_last_seen_codec.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 
 typedef FriendRealtimeEventHandler = void Function(FriendRealtimeEvent event);
 typedef FriendRealtimeAuthOkHandler = void Function();
 typedef FriendRealtimeReadyHandler = void Function(bool ready);
 
 class FriendRealtimeService {
-  FriendRealtimeService._();
+  FriendRealtimeService._({
+    this.authenticationTimeout = const Duration(seconds: 10),
+    this.heartbeatTimeout = const Duration(seconds: 15),
+    this.presenceRequestTimeout = const Duration(seconds: 12),
+    this.endpointOverride,
+  });
+
+  @visibleForTesting
+  factory FriendRealtimeService.forTesting(
+          {required String endpoint,
+          Duration authenticationTimeout = const Duration(seconds: 10),
+          Duration heartbeatTimeout = const Duration(seconds: 15),
+          Duration presenceRequestTimeout = const Duration(seconds: 12)}) =>
+      FriendRealtimeService._(
+          endpointOverride: endpoint,
+          authenticationTimeout: authenticationTimeout,
+          heartbeatTimeout: heartbeatTimeout,
+          presenceRequestTimeout: presenceRequestTimeout);
+
+  final Duration authenticationTimeout;
+  final Duration heartbeatTimeout;
+  final Duration presenceRequestTimeout;
+  final String? endpointOverride;
 
   static final FriendRealtimeService instance = FriendRealtimeService._();
 
@@ -30,6 +53,12 @@ class FriendRealtimeService {
   FriendRealtimeConnection? _connection;
   Timer? _pingTimer;
   Timer? _reconnectTimer;
+  Timer? _deadlineTimer;
+  bool _foreground = true;
+  int? _rejectedCredentialGeneration;
+  int? _connectionCredentialGeneration;
+  Future<void>? _connectInFlight;
+  bool _forceConnectPending = false;
   bool _running = false;
   bool _authFailed = false;
   bool _authOk = false;
@@ -43,6 +72,8 @@ class FriendRealtimeService {
   final Map<String, Timer> _lastSeenTimeouts = <String, Timer>{};
   final List<_QueuedPresenceLastSeen> _lastSeenQueue =
       <_QueuedPresenceLastSeen>[];
+  final Map<Completer<PresenceLastSeenBatch>, _QueuedPresenceLastSeen>
+      _lastSeenOperations = {};
 
   static const Duration _lastSeenTimeout = Duration(seconds: 8);
   static const Duration _internalRetryDelay = Duration(milliseconds: 300);
@@ -115,6 +146,12 @@ class FriendRealtimeService {
       _log('ensureConnected skipped: not running');
       return;
     }
+    if (_authFailed &&
+        _rejectedCredentialGeneration !=
+            ApiClient.instance.credentialGeneration) {
+      _authFailed = false;
+      _rejectedCredentialGeneration = null;
+    }
     if (_authFailed) {
       _log('ensureConnected skipped authFailed=$_authFailed');
       return;
@@ -122,8 +159,10 @@ class FriendRealtimeService {
     if (!force && _connection != null) {
       return;
     }
-    if (force) {
-      _authFailed = false;
+    if (_connectInFlight != null) {
+      _forceConnectPending |= force;
+      await _connectInFlight;
+      return;
     }
     _reconnectAttempt = 0;
     _reconnectTimer?.cancel();
@@ -139,10 +178,19 @@ class FriendRealtimeService {
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
       case AppLifecycleState.detached:
+        _foreground = false;
+        _deadlineTimer?.cancel();
+        _deadlineTimer = null;
         _log('background: keep realtime tcp connected');
         unawaited(ensureConnected());
         return;
       case AppLifecycleState.resumed:
+        _foreground = true;
+        if (isRealtimeReady) {
+          unawaited(_sendPing());
+        } else if (_connection != null) {
+          _armDeadline(_connection!, _connectGeneration, authenticationTimeout);
+        }
         _log('foreground: ensure realtime tcp connected');
         unawaited(ensureConnected(force: _connection == null));
         return;
@@ -155,9 +203,13 @@ class FriendRealtimeService {
     _log('stop: disconnect realtime tcp');
     _running = false;
     _authFailed = false;
+    _rejectedCredentialGeneration = null;
     _authOk = false;
     _reconnectAttempt = 0;
     _connectGeneration++;
+    _forceConnectPending = false;
+    _deadlineTimer?.cancel();
+    _deadlineTimer = null;
     _pingTimer?.cancel();
     _pingTimer = null;
     _reconnectTimer?.cancel();
@@ -172,22 +224,44 @@ class FriendRealtimeService {
     _log('stop: realtime tcp disconnected');
   }
 
-  Future<void> _connect() async {
+  Future<void> _connect() {
+    final running = _connectInFlight;
+    if (running != null) return running;
+    late final Future<void> operation;
+    operation = _connectInternal().whenComplete(() {
+      if (!identical(_connectInFlight, operation)) return;
+      _connectInFlight = null;
+      final force = _forceConnectPending;
+      _forceConnectPending = false;
+      if (force && _running) unawaited(ensureConnected(force: true));
+    });
+    _connectInFlight = operation;
+    return operation;
+  }
+
+  Future<void> _connectInternal() async {
     if (!_running || _authFailed) {
       return;
     }
     _authOk = false;
+    _deadlineTimer?.cancel();
+    _deadlineTimer = null;
+    _pingTimer?.cancel();
+    _pingTimer = null;
     _emitReadyIfChanged();
     final connectGeneration = ++_connectGeneration;
+    _failAllLastSeen(PresenceLastSeenFailCode.disconnected);
     final token = ApiClient.instance.token;
+    final credentialGeneration = ApiClient.instance.credentialGeneration;
     if (!ApiClient.isValidJwt(token)) {
       _scheduleReconnect();
       return;
     }
 
-    final tcpBase = ApiNodeService.instance.isHydrated
-        ? ApiNodeService.instance.currentRealtimeTcpBase
-        : IMDemoConfig.realtimeTcpBase;
+    final tcpBase = endpointOverride ??
+        (ApiNodeService.instance.isHydrated
+            ? ApiNodeService.instance.currentRealtimeTcpBase
+            : IMDemoConfig.realtimeTcpBase);
     final endpoint = FriendRealtimeEndpoint.parse(tcpBase);
     if (endpoint == null) {
       _scheduleReconnect();
@@ -195,6 +269,7 @@ class FriendRealtimeService {
     }
 
     await _connection?.close();
+    if (!_running || connectGeneration != _connectGeneration) return;
     late final FriendRealtimeConnection connection;
     connection = FriendRealtimeConnection(
       onLine: (line) => _handleLine(
@@ -208,6 +283,7 @@ class FriendRealtimeService {
       ),
     );
     _connection = connection;
+    _connectionCredentialGeneration = credentialGeneration;
 
     try {
       _log(
@@ -227,7 +303,11 @@ class FriendRealtimeService {
         }
         return;
       }
+      _armDeadline(connection, connectGeneration, authenticationTimeout);
       await ApiClient.instance.ensureDeviceIdReady();
+      if (!_running ||
+          connectGeneration != _connectGeneration ||
+          !identical(_connection, connection)) return;
       await connection.send(<String, dynamic>{
         'type': 'auth',
         'token': token,
@@ -240,7 +320,7 @@ class FriendRealtimeService {
         }
         return;
       }
-      _log('connected, auth sent deviceId=${ApiClient.instance.deviceId}');
+      _log('connected, auth sent');
     } catch (e, st) {
       _log('connect failed: $e');
       _log('connect failed stack: $st');
@@ -263,15 +343,40 @@ class FriendRealtimeService {
   }
 
   Future<void> _sendPing() async {
-    if (!isRealtimeReady) {
+    if (!isRealtimeReady || !_foreground) {
       return;
     }
+    final connection = _connection!;
+    final generation = _connectGeneration;
     try {
       await ApiClient.instance.ensureDeviceIdReady();
-      await _connection?.send(
+      if (!isRealtimeReady ||
+          generation != _connectGeneration ||
+          !identical(_connection, connection) ||
+          !_foreground) return;
+      _armDeadline(connection, generation, heartbeatTimeout);
+      await connection.send(
         PresenceLastSeenCodec.pingFrame(ApiClient.instance.deviceId),
       );
-    } catch (_) {}
+    } catch (_) {
+      _expireConnection(connection, generation);
+    }
+  }
+
+  void _armDeadline(
+      FriendRealtimeConnection connection, int generation, Duration timeout) {
+    _deadlineTimer?.cancel();
+    if (!_foreground) return;
+    _deadlineTimer =
+        Timer(timeout, () => _expireConnection(connection, generation));
+  }
+
+  void _expireConnection(FriendRealtimeConnection connection, int generation) {
+    if (!_running ||
+        generation != _connectGeneration ||
+        !identical(_connection, connection)) return;
+    _handleDisconnected(connection: connection, connectGeneration: generation);
+    unawaited(connection.close());
   }
 
   void _handleLine(
@@ -292,7 +397,7 @@ class FriendRealtimeService {
       }
       map = Map<String, dynamic>.from(decoded);
     } catch (e) {
-      _log('invalid frame: $line');
+      _log('invalid realtime frame');
       return;
     }
 
@@ -302,6 +407,8 @@ class FriendRealtimeService {
 
     switch (type) {
       case 'auth_ok':
+        _deadlineTimer?.cancel();
+        _deadlineTimer = null;
         _reconnectAttempt = 0;
         _authOk = true;
         _log('auth ok');
@@ -310,6 +417,9 @@ class FriendRealtimeService {
         _emitAuthOk();
         return;
       case 'auth_fail':
+        _rejectedCredentialGeneration = _connectionCredentialGeneration;
+        _deadlineTimer?.cancel();
+        _deadlineTimer = null;
         _authFailed = true;
         _authOk = false;
         _pingTimer?.cancel();
@@ -323,6 +433,8 @@ class FriendRealtimeService {
         _log('auth failed: $map');
         return;
       case 'pong':
+        _deadlineTimer?.cancel();
+        _deadlineTimer = null;
         return;
       case 'presence_last_seen_ok':
         _completeLastSeenOk(map);
@@ -395,6 +507,8 @@ class FriendRealtimeService {
       return;
     }
     _authOk = false;
+    _deadlineTimer?.cancel();
+    _deadlineTimer = null;
     _pingTimer?.cancel();
     _pingTimer = null;
     _failAllLastSeen(PresenceLastSeenFailCode.disconnected);
@@ -420,13 +534,18 @@ class FriendRealtimeService {
       );
     }
     final chunks = PresenceLastSeenCodec.chunkUserIds(ids);
+    // One budget includes queueing, every chunk and the internal-error retry.
+    final budget = Stopwatch()..start();
+    final generation = _connectGeneration;
     if (chunks.length == 1) {
-      return _fetchPresenceLastSeenChunk(chunks.first);
+      return _fetchPresenceLastSeenChunk(chunks.first,
+          budget: budget, generation: generation);
     }
     final lastSeen = <String, int>{};
     final visibility = <String, String>{};
     for (final chunk in chunks) {
-      final part = await _fetchPresenceLastSeenChunk(chunk);
+      final part = await _fetchPresenceLastSeenChunk(chunk,
+          budget: budget, generation: generation);
       lastSeen.addAll(part.lastSeen);
       visibility.addAll(part.lastActiveVisibility);
     }
@@ -438,25 +557,63 @@ class FriendRealtimeService {
 
   Future<PresenceLastSeenBatch> _fetchPresenceLastSeenChunk(
     List<String> userIds, {
+    required Stopwatch budget,
+    required int generation,
     int attempt = 0,
   }) async {
+    if (generation != _connectGeneration || !isRealtimeReady) {
+      throw const PresenceLastSeenTcpException(
+          PresenceLastSeenFailCode.disconnected);
+    }
+    final remaining = presenceRequestTimeout - budget.elapsed;
+    if (remaining <= Duration.zero) {
+      throw const PresenceLastSeenTcpException(
+          PresenceLastSeenFailCode.timeout);
+    }
     try {
-      return await _enqueueLastSeen(userIds);
+      return await _enqueueLastSeen(userIds, remaining: remaining);
     } on PresenceLastSeenTcpException catch (e) {
       if (e.code == PresenceLastSeenFailCode.internal && attempt < 1) {
+        if (presenceRequestTimeout - budget.elapsed <= _internalRetryDelay) {
+          throw const PresenceLastSeenTcpException(
+              PresenceLastSeenFailCode.timeout);
+        }
         await Future<void>.delayed(_internalRetryDelay);
-        return _fetchPresenceLastSeenChunk(userIds, attempt: attempt + 1);
+        return _fetchPresenceLastSeenChunk(userIds,
+            budget: budget, generation: generation, attempt: attempt + 1);
       }
       rethrow;
     }
   }
 
-  Future<PresenceLastSeenBatch> _enqueueLastSeen(List<String> userIds) {
+  Future<PresenceLastSeenBatch> _enqueueLastSeen(List<String> userIds,
+      {required Duration remaining}) {
+    if (_lastSeenOperations.length >= 64) {
+      return Future.error(const PresenceLastSeenTcpException(
+          PresenceLastSeenFailCode.tooManyInflight));
+    }
     final completer = Completer<PresenceLastSeenBatch>();
     final queued = _QueuedPresenceLastSeen(
       userIds: userIds,
       completer: completer,
     );
+    _lastSeenOperations[completer] = queued;
+    queued.deadline = Timer(remaining, () {
+      final id = queued.requestId;
+      if (id != null) {
+        _finishLastSeen(id,
+            error: PresenceLastSeenTcpException(
+                PresenceLastSeenFailCode.timeout,
+                requestId: id));
+      } else if (_lastSeenOperations.remove(completer) != null) {
+        _lastSeenQueue.remove(queued);
+        ChatRecoveryTrace.log('presence_queue_timeout',
+            conversationID: '', fields: {'queueDepth': _lastSeenQueue.length});
+        completer.completeError(const PresenceLastSeenTcpException(
+            PresenceLastSeenFailCode.timeout));
+        _drainLastSeenQueue();
+      }
+    });
     _lastSeenQueue.add(queued);
     _drainLastSeenQueue();
     return completer.future;
@@ -479,6 +636,7 @@ class FriendRealtimeService {
         continue;
       }
       final requestId = _nextLastSeenRequestId();
+      next.requestId = requestId;
       _lastSeenWaiters[requestId] = next.completer;
       _lastSeenUserIds[requestId] = next.userIds;
       _lastSeenTimeouts[requestId]?.cancel();
@@ -530,30 +688,8 @@ class FriendRealtimeService {
     if (requestId == null) {
       return;
     }
-    if (code == PresenceLastSeenFailCode.tooManyInflight) {
-      final waiter = _lastSeenWaiters.remove(requestId);
-      final userIds = _lastSeenUserIds.remove(requestId) ?? const <String>[];
-      _lastSeenTimeouts.remove(requestId)?.cancel();
-      if (waiter != null && !waiter.isCompleted && userIds.isNotEmpty) {
-        _lastSeenQueue.insert(
-          0,
-          _QueuedPresenceLastSeen(
-            userIds: userIds,
-            completer: waiter,
-          ),
-        );
-      } else if (waiter != null && !waiter.isCompleted) {
-        waiter.completeError(
-          PresenceLastSeenTcpException(
-            PresenceLastSeenFailCode.tooManyInflight,
-            requestId: requestId,
-          ),
-        );
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      _drainLastSeenQueue();
-      return;
-    }
+    // Overload is a terminal TCP result. PresenceProvider already has a bounded
+    // HTTP fallback; replaying here hid overload and held its flush forever.
     _finishLastSeen(
       requestId,
       error: PresenceLastSeenTcpException(code, requestId: requestId),
@@ -568,6 +704,7 @@ class FriendRealtimeService {
     _lastSeenTimeouts.remove(requestId)?.cancel();
     _lastSeenUserIds.remove(requestId);
     final waiter = _lastSeenWaiters.remove(requestId);
+    _lastSeenOperations.remove(waiter)?.deadline?.cancel();
     if (waiter == null || waiter.isCompleted) {
       _drainLastSeenQueue();
       return;
@@ -575,6 +712,13 @@ class FriendRealtimeService {
     if (batch != null) {
       waiter.complete(batch);
     } else {
+      ChatRecoveryTrace.log('presence_request_failed',
+          conversationID: '',
+          operation: requestId,
+          fields: {
+            'code': error?.code ?? PresenceLastSeenFailCode.internal,
+            'queueDepth': _lastSeenQueue.length,
+          });
       waiter.completeError(
         error ??
             PresenceLastSeenTcpException(
@@ -587,6 +731,10 @@ class FriendRealtimeService {
   }
 
   void _failAllLastSeen(String code) {
+    for (final operation in _lastSeenOperations.values) {
+      operation.deadline?.cancel();
+    }
+    _lastSeenOperations.clear();
     final queued = List<_QueuedPresenceLastSeen>.from(_lastSeenQueue);
     _lastSeenQueue.clear();
     final waiters = Map<String, Completer<PresenceLastSeenBatch>>.from(
@@ -640,4 +788,6 @@ class _QueuedPresenceLastSeen {
 
   final List<String> userIds;
   final Completer<PresenceLastSeenBatch> completer;
+  Timer? deadline;
+  String? requestId;
 }

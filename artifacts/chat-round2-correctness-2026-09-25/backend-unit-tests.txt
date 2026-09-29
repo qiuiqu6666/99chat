@@ -1,0 +1,28 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -------------------------< com.chat99:server >--------------------------
+[INFO] Building server 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+Downloading from central: https://repo.maven.apache.org/maven2/com/aliyun/tea/maven-metadata.xml
+Progress (1): 2.7 kB
+                    
+Downloaded from central: https://repo.maven.apache.org/maven2/com/aliyun/tea/maven-metadata.xml (2.7 kB at 7.9 kB/s)
+[INFO] 
+[INFO] --- antrun:3.1.0:run (unpack-bootstrap-classes) @ server ---
+[INFO] Executing tasks
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.634 s
+[INFO] Finished at: 2026-09-25T05:08:59+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-antrun-plugin:3.1.0:run (unpack-bootstrap-classes) on project server: An Ant BuildException has occured: src 'C:\Users\ASUS\Downloads\Telegram Desktop\99chat-server\scripts\bootstrap\server-0.0.1-SNAPSHOT.jar' doesn't exist.
+[ERROR] around Ant part ...<unzip src="C:\Users\ASUS\Downloads\Telegram Desktop\99chat-server/scripts/bootstrap/server-0.0.1-SNAPSHOT.jar" dest="C:\Users\ASUS\Downloads\Telegram Desktop\99chat-server\target/bootstrap-unpack" />... @ 5:205 in C:\Users\ASUS\Downloads\Telegram Desktop\99chat-server\target\antrun\build-main.xml
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException

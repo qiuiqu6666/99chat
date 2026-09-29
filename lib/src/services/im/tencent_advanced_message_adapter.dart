@@ -2,6 +2,8 @@ import 'dart:async'; //同步消息服务
 import 'dart:collection';
 import 'dart:convert';
 
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
+
 import 'coalesced_ui_progress.dart';
 import 'receipt_recovery_compat.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
@@ -256,12 +258,30 @@ class TencentAdvancedMessageAdapter {
       if (identical(_listener, listener)) {
         _registered = true;
       } else {
-        await messageService.removeAdvancedMsgListener(listener: listener);
+        await messageService
+            .removeAdvancedMsgListener(listener: listener)
+            .timeout(const Duration(seconds: 10));
       }
-    }();
+    }()
+        .timeout(const Duration(seconds: 10));
     _registerInFlight = task;
     try {
       await task;
+      ChatRecoveryTrace.log('message_listener_attached',
+          conversationID: '',
+          fields: {'generation': accountGeneration, 'registered': _registered});
+    } catch (error) {
+      if (identical(_listener, listener)) {
+        _listener = null;
+        _registered = false;
+      }
+      ChatRecoveryTrace.log('message_listener_attach_failed',
+          conversationID: '',
+          fields: {
+            'generation': accountGeneration,
+            'errorType': error.runtimeType
+          });
+      rethrow;
     } finally {
       if (identical(_registerInFlight, task)) {
         _registerInFlight = null;
@@ -270,12 +290,9 @@ class TencentAdvancedMessageAdapter {
   }
 
   Future<void> unregister() async {
-    final pending = _registerInFlight;
-    if (pending != null) {
-      try {
-        await pending;
-      } catch (_) {}
-    }
+    // Fence callbacks immediately. The timed-out registration owns cleanup of
+    // its exact listener if the native response arrives after a new register.
+    _registerInFlight = null;
     final listener = _listener;
     _listener = null;
     _registered = false;
@@ -289,12 +306,16 @@ class TencentAdvancedMessageAdapter {
     _receiptSubmissions.clear();
     _sdkRealtimeDelivered.clear();
     if (listener == null) return;
-    await messageService.removeAdvancedMsgListener(listener: listener);
+    await messageService
+        .removeAdvancedMsgListener(listener: listener)
+        .timeout(const Duration(seconds: 10));
   }
 
   V2TimAdvancedMsgListener _createListener() {
-    final listener = V2TimAdvancedMsgListener(
+    late final V2TimAdvancedMsgListener listener;
+    listener = V2TimAdvancedMsgListener(
       onRecvNewMessage: (message) {
+        if (!identical(_listener, listener)) return;
         _submitMessage(
           eventId: _messageEventId('received', message),
           kind: ImEventKind.realtimeMessage,
@@ -309,6 +330,7 @@ class TencentAdvancedMessageAdapter {
         );
       },
       onRecvMessageModified: (message) {
+        if (!identical(_listener, listener)) return;
         final digest = _payloadDigest(message);
         _submitMessage(
           eventId: 'modified:${message.msgID?.trim() ?? ''}:$digest',
@@ -321,19 +343,27 @@ class TencentAdvancedMessageAdapter {
         );
       },
       onRecvMessageRevoked: (msgID) {
+        if (!identical(_listener, listener)) return;
         _submitRevoked(msgID);
       },
       onRecvMessageRevokedWithInfo: (msgID, operateUser, reason) {
+        if (!identical(_listener, listener)) return;
         _submitRevoked(
           msgID,
           isAdmin: _isAdminRevokeReason(reason),
           revoker: operateUser,
         );
       },
-      onRecvC2CReadReceipt: (receipts) =>
-          _submitReceipts(receipts, applyC2CWatermark: true),
-      onRecvMessageReadReceipts: (receipts) => _submitReceipts(receipts),
+      onRecvC2CReadReceipt: (receipts) {
+        if (!identical(_listener, listener)) return;
+        _submitReceipts(receipts, applyC2CWatermark: true);
+      },
+      onRecvMessageReadReceipts: (receipts) {
+        if (!identical(_listener, listener)) return;
+        _submitReceipts(receipts);
+      },
       onSendMessageProgress: (message, progress) {
+        if (!identical(_listener, listener)) return;
         final key = 'send:${message.id ?? message.msgID}';
         final payload =
             ImMessageProgressEvent(message: message, progress: progress);
@@ -355,6 +385,7 @@ class TencentAdvancedMessageAdapter {
         );
       },
       onMessageDownloadProgressCallback: (progress) {
+        if (!identical(_listener, listener)) return;
         final key =
             'download:${progress.msgID}:${progress.type}:${progress.isSnapshot}';
         final payload = ImMessageDownloadProgressEvent(progress);
@@ -376,6 +407,7 @@ class TencentAdvancedMessageAdapter {
       // Extensions and reactions have no app projection or recovery consumer.
       // Keep the SDK defaults instead of journaling ignored notifications.
       onGroupMessagePinned: (groupID, message, isPinned, _) {
+        if (!identical(_listener, listener)) return;
         final scope = AccountScopedConversationKey(
           ownerUserId: ownerUserId,
           conversationType: ImConversationType.group,

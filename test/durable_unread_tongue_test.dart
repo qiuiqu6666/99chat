@@ -121,6 +121,9 @@ class _AckStore extends HistoryWindowStore {
   }
   Future<void> Function()? afterAcknowledge;
   Future<void> Function()? afterVisibleAcknowledge;
+  Future<void> Function(List<String>)? beforeVisibleAcknowledge;
+  final visibleAckMessageIDs = <List<String>>[];
+  final visibleAckReceipts = <HistoryWindowVisibleReceipt>[];
   @override
   Future<HistoryWindowVisibleReceipt> acknowledgeVisibleDeferred({
     required HistoryWindowScope scope,
@@ -128,12 +131,16 @@ class _AckStore extends HistoryWindowStore {
     required int afterIngressSequence,
     bool Function()? isCurrent,
   }) async {
+    final capturedIDs = List<String>.unmodifiable(messageIDs);
+    visibleAckMessageIDs.add(capturedIDs);
+    await beforeVisibleAcknowledge?.call(capturedIDs);
     final receipt = await super.acknowledgeVisibleDeferred(
       scope: scope,
       messageIDs: messageIDs,
       afterIngressSequence: afterIngressSequence,
       isCurrent: isCurrent,
     );
+    visibleAckReceipts.add(receipt);
     final callback = afterVisibleAcknowledge;
     afterVisibleAcknowledge = null;
     await callback?.call();
@@ -695,7 +702,7 @@ void main() {
     expect(find.text('取消'), findsNothing);
   });
 
-  uiTest('delivery after visible snapshot stays unread and is projected at latest',
+  uiTest('delivery after visible snapshot stays unread until a fresh visible proof',
       (tester) async {
     await mount(tester);
     await awayInHistoryGap(tester);
@@ -703,31 +710,69 @@ void main() {
     sdk.newest = List.generate(50, (i) => row(102 - i));
     Future<void>? lateArrival;
     var lateArrivalFinished = false;
+    final lateID = '${getConv()}-104';
+    final freshProofRelease = Completer<void>();
+    var freshProofIndex = -1;
     sdk.duringRead = () => global.applyAppRealtimeMessage(row(103),
         ingressEventID: '${getConv()}-event-103', ingressSequence: 103);
+    store.beforeVisibleAcknowledge = (messageIDs) async {
+      if (messageIDs.contains(lateID)) {
+        freshProofIndex = store.visibleAckMessageIDs.length - 1;
+        await freshProofRelease.future;
+      }
+    };
     store.afterVisibleAcknowledge = () async {
       lateArrival = global.applyAppRealtimeMessage(row(104),
           ingressEventID: '${getConv()}-late-visible-104', ingressSequence: 104)
           .whenComplete(() => lateArrivalFinished = true);
     };
-    await tester.tap(find.text('showUnread:2'));
-    await settleReturn(tester);
-    final lateArrivalTime = Stopwatch()..start();
-    while (!lateArrivalFinished &&
-        lateArrivalTime.elapsed < const Duration(seconds: 15)) {
-      await frame(tester);
+    try {
+      await tester.tap(find.text('showUnread:2'));
+      final proofWait = Stopwatch()..start();
+      while ((freshProofIndex < 0 || !lateArrivalFinished) &&
+          proofWait.elapsed < const Duration(seconds: 15)) {
+        await frame(tester, 1);
+      }
+      expect(lateArrivalFinished, isTrue,
+          reason: 'fake-zone admission needs frames while real SQLite completes');
+      await lateArrival;
+      expect(freshProofIndex, greaterThan(0),
+          reason: '104 must reach a later proof, never the captured old one');
+      expect(store.visibleAckMessageIDs.first, contains('${getConv()}-103'));
+      for (final snapshot in store.visibleAckMessageIDs.take(freshProofIndex)) {
+        expect(snapshot, isNot(contains(lateID)),
+            reason: 'the older painted snapshot must not include a later identity');
+      }
+      expect(store.visibleAckMessageIDs[freshProofIndex], contains(lateID));
+      expect(store.visibleAckReceipts, isNotEmpty);
+      expect(store.visibleAckReceipts.every(
+          (receipt) => !receipt.acknowledgedMessageIDs.contains(lateID)), isTrue);
+      expect(global.receivedNewMessageCountFor(getConv()), 1,
+          reason: '104 stays unread until its own visible acknowledgement commits');
+      expect(global.remainingLiveIncomingIdsFor(getConv()), {lateID});
+      expect(model.readReports, 0);
+      expect(global.isUserScrollToBottomInProgress(getConv()), isTrue);
+      expect(find.text('history $lateID').hitTestable(), findsOneWidget,
+          reason: 'the later proof must be backed by a painted latest row');
+      expect(scroll.offset, closeTo(0, 1));
+
+      freshProofRelease.complete();
+      await settleReturn(tester, frameMs: 1);
+      expect(store.visibleAckReceipts.any(
+          (receipt) => receipt.acknowledgedMessageIDs.contains(lateID)), isTrue,
+          reason: 'only the fresh painted snapshot may consume 104');
+      expect(sdk.calls, 1, reason: 'fresh proof must not reload the SDK again');
+      expect(global.rawMessageList(getConv())!.first.seq, '104');
+      expect(find.text('history $lateID').hitTestable(), findsOneWidget);
+      expect(global.receivedNewMessageCountFor(getConv()), 0);
+      expect(global.hasDurableHistoryDeferred(getConv()), isFalse);
+      expect(model.readReports, greaterThan(0));
+      expect(find.text('showUnread:1').hitTestable(), findsNothing);
+    } finally {
+      if (!freshProofRelease.isCompleted) freshProofRelease.complete();
+      await settleReturn(tester, frameMs: 1);
+      await lateArrival;
     }
-    expect(lateArrivalFinished, isTrue,
-        reason: 'fake-zone admission needs frames while real SQLite completes');
-    await lateArrival;
-    await frame(tester);
-    expect(sdk.calls, 1);
-    expect(scroll.offset, closeTo(0, 1));
-    expect(global.rawMessageList(getConv())!.first.seq, '104');
-    expect(global.receivedNewMessageCountFor(getConv()), 1,
-        reason: 'the older visible snapshot must not consume a later identity');
-    expect(model.readReports, 0);
-    expect(find.text('showUnread:1').hitTestable(), findsOneWidget);
   });
 
   uiTest('post-target backlog beyond the hot cap stays unread and retryable',
@@ -849,10 +894,15 @@ void main() {
         await frame(tester, 1);
       }
       expect(sdk.calls, 1);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
       await frame(tester, 30000);
       for (var n = 0; n < 10; n++) { await frame(tester); }
       expect(done, isTrue, reason: 'the whole return must have a deadline');
       expect(global.isUserScrollToBottomInProgress(getConv()), isFalse);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+      expect(find.byKey(const ValueKey('return-latest-retry')).hitTestable(),
+          findsOneWidget);
       expect(find.text('toLatest:0').hitTestable(), findsOneWidget);
       expect(model.readReports, 0);
       gate.complete();
@@ -860,11 +910,16 @@ void main() {
       for (var n = 0; n < 200 && model.isLoadingChatHistory; n++) { await frame(tester); }
       expect(global.rawMessageList(getConv())!.map((m) => m.msgID), originalIDs,
           reason: 'timeout must invalidate the late publication, not just unlock UI');
+      expect(find.byKey(const ValueKey('return-latest-retry')).hitTestable(),
+          findsOneWidget,
+          reason: 'a late expired response must not clear the retry feedback');
       await pending;
-      await tester.tap(find.text('toLatest:0'));
+      await tester.tap(find.byKey(const ValueKey('return-latest-retry')));
       await settleReturn(tester);
       expect(global.rawMessageList(getConv())!.first.msgID, '${getConv()}-150');
       expect(model.readReports, 1);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
     } finally {
       if (!gate.isCompleted) gate.complete();
       for (var n = 0; n < 300 && !done; n++) { await frame(tester); }
@@ -889,18 +944,25 @@ void main() {
     try {
       for (var n = 0; n < 200 && !entered.isCompleted; n++) { await frame(tester); }
       expect(entered.isCompleted, isTrue);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
       expect(find.text('取消'), findsNothing);
       await tester.drag(find.byType(ListView), const Offset(0, 120));
       for (var n = 0; n < 10; n++) { await frame(tester); }
       expect(done, isTrue);
       expect(global.isUserScrollToBottomInProgress(getConv()), isFalse);
       expect(scroll.offset, greaterThan(1200));
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing,
+          reason: 'a deliberate drag is cancellation, not a failed request');
       expect(find.text('toLatest:0').hitTestable(), findsOneWidget);
       gate.complete();
       store.beforeDeferredState = null;
       for (var n = 0; n < 60; n++) { await frame(tester); }
       expect(sdk.calls, 0, reason: 'cancelled preparation must not start a reload');
       expect(model.readReports, 0);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing,
+          reason: 'late completion must not turn a cancelled return into failure');
       await pending;
     } finally {
       if (!gate.isCompleted) gate.complete();
@@ -917,6 +979,8 @@ void main() {
         find.byType(TIMUIKitHistoryMessageListTongueContainer));
     final pending = state.scrollToLatestAndDismissUnreadCapsule();
     for (var n = 0; n < 5; n++) { await frame(tester, 16); }
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
     expect(find.text('取消'), findsNothing);
     await tester.drag(find.byType(ListView), const Offset(0, 120));
     for (var n = 0; n < 5; n++) { await frame(tester, 16); }
@@ -927,11 +991,16 @@ void main() {
     await frame(tester, 1000);
     expect(scroll.offset, closeTo(stopped, 1));
     expect(model.readReports, 0);
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing,
+        reason: 'interrupting the animation must restore the normal capsule');
     expect(find.text('toLatest:0').hitTestable(), findsOneWidget);
     await tester.tap(find.text('toLatest:0'));
     await settleReturn(tester);
     expect(scroll.offset, closeTo(0, 1));
     expect(model.readReports, 1);
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
   });
 
   uiTest('a pending entry baseline does not create a bottom reminder',
@@ -1048,12 +1117,12 @@ void main() {
       final state = tester.state<TIMUIKitHistoryMessageListTongueContainerState>(
           find.byType(TIMUIKitHistoryMessageListTongueContainer));
 
-      // Attach the error observer immediately: SQLite completion and widget
-      // animation advance on different clocks in this fixture.
+      // A failed presentation must complete the tap safely and expose retry.
+      // SQLite completion and animation advance on different clocks here.
       var failed = false;
       final observedFailure = expectLater(
               state.scrollToLatestAndDismissUnreadCapsule(),
-              throwsA(same(failure)))
+              completes)
           .whenComplete(() => failed = true);
       for (var attempt = 0; attempt < 1500 && !failed; attempt++) {
         await frame(tester);
@@ -1067,6 +1136,9 @@ void main() {
       expect(model.readReports, 0);
       expect(scroll.offset, 1200);
       expect(global.isUserScrollToBottomInProgress(getConv()), isFalse);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+      expect(find.byKey(const ValueKey('return-latest-retry')).hitTestable(),
+          findsOneWidget);
       if (failsAtBegin) {
         expect(global.receivedNewMessageCountFor(getConv()), 2);
         expect(global.hasDurableHistoryDeferred(getConv()), isTrue);
@@ -1080,14 +1152,8 @@ void main() {
       }
 
       failTransition = false;
-      var retried = false;
-      final retry = state.scrollToLatestAndDismissUnreadCapsule()
-          .whenComplete(() => retried = true);
-      for (var attempt = 0; attempt < 1500 && !retried; attempt++) {
-        await frame(tester);
-      }
-      expect(retried, isTrue, reason: 'retry must finish without a stale lock');
-      await retry;
+      await tester.tap(find.byKey(const ValueKey('return-latest-retry')));
+      await settleReturn(tester);
       // Completion alone is insufficient: a stale local flag returns early.
       expect(model.readReports, 1);
       expect(scroll.offset, closeTo(scroll.position.minScrollExtent, 1));
@@ -1095,6 +1161,8 @@ void main() {
       expect(global.receivedNewMessageCountFor(getConv()), 0);
       expect(global.hasDurableHistoryDeferred(getConv()), isFalse);
       expect(global.isUserScrollToBottomInProgress(getConv()), isFalse);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
       if (failsAtBegin) expect(begins, 2);
       await unmount(tester);
     });
@@ -1475,6 +1543,7 @@ void main() {
       await frame(tester);
     }
     expect(sdk.calls, greaterThan(0));
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
     model = makeModel('@TGS#next_$sequence');
     global.setCurrentConversation(
         CurrentConversation(getConv(), ConvType.group),
@@ -1492,6 +1561,9 @@ void main() {
     await frame(tester);
     await awayInHistoryGap(tester);
     await receive(tester, 201, 1);
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing,
+        reason: 'conversation B must not inherit A return feedback');
     expect(find.text('showUnread:1').hitTestable(), findsOneWidget);
     final calls = sdk.calls;
     sdk.duringRead = null;
@@ -1508,6 +1580,9 @@ void main() {
     expect(global.rawMessageList(getConv())!.first.groupID, getConv());
     expect(global.receivedNewMessageCountFor(getConv()), 1);
     expect(find.text('showUnread:1').hitTestable(), findsOneWidget);
+    expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+    expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing,
+        reason: 'A late response must not replace B normal unread capsule');
     oldModel.dispose();
     await unmount(tester);
   });
@@ -1533,6 +1608,7 @@ void main() {
         await frame(tester);
       }
       expect(sdk.calls, 1);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
       final modelB = makeModel('@TGS#middle_$sequence');
       middleModel = modelB;
       model = modelB;
@@ -1542,6 +1618,8 @@ void main() {
       global.setMessageList(getConv(), List.generate(100, (i) => row(100 - i)),
           replace: true);
       await mount(tester, entry: 200);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
       model = makeModel(conversationA);
       global.setCurrentConversation(
           CurrentConversation(getConv(), ConvType.group),
@@ -1564,6 +1642,8 @@ void main() {
         await frame(tester);
       }
       expect(global.isUserScrollToBottomInProgress(conversationA), isTrue);
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
       // The same SDK request is correctly shared by both models. Keep the new
       // UI's final transition pending after that shared response is delivered.
       expect(sdk.calls, 1);
@@ -1581,11 +1661,16 @@ void main() {
       await frame(tester);
       expect(global.isUserScrollToBottomInProgress(conversationA), isTrue,
           reason: 'the old UI finally must not unlock the new UI transaction');
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsOneWidget,
+          reason: 'the old A completion must not hide the newer A loading feedback');
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
       newRelease.complete();
       await settleReturn(tester);
       expect(global.isUserScrollToBottomInProgress(conversationA), isFalse);
       expect(global.rawMessageList(conversationA)!.first.msgID,
           '$conversationA-102');
+      expect(find.byKey(const ValueKey('return-latest-loading')), findsNothing);
+      expect(find.byKey(const ValueKey('return-latest-retry')), findsNothing);
       await unmount(tester);
     } finally {
       // Failed assertions must release both controlled continuations before
@@ -1598,8 +1683,10 @@ void main() {
           drainWait.elapsed < const Duration(seconds: 15)) {
         await frame(tester, 1);
       }
-      oldModelA.dispose();
-      middleModel?.dispose();
+      // The shared fixture owns the current model. If an earlier assertion
+      // fails before a switch, disposing it here would mask that failure.
+      if (!identical(oldModelA, model)) oldModelA.dispose();
+      if (!identical(middleModel, model)) middleModel?.dispose();
     }
   });
 }

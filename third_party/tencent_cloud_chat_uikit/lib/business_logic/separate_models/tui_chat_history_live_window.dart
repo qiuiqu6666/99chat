@@ -314,7 +314,8 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
     _historyLiveWindow
       ..conversationID = null
       ..newerCursor = null
-      ..expectedLatest = null;
+      ..expectedLatest = null
+      ..confirming = null;
     _historyLiveWindow.revision++;
     if (conv != null && conv.isNotEmpty) {
       globalModel.setHistoryReadingWindowActive(conv, false);
@@ -378,7 +379,10 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
     final generation = _historyWindowGeneration;
     final revision = historyReadingWindowRevision;
     final ownerCurrent = globalModel.captureMessageOwnerFence(conv);
+    var active = true;
+    final operationID = ChatRecoveryTrace.nextOperation('latest-proof');
     bool current() =>
+        active &&
         !_disposed &&
         conversationID == conv &&
         generation == _historyWindowGeneration &&
@@ -405,7 +409,7 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
         final watermark = usesReturnSnapshot
             ? _latestViewportReturnWatermark
             : await globalModel.beginHistoryWindowReturnToLatest(conv,
-                replaceWindow: false);
+                replaceWindow: false, isCurrent: current);
         if (!current()) return false;
         final covered = await globalModel
             .confirmHistoryWindowReturnCoversDeferred(conv, watermark,
@@ -420,7 +424,7 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
             conv, visibleMessages, isCurrent: current);
         if (!current()) return false;
         await globalModel.acknowledgeHistoryWindowReturnToLatest(
-            conv, watermark);
+            conv, watermark, isCurrent: current);
         if (!current()) return false;
         if (usesReturnSnapshot && _latestViewportReturnGeneration == generation) {
           _latestViewportReturnWatermark = null;
@@ -434,8 +438,14 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
         // Keep the durable state for a later scroll or explicit retry.
         return false;
       }
-    })()
+    })().timeout(const Duration(seconds: 12), onTimeout: () {
+      active = false;
+      ChatRecoveryTrace.log('latest_proof_timeout', conversationID: conv,
+          operation: operationID);
+      return false;
+    })
         .whenComplete(() {
+      active = false;
       if (identical(_historyLiveWindow.confirming, operation)) {
         _historyLiveWindow.confirming = null;
       }

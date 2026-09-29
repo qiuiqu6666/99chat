@@ -1,0 +1,76 @@
+{
+  "target": {
+    "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel._sendMessage#19",
+    "name": "_sendMessage",
+    "type": "Method",
+    "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart"
+  },
+  "direction": "upstream",
+  "impactedCount": 4,
+  "risk": "LOW",
+  "riskSharedAxes": "LOW",
+  "riskScale": {
+    "comparableAcrossKinds": true,
+    "unusedAxes": []
+  },
+  "epistemic": "exact",
+  "summary": {
+    "direct": 2,
+    "processes_affected": 0,
+    "modules_affected": 1
+  },
+  "byDepthCounts": {
+    "1": 2,
+    "2": 2
+  },
+  "affected_processes": [],
+  "affected_modules": [
+    {
+      "name": "View_models",
+      "hits": 3,
+      "impact": "direct"
+    }
+  ],
+  "byDepth": {
+    "1": [
+      {
+        "depth": 1,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.sendMessageFromController#15",
+        "name": "sendMessageFromController",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 1,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart:TUIChatGlobalModel.sendReplyMessageFromController#11",
+        "name": "sendReplyMessageFromController",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ],
+    "2": [
+      {
+        "depth": 2,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart:TIMUIKitChatController.sendMessage#13",
+        "name": "sendMessage",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      },
+      {
+        "depth": 2,
+        "id": "Method:third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart:TIMUIKitChatController.sendReplyMessage#13",
+        "name": "sendReplyMessage",
+        "filePath": "third_party/tencent_cloud_chat_uikit/lib/ui/controller/tim_uikit_chat_controller.dart",
+        "relationType": "CALLS",
+        "confidence": 0.85,
+        "processes": []
+      }
+    ]
+  }
+}

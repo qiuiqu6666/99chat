@@ -1,0 +1,198 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap",
+    "name": "ChatHistoryPeekBootstrap",
+    "kind": "Class",
+    "filePath": "lib/src/services/chat_history_peek_bootstrap.dart",
+    "startLine": 31,
+    "endLine": 1379
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "imports": [
+      {
+        "uid": "File:lib/src/services/account_session_service.dart",
+        "name": "account_session_service.dart",
+        "filePath": "lib/src/services/account_session_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/chat_latest_window_reset_service.dart",
+        "name": "chat_latest_window_reset_service.dart",
+        "filePath": "lib/src/services/chat_latest_window_reset_service.dart"
+      },
+      {
+        "uid": "File:lib/src/services/chat_open_viewport_coordinator.dart",
+        "name": "chat_open_viewport_coordinator.dart",
+        "filePath": "lib/src/services/chat_open_viewport_coordinator.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_history_sync_coordinator.dart",
+        "name": "conversation_history_sync_coordinator.dart",
+        "filePath": "lib/src/services/conversation_history_sync_coordinator.dart"
+      },
+      {
+        "uid": "File:lib/src/services/conversation_history_warm_scheduler.dart",
+        "name": "conversation_history_warm_scheduler.dart",
+        "filePath": "lib/src/services/conversation_history_warm_scheduler.dart"
+      },
+      {
+        "uid": "File:test/chat_history_peek_policy_test.dart",
+        "name": "chat_history_peek_policy_test.dart",
+        "filePath": "test/chat_history_peek_policy_test.dart"
+      },
+      {
+        "uid": "File:test/chat_open_compile_test.dart",
+        "name": "chat_open_compile_test.dart",
+        "filePath": "test/chat_open_compile_test.dart"
+      },
+      {
+        "uid": "File:test/chat_preview_bootstrap_efficiency_test.dart",
+        "name": "chat_preview_bootstrap_efficiency_test.dart",
+        "filePath": "test/chat_preview_bootstrap_efficiency_test.dart"
+      },
+      {
+        "uid": "File:test/conversation_preview_history_sync_test.dart",
+        "name": "conversation_preview_history_sync_test.dart",
+        "filePath": "test/conversation_preview_history_sync_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.ChatHistoryPeekBootstrap#0",
+        "name": "ChatHistoryPeekBootstrap",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Constructor:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._",
+        "name": "_",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._applyImpl#14",
+        "name": "_applyImpl",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._boundOpenAbandoned#2",
+        "name": "_boundOpenAbandoned",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._flightKey#5",
+        "name": "_flightKey",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._isC2cConversation#1",
+        "name": "_isC2cConversation",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._releaseLocalPhase#2",
+        "name": "_releaseLocalPhase",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._retryKey#1",
+        "name": "_retryKey",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._retrySignature#3",
+        "name": "_retrySignature",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._usesOfficialSdkHistory#1",
+        "name": "_usesOfficialSdkHistory",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.allowsLocalSnapshotFirst#1",
+        "name": "allowsLocalSnapshotFirst",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.apply#8",
+        "name": "apply",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.canAcceptEmptyCloudWindow#2",
+        "name": "canAcceptEmptyCloudWindow",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.clearSession#0",
+        "name": "clearSession",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.invalidateCloudRetry#1",
+        "name": "invalidateCloudRetry",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.isCloudRetryDeferred#2",
+        "name": "isCloudRetryDeferred",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.localFirstImpliesMayHaveOlder#3",
+        "name": "localFirstImpliesMayHaveOlder",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.shouldAttemptLocalFirstBeforeCloud#3",
+        "name": "shouldAttemptLocalFirstBeforeCloud",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.shouldReplaceMemoryWithLocalFirst#2",
+        "name": "shouldReplaceMemoryWithLocalFirst",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Method:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.spliceSelfLastMessageIfMissing#2",
+        "name": "spliceSelfLastMessageIfMissing",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._clearGeneration",
+        "name": "_clearGeneration",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._emptyCloudBackoff",
+        "name": "_emptyCloudBackoff",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._inFlightByKey",
+        "name": "_inFlightByKey",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap._localPhaseByKey",
+        "name": "_localPhaseByKey",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.c2cCloudVerifyAfterLocalFirst",
+        "name": "c2cCloudVerifyAfterLocalFirst",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      },
+      {
+        "uid": "Property:lib/src/services/chat_history_peek_bootstrap.dart:ChatHistoryPeekBootstrap.defaultRetryDelays",
+        "name": "defaultRetryDelays",
+        "filePath": "lib/src/services/chat_history_peek_bootstrap.dart"
+      }
+    ]
+  },
+  "processes": []
+}

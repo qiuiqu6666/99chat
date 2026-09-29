@@ -1,0 +1,68 @@
+{
+  "capturedUtc": "2026-09-24T18:21:23.1517856Z",
+  "workspace": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999",
+  "head": "26bcc02c68680725c1a91bf7548535c0645687a0",
+  "branch": "codex/gallery-chat-order",
+  "sourceFiles": [
+    {
+      "path": "lib/src/chat.dart",
+      "sha256": "8E85C50850633DB73BB3105265E6A5AEBB76BA3D9ECEE9823B224370CCEEA9C7",
+      "bytes": 426943,
+      "lastWriteTimeUtc": "2026-09-24T03:23:15.6354574Z"
+    },
+    {
+      "path": "lib/src/chat_page/chat_draft_controller.dart",
+      "sha256": "F9CAA11C2FAFC44F7BED94D458A9E7C963D658D94DB3F6FE16141A6AFBBC5CF0",
+      "bytes": 2688,
+      "lastWriteTimeUtc": "2026-09-15T03:48:29.0000000Z"
+    },
+    {
+      "path": "lib/src/navigation/app_chat_route.dart",
+      "sha256": "010C683E3047F99F8E9EE16B1A7E45C0F633A766F19998A8D38313AE78AB0B56",
+      "bytes": 12415,
+      "lastWriteTimeUtc": "2026-09-15T03:48:26.0000000Z"
+    },
+    {
+      "path": "lib/src/services/im/outgoing_send_coordinator.dart",
+      "sha256": "85935BC79A56BCE194FCED4B7D7B4FD7C96F222D6EF89E6A66473D1F841F6987",
+      "bytes": 27613,
+      "lastWriteTimeUtc": "2026-09-20T03:02:52.0000000Z"
+    },
+    {
+      "path": "lib/src/services/im/read_outbox_store.dart",
+      "sha256": "18EC591C4380E9AC37E1BC628134C1B2C56AA9347781172937D8C1F6A7751054",
+      "bytes": 14556,
+      "lastWriteTimeUtc": "2026-09-15T03:48:29.0000000Z"
+    },
+    {
+      "path": "lib/src/services/im/im_ingress_store.dart",
+      "sha256": "24A039A8F834CE5AE7C3298F745DE3593908C065FCB5FFF2B2FA66AAB09B59A1",
+      "bytes": 54551,
+      "lastWriteTimeUtc": "2026-09-15T03:48:29.0000000Z"
+    },
+    {
+      "path": "lib/src/services/im/im_ingress_store_platform_web.dart",
+      "sha256": "E7DCE47646224E58C70CBF5DE945B65C5444CA67C2F22CB2E5EFDAA4496865F3",
+      "bytes": 23402,
+      "lastWriteTimeUtc": "2026-09-15T03:48:29.0000000Z"
+    },
+    {
+      "path": "lib/src/services/conversation_local/conversation_sync_service.dart",
+      "sha256": "1862BAFB2E56E8979D3100C39C2E9AE4880E8552FB06253935F592FD48B01994",
+      "bytes": 229337,
+      "lastWriteTimeUtc": "2026-09-23T09:28:59.3489268Z"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/view_models/tui_chat_global_model.dart",
+      "sha256": "75A7A073A41BBC07EB9871FA4B94B7DB92800695022C41875C95B4A4389A4923",
+      "bytes": 593301,
+      "lastWriteTimeUtc": "2026-09-24T17:43:39.3711810Z"
+    },
+    {
+      "path": "third_party/tencent_cloud_chat_uikit/lib/business_logic/separate_models/tui_chat_separate_view_model.dart",
+      "sha256": "07B0AA5194BC7C660B947F7F87268AF7CE9EDD5B29E3D9CF056C6AA89E1A2EC8",
+      "bytes": 335570,
+      "lastWriteTimeUtc": "2026-09-23T09:28:59.3674328Z"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+/// Adapter from the project's existing SQLite owner to the IM persistence
+/// contract. It deliberately exposes only IM table operations.
+class ConversationLocalImIngressStore implements ImIngressStore {
+  ConversationLocalImIngressStore({
+    ConversationLocalStore? owner,
+    MessageCoreStore? core,
+  })  : _legacyOwner = owner,
+        _core = core ?? MessageCoreStore.instance;
+
+  /// Optional legacy owner is kept for existing contract tests and explicit
+  /// migration tooling. Production construction uses [MessageCoreStore].
+  final ConversationLocalStore? _legacyOwner;
+  final MessageCoreStore _core;
+
+  @override
+  Future<T> transaction<T>(
+    Future<T> Function(ImIngressTransaction transaction) action, {
+    MessagePersistPriority persistPriority = MessagePersistPriority.realtime,
+  }) {
+    if (_legacyOwner != null) {
+      return _legacyOwner!.runLegacyImIngressTransaction<T>(
+        (transaction) => action(_SqliteImIngressTransaction(transaction)),
+      );
+    }
+    return _core.runTransaction<T>(
+      (transaction) => action(_SqliteImIngressTransaction(transaction)),
+      persistPriority: persistPriority,
+      persistSource: persistPriority == MessagePersistPriority.realtime
+          ? MessagePersistSource.realtime
+          : persistPriority == MessagePersistPriority.userHistory
+              ? MessagePersistSource.userHistory
+              : MessagePersistSource.backgroundRepair,
+    );
+  }
+}

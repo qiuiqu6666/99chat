@@ -1,0 +1,22 @@
+[
+  "test/round2_outbox_boundaries_test.dart",
+  "test/round2_live_result_widget_test.dart",
+  "test/round2_route_read_boundaries_test.dart",
+  "test/round2_dispatch_and_draft_test.dart",
+  "test/chat_draft_submission_test.dart",
+  "test/im05_persistence_test.dart",
+  "test/im08_outgoing_send_coordinator_test.dart",
+  "test/im08_outcome_unknown_manual_closure_test.dart",
+  "test/im09_read_authority_test.dart",
+  "test/outgoing_result_arbitration_test.dart",
+  "test/outgoing_send_status_truth_test.dart",
+  "test/chat_row_local_message_commit_test.dart",
+  "test/read_outbox_store_test.dart",
+  "test/conversation_unread_clear_service_test.dart",
+  "test/app_chat_route_session_reuse_test.dart",
+  "test/history_reading_viewport_anchor_test.dart",
+  "test/c2c_history_anchor_contract_test.dart",
+  "test/media_preview_route_lifecycle_test.dart",
+  "test/chat_open_profile_trace_test.dart",
+  "test/chat_open_perf_log_test.dart"
+]

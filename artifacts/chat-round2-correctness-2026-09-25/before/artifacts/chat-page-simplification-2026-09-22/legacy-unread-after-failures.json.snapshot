@@ -1,0 +1,654 @@
+[
+  {
+    "key": "chat_visible_latest_ack_recovery_test.dart::late arrival after return snapshot clears only after real row becomes visible (delayed layout: false)",
+    "file": "chat_visible_latest_ack_recovery_test.dart",
+    "name": "late arrival after return snapshot clears only after real row becomes visible (delayed layout: false)",
+    "log_line": 1139,
+    "source_line": 425,
+    "expected": "true",
+    "actual": "<false>",
+    "assertion_detail": "",
+    "source": [
+      "423:         await returning;",
+      "424:         await pendingAdmissions;",
+      "425:         expect(injected, isTrue);",
+      "426:         await frames(tester, 50);",
+      "427:         expect(global.rawMessageList(conv)!.first.seq, '103');"
+    ],
+    "additional_exception": {
+      "type": "PathAccessException",
+      "log_line": 1091,
+      "detail": "temporary directory cleanup failed with Windows errno 32; file in use",
+      "source_line": 371
+    }
+  },
+  {
+    "key": "chat_visible_latest_ack_recovery_test.dart::late arrival after return snapshot clears only after real row becomes visible (delayed layout: true)",
+    "file": "chat_visible_latest_ack_recovery_test.dart",
+    "name": "late arrival after return snapshot clears only after real row becomes visible (delayed layout: true)",
+    "log_line": 1228,
+    "source_line": 425,
+    "expected": "true",
+    "actual": "<false>",
+    "assertion_detail": "",
+    "source": [
+      "423:         await returning;",
+      "424:         await pendingAdmissions;",
+      "425:         expect(injected, isTrue);",
+      "426:         await frames(tester, 50);",
+      "427:         expect(global.rawMessageList(conv)!.first.seq, '103');"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::121 durable arrivals require an explicit return (button)",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "121 durable arrivals require an explicit return (button)",
+    "log_line": 634,
+    "source_line": 973,
+    "expected": "<0>",
+    "actual": "<121>",
+    "assertion_detail": "",
+    "source": [
+      "971:       expect(global.rawMessageList(getConv())!.first.msgID, '${getConv()}-221');",
+      "972:       expect(global.hasDurableHistoryDeferred(getConv()), isFalse);",
+      "973:       expect(global.receivedNewMessageCountFor(getConv()), 0);",
+      "974:       expect(global.getMessageListPosition(getConv()),",
+      "975:           HistoryMessagePosition.bottom);"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::121 durable arrivals require an explicit return (manual drag)",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "121 durable arrivals require an explicit return (manual drag)",
+    "log_line": 682,
+    "source_line": 973,
+    "expected": "<0>",
+    "actual": "<121>",
+    "assertion_detail": "",
+    "source": [
+      "971:       expect(global.rawMessageList(getConv())!.first.msgID, '${getConv()}-221');",
+      "972:       expect(global.hasDurableHistoryDeferred(getConv()), isFalse);",
+      "973:       expect(global.receivedNewMessageCountFor(getConv()), 0);",
+      "974:       expect(global.getMessageListPosition(getConv()),",
+      "975:           HistoryMessagePosition.bottom);"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::a live arrival remains actionable after only a short upward scroll",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "a live arrival remains actionable after only a short upward scroll",
+    "log_line": 581,
+    "source_line": 908,
+    "expected": "exactly one matching candidate",
+    "actual": "_HitTestableWidgetFinder:<Found 0 widgets with text \"showUnread:1\" (considering only",
+    "assertion_detail": "hit-testable widgets with a RenderBox): []> Which: means none were found but one was expected",
+    "source": [
+      "906:         isFalse);",
+      "907:     expect(global.receivedNewMessageCountFor(getConv()), 1);",
+      "908:     expect(find.text('showUnread:1').hitTestable(), findsOneWidget);",
+      "909:     await unmount(tester);",
+      "910:   });"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::a successful but old SDK page cannot acknowledge newer durable arrivals",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "a successful but old SDK page cannot acknowledge newer durable arrivals",
+    "log_line": 851,
+    "source_line": 1044,
+    "expected": "<0>",
+    "actual": "<2>",
+    "assertion_detail": "",
+    "source": [
+      "1042:     expect(sdk.calls, greaterThan(callsBeforeRetry));",
+      "1043:     expect(global.rawMessageList(getConv())!.first.msgID, '${getConv()}-102');",
+      "1044:     expect(global.receivedNewMessageCountFor(getConv()), 0);",
+      "1045:     expect(global.hasDurableHistoryDeferred(getConv()), isFalse);",
+      "1046:     expect(find.text('showPrevious:100'), findsNothing);"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::arrival after the reload ACK is revealed and read only after reaching bottom",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "arrival after the reload ACK is revealed and read only after reaching bottom",
+    "log_line": 946,
+    "source_line": 1132,
+    "expected": "<0>",
+    "actual": "<2>",
+    "assertion_detail": "",
+    "source": [
+      "1130:     expect(global.rawMessageList(getConv())!.first.seq, '103');",
+      "1131:     expect(scroll.offset, closeTo(0, 1));",
+      "1132:     expect(global.receivedNewMessageCountFor(getConv()), 0);",
+      "1133:     expect(global.hasDurableHistoryDeferred(getConv()), isFalse);",
+      "1134:     expect(find.text('showUnread:1').hitTestable(), findsNothing);"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::begin transition error preserves unread and permits a real retry",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "begin transition error preserves unread and permits a real retry",
+    "log_line": 344,
+    "source_line": 791,
+    "expected": "<0>",
+    "actual": "<2>",
+    "assertion_detail": "",
+    "source": [
+      "789:       expect(scroll.offset, closeTo(scroll.position.minScrollExtent, 1));",
+      "790:       expect(global.rawMessageList(getConv())!.first.msgID, '${getConv()}-102');",
+      "791:       expect(global.receivedNewMessageCountFor(getConv()), 0);",
+      "792:       expect(global.hasDurableHistoryDeferred(getConv()), isFalse);",
+      "793:       expect(global.isUserScrollToBottomInProgress(getConv()), isFalse);"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::confirmed deletion of all pending messages allows the actual older latest page",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "confirmed deletion of all pending messages allows the actual older latest page",
+    "log_line": 897,
+    "source_line": 1087,
+    "expected": "<0>",
+    "actual": "<2>",
+    "assertion_detail": "",
+    "source": [
+      "1085:     expect(sdk.calls, greaterThan(0));",
+      "1086:     expect(global.rawMessageList(getConv())!.first.msgID, '${getConv()}-100');",
+      "1087:     expect(global.receivedNewMessageCountFor(getConv()), 0);",
+      "1088:     expect(find.text('showPrevious:100'), findsNothing);",
+      "1089:     expect(model.readReports, greaterThan(0));"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::continuous durable arrivals reveal incrementally without starving return",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "continuous durable arrivals reveal incrementally without starving return",
+    "log_line": 47,
+    "source_line": 395,
+    "expected": "<0>",
+    "actual": "<3>",
+    "assertion_detail": "",
+    "source": [
+      "393:     expect(scroll.offset, closeTo(0, 1));",
+      "394:     expect(global.rawMessageList(getConv())!.first.seq, '104');",
+      "395:     expect(global.receivedNewMessageCountFor(getConv()), 0);",
+      "396:     expect(global.hasDurableHistoryDeferred(getConv()), isFalse);",
+      "397:     expect(model.readReports, 1);"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::delivery after visible snapshot stays unread and is projected at latest",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "delivery after visible snapshot stays unread and is projected at latest",
+    "log_line": 98,
+    "source_line": 429,
+    "expected": "'104'",
+    "actual": "'103'",
+    "assertion_detail": "Which: is different. Expected: 104 Actual: 103 ^ Differ at offset 2",
+    "source": [
+      "427:     expect(sdk.calls, 1);",
+      "428:     expect(scroll.offset, closeTo(0, 1));",
+      "429:     expect(global.rawMessageList(getConv())!.first.seq, '104');",
+      "430:     expect(global.receivedNewMessageCountFor(getConv()), 1,",
+      "431:         reason: 'the older visible snapshot must not consume a later identity');"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::failed latest fetch at the loaded edge preserves retry, entry and durable count",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "failed latest fetch at the loaded edge preserves retry, entry and durable count",
+    "log_line": 768,
+    "source_line": 1014,
+    "expected": "<0>",
+    "actual": "<2>",
+    "assertion_detail": "",
+    "source": [
+      "1012:     expect(sdk.calls, greaterThan(callsBeforeSuccess));",
+      "1013:     expect(global.rawMessageList(getConv())!.first.msgID, '${getConv()}-102');",
+      "1014:     expect(global.receivedNewMessageCountFor(getConv()), 0);",
+      "1015:     expect(find.text('showPrevious:100'), findsNothing);",
+      "1016:     await unmount(tester);"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::finish transition error preserves unread and permits a real retry",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "finish transition error preserves unread and permits a real retry",
+    "log_line": 388,
+    "source_line": 773,
+    "expected": "<0>",
+    "actual": "<2>",
+    "assertion_detail": "",
+    "source": [
+      "771:         // failing to reveal/scroll must not dismiss the unread entry or mark",
+      "772:         // that history as read. The return button remains actionable.",
+      "773:         expect(global.receivedNewMessageCountFor(getConv()), 0);",
+      "774:         expect(global.getUnreadTongueRemaining(getConv()), 100);",
+      "775:         expect(find.text('toLatest:0').hitTestable(), findsOneWidget);"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::late burst revokes live reveal before exceeding its bounded window",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "late burst revokes live reveal before exceeding its bounded window",
+    "log_line": 195,
+    "source_line": 502,
+    "expected": "<0>",
+    "actual": "<1>",
+    "assertion_detail": "",
+    "source": [
+      "500:     expect(global.canRevealDurableIncomingAfterLatestReturn(getConv()), isFalse);",
+      "501:     expect(global.isFollowingLatest(getConv()), isFalse);",
+      "502:     expect(model.readReports, 0);",
+      "503:     expect(find.text('showUnread:122').hitTestable(), findsOneWidget);",
+      "504:   });"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::post-target backlog beyond the hot cap stays unread and retryable",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "post-target backlog beyond the hot cap stays unread and retryable",
+    "log_line": 142,
+    "source_line": 455,
+    "expected": "<121>",
+    "actual": "<123>",
+    "assertion_detail": "",
+    "source": [
+      "453:     expect(scroll.offset, closeTo(0, 1));",
+      "454:     expect(global.rawMessageList(getConv())!.first.seq, '102');",
+      "455:     expect(global.receivedNewMessageCountFor(getConv()), 121);",
+      "456:     expect(model.readReports, 0);",
+      "457:     expect(find.text('showUnread:121').hitTestable(), findsOneWidget);"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::storage-only delivery revokes reveal instead of allowing a later gap",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "storage-only delivery revokes reveal instead of allowing a later gap",
+    "log_line": 240,
+    "source_line": 525,
+    "expected": "<0>",
+    "actual": "<1>",
+    "assertion_detail": "",
+    "source": [
+      "523:     expect(global.canRevealDurableIncomingAfterLatestReturn(getConv()), isFalse);",
+      "524:     expect(global.receivedNewMessageCountFor(getConv()), 3);",
+      "525:     expect(model.readReports, 0);",
+      "526:     expect(find.text('showUnread:3').hitTestable(), findsOneWidget);",
+      "527:   });"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::tapping input returns history to bottom (gap=false, keyboardOpen=true)",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "tapping input returns history to bottom (gap=false, keyboardOpen=true)",
+    "log_line": 428,
+    "source_line": 839,
+    "expected": "a numeric value within <1> of <0.0>",
+    "actual": "<1200.0>",
+    "assertion_detail": "Which:  differs by <1200.0>",
+    "source": [
+      "837:             await settleReturn(tester);",
+      "838:             expect(coordinator.isOccupied, isTrue);",
+      "839:             expect(scroll.offset, closeTo(scroll.position.minScrollExtent, 1));",
+      "840:             expect(global.receivedNewMessageCountFor(getConv()), 0);",
+      "841:             expect(global.hasDurableHistoryDeferred(getConv()), isFalse);"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::tapping input returns history to bottom (gap=true, keyboardOpen=false)",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "tapping input returns history to bottom (gap=true, keyboardOpen=false)",
+    "log_line": 472,
+    "source_line": 839,
+    "expected": "a numeric value within <1> of <0.0>",
+    "actual": "<1200.0>",
+    "assertion_detail": "Which:  differs by <1200.0>",
+    "source": [
+      "837:             await settleReturn(tester);",
+      "838:             expect(coordinator.isOccupied, isTrue);",
+      "839:             expect(scroll.offset, closeTo(scroll.position.minScrollExtent, 1));",
+      "840:             expect(global.receivedNewMessageCountFor(getConv()), 0);",
+      "841:             expect(global.hasDurableHistoryDeferred(getConv()), isFalse);"
+    ]
+  },
+  {
+    "key": "durable_unread_tongue_test.dart::tapping input returns history to bottom (gap=true, keyboardOpen=true)",
+    "file": "durable_unread_tongue_test.dart",
+    "name": "tapping input returns history to bottom (gap=true, keyboardOpen=true)",
+    "log_line": 516,
+    "source_line": 839,
+    "expected": "a numeric value within <1> of <0.0>",
+    "actual": "<1200.0>",
+    "assertion_detail": "Which:  differs by <1200.0>",
+    "source": [
+      "837:             await settleReturn(tester);",
+      "838:             expect(coordinator.isOccupied, isTrue);",
+      "839:             expect(scroll.offset, closeTo(scroll.position.minScrollExtent, 1));",
+      "840:             expect(global.receivedNewMessageCountFor(getConv()), 0);",
+      "841:             expect(global.hasDurableHistoryDeferred(getConv()), isFalse);"
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::300 arrivals cross real window trims without skipping rows or unread progress",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "300 arrivals cross real window trims without skipping rows or unread progress",
+    "log_line": 3803,
+    "source_line": 1100,
+    "expected": "a value less than or equal to <280>",
+    "actual": "<284>",
+    "assertion_detail": "Which: is not a value less than or equal to <280> each published window must remain bounded",
+    "source": [
+      "1098:         }",
+      "1099:         previousWindowCount = count;",
+      "1100:         expect(count, lessThanOrEqualTo(ChatMessageWindowPolicy.softMax),",
+      "1101:             reason: 'each published window must remain bounded');",
+      "1102:       };"
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::a 1200px arrival is counted only after its bottom and preserves page continuity",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "a 1200px arrival is counted only after its bottom and preserves page continuity",
+    "log_line": 4118,
+    "source_line": 1456,
+    "expected": "true",
+    "actual": "<false>",
+    "assertion_detail": "",
+    "source": [
+      "1454:         await frames(tester, 5);",
+      "1455:       }",
+      "1456:       expect(fullyVisible(100), isTrue);",
+      "1457:       expect(sdk.gatedNewerCalls, greaterThan(0));",
+      "1458:       final anchorTop = tester.getTopLeft(row(100)).dy;"
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::an 1800px pure hot row is counted only at its bottom before the next row",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "an 1800px pure hot row is counted only at its bottom before the next row",
+    "log_line": 3057,
+    "source_line": 885,
+    "expected": "<71>",
+    "actual": "<70>",
+    "assertion_detail": "",
+    "source": [
+      "883:             widget.valueType == MessageListTongueType.showUnread);",
+      "884:         expect(capsule.hitTestable(), findsOneWidget);",
+      "885:         expect(tester.widget<TIMUIKitTongueItem>(capsule).unreadCount, expected);",
+      "886:       }",
+      "887: "
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::continuous hot drag follows every frame (step=48.0, row=32.0)",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "continuous hot drag follows every frame (step=48.0, row=32.0)",
+    "log_line": 2080,
+    "source_line": 475,
+    "expected": "be in range from 0 (exclusive) to 71 (exclusive)",
+    "actual": "<71>",
+    "assertion_detail": "",
+    "source": [
+      "473:         // Staging rows ahead of the finger must not consume their unread IDs.",
+      "474:         final unread = global.receivedNewMessageCountFor(conv);",
+      "475:         expect(unread, inExclusiveRange(0, 71));",
+      "476:         expect(global.rawMessageCount(conv), greaterThan(100 + 71 - unread));",
+      "477:       } finally {"
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::continuous hot drag follows every frame (step=48.0, row=64.0)",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "continuous hot drag follows every frame (step=48.0, row=64.0)",
+    "log_line": 1708,
+    "source_line": 475,
+    "expected": "be in range from 0 (exclusive) to 71 (exclusive)",
+    "actual": "<71>",
+    "assertion_detail": "",
+    "source": [
+      "473:         // Staging rows ahead of the finger must not consume their unread IDs.",
+      "474:         final unread = global.receivedNewMessageCountFor(conv);",
+      "475:         expect(unread, inExclusiveRange(0, 71));",
+      "476:         expect(global.rawMessageCount(conv), greaterThan(100 + 71 - unread));",
+      "477:       } finally {"
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::continuous hot drag follows every frame (step=96.0, row=64.0)",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "continuous hot drag follows every frame (step=96.0, row=64.0)",
+    "log_line": 1890,
+    "source_line": 475,
+    "expected": "be in range from 0 (exclusive) to 71 (exclusive)",
+    "actual": "<71>",
+    "assertion_detail": "",
+    "source": [
+      "473:         // Staging rows ahead of the finger must not consume their unread IDs.",
+      "474:         final unread = global.receivedNewMessageCountFor(conv);",
+      "475:         expect(unread, inExclusiveRange(0, 71));",
+      "476:         expect(global.rawMessageCount(conv), greaterThan(100 + 71 - unread));",
+      "477:       } finally {"
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::idle hot reveal fills its runway using only frames scheduled by production",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "idle hot reveal fills its runway using only frames scheduled by production",
+    "log_line": 2908,
+    "source_line": 786,
+    "expected": "false",
+    "actual": "<true>",
+    "assertion_detail": "runway preparation must finish within a bounded number of production-scheduled frames",
+    "source": [
+      "784:           pumped++;",
+      "785:         }",
+      "786:         expect(tester.binding.hasScheduledFrame, isFalse,",
+      "787:             reason: 'runway preparation must finish within a bounded number '",
+      "788:                 'of production-scheduled frames');"
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::manual downward scroll loads 95 durable arrivals and confirms latest (deep=false, retry=false)",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "manual downward scroll loads 95 durable arrivals and confirms latest (deep=false, retry=false)",
+    "log_line": 4272,
+    "source_line": 1572,
+    "expected": "true",
+    "actual": "<false>",
+    "assertion_detail": "",
+    "source": [
+      "1570:             closeTo(visibleTop, 1));",
+      "1571:         expect(global.receivedNewMessageCountFor(conv), 95);",
+      "1572:         expect(global.hasDurableHistoryDeferred(conv), isTrue);",
+      "1573:         if (deepHistory) {",
+      "1574:           // The standalone list still reports notShowLatest at this measured"
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::manual downward scroll loads 95 durable arrivals and confirms latest (deep=true, retry=false)",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "manual downward scroll loads 95 durable arrivals and confirms latest (deep=true, retry=false)",
+    "log_line": 4426,
+    "source_line": 1572,
+    "expected": "true",
+    "actual": "<false>",
+    "assertion_detail": "",
+    "source": [
+      "1570:             closeTo(visibleTop, 1));",
+      "1571:         expect(global.receivedNewMessageCountFor(conv), 95);",
+      "1572:         expect(global.hasDurableHistoryDeferred(conv), isTrue);",
+      "1573:         if (deepHistory) {",
+      "1574:           // The standalone list still reports notShowLatest at this measured"
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::manual downward scroll loads 95 durable arrivals and confirms latest (deep=true, retry=true)",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "manual downward scroll loads 95 durable arrivals and confirms latest (deep=true, retry=true)",
+    "log_line": 4580,
+    "source_line": 1572,
+    "expected": "true",
+    "actual": "<false>",
+    "assertion_detail": "",
+    "source": [
+      "1570:             closeTo(visibleTop, 1));",
+      "1571:         expect(global.receivedNewMessageCountFor(conv), 95);",
+      "1572:         expect(global.hasDurableHistoryDeferred(conv), isTrue);",
+      "1573:         if (deepHistory) {",
+      "1574:           // The standalone list still reports notShowLatest at this measured"
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::one latest edge gesture survives temporary media restoration geometry",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "one latest edge gesture survives temporary media restoration geometry",
+    "log_line": 3115,
+    "source_line": 1010,
+    "expected": "true",
+    "actual": "<false>",
+    "assertion_detail": "",
+    "source": [
+      "1008:       await frames(tester);",
+      "1009:       expect(global.receivedNewMessageCountFor(conv), 1);",
+      "1010:       expect(global.hasDurableHistoryDeferred(conv), isTrue);",
+      "1011: ",
+      "1012:       // Place the user within the edge band without arming a user gesture."
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::pure hot arrivals keep their anchors and count until each row is visible",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "pure hot arrivals keep their anchors and count until each row is visible",
+    "log_line": 2559,
+    "source_line": 672,
+    "expected": "<70>",
+    "actual": "<71>",
+    "assertion_detail": "",
+    "source": [
+      "670: ",
+      "671:       void expectCounter(int expected) {",
+      "672:         expect(global.receivedNewMessageCountFor(conv), expected);",
+      "673:         final capsule = find.byWidgetPredicate((widget) =>",
+      "674:             widget is TIMUIKitTongueItem &&"
+    ]
+  },
+  {
+    "key": "history_durable_scroll_to_latest_test.dart::row-by-row downward scroll preserves anchors and consumes only seen arrivals",
+    "file": "history_durable_scroll_to_latest_test.dart",
+    "name": "row-by-row downward scroll preserves anchors and consumes only seen arrivals",
+    "log_line": 2396,
+    "source_line": 553,
+    "expected": "true",
+    "actual": "<false>",
+    "assertion_detail": "",
+    "source": [
+      "551:         await frames(tester, 5);",
+      "552:       }",
+      "553:       expect(fullyVisible(100), isTrue);",
+      "554:       expect(sdk.gatedNewerCalls, greaterThan(0));",
+      "555:       final oldAnchorTop = tester.getTopLeft(row(100)).dy;"
+    ]
+  },
+  {
+    "key": "return_to_latest_rendered_proof_test.dart::latest ACK rechecks context-menu protection (restoring=false)",
+    "file": "return_to_latest_rendered_proof_test.dart",
+    "name": "latest ACK rechecks context-menu protection (restoring=false)",
+    "log_line": 1370,
+    "source_line": 477,
+    "expected": "<0>",
+    "actual": "<1>",
+    "assertion_detail": "",
+    "source": [
+      "475:                 'a protection change invalidates the pending reading proof');",
+      "476:         expect(global.hasDurableHistoryDeferred(getConv()), isTrue);",
+      "477:         expect(model.readReports, 0);",
+      "478:         if (!restoring) {",
+      "479:           global.endMessageContextMenuOverlay(conversationID: getConv());"
+    ]
+  },
+  {
+    "key": "return_to_latest_rendered_proof_test.dart::latest ACK rechecks context-menu protection (restoring=true)",
+    "file": "return_to_latest_rendered_proof_test.dart",
+    "name": "latest ACK rechecks context-menu protection (restoring=true)",
+    "log_line": 1415,
+    "source_line": 477,
+    "expected": "<0>",
+    "actual": "<1>",
+    "assertion_detail": "",
+    "source": [
+      "475:                 'a protection change invalidates the pending reading proof');",
+      "476:         expect(global.hasDurableHistoryDeferred(getConv()), isTrue);",
+      "477:         expect(model.readReports, 0);",
+      "478:         if (!restoring) {",
+      "479:           global.endMessageContextMenuOverlay(conversationID: getConv());"
+    ]
+  },
+  {
+    "key": "return_to_latest_rendered_proof_test.dart::physical extent alone cannot complete return while latest row is displaced",
+    "file": "return_to_latest_rendered_proof_test.dart",
+    "name": "physical extent alone cannot complete return while latest row is displaced",
+    "log_line": 1325,
+    "source_line": 423,
+    "expected": "<0>",
+    "actual": "<2>",
+    "assertion_detail": "4px row geometry is not the product gate; true latest end settles",
+    "source": [
+      "421:     expect(verifyLatestVisible(), isFalse);",
+      "422:     expect(visible.value, isTrue, reason: 'the older-frame notifier is stale');",
+      "423:     expect(global.receivedNewMessageCountFor(getConv()), 0,",
+      "424:         reason: '4px row geometry is not the product gate; true latest end settles');",
+      "425:     expect(model.readReports, greaterThanOrEqualTo(1));"
+    ]
+  },
+  {
+    "key": "return_to_latest_rendered_proof_test.dart::return does not acknowledge deferred rows outside the rendered projection",
+    "file": "return_to_latest_rendered_proof_test.dart",
+    "name": "return does not acknowledge deferred rows outside the rendered projection",
+    "log_line": 1277,
+    "source_line": 386,
+    "expected": "<0>",
+    "actual": "<1>",
+    "assertion_detail": "",
+    "source": [
+      "384:         reason: 'a database/body snapshot is not the rendered viewport');",
+      "385:     expect(global.hasDurableHistoryDeferred(getConv()), isTrue);",
+      "386:     expect(model.readReports, 0);",
+      "387:     expect(find.text('showUnread:2'), findsOneWidget);",
+      "388: "
+    ]
+  },
+  {
+    "key": "unread_visit_baseline_test.dart::partial old ACK reduces baseline without swallowing live rows",
+    "file": "unread_visit_baseline_test.dart",
+    "name": "partial old ACK reduces baseline without swallowing live rows",
+    "log_line": 4606,
+    "source_line": 167,
+    "expected": "<1>",
+    "actual": "<2>",
+    "assertion_detail": "",
+    "source": [
+      "165:     await global.acknowledgeHistoryWindowReturnToLatest(conv, watermark);",
+      "166:     expect(await total(), 1);",
+      "167:     expect(global.receivedNewMessageCountFor(conv), 1);",
+      "168:   });",
+      "169: "
+    ]
+  },
+  {
+    "key": "unread_visit_baseline_test.dart::same database, new global: old 213 plus 3 live displays only 3",
+    "file": "unread_visit_baseline_test.dart",
+    "name": "same database, new global: old 213 plus 3 live displays only 3",
+    "log_line": 4592,
+    "source_line": 129,
+    "expected": "<1>",
+    "actual": "<4>",
+    "assertion_detail": "",
+    "source": [
+      "127:     await global.acknowledgeHistoryWindowReturnToLatest(conv, watermark);",
+      "128:     expect(await total(), 1);",
+      "129:     expect(global.receivedNewMessageCountFor(conv), 1);",
+      "130:   });",
+      "131: "
+    ]
+  }
+]

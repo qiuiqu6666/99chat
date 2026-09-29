@@ -1,0 +1,22 @@
+/// 点发送立刻上屏，不必等原生 createTextMessage。
+  String _prependOptimisticTextPlaceholder({
+    required String text,
+    String? cloudCustomData,
+    List<String>? groupAtUserList,
+  }) {
+    final optimisticId = _nextOptimisticClientId();
+    final optimistic = tools.setUserInfoForMessage(
+      V2TimMessage(
+        elemType: MessageElemType.V2TIM_ELEM_TYPE_TEXT,
+        textElem: V2TimTextElem(text: text),
+        cloudCustomData: cloudCustomData,
+        groupAtUserList: groupAtUserList,
+      ),
+      optimisticId,
+    );
+    optimistic.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
+    applyOutgoingStableIdToMessage(optimistic, optimisticId);
+    addSendingMessageID(optimisticId);
+    _prependOutgoingMessage(optimistic);
+    return optimisticId;
+  }

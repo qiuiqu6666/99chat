@@ -1,0 +1,178 @@
+{
+  "status": "found",
+  "symbol": {
+    "uid": "Class:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler",
+    "name": "ChatPostOpenScheduler",
+    "kind": "Class",
+    "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart",
+    "startLine": 32,
+    "endLine": 167
+  },
+  "epistemic": "exact",
+  "incoming": {
+    "calls": [
+      {
+        "uid": "Class:lib/src/chat.dart:_ChatState",
+        "name": "_ChatState",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "Function:test/chat_post_open_budget_test.dart:main",
+        "name": "main",
+        "filePath": "test/chat_post_open_budget_test.dart"
+      },
+      {
+        "uid": "Function:test/chat_post_open_scheduler_test.dart:main",
+        "name": "main",
+        "filePath": "test/chat_post_open_scheduler_test.dart"
+      }
+    ],
+    "imports": [
+      {
+        "uid": "File:lib/src/chat.dart",
+        "name": "chat.dart",
+        "filePath": "lib/src/chat.dart"
+      },
+      {
+        "uid": "File:test/chat_post_open_budget_test.dart",
+        "name": "chat_post_open_budget_test.dart",
+        "filePath": "test/chat_post_open_budget_test.dart"
+      },
+      {
+        "uid": "File:test/chat_post_open_scheduler_test.dart",
+        "name": "chat_post_open_scheduler_test.dart",
+        "filePath": "test/chat_post_open_scheduler_test.dart"
+      }
+    ]
+  },
+  "outgoing": {
+    "has_method": [
+      {
+        "uid": "Constructor:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.ChatPostOpenScheduler#1",
+        "name": "ChatPostOpenScheduler",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler._allows#1",
+        "name": "_allows",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler._cancelTimers#0",
+        "name": "_cancelTimers",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler._drain#0",
+        "name": "_drain",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.beginRun#0",
+        "name": "beginRun",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.cancelPending#0",
+        "name": "cancelPending",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.dispose#0",
+        "name": "dispose",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.schedule#7",
+        "name": "schedule",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Method:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.setActivity#1",
+        "name": "setActivity",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      }
+    ],
+    "has_property": [
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler._activity",
+        "name": "_activity",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler._generation",
+        "name": "_generation",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler._ready",
+        "name": "_ready",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler._running",
+        "name": "_running",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler._taskKeys",
+        "name": "_taskKeys",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler._timers",
+        "name": "_timers",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.activity",
+        "name": "activity",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.defaultTaskTimeout",
+        "name": "defaultTaskTimeout",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.idleDelay",
+        "name": "idleDelay",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.maxConcurrent",
+        "name": "maxConcurrent",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.muteNetworkDelay",
+        "name": "muteNetworkDelay",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.p1Delay",
+        "name": "p1Delay",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.p2Delay",
+        "name": "p2Delay",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      },
+      {
+        "uid": "Property:lib/src/chat_page/chat_post_open_scheduler.dart:ChatPostOpenScheduler.routeFallbackDelay",
+        "name": "routeFallbackDelay",
+        "filePath": "lib/src/chat_page/chat_post_open_scheduler.dart"
+      }
+    ]
+  },
+  "typed_properties": [
+    {
+      "uid": "Property:lib/src/chat.dart:_ChatState._postOpenScheduler",
+      "name": "_postOpenScheduler",
+      "filePath": "lib/src/chat.dart",
+      "declaredType": "ChatPostOpenScheduler"
+    }
+  ],
+  "processes": []
+}

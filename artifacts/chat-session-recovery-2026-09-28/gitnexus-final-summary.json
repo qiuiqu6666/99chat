@@ -1,0 +1,11 @@
+{
+  "scope": "all",
+  "summary": {
+    "changed_count": 38,
+    "affected_count": 310,
+    "changed_files": 16,
+    "risk_level": "critical"
+  },
+  "partial": false,
+  "truncated": false
+}

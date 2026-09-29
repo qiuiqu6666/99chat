@@ -29,7 +29,6 @@ import 'wallet_record_models.dart';
 import 'package:tencent_cloud_chat_demo/src/navigation/app_page_transitions.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/app_back_button.dart';
 
-
 String walletRecordNormalizeCoin(String coin) {
   final raw = coin.trim();
   if (raw.isEmpty) return raw;
@@ -169,6 +168,14 @@ class _WalletRecordScreenState extends State<WalletRecordScreen> {
   void _onRedPacketSenderRefresh() {
     if (!mounted) return;
     ctl.load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final active =
+        (ModalRoute.of(context)?.isCurrent ?? true) && TickerMode.of(context);
+    ctl.setActive(active);
   }
 
   @override
@@ -523,12 +530,10 @@ class _WalletRecordScreenState extends State<WalletRecordScreen> {
     if (item.isGroupTransfer) {
       final timeText = _formatTransferDetailTime(item);
       var receiverId = item.payee.trim();
-      var receiverName = receiverId.isNotEmpty
-          ? _displayUserName(receiverId)
-          : '--';
-      final orderId = item.serverOrderId.isNotEmpty
-          ? item.serverOrderId
-          : item.orderNo;
+      var receiverName =
+          receiverId.isNotEmpty ? _displayUserName(receiverId) : '--';
+      final orderId =
+          item.serverOrderId.isNotEmpty ? item.serverOrderId : item.orderNo;
       // 历史账本有些版本只返回 packetId，不返回收款人；详情必须从红包
       // 订单补齐，否则页面只能显示“给--”。
       if (orderId.isNotEmpty && (receiverId.isEmpty || receiverName == '--')) {
@@ -673,11 +678,18 @@ class _WalletRecordScreenState extends State<WalletRecordScreen> {
       {WalletRecordDto? previous}) {
     final cs = WalletPageColors.of(context);
     final children = <Widget>[];
-    final previousTime = previous == null ? null : _parseWalletRecordTime(previous.time);
-    String? currentKey = previous == null ? null : previousTime == null
-        ? AppI18n.current.t(zhHans: '未知日期', zhHant: '未知日期',
-            en: 'Unknown Date', ja: '日付不明', ko: '알 수 없는 날짜')
-        : '${previousTime.year}-${previousTime.month}-${previousTime.day}';
+    final previousTime =
+        previous == null ? null : _parseWalletRecordTime(previous.time);
+    String? currentKey = previous == null
+        ? null
+        : previousTime == null
+            ? AppI18n.current.t(
+                zhHans: '未知日期',
+                zhHant: '未知日期',
+                en: 'Unknown Date',
+                ja: '日付不明',
+                ko: '알 수 없는 날짜')
+            : '${previousTime.year}-${previousTime.month}-${previousTime.day}';
     for (final item in list) {
       final time = _parseWalletRecordTime(item.time);
       final key = time == null

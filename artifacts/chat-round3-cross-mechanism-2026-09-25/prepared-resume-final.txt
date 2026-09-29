@@ -1,0 +1,12 @@
+{
+  "root": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\artifacts\\chat-round3-cross-mechanism-2026-09-25\\prepared-resume-1790303314057",
+  "result": {
+    "scenario": "prepared_resume",
+    "newProcessPid": 68784,
+    "draftRecovered": null,
+    "durableStateBeforeRepair": "prepared",
+    "canRetry": false,
+    "recoveryPerformedSdkSends": 1,
+    "providerEvidence": "synthetic SDK callback in restarted process"
+  }
+}

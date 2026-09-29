@@ -1,0 +1,13 @@
+{"protocolVersion":"0.1.1","runnerVersion":null,"pid":66196,"type":"start","time":0}
+{"suite":{"id":0,"platform":"vm","path":"C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_crash_worker_test.dart"},"type":"suite","time":0}
+{"test":{"id":1,"name":"loading C:/Users/ASUS/Downloads/Telegram Desktop/99999999/test/round2_crash_worker_test.dart","suiteID":0,"groupIDs":[],"metadata":{"skip":false,"skipReason":null},"line":null,"column":null,"url":null},"type":"testStart","time":0}
+{"count":1,"time":2,"type":"allSuites"}
+{"testID":1,"result":"success","skipped":false,"hidden":true,"type":"testDone","time":13931}
+{"group":{"id":2,"suiteID":0,"parentID":null,"name":"","metadata":{"skip":false,"skipReason":null},"testCount":1,"line":null,"column":null,"url":null},"type":"group","time":13936}
+{"test":{"id":3,"name":"isolated process prepared_resume verify","suiteID":0,"groupIDs":[2],"metadata":{"skip":false,"skipReason":null},"line":33,"column":3,"url":"file:///C:/Users/ASUS/Downloads/Telegram%20Desktop/99999999/test/round2_crash_worker_test.dart"},"type":"testStart","time":13936}
+{"testID":3,"messageType":"print","message":"[StartupPerf] event=message_core_db_open category=cold_start elapsedMs=0.0 deltaMs=0.0 prev=process_start durationMs=31 created=false","type":"print","time":14009}
+{"testID":3,"messageType":"print","message":"[StartupPerf] event=message_core_db_ready category=cold_start elapsedMs=7.0 deltaMs=7.0 prev=message_core_db_open durationMs=38","type":"print","time":14013}
+{"testID":3,"messageType":"print","message":"[DraftLeaveTrace] stage=sdk_draft_write_done t=1790302374480 conv=8cd90432dbeb draftLen=0 draftHash= empty=true","type":"print","time":14052}
+{"testID":3,"error":"MissingPluginException(No implementation found for method write on channel plugins.it_nomads.com/flutter_secure_storage)","stackTrace":"package:flutter/src/services/platform_channel.dart 364:7  MethodChannel._invokeMethod\n","isFailure":false,"type":"error","time":14069}
+{"testID":3,"result":"error","skipped":false,"hidden":false,"type":"testDone","time":14069}
+{"success":false,"type":"done","time":14104}

@@ -55,6 +55,7 @@ class PushRegistrationService {
       return;
     }
 
+    IosApnsPushService.instance.resumeTokenSyncAfterLogin();
     await NotificationSettingsService.instance.applyFromSettings();
 
     final loginRes = await TencentImSDKPlugin.v2TIMManager.getLoginUser();
@@ -69,6 +70,9 @@ class PushRegistrationService {
   Future<void> deletePushTokenBeforeImLogout() async {
     if (kIsWeb || !IMDemoConfig.selfHostedPushEnabled) {
       return;
+    }
+    if (Platform.isIOS) {
+      await IosApnsPushService.instance.prepareForLogout();
     }
     // JWT/IM 仍可能可用：尽量记住 owner，避免后续 clearLocal 落到空号。
     final fromStore = ChatIdFormat.rawUserUid(

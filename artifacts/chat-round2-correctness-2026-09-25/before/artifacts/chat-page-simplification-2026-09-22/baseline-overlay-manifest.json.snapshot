@@ -1,0 +1,56 @@
+{
+  "temp_root": "C:\\Users\\ASUS\\AppData\\Local\\Temp\\chat-baseline-overlay-im131pxg",
+  "package_config": "C:\\Users\\ASUS\\AppData\\Local\\Temp\\chat-baseline-overlay-im131pxg\\package_config.json",
+  "package_count": 333,
+  "overlaid_snapshots": [
+    {
+      "snapshot": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\artifacts\\chat-page-simplification-2026-09-22\\before\\chat_list_pagination_ui_gate.dart.txt",
+      "overlay": "C:\\Users\\ASUS\\AppData\\Local\\Temp\\chat-baseline-overlay-im131pxg\\tencent_cloud_chat_uikit\\lib\\ui\\controllers\\chat_list_pagination_ui_gate.dart",
+      "sha256": "f5a9307b7a2ac1e22ecbe955b0cb8b4c357cee17b1e6f97fbd10ee56d200c088",
+      "current_source": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\third_party\\tencent_cloud_chat_uikit\\lib\\ui\\controllers\\chat_list_pagination_ui_gate.dart",
+      "current_sha256": "7f89c62d6d5af483565e127dba27e61cb28d919d03186f0888af97173829766c",
+      "changed_since_before": true
+    },
+    {
+      "snapshot": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\artifacts\\chat-page-simplification-2026-09-22\\before\\tim_uikit_chat_history_message_list.dart.txt",
+      "overlay": "C:\\Users\\ASUS\\AppData\\Local\\Temp\\chat-baseline-overlay-im131pxg\\tencent_cloud_chat_uikit\\lib\\ui\\views\\TIMUIKitChat\\TIMUIKItMessageList\\tim_uikit_chat_history_message_list.dart",
+      "sha256": "e4ff85f5a52b395186ade2ff5b7bab78cfb36cef1f1cd13cd34910685afe021a",
+      "current_source": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\third_party\\tencent_cloud_chat_uikit\\lib\\ui\\views\\TIMUIKitChat\\TIMUIKItMessageList\\tim_uikit_chat_history_message_list.dart",
+      "current_sha256": "36bae05a8496602f463122803872e7c8ae8f5b11fa3cd559c876b70944557f87",
+      "changed_since_before": true
+    },
+    {
+      "snapshot": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\artifacts\\chat-page-simplification-2026-09-22\\before\\tim_uikit_chat_history_message_list_tongue_container.dart.txt",
+      "overlay": "C:\\Users\\ASUS\\AppData\\Local\\Temp\\chat-baseline-overlay-im131pxg\\tencent_cloud_chat_uikit\\lib\\ui\\views\\TIMUIKitChat\\TIMUIKItMessageList\\TIMUIKitTongue\\tim_uikit_chat_history_message_list_tongue_container.dart",
+      "sha256": "bdefeab42d138977b1c874d667cc07ca88f6ffdbb5ba26f31f9e0e0fa8ebae9a",
+      "current_source": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\third_party\\tencent_cloud_chat_uikit\\lib\\ui\\views\\TIMUIKitChat\\TIMUIKItMessageList\\TIMUIKitTongue\\tim_uikit_chat_history_message_list_tongue_container.dart",
+      "current_sha256": "4d0e4c7a922ded60cfdbf71af395ef286e4d23960cbcfa03347aa293e41dc96d",
+      "changed_since_before": true
+    },
+    {
+      "snapshot": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\artifacts\\chat-page-simplification-2026-09-22\\before\\tui_chat_global_model.dart.txt",
+      "overlay": "C:\\Users\\ASUS\\AppData\\Local\\Temp\\chat-baseline-overlay-im131pxg\\tencent_cloud_chat_uikit\\lib\\business_logic\\view_models\\tui_chat_global_model.dart",
+      "sha256": "b633eb30c5b3dad5fcc766c2ac26f7610f36055c67f4347c275db80f771b9b62",
+      "current_source": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\third_party\\tencent_cloud_chat_uikit\\lib\\business_logic\\view_models\\tui_chat_global_model.dart",
+      "current_sha256": "b633eb30c5b3dad5fcc766c2ac26f7610f36055c67f4347c275db80f771b9b62",
+      "changed_since_before": false
+    },
+    {
+      "snapshot": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\artifacts\\chat-page-simplification-2026-09-22\\before\\tui_chat_history_live_window.dart.txt",
+      "overlay": "C:\\Users\\ASUS\\AppData\\Local\\Temp\\chat-baseline-overlay-im131pxg\\tencent_cloud_chat_uikit\\lib\\business_logic\\separate_models\\tui_chat_history_live_window.dart",
+      "sha256": "da3d01ff51c5d5e0353a1ea24bd0c0eb3debd9d901bea879e9beca9e0f783ede",
+      "current_source": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\third_party\\tencent_cloud_chat_uikit\\lib\\business_logic\\separate_models\\tui_chat_history_live_window.dart",
+      "current_sha256": "96ecd847cac589482b2589117b2da3c1f3794b2eb645250a15047354cf75f892",
+      "changed_since_before": true
+    },
+    {
+      "snapshot": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\artifacts\\chat-page-simplification-2026-09-22\\before\\tui_chat_history_pagination_load.dart.txt",
+      "overlay": "C:\\Users\\ASUS\\AppData\\Local\\Temp\\chat-baseline-overlay-im131pxg\\tencent_cloud_chat_uikit\\lib\\business_logic\\separate_models\\tui_chat_history_pagination_load.dart",
+      "sha256": "0f6c43a887b5ba4369ef38f2e561a4c5e0b433b3dc787104f8fcf36f6800ec9e",
+      "current_source": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\third_party\\tencent_cloud_chat_uikit\\lib\\business_logic\\separate_models\\tui_chat_history_pagination_load.dart",
+      "current_sha256": "f39e174e51d021a00f0fd2698041b259ecc1f88206dd05fe063d879ffb66b0de",
+      "changed_since_before": true
+    }
+  ],
+  "package_graph_copied_from": "C:\\Users\\ASUS\\Downloads\\Telegram Desktop\\99999999\\.dart_tool\\package_graph.json"
+}

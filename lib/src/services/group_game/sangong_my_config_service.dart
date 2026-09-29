@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:tencent_cloud_chat_demo/src/api/sangong_admin_api.dart';
 import 'package:tencent_cloud_chat_demo/src/models/sangong_my_config.dart';
 import 'package:tencent_cloud_chat_demo/src/services/group_game/sangong_my_config_store.dart';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 
 /// 当前群相对 my-config 的入口判定结果。
@@ -39,7 +40,26 @@ class SangongMyConfigGroupAccess {
 
 /// 三公 my-config：登录/冷启动读本地秒开，后台刷新网络并回写。
 class SangongMyConfigService {
-  SangongMyConfigService._();
+  SangongMyConfigService._()
+      : _readLocal =
+            ((owner) => SangongMyConfigStore.instance.read(ownerUserId: owner)),
+        _writeLocal = ((owner, config) => SangongMyConfigStore.instance
+            .write(ownerUserId: owner, config: config)),
+        _fetchRemote = SangongAdminApi.instance.fetchMyConfig;
+
+  @visibleForTesting
+  SangongMyConfigService.forTesting({
+    required Future<SangongMyConfig?> Function(String owner) readLocal,
+    required Future<void> Function(String owner, SangongMyConfig config)
+        writeLocal,
+    required Future<SangongMyConfig> Function() fetchRemote,
+  })  : _readLocal = readLocal,
+        _writeLocal = writeLocal,
+        _fetchRemote = fetchRemote;
+
+  final Future<SangongMyConfig?> Function(String owner) _readLocal;
+  final Future<void> Function(String owner, SangongMyConfig config) _writeLocal;
+  final Future<SangongMyConfig> Function() _fetchRemote;
 
   static final SangongMyConfigService instance = SangongMyConfigService._();
 
@@ -48,6 +68,8 @@ class SangongMyConfigService {
       ValueNotifier<SangongMyConfig?>(null);
 
   String? _activeOwner;
+  int _epoch = 0;
+  int? _sessionGeneration;
   bool _hydrated = false;
   Future<SangongMyConfig>? _inflightRefresh;
   int _configRevision = 0;
@@ -63,31 +85,54 @@ class SangongMyConfigService {
     );
   }
 
+  void _selectOwner(String owner) {
+    final generation = SessionIdentityService.instance.generation;
+    if (_activeOwner == owner && _sessionGeneration == generation) return;
+    clearSession();
+    _activeOwner = owner;
+    _sessionGeneration = generation;
+  }
+
+  bool _isCurrent(String owner, int epoch) =>
+      _epoch == epoch &&
+      _activeOwner == owner &&
+      _sessionGeneration == SessionIdentityService.instance.generation;
+
   /// 仅灌本地缓存（不打网络），进群页可 await 后秒开 UI。
   Future<void> ensureHydrated({String? userId}) async {
     final owner = _resolveOwner(userId);
     if (owner.isEmpty) {
       return;
     }
-    final switchingUser = _activeOwner != null && _activeOwner != owner;
-    _activeOwner = owner;
-    if (_hydrated && !switchingUser) {
+    _selectOwner(owner);
+    if (_hydrated) {
       return;
     }
-    final cached = await SangongMyConfigStore.instance.read(
-      ownerUserId: owner,
-    );
+    final epoch = _epoch;
+    final revision = _configRevision;
+    final cached = await _readLocal(owner);
+    if (!_isCurrent(owner, epoch) || revision != _configRevision) return;
     _hydrated = true;
     _applyConfig(cached, notify: true);
   }
 
   /// 登录成功或冷启动恢复会话后调用：先本地、后网络。
   Future<void> activateSession({String? userId}) async {
-    await ensureHydrated(userId: userId);
-    unawaited(refreshFromNetwork());
+    final owner = _resolveOwner(userId);
+    if (owner.isEmpty) return;
+    _selectOwner(owner);
+    final epoch = _epoch;
+    await ensureHydrated(userId: owner);
+    if (!_isCurrent(owner, epoch)) return;
+    unawaited(refreshFromNetwork().then<void>((_) {},
+        onError: (Object error, StackTrace _) {
+      debugPrint('[SangongConfig] refresh failed: $error');
+    }));
   }
 
   void clearSession() {
+    _epoch++;
+    _sessionGeneration = null;
     _configRevision++;
     _activeOwner = null;
     _hydrated = false;
@@ -106,47 +151,53 @@ class SangongMyConfigService {
 
   /// 保存成功后立刻写入内存 + 本地，避免再等网络。
   Future<void> applySaved(SangongMyConfig config) async {
-    final revision = ++_configRevision;
     final owner = _activeOwner ?? _resolveOwner(null);
+    if (owner.isEmpty) return;
+    _selectOwner(owner);
+    final epoch = _epoch;
+    final revision = ++_configRevision;
     if (owner.isNotEmpty) {
-      await SangongMyConfigStore.instance.write(
-        ownerUserId: owner,
-        config: config,
-      );
+      await _writeLocal(owner, config);
     }
-    _hydrated = true;
-    if (revision == _configRevision) {
+    if (_isCurrent(owner, epoch) && revision == _configRevision) {
+      _hydrated = true;
       _applyConfig(config, notify: true);
     }
   }
 
   /// 页面打开时可再触发后台刷新；有 in-flight 时复用同一请求。
   Future<SangongMyConfig> refreshFromNetwork() {
+    final owner =
+        _sessionGeneration == SessionIdentityService.instance.generation
+            ? (_activeOwner ?? _resolveOwner(null))
+            : _resolveOwner(null);
+    if (owner.isEmpty) return Future.value(const SangongMyConfig());
+    _selectOwner(owner);
     final running = _inflightRefresh;
     if (running != null) {
       return running;
     }
-    final task = _refreshFromNetworkCore();
-    _inflightRefresh = task.whenComplete(() {
+    late final Future<SangongMyConfig> task;
+    task = _refreshFromNetworkCore(owner, _epoch).whenComplete(() {
       if (identical(_inflightRefresh, task)) {
         _inflightRefresh = null;
       }
     });
-    return _inflightRefresh!;
+    _inflightRefresh = task;
+    return task;
   }
 
-  Future<SangongMyConfig> _refreshFromNetworkCore() async {
+  Future<SangongMyConfig> _refreshFromNetworkCore(
+      String owner, int epoch) async {
     final requestRevision = _configRevision;
     try {
-      final remote = await SangongAdminApi.instance.fetchMyConfig();
-      final owner = _activeOwner ?? _resolveOwner(null);
+      final remote = await _fetchRemote();
+      if (!_isCurrent(owner, epoch) || requestRevision != _configRevision)
+        return config;
       if (owner.isNotEmpty) {
-        await SangongMyConfigStore.instance.write(
-          ownerUserId: owner,
-          config: remote,
-        );
-        if ((_activeOwner == owner || _activeOwner == null) &&
-            requestRevision == _configRevision) {
+        await _writeLocal(owner, remote);
+        if (_isCurrent(owner, epoch) && requestRevision == _configRevision) {
+          _configRevision++;
           _hydrated = true;
           _applyConfig(remote, notify: true);
         }
@@ -155,6 +206,7 @@ class SangongMyConfigService {
       }
       return remote;
     } catch (_) {
+      if (!_isCurrent(owner, epoch)) return config;
       final cached = configListenable.value;
       if (cached != null) {
         return cached;
