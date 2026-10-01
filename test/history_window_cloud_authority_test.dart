@@ -10,6 +10,8 @@ import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message_list_result.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_text_elem.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/message_reconciliation_coordinator.dart';
+import 'package:tencent_cloud_chat_uikit/business_logic/view_models/message_history_coverage.dart';
+import 'package:tencent_cloud_chat_uikit/business_logic/view_models/message_delta.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/history_window_repository.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.dart';
@@ -153,6 +155,63 @@ void main() {
     expect(rows.map((m) => m.msgID), ['m103', 'm101', 'm100']);
     expect(rows.first.textElem!.text, 'authoritative edit');
     expect(global.messageWriterRetainedCountForTesting(conv), rows.length);
+  });
+
+  test('cloud latest window can complete fields of the same local msgID', () {
+    global.setMessageList(conv, [row(1, text: 'local partial')], replace: true);
+    final request = global.beginHistoryReconciliation(
+      conversationID: conv,
+      requestedSource: MessageReconciliationSource.cloud,
+      networkState: MessageReconciliationNetworkState.online,
+    );
+    final commit = global.completeHistoryReconciliation(
+      request: request,
+      history: [row(1, text: 'cloud complete')],
+      actualSource: MessageReconciliationSource.cloud,
+      networkState: MessageReconciliationNetworkState.online,
+      batchKind: MessageHistoryBatchKind.latestWindow,
+      applyMemoryWindow: false,
+    );
+    expect(commit, isNotNull);
+    expect(global.rawMessageList(conv), hasLength(1));
+    expect(
+        global.rawMessageList(conv)!.single.textElem!.text, 'cloud complete');
+  });
+
+  test('cloud latest field completion keeps off-page and newer realtime rows',
+      () {
+    global.setMessageList(
+      conv,
+      [row(2, text: 'local partial'), row(1, text: 'older off-page')],
+      replace: true,
+    );
+    final live = row(2, text: 'newer realtime');
+    global.commitMessageDelta(MessageDelta<V2TimMessage>(
+      conversationKey: conv,
+      eventID: 'realtime:m2:newer',
+      kind: MessageDeltaKind.realtimeUpsert,
+      source: MessageDeltaSource.sdkRealtime,
+      generation: global.messageDeltaGenerationFor(conv),
+      clearEpoch: global.messageDeltaClearEpochFor(conv),
+      upserts: [global.messageDeltaRecord(live)],
+    ));
+    final request = global.beginHistoryReconciliation(
+      conversationID: conv,
+      requestedSource: MessageReconciliationSource.cloud,
+      networkState: MessageReconciliationNetworkState.online,
+    );
+    final commit = global.completeHistoryReconciliation(
+      request: request,
+      history: [row(2, text: 'stale cloud copy')],
+      actualSource: MessageReconciliationSource.cloud,
+      networkState: MessageReconciliationNetworkState.online,
+      batchKind: MessageHistoryBatchKind.latestWindow,
+      applyMemoryWindow: false,
+    );
+    expect(commit, isNotNull);
+    expect(global.rawMessageList(conv)!.map((message) => message.msgID),
+        ['m2', 'm1']);
+    expect(global.rawMessageList(conv)!.first.textElem!.text, 'newer realtime');
   });
 
   test(

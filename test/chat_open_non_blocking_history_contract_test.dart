@@ -190,8 +190,10 @@ void main() {
 
     final scheduler = source.substring(scheduleStart, runnerStart);
     expect(scheduler, contains('allowRemoteHistoryAfterFirstFrame()'));
-    expect(scheduler, contains('localWindowIsEmpty'));
-    expect(scheduler, contains('? Duration.zero'));
+    expect(scheduler.indexOf('allowRemoteHistoryAfterFirstFrame()'),
+        lessThan(scheduler.indexOf('final delay =')));
+    expect(scheduler, contains('completeLocalWindow && !previewAhead'));
+    expect(scheduler, contains(': Duration.zero'));
 
     final runnerEnd =
         source.indexOf('void _tryMarkChatOpenEnriched()', runnerStart);
@@ -200,9 +202,12 @@ void main() {
       runner,
       contains('chat_open_cloud_verify_requeued_by_user_state'),
     );
-    expect(
-      RegExp(r'_runDeferredHistoryVerification\(').allMatches(runner).length,
-      greaterThanOrEqualTo(2),
-    );
+    // One owned retry loop replaced recursive rescheduling. A thin local
+    // window verifies immediately, and user scrolling must not lock paging.
+    expect(runner, contains('_pendingDeferredHistoryVerifications.add(key)'));
+    expect(runner, contains('_pendingDeferredHistoryVerifications.remove(key)'));
+    expect(runner, contains('while (globalModel.isChatListUserScrolling'));
+    expect(runner,
+        contains('await Future<void>.delayed(const Duration(milliseconds: 700))'));
   });
 }

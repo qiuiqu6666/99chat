@@ -175,7 +175,7 @@ class ConversationTabStore extends ChangeNotifier {
     final patches = <V2TimConversation>[];
     for (final rows in _items.values) {
       for (final row in rows) {
-        final count = aggregate.sdkUnreadCountFor(row.conversationID);
+        final count = aggregate.projectedUnreadCountFor(row.conversationID);
         if (count == null || count == row.unreadCount) continue;
         patches.add(mergePatchRow(
           existing: row,
@@ -316,7 +316,7 @@ class ConversationTabStore extends ChangeNotifier {
       row.unreadCount = raw.unreadCount ??
           previous?.unreadCount ??
           ConversationUnreadAggregate.instance
-              .sdkUnreadCountFor(raw.conversationID);
+              .projectedUnreadCountFor(raw.conversationID);
       _pendingRealtimeRows[key] = row;
       // ByIDs restores may finish before the publication timer fires.
       _recordRestorePatch(row, draft: false, last: false);
@@ -1421,7 +1421,7 @@ class ConversationTabStore extends ChangeNotifier {
       }
       final incomingRow = _withUnloadedMessagePreview(inputRow);
       final aggregate = ConversationUnreadAggregate.instance;
-      final count = aggregate.sdkUnreadCountFor(incomingRow.conversationID);
+      final count = aggregate.projectedUnreadCountFor(incomingRow.conversationID);
       final raw = aggregate.usesSdkUnread && count != null
           ? mergePatchRow(
               existing: incomingRow,
@@ -2454,7 +2454,7 @@ class ConversationTabStore extends ChangeNotifier {
               // SQLite is a business/cache mirror, not an unread authority.
               // A delayed local read/pin/preview commit must not overwrite
               // a more recent SDK count, including a cross-device read.
-              final count = aggregate.sdkUnreadCountFor(row.conversationID) ??
+              final count = aggregate.projectedUnreadCountFor(row.conversationID) ??
                   conversationForId(row.conversationID)?.unreadCount ?? 0;
               return mergePatchRow(
                 existing: row,

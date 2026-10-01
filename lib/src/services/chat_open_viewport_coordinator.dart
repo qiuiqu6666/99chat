@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 
@@ -145,6 +146,9 @@ class ChatOpenViewportCoordinator {
       preview: conversation.lastMessage,
     )) return true;
     final identity = SessionIdentityService.instance.capture();
+    final diagnostic = ChatTraceOperation('ChatOpenViewportCoordinator.hydrate',
+        conversationID: key, generation: identity.generation);
+    diagnostic.enter('start');
     final last = conversation.lastMessage;
     final signature = '${identity.ownerUserId}|${identity.generation}|'
         '${last?.msgID}|${last?.seq}|${last?.timestamp}|'
@@ -162,9 +166,13 @@ class ChatOpenViewportCoordinator {
         logTrace: hydrateTrace,
       ),
     ));
+    diagnostic.enter('hydrate_wait');
+    unawaited(task.then<void>((_) => diagnostic.finish(),
+        onError: (Object error, StackTrace _) => diagnostic.finish(error: error)));
     try {
       return (await task.timeout(timeout)).shouldSuppressOrdinaryLoad;
     } on TimeoutException {
+      diagnostic.enter('caller_detached_hydrate_still_pending');
       ChatOpenPerfLog.mark(
         'local_snapshot_wait_timeout',
         conversationID: key,
@@ -654,4 +662,3 @@ class ChatOpenViewportCoordinator {
     return result;
   }
 }
-

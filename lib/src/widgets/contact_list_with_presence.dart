@@ -37,6 +37,7 @@ import 'package:tencent_cloud_chat_demo/src/widgets/app_list_pressable.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/presence_subtitle.dart';
 import 'package:tencent_cloud_chat_demo/utils/friend_mutual_utils.dart';
 import 'package:tencent_cloud_chat_demo/utils/user_display_profile.dart';
+import 'package:tencent_cloud_chat_demo/utils/user_avatar.dart';
 import 'package:tencent_cloud_chat_demo/src/services/user_profile_local/user_profile_local_service.dart';
 
 class ContactListWithPresence extends StatefulWidget {
@@ -908,6 +909,12 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
     final faceUrl = _faceUrl(item);
     final localProfile =
         UserProfileLocalService.instance.readCached(item.userID);
+    final avatarCacheKey = UserAvatarHelper.cacheKey(
+      ownerId: item.userID,
+      avatarVersion: localProfile?.avatarVersion,
+      isGroup: false,
+      variant: 'thumb',
+    );
     final isMutualFriend = friendCanMessage(_friendShipModel, item.userID);
     final isStarred = starred.isStarred(item.userID);
     final imStatus = _statusOf(item.userID);
@@ -982,12 +989,14 @@ class _ContactListWithPresenceState extends State<ContactListWithPresence> {
                               presence: presence,
                               userId: item.userID,
                               faceUrl: faceUrl,
+                              avatarCacheKey: avatarCacheKey,
                               showName: showName,
                               imStatus: imStatus,
                               isMutualFriend: isMutualFriend,
                             )
                           : Avatar(
                               faceUrl: faceUrl,
+                              avatarCacheKey: avatarCacheKey,
                               showName: showName,
                               borderRadius: _contactAvatarBorderRadius,
                             ),
@@ -1187,6 +1196,7 @@ class _ContactPresenceAvatar extends StatelessWidget {
     required this.presence,
     required this.userId,
     required this.faceUrl,
+    required this.avatarCacheKey,
     required this.showName,
     required this.imStatus,
     required this.isMutualFriend,
@@ -1195,6 +1205,7 @@ class _ContactPresenceAvatar extends StatelessWidget {
   final PresenceProvider presence;
   final String userId;
   final String faceUrl;
+  final String? avatarCacheKey;
   final String showName;
   final V2TimUserStatus? imStatus;
   final bool isMutualFriend;
@@ -1210,6 +1221,7 @@ class _ContactPresenceAvatar extends StatelessWidget {
       return Avatar(
         onlineStatus: onlineStatus,
         faceUrl: faceUrl,
+        avatarCacheKey: avatarCacheKey,
         showName: showName,
         borderRadius: _ContactListWithPresenceState._contactAvatarBorderRadius,
       );

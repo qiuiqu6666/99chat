@@ -77,8 +77,28 @@ void main() {
       [first],
       isCurrent: () => true,
     );
-    expect(global.remainingLiveIncomingCountFor(conv), 0);
+    expect(global.remainingLiveIncomingCountFor(conv), 1,
+        reason: 'visible reading does not decrement the visit capsule');
     expect(global.liveReceiveGenerationFor(conv), gen);
+  });
+
+  test('latest commit accepts an already-read row outside the final window',
+      () async {
+    await global.applyAppRealtimeMessage(_message(conv, 2));
+    await global.applyAppRealtimeMessage(_message(conv, 3));
+    await waitUntil(() => global.deferredIncomingBufferedCount(conv) == 2);
+    expect(global.flushDeferredIncomingMessages(conv, userInitiated: true), isTrue);
+    await global.acknowledgeVisibleHistoryMessages(conv, [_message(conv, 2)],
+        isCurrent: () => true);
+    expect(global.remainingLiveIncomingCountFor(conv), 2);
+    expect(model.commitLiveFollowRestore(
+      visit: global.unreadVisitGenerationFor(conv),
+      restoreOpId: global.beginLiveFollowRestoreOp(conv),
+      liveReceiveGeneration: global.liveReceiveGenerationFor(conv),
+      targetTipId: '$conv-3',
+      coveredIds: {'$conv-3'},
+    ), isTrue);
+    expect(global.remainingLiveIncomingCountFor(conv), 0);
   });
 
   test('markLiveIncomingSeen reduces remaining and is visit-permanent',

@@ -3896,7 +3896,8 @@ class _TIMUIKitHistoryMessageListState
     final publishedIDs = (global.rawMessageList(conv) ?? const <V2TimMessage>[])
         .map(TUIChatGlobalModel.liveIncomingIdentity)
         .toSet();
-    return publishedIDs.containsAll(global.remainingLiveIncomingIdsFor(conv));
+    return publishedIDs.containsAll(
+        global.remainingLiveIncomingIdsFor(conv, excludeRead: true));
   }
 
   void _rememberFollowingDragLatestEdge() {
@@ -6251,10 +6252,11 @@ class _TIMUIKitHistoryMessageListState
         return;
       }
       _visibleIncomingProgressSignature = signature;
-      // One painted reading edge drives both ledgers. This includes rows
-      // crossed between frames before a bounded window trims their widgets.
+      // The painted edge records reading, but does not decrement the visit's
+      // capsule. Latest-end settlement owns that reminder's retirement.
       global.markLiveIncomingSeen(
         conversationID: conv,
+        preserveReminder: true,
         ids: messages
             .skip(readingEdge)
             .whereType<V2TimMessage>()
@@ -6409,7 +6411,7 @@ class _TIMUIKitHistoryMessageListState
         widget.model.isLoadingChatHistory) {
       return;
     }
-    final remaining = global.remainingLiveIncomingIdsFor(conv);
+    final remaining = global.remainingLiveIncomingIdsFor(conv, excludeRead: true);
     if (remaining.isEmpty) {
       return;
     }
@@ -6465,7 +6467,8 @@ class _TIMUIKitHistoryMessageListState
       }
     }
     if (seen.isNotEmpty) {
-      global.markLiveIncomingSeen(conversationID: conv, ids: seen);
+      global.markLiveIncomingSeen(
+          conversationID: conv, ids: seen, preserveReminder: true);
     }
   }
 

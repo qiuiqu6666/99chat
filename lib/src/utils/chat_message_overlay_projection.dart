@@ -26,6 +26,12 @@ List<V2TimMessage> projectChatMessageOverlays({
   }
   final visibleOverlays = overlays.where((row) {
     if (oldest == null || newest == null) {
+      // REST order history can beat the first SDK page. No time boundary is
+      // not proof of an empty conversation: old wallet cards must wait for a
+      // window, or a confirmed empty range covering both history edges.
+      if (row.msgID?.startsWith('local_wallet_card:') == true) {
+        return olderHistoryExhausted && includesLatestEdge;
+      }
       // A call-only chat has no SDK boundary to clip against. Keep its
       // business history stable when the user scrolls away from latest too.
       return true;

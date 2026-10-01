@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_tab_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_unread_aggregate.dart';
@@ -56,9 +57,11 @@ V2TimConversation _group(
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   final tab = ConversationTabStore.instance;
 
   setUpAll(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   });

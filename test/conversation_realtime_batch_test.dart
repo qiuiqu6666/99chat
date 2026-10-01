@@ -86,7 +86,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 60));
   });
 
-  testWidgets('local read and delete win over earlier buffered callbacks',
+  testWidgets(
+      'local read waits for SDK unread confirmation; delete is immediate',
       (tester) async {
     store.setItemsForTest(convType: 1, items: [row(1), row(2)]);
     receive(row(1, unread: 9));
@@ -94,12 +95,24 @@ void main() {
     receive(row(2, unread: 4));
     session.applyPendingRealtimeDeletion(['c2c_batch2']);
     await tester.pump(const Duration(milliseconds: 60));
-    expect(store.conversationForId('c2c_batch1')!.unreadCount, 0);
+    // The local read is an intent. Raw unread remains SDK-owned until its
+    // acknowledgement arrives; the deleted conversation disappears at once.
+    expect(store.conversationForId('c2c_batch1')!.unreadCount, 9);
     expect(store.conversationForId('c2c_batch2'), isNull);
+    expect(ConversationUnreadAggregate.instance.c2cNotifiableUnreadSum, 9);
+
+    receive(row(1, unread: 0));
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(store.conversationForId('c2c_batch1')!.unreadCount, 0);
     expect(ConversationUnreadAggregate.instance.c2cNotifiableUnreadSum, 0);
+
     receive(row(1, unread: 2));
     await tester.pump(const Duration(milliseconds: 60));
     expect(store.conversationForId('c2c_batch1')!.unreadCount, 2);
+    expect(ConversationUnreadAggregate.instance.c2cNotifiableUnreadSum, 2);
+    // The read intent scheduled a provider refresh; release its fake timer
+    // before testWidgets checks for pending asynchronous work.
+    session.clearSessionProjection();
   });
 
   testWidgets('metadata callbacks retain the latest buffered message',

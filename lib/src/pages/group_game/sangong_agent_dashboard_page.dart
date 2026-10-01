@@ -107,14 +107,13 @@ class _SangongAgentDashboardPageState extends State<SangongAgentDashboardPage> {
         ? (_data!['members'] as List).whereType<Map>().map(_map).toList()
         : const <Map<String, dynamic>>[];
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: const AppBackButton(),
         title:
             const Text('团队统计', style: TextStyle(fontWeight: FontWeight.w700)),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -159,21 +158,23 @@ class _SangongAgentDashboardPageState extends State<SangongAgentDashboardPage> {
         : value;
     return Card(
       elevation: 0,
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Row(children: [
-          const Icon(Icons.calendar_today_rounded,
-              size: 19, color: Color(0xFF2388F5)),
+          Icon(Icons.calendar_today_rounded,
+              size: 19, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 10),
           Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                const Text('当前业务批次',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF858C98))),
+                Text('当前业务批次',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 const SizedBox(height: 4),
                 Text(
                     _text(batch['batchNo']).isEmpty
@@ -183,14 +184,18 @@ class _SangongAgentDashboardPageState extends State<SangongAgentDashboardPage> {
                         fontSize: 17, fontWeight: FontWeight.w700)),
                 if (start.isNotEmpty)
                   Text('${time(start)} ～ ${running ? '至今' : time(stop)}',
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF858C98))),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant)),
               ])),
           Text(running ? '● 开机中' : '已结算',
               style: TextStyle(
                   color: running
-                      ? const Color(0xFF15945A)
-                      : const Color(0xFF77808F),
+                      ? (Theme.of(context).brightness == Brightness.dark
+                          ? Colors.green.shade300
+                          : Colors.green.shade800)
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w600)),
         ]),
       ),
@@ -200,14 +205,16 @@ class _SangongAgentDashboardPageState extends State<SangongAgentDashboardPage> {
   Widget _sectionTitle(String title, IconData icon, {String? trailing}) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: const Color(0xFF2388F5)),
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 7),
         Text(title,
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
         const Spacer(),
         if (trailing != null)
           Text(trailing,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF77808F))),
+              style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
       ],
     );
   }
@@ -215,7 +222,7 @@ class _SangongAgentDashboardPageState extends State<SangongAgentDashboardPage> {
   Widget _summaryCard(Map<String, dynamic> summary) {
     return Card(
       elevation: 0,
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -240,15 +247,19 @@ class _SangongAgentDashboardPageState extends State<SangongAgentDashboardPage> {
   Widget _heroMetric(String label, String value, dynamic state) {
     final number = state is num ? state : num.tryParse(_text(state)) ?? 0;
     final color = state == null
-        ? const Color(0xFF17181A)
+        ? Theme.of(context).colorScheme.onSurface
         : number > 0
-            ? const Color(0xFF15945A)
+            ? (Theme.of(context).brightness == Brightness.dark
+                ? Colors.green.shade300
+                : Colors.green.shade800)
             : number < 0
-                ? const Color(0xFFE04B4B)
-                : const Color(0xFF17181A);
+                ? Theme.of(context).colorScheme.error
+                : Theme.of(context).colorScheme.onSurface;
     return Row(children: [
       Expanded(
-          child: Text(label, style: const TextStyle(color: Color(0xFF858C98)))),
+          child: Text(label,
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant))),
       Text(value,
           style: TextStyle(
               fontSize: 22, fontWeight: FontWeight.w800, color: color))
@@ -263,7 +274,11 @@ class _SangongAgentDashboardPageState extends State<SangongAgentDashboardPage> {
       ('直属人数', _num(summary['directMemberCount']), false),
       ('上分', _money(summary['totalUp']), false),
       ('下分', _money(summary['totalDown']), false),
-      ('团队盈亏', _money(summary['totalProfitLoss'] ?? summary['profitLoss']), false),
+      (
+        '团队盈亏',
+        _money(summary['totalProfitLoss'] ?? summary['profitLoss']),
+        false
+      ),
     ];
     return GridView.count(
         shrinkWrap: true,
@@ -276,8 +291,11 @@ class _SangongAgentDashboardPageState extends State<SangongAgentDashboardPage> {
             .map((item) => Row(children: [
                   Expanded(
                       child: Text(item.$1,
-                          style: const TextStyle(
-                              fontSize: 12, color: Color(0xFF858C98)))),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant))),
                   Text(item.$2,
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w700))
@@ -306,8 +324,11 @@ class _SangongAgentDashboardPageState extends State<SangongAgentDashboardPage> {
           .map((item) => Row(children: [
                 Expanded(
                     child: Text(item.$1,
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF858C98)))),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant))),
                 Text(item.$2,
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w700)),
@@ -322,7 +343,7 @@ class _SangongAgentDashboardPageState extends State<SangongAgentDashboardPage> {
         : _text(member['nickname']);
     return Card(
       elevation: 0,
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ListTile(

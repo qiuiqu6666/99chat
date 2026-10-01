@@ -708,18 +708,24 @@ extension BoundedChatHistory on TUIChatGlobalModel {
     final state = _inboundUnreadStateFor(conversationID);
     final ownerCurrent = captureMessageOwnerFence(conversationID);
     state.durableOperationCount++;
+    final trace = ChatTraceOperation('deferredOperationTail',
+        conversationID: conversationID, generation: state.unreadVisitGeneration);
     if (admission) state.pendingDurableAdmissions++;
     final result = state.deferredOperationTail.then((_) async {
+      trace.enter('start');
       if (!ownerCurrent() ||
           !identical(
               _inboundUnreadStateFor(conversationID, create: false), state)) {
         throw const HistoryWindowStaleScope();
       }
+      trace.enter(admission ? 'admission' : 'operation');
       return operation(state);
     }).whenComplete(() {
       state.durableOperationCount--;
       if (admission) state.pendingDurableAdmissions--;
     });
+    unawaited(result.then<void>((_) => trace.finish(),
+        onError: (Object error, StackTrace _) => trace.finish(error: error)));
     // A failed operation must not poison subsequent retries.
     state.deferredOperationTail =
         result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
@@ -831,10 +837,10 @@ extension BoundedChatHistory on TUIChatGlobalModel {
         max(0, counts.receivedCount - state.unreadVisitBaselineReceived) +
             state.pendingLegacyMessages.length +
             state.revealedUnreadMessageIDs.length;
-    // Publish the outstanding durable/hot receipts, including decreases.
-    // Capsule N has its own remainingLiveIncomingIds ledger; keeping this
-    // counter monotonic leaves acknowledged rows pending until another arrival.
-    state.receivedCount = publishedReceived;
+    // SQL receipts may decrease as rows are read. The visit reminder stays
+    // until latest-end settlement; it is not the outstanding receipt count.
+    state.receivedCount =
+        max(publishedReceived, state.remainingLiveIncomingIds.length);
     state.unreadCount = state.lockedEntryUnreadCount +
         state.durableUnreadCount +
         state.pendingLegacyMessages.length +
@@ -903,16 +909,20 @@ extension BoundedChatHistory on TUIChatGlobalModel {
         const VisibleHistoryAckResult(VisibleHistoryAckStatus.stale));
     if (ids.isEmpty) return Future.value(
         const VisibleHistoryAckResult(VisibleHistoryAckStatus.noChange));
-    VisibleHistoryAckResult completed(bool changed) => VisibleHistoryAckResult(
-        changed ? VisibleHistoryAckStatus.changed : VisibleHistoryAckStatus.noChange);
+    Future<VisibleHistoryAckResult> completed(bool changed) async {
+      await ConversationUnreadClearService.acknowledgeVisibleMessages(
+          conversationID, visibleMessages, isCurrent: ownerAndVisitCurrent);
+      return VisibleHistoryAckResult(changed
+          ? VisibleHistoryAckStatus.changed : VisibleHistoryAckStatus.noChange);
+    }
     var consumedHot = false;
     void consumeVisibleHot() {
       final visibleHot = ids.where(state.revealedUnreadMessageIDs.contains).toSet();
       if (visibleHot.isEmpty) return;
       consumedHot = true;
-      state.receivedCount = max(0, state.receivedCount - visibleHot.length);
+      state.receivedCount = max(state.remainingLiveIncomingIds.length,
+          state.receivedCount - visibleHot.length);
       state.revealedUnreadMessageIDs.removeAll(visibleHot);
-      state.remainingLiveIncomingIds.removeAll(visibleHot);
       state.seenLiveIncomingIds.addAll(visibleHot);
       state.bufferedMessages.removeWhere((message) => visibleHot.contains(
           (message.msgID?.trim().isNotEmpty ?? false)
@@ -931,7 +941,7 @@ extension BoundedChatHistory on TUIChatGlobalModel {
     }
     if (!state.durableDeferred && state.pendingLegacyMessages.isEmpty &&
         state.pendingDurableAdmissions == 0 && !state.unreadVisitBaselinePending) {
-      return Future.value(completed(consumedHot));
+      return completed(consumedHot);
     }
     return _serializeHistoryDeferred<VisibleHistoryAckResult>(conversationID, (state) async {
       if (!current()) return const VisibleHistoryAckResult(VisibleHistoryAckStatus.stale);
@@ -958,9 +968,9 @@ extension BoundedChatHistory on TUIChatGlobalModel {
         if (!current()) return const VisibleHistoryAckResult(VisibleHistoryAckStatus.stale);
         return completed(consumedHot);
       }
-      state.remainingLiveIncomingIds.removeAll(consumed);
       state.seenLiveIncomingIds.addAll(consumed);
-      state.receivedCount = max(0, state.receivedCount - consumed.length);
+      state.receivedCount = max(state.remainingLiveIncomingIds.length,
+          state.receivedCount - consumed.length);
       state.bufferedMessages.removeWhere((message) => consumed.contains(
           (message.msgID?.trim().isNotEmpty ?? false)
               ? message.msgID!.trim()

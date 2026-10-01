@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
     if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_custom_elem.dart'
@@ -11,12 +13,13 @@ import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/utils/chat_id_format.dart';
 import 'package:tencent_cloud_chat_demo/utils/api_response_util.dart';
 import 'wallet_order_events.dart';
+import 'wallet_business_identity.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/archive_history_provider.dart';
 
 typedef WalletCardPageReader = Future<Map<String, dynamic>> Function(
     Map<String, dynamic> query);
 
-/// REST owns the business card. IM messages only locate/announce it. These rows
+/// REST updates card state; a formal IM message owns its business identity. These rows
 /// belong exclusively to display projection, never to SDK history or seq coverage.
 class WalletConversationCards extends ChangeNotifier {
   WalletConversationCards(
@@ -32,6 +35,8 @@ class WalletConversationCards extends ChangeNotifier {
   final WalletCardPageReader _reader;
   final Map<String, Map<String, dynamic>> _cards = {};
   final Set<String> _represented = {};
+  // SDK tombstones observed by this route outlive a particular visible page.
+  final Set<String> _revokedCards = {};
   Timer? _timer;
   bool _disposed = false;
   bool _busy = false;
@@ -130,13 +135,15 @@ class WalletConversationCards extends ChangeNotifier {
     var changed = false;
     for (final raw in page['cards'] as List) {
       if (raw is! Map) continue;
-      final card = Map<String, dynamic>.from(raw);
+      final card =
+          Map<String, dynamic>.from(jsonDecode(jsonEncode(raw)) as Map);
       final id = card['cardId']?.toString() ?? '';
       final sender = ChatIdFormat.rawUserUid(card['senderUserId']?.toString());
       final recipient = card['conversationId']?.toString() ?? '';
       if (id.isEmpty ||
           card['paymentState'] != 'COMMITTED' ||
-          card['isGroup'] != group) {
+          card['isGroup'] != group ||
+          (card['target'] != null && card['target'] != target)) {
         continue;
       }
       if (group
@@ -145,11 +152,27 @@ class WalletConversationCards extends ChangeNotifier {
               (sender == target && recipient == _identity.ownerUserId))) {
         continue;
       }
+      final identity = WalletBusinessIdentity.fromMap(card);
+      if (identity == null ||
+          identity.orderId.isEmpty ||
+          id != identity.expectedCardId) {
+        _reject(id, 'rest_identity');
+        continue;
+      }
       final previousVersion =
           (_cards[id]?['cardStateVersion'] as num?)?.toInt() ?? 0;
       final incomingVersion = (card['cardStateVersion'] as num?)?.toInt() ?? 0;
       if (incomingVersion < previousVersion) continue;
-      if (jsonEncode(_cards[id]) != jsonEncode(card)) {
+      final previous = _cards[id];
+      if (previous != null && !_sameEntity(previous, card)) {
+        _reject(id, 'rest_entity_changed');
+        continue;
+      }
+      if (!_equal(previous, card)) {
+        if (previous != null && incomingVersion == previousVersion) {
+          _reject(id, 'equal_version_conflict');
+          continue;
+        }
         _cards[id] = card;
         changed = true;
       }
@@ -157,25 +180,94 @@ class WalletConversationCards extends ChangeNotifier {
     return changed;
   }
 
-  String? _knownId(V2TimMessage message) {
+  bool _equal(Object? a, Object? b) {
+    if (a is Map && b is Map) {
+      return a.length == b.length &&
+          a.keys.every((key) => b.containsKey(key) && _equal(a[key], b[key]));
+    }
+    if (a is List && b is List) {
+      return a.length == b.length &&
+          Iterable<int>.generate(a.length).every((i) => _equal(a[i], b[i]));
+    }
+    return a == b;
+  }
+
+  bool _sameEntity(Map a, Map b) {
+    final left = WalletBusinessIdentity.fromMap(a);
+    final right = WalletBusinessIdentity.fromMap(b);
+    if (left == null ||
+        right == null ||
+        left.family != right.family ||
+        left.orderId != right.orderId ||
+        (left.clientOrderId.isNotEmpty &&
+            right.clientOrderId.isNotEmpty &&
+            left.clientOrderId != right.clientOrderId)) {
+      return false;
+    }
+    for (final key in [
+      'cardId',
+      'orderId',
+      'senderUserId',
+      'conversationId',
+      'isGroup',
+      'target'
+    ]) {
+      final known = a[key]?.toString() ?? '';
+      if (known.isNotEmpty && known != (b[key]?.toString() ?? '')) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _reject(String cardId, String reason) {
+    ChatRecoveryTrace.log('wallet_projection_rejected',
+        conversationID: '${group ? 'group' : 'c2c'}_$target',
+        fields: {'cardId': cardId, 'reason': reason});
+  }
+
+  String? _knownId(V2TimMessage message, {bool requireCard = true}) {
     try {
       dynamic value = jsonDecode(message.customElem?.data ?? '');
       if (value is String) value = jsonDecode(value);
       if (value is! Map) return null;
-      final type = value['customType'] ?? value['type'];
-      if (!const [
-        'wallet_transfer',
-        'wallet_red_packet',
-        'wallet_group_transfer'
-      ].contains(type)) {
-        return null;
+      final identity = WalletBusinessIdentity.fromMap(value);
+      if (identity == null || identity.orderId.isEmpty) return null;
+      final id = identity.expectedCardId;
+      final conversationMatches = group
+          ? message.groupID == target
+          : (message.groupID?.isEmpty ?? true) &&
+              ChatIdFormat.rawUserUid(message.userID) ==
+                  ChatIdFormat.rawUserUid(target);
+      if (!conversationMatches) return null;
+      // Numeric order ids can overlap across wallet namespaces. A shared
+      // client/card identity, however, proves that a different REST cardId
+      // conflicts with this physical IM row.
+      for (final entry in _cards.entries) {
+        if (entry.key == id) continue;
+        final other = WalletBusinessIdentity.fromMap(entry.value);
+        if (other != null && identity.sharesConfirmedIdentityWith(other)) {
+          _represented.add(entry.key);
+          _reject(entry.key, 'wallet_identity_family_conflict');
+        }
       }
-      final id =
-          '${type == 'wallet_transfer' ? 'transfer' : 'rp'}:${value['orderId'] ?? value['id']}';
       final card = _cards[id];
-      if (card == null ||
+      if (card == null) return requireCard ? null : id;
+      final equalVersion = (card['cardStateVersion'] as num? ?? 0) ==
+          (value['cardStateVersion'] as num? ?? 0);
+      final contentConflict = equalVersion &&
+          value.keys.any(
+              (key) => card.containsKey(key) && !_equal(value[key], card[key]));
+      if (contentConflict ||
+          !_sameEntity(value, card) ||
           ChatIdFormat.rawUserUid(message.sender) !=
-              ChatIdFormat.rawUserUid(card['senderUserId']?.toString())) {
+              ChatIdFormat.rawUserUid(card['senderUserId']?.toString()) ||
+          (card['cardStateVersion'] as num? ?? 0) <
+              (value['cardStateVersion'] as num? ?? 0)) {
+        // Keep the canonical row and suppress a conflicting stand-alone REST
+        // row for this identity too. Never mutate the physical IM message.
+        _represented.add(id);
+        _reject(id, 'im_identity_mismatch');
         return null;
       }
       return id;
@@ -195,7 +287,14 @@ class WalletConversationCards extends ChangeNotifier {
       {int clearEpoch = 0}) {
     if (clearEpoch > _clearedAt) _clearedAt = clearEpoch;
     _represented.clear();
-    if (!_current || _cards.isEmpty) return messages;
+    if (!_current) return messages;
+    for (final message in messages) {
+      if (message.status == MessageStatus.V2TIM_MSG_STATUS_LOCAL_REVOKED) {
+        final id = _knownId(message, requireCard: false);
+        if (id != null) _revokedCards.add(id);
+      }
+    }
+    if (_cards.isEmpty) return messages;
     final times = messages
         .where((m) => m.elemType != 11)
         .map((m) => m.timestamp ?? 0)
@@ -205,6 +304,12 @@ class WalletConversationCards extends ChangeNotifier {
     for (final message in messages) {
       final id = _knownId(message);
       if (id == null) continue;
+      if (_revokedCards.contains(id)) {
+        if (message.status == MessageStatus.V2TIM_MSG_STATUS_LOCAL_REVOKED) {
+          newestTransport.putIfAbsent(id, () => message);
+        }
+        continue;
+      }
       if ((message.msgID ?? '').isEmpty ||
           (message.msgID ?? '').startsWith('local_') ||
           (message.isSelf == true && message.status != 2)) {
@@ -224,6 +329,10 @@ class WalletConversationCards extends ChangeNotifier {
       final id = _knownId(message);
       if (id == null) {
         result.add(message);
+      } else if (_revokedCards.contains(id)) {
+        if (identical(newestTransport[id], message) && _represented.add(id)) {
+          result.add(message);
+        }
       } else if (_visible(_cards[id]!) &&
           identical(newestTransport[id], message) &&
           _represented.add(id)) {
@@ -236,7 +345,8 @@ class WalletConversationCards extends ChangeNotifier {
   List<V2TimMessage> get displayRows {
     if (!_current) return const [];
     return _cards.entries
-        .where((e) => !_represented.contains(e.key) && _visible(e.value))
+        .where((e) => !_represented.contains(e.key) &&
+            !_revokedCards.contains(e.key) && _visible(e.value))
         .map((e) => _row(e.value))
         .toList(growable: false);
   }

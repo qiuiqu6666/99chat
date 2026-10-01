@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -71,27 +72,42 @@ class HistoryWindowStore implements HistoryWindowRepository {
   Future<T> _run<T>(
     Future<T> Function(Database db) work, {
     bool write = false,
+    HistoryWindowScope? traceScope,
   }) {
-    return _runSerial(work, write: write);
+    return _runSerial(work, write: write, traceScope: traceScope);
   }
 
   Future<T> _runSerial<T>(
     Future<T> Function(Database db) work, {
     required bool write,
+    HistoryWindowScope? traceScope,
   }) {
     final lifecycle = _lifecycle;
+    final trace = ChatTraceOperation(
+      'HistoryWindowStore.serial',
+      conversationID: traceScope?.conversationID ?? '',
+      generation: traceScope?.accountGeneration ?? lifecycle,
+    );
     final completer = Completer<T>();
     _serial = _serial.then((_) async {
+      trace.enter('start');
       try {
         if (lifecycle != _lifecycle) throw const SqfliteClosedForBackground();
         if (write && !SqfliteLifecycleGuard.instance.writesAllowed) {
           throw const SqfliteClosedForBackground();
         }
+        trace.enter('database_open');
         final db = await _open();
         if (lifecycle != _lifecycle) throw const SqfliteClosedForBackground();
+        // All write admissions use db.transaction; keep that wait separate
+        // from opening the database for post-kill diagnosis.
+        trace.enter(write ? 'transaction' : 'database_read');
         completer.complete(await work(db));
       } catch (error, stack) {
+        trace.finish(error: error);
         completer.completeError(error, stack);
+      } finally {
+        trace.finish();
       }
     });
     return completer.future;
@@ -806,7 +822,7 @@ class HistoryWindowStore implements HistoryWindowRepository {
         final page = await _loadPage(db, scope, pageKey);
         return _result(
             db, scope, page == null ? [] : [page], page?.messages ?? []);
-      });
+      }, traceScope: scope);
 
   @override
   Future<HistoryWindowReadResult> readReplayRoot(HistoryWindowScope scope) =>
@@ -1771,7 +1787,8 @@ class HistoryWindowStore implements HistoryWindowRepository {
                         .toSet(),
                     state: state);
               }),
-          write: true);
+          write: true,
+          traceScope: scope);
 
   @override
   Future<int> persistedClearEpoch(

@@ -540,7 +540,8 @@ class ContactsProtocolSyncService with WidgetsBindingObserver {
     final nicknameChanged =
         (before?.friendNickname ?? '') != after.friendNickname;
     final avatarChanged =
-        (before?.friendAvatarUrl ?? '') != after.friendAvatarUrl;
+        (before?.friendAvatarUrl ?? '') != after.friendAvatarUrl ||
+        before?.friendAvatarVersion != after.friendAvatarVersion;
     await FriendSyncService.instance.publishProtocolFriendProjection(
       after: after,
       remarkChanged: remarkChanged,
@@ -595,7 +596,8 @@ class ContactsProtocolSyncService with WidgetsBindingObserver {
       final nicknameChanged =
           (previous?.friendNickname ?? '') != record.friendNickname;
       final avatarChanged =
-          (previous?.friendAvatarUrl ?? '') != record.friendAvatarUrl;
+          (previous?.friendAvatarUrl ?? '') != record.friendAvatarUrl ||
+          previous?.friendAvatarVersion != record.friendAvatarVersion;
       await FriendSyncService.instance.publishProtocolFriendProjection(
         after: record,
         remarkChanged: remarkChanged,

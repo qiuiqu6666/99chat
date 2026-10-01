@@ -383,7 +383,7 @@ class _MediaPopoutBody extends StatelessWidget {
     if (galleryItems.isEmpty) {
       final first = items[_initialIndex];
       if (_isSvg(first)) {
-        return _svgPreview(first);
+        return _svgPreview(context, first);
       }
       return const Center(
         child: Text('No image', style: TextStyle(color: Colors.white70)),
@@ -404,6 +404,7 @@ class _MediaPopoutBody extends StatelessWidget {
       enableHero: false,
       downloadOnly: _downloadOnly,
       fitTallImagesToScreenWidth: false,
+      fitToViewport: _source == 'avatar',
       downloadFn: current.downloadFn,
       copyFn: current.copyFn,
       forwardFn: current.forwardFn,
@@ -487,7 +488,7 @@ class _MediaPopoutBody extends StatelessWidget {
     return asset.endsWith('.svg');
   }
 
-  Widget _svgPreview(Map<String, dynamic> item) {
+  Widget _svgPreview(BuildContext context, Map<String, dynamic> item) {
     final asset = '${item['assetPath'] ?? ''}';
     final package = '${item['assetPackage'] ?? ''}';
     return Stack(
@@ -497,6 +498,9 @@ class _MediaPopoutBody extends StatelessWidget {
           child: SvgPicture.asset(
             asset,
             package: package.isEmpty ? null : package,
+            width: _source == 'avatar' ? MediaQuery.sizeOf(context).width : null,
+            height: _source == 'avatar' ? MediaQuery.sizeOf(context).height : null,
+            fit: BoxFit.contain,
           ),
         ),
         Positioned(

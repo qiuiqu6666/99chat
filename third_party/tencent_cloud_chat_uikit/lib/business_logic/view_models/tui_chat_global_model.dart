@@ -12,6 +12,7 @@ import 'package:tencent_cloud_chat_demo/src/services/im/contracts/contracts.dart
 import 'package:tencent_cloud_chat_demo/src/services/im/history_search_coordinator.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_send_coordinator.dart';
 import 'package:tencent_cloud_chat_demo/src/services/conversation_local/conversation_sync_service.dart';
+import 'package:tencent_cloud_chat_demo/src/services/conversation_unread_clear_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/tencent_conversation_read_service.dart';
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/utils/custom_message/c2c_peer_rejected_tip_message.dart';
@@ -206,9 +207,9 @@ class _InboundUnreadState {
   final Set<String> revealedUnreadMessageIDs = {};
   // True latest end has been observed; later SQL publishes must not revive N.
   bool trueLatestEndAbsorbed = false;
-  /// 进会话后离底期间的 live 新消息，尚未被认定看见。不等于未接入。
+  /// 本次离底期间的胶囊提醒身份。滑过已读后仍保留，回到最新端才清理。
   final LinkedHashSet<String> remainingLiveIncomingIds = LinkedHashSet<String>();
-  /// 本次 visit 内已认定看见或整体 COMMIT 清账的 id。日常回底不清。
+  /// 本次 visit 已阅读/清账身份，可与提醒集合重叠；用于阅读去重与覆盖证明。
   final Set<String> seenLiveIncomingIds = <String>{};
   /// live 进入 buffer 即递增，供整体确认快照失效。
   int liveReceiveGeneration = 0;
@@ -1477,9 +1478,19 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   }) {
     // A latest-window response proves only the bounded window it returned.
     // Absence from that page is not a delete/revoke proof, especially when the
-    // SDK cloud request can fall back to local data. Keep every existing row;
-    // explicit tombstones/revoke callbacks are the only removal authority.
-    return current;
+    // SDK cloud request can fall back to local data. Retain all off-page rows,
+    // but let a cloud-sourced row complete an SDK-local row with the same exact
+    // server ID. The Writer reapplies remembered realtime/edit/send authority
+    // after this merge, so a stale cloud copy cannot undo those mutations.
+    final cloudIDs = <String>{
+      for (final message in cloudWindow)
+        if ((message.msgID?.trim() ?? '').isNotEmpty) message.msgID!.trim(),
+    };
+    if (cloudIDs.isEmpty) return current;
+    return current.where((message) {
+      final id = message.msgID?.trim() ?? '';
+      return id.isEmpty || !cloudIDs.contains(id);
+    }).toList(growable: false);
   }
 
   bool _groupWindowsOverlapOrTouch(
@@ -3350,6 +3361,38 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     }
   }
 
+  /// Retained widgets may still hold the failed attempt after a retry creates
+  /// a new SDK-local message. Redirect those row keys and their subscriptions
+  /// together; replacing the list alone leaves them rendering the old object.
+  void bindOutgoingRetryRows(
+    String conversationID,
+    V2TimMessage previous,
+    V2TimMessage replacement,
+  ) {
+    final storageKey = _resolveMessageListStorageKey(conversationID);
+    final target = ChatUiStateStore.messageKeyOf(replacement);
+    final aliases = <String?>{
+      ChatUiStateStore.messageKeyOf(previous),
+      previous.id,
+      previous.msgID,
+      readOutgoingStableId(previous),
+      replacement.id,
+      replacement.msgID,
+      readOutgoingStableId(replacement),
+    };
+    _rememberRowLocalAliases(storageKey, aliases, target);
+    aliases.addAll(_rowLocalAliasByConversation[storageKey]!.entries
+        .where((entry) => entry.value == target)
+        .map((entry) => entry.key));
+    for (final alias in aliases) {
+      if (alias != null && alias.isNotEmpty && alias != target) {
+        _chatUiStateStore.bindMessageAlias(storageKey, alias, target);
+      }
+    }
+    ChatMessageHeightCache.instance.rememberAliasesBetween(previous, replacement);
+    _markMessageRowChanged(storageKey, replacement);
+  }
+
   /// Resolves exactly one row through the outgoing stable identity chain.
   /// Missing/ambiguous identities, semantic changes and reordering are never
   /// guessed: callers must keep their full-list fallback for those results.
@@ -4151,11 +4194,15 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     return state.restoreOpId;
   }
 
-  Set<String> remainingLiveIncomingIdsFor(String conversationID) =>
-      Set<String>.from(
-        _inboundUnreadStateFor(conversationID, create: false)
-            .remainingLiveIncomingIds,
-      );
+  Set<String> remainingLiveIncomingIdsFor(String conversationID,
+      {bool excludeRead = false}) {
+    final state = _inboundUnreadStateFor(conversationID, create: false);
+    // Reminder identities survive reading; restoring the latest window only
+    // needs coverage for identities which have not already been read.
+    return state.remainingLiveIncomingIds
+        .where((id) => !excludeRead || !state.seenLiveIncomingIds.contains(id))
+        .toSet();
+  }
 
   static String liveIncomingIdentity(V2TimMessage message) {
     final msgID = message.msgID?.trim() ?? '';
@@ -4235,11 +4282,20 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   void markLiveIncomingSeen({
     required String conversationID,
     required Iterable<String> ids,
+    bool preserveReminder = false,
   }) {
     final state = _inboundUnreadStateFor(conversationID, create: false);
     var changed = false;
     for (final id in ids) {
       if (id.isEmpty) {
+        continue;
+      }
+      if (preserveReminder) {
+        // Measured reading deduplicates receipts; only latest-end settlement
+        // (or explicit deletion) retires the visit's new-message reminder.
+        if (state.remainingLiveIncomingIds.contains(id)) {
+          state.seenLiveIncomingIds.add(id);
+        }
         continue;
       }
       if (state.remainingLiveIncomingIds.remove(id)) {
@@ -8476,11 +8532,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       // Rejected/stale/active-history binds must not mutate the formal list.
       return;
     }
-    _chatUiStateStore.bindMessageAlias(
-      storageKey,
-      id,
-      ChatUiStateStore.messageKeyOf(updated),
-    );
+    bindOutgoingRetryRows(storageKey, previous, updated);
     ChatMessageHeightCache.instance.rememberAlias(id, serverMsgID);
     _markMessageRowChanged(storageKey, updated, extraKey: id);
     _markNeedsNotify();
@@ -12564,11 +12616,13 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       // list path; keep the diagnostic term for compatibility with probes.
       return;
     }
-    _chatUiStateStore.bindMessageAlias(
-      storageConvID,
-      id,
-      ChatUiStateStore.messageKeyOf(resolvedMessage),
-    );
+    if (previousForMerge != null) {
+      bindOutgoingRetryRows(storageConvID, previousForMerge, resolvedMessage);
+    } else {
+      _chatUiStateStore.bindMessageAlias(
+        storageConvID, id, ChatUiStateStore.messageKeyOf(resolvedMessage),
+      );
+    }
     // temp id 上已测到的行高迁到正式 msgID，避免 send_done 后失缓存再估高抖动。
     ChatMessageHeightCache.instance.rememberAlias(id, resolvedMessage.msgID);
     final knownHeight = ChatMessageHeightCache.instance.heightFor(

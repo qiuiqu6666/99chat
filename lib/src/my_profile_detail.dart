@@ -774,6 +774,7 @@ class MyProfileDetailState extends State<MyProfileDetail> {
 
       if (kIsWeb) {
         await ChatWebImageLightbox.show(
+          fitToViewport: true,
           context: context,
           imageUrl: thumbUrl,
           imageUrlResolver: () async {

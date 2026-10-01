@@ -88,7 +88,8 @@ class _State extends State<SangongAgentMemberDetailPage> {
           _team = scoped;
         });
     } catch (e) {
-      if (mounted && _isCurrentSession) setState(() => _error = DioErrorMessage.forApp(e));
+      if (mounted && _isCurrentSession)
+        setState(() => _error = DioErrorMessage.forApp(e));
     }
   }
 
@@ -104,8 +105,8 @@ class _State extends State<SangongAgentMemberDetailPage> {
         batchNo = batch is Map ? batch['batchNo']?.toString() : null;
         final member = dashboard['member'];
         if (member is Map) {
-          live = SangongTeamMemberDto.fromJson(
-              Map<String, dynamic>.from(member));
+          live =
+              SangongTeamMemberDto.fromJson(Map<String, dynamic>.from(member));
         }
       } catch (_) {
         // 批次信息暂时不可用时，继续走日期汇总查询。
@@ -133,7 +134,9 @@ class _State extends State<SangongAgentMemberDetailPage> {
   Widget metric(String title, num value) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(title,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+            style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 12)),
         const SizedBox(height: 4),
         Text(money(value),
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
@@ -154,7 +157,8 @@ class _State extends State<SangongAgentMemberDetailPage> {
       final result = await AgentRebateApi.instance.claimSangongRebate();
       if (!mounted || !_isCurrentSession) return;
       final amount = result['amount'];
-      ToastUtils.toast('返水申请成功，到账 ¥${money(_dayNum(amount))}', context: context);
+      ToastUtils.toast('返水申请成功，到账 ¥${money(_dayNum(amount))}',
+          context: context);
       await _loadDaily();
     } catch (e) {
       if (mounted && _isCurrentSession) {
@@ -170,7 +174,7 @@ class _State extends State<SangongAgentMemberDetailPage> {
     final m = _liveMember ?? widget.member;
     final name = m.nickname.trim().isEmpty ? m.imUserId : m.nickname.trim();
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: const AppBackButton(),
         title: Text(name),
@@ -186,7 +190,7 @@ class _State extends State<SangongAgentMemberDetailPage> {
       ),
       body: Column(children: [
         Material(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           child: Row(children: [
             _tab('个人最新数据', 0),
             _tab('个人每天数据', 1),
@@ -213,7 +217,10 @@ class _State extends State<SangongAgentMemberDetailPage> {
                             style: const TextStyle(
                                 fontSize: 20, fontWeight: FontWeight.w700)),
                         Text('第 ${m.levelNo} 级代理 · 返水 ${money(m.rebatePct)}%',
-                            style: TextStyle(color: Colors.grey.shade600))
+                            style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant))
                       ])
                 ]),
                 if (_tabIndex == 0) ...[
@@ -225,7 +232,7 @@ class _State extends State<SangongAgentMemberDetailPage> {
                           TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 10),
                   Card(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surface,
                       child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: GridView.count(
@@ -263,7 +270,7 @@ class _State extends State<SangongAgentMemberDetailPage> {
                                 metric('待返水', m.pendingRebate),
                                 metric('返水比例', m.rebatePct),
                               ]))),
-                if (_tabIndex == 0 && _isCurrentLoginMember)
+                  if (_tabIndex == 0 && _isCurrentLoginMember)
                     Padding(
                       padding: const EdgeInsets.only(top: 14),
                       child: SizedBox(
@@ -272,7 +279,7 @@ class _State extends State<SangongAgentMemberDetailPage> {
                           onPressed: _claiming ? null : _claimRebate,
                           icon:
                               const Icon(Icons.account_balance_wallet_outlined),
-                        label: Text(_claiming ? '申请中…' : '申请返水'),
+                          label: Text(_claiming ? '申请中…' : '申请返水'),
                         ),
                       ),
                     ),
@@ -287,7 +294,7 @@ class _State extends State<SangongAgentMemberDetailPage> {
   Widget _panelSwitcher() => Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: const Color(0xFFE9EDF4),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(children: [
@@ -304,16 +311,17 @@ class _State extends State<SangongAgentMemberDetailPage> {
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(vertical: 9),
             decoration: BoxDecoration(
-              color:
-                  _summaryView == summary ? Colors.white : Colors.transparent,
+              color: _summaryView == summary
+                  ? Theme.of(context).colorScheme.surface
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(label,
                 style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: _summaryView == summary
-                        ? const Color(0xFF2388F5)
-                        : const Color(0xFF6F7680))),
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurfaceVariant)),
           ),
         ),
       );
@@ -331,7 +339,7 @@ class _State extends State<SangongAgentMemberDetailPage> {
               border: Border(
                 bottom: BorderSide(
                   color: _tabIndex == index
-                      ? const Color(0xFF2388F5)
+                      ? Theme.of(context).colorScheme.primary
                       : Colors.transparent,
                   width: 2,
                 ),
@@ -340,8 +348,8 @@ class _State extends State<SangongAgentMemberDetailPage> {
             child: Text(label,
                 style: TextStyle(
                     color: _tabIndex == index
-                        ? const Color(0xFF2388F5)
-                        : const Color(0xFF6F7680),
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600)),
           ),
         ),
@@ -367,7 +375,7 @@ class _State extends State<SangongAgentMemberDetailPage> {
           ('总返水', _dayNum(day['rebate'] ?? day['totalRebate'])),
         ];
         return Card(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           margin: const EdgeInsets.only(bottom: 8),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
@@ -389,7 +397,9 @@ class _State extends State<SangongAgentMemberDetailPage> {
                               child: Text(item.$1,
                                   style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey.shade600))),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant))),
                           Text(
                               item.$1 == '团队人数'
                                   ? _dayNum(item.$2).toStringAsFixed(0)

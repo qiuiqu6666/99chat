@@ -184,6 +184,7 @@ class TencentAdvancedMessageAdapter {
   int _sdkRealtimeSequence = 0;
   final _sdkRealtimePending = <String, Future<void>>{};
   final _sdkRealtimeDelivered = LinkedHashSet<String>();
+  final _sdkRealtimePayloadDigests = <String, String>{};
 
   /// Disposable intermediate progress bypasses Inbox sequence/transactions.
   /// The owner must fence this callback to the captured account/domain.
@@ -305,6 +306,7 @@ class TencentAdvancedMessageAdapter {
     _recentReceiptIds.clear();
     _receiptSubmissions.clear();
     _sdkRealtimeDelivered.clear();
+    _sdkRealtimePayloadDigests.clear();
     if (listener == null) return;
     await messageService
         .removeAdvancedMsgListener(listener: listener)
@@ -321,10 +323,9 @@ class TencentAdvancedMessageAdapter {
           kind: ImEventKind.realtimeMessage,
           scope: _scopeForMessage(message),
           payload: message,
-          // A single SDK message can be delivered more than once with
-          // hydrated fields changing between callbacks. The msgID is the
-          // durable ingress identity, so do not hash the mutable full object
-          // for the duplicate check.
+          // The first callback is a new message. A later callback with the
+          // same msgID but changed fields is admitted below as a mutation,
+          // without repeating new-message notification side effects.
           recoveryMode: ImRecoveryMode.sdkOverlapReplay,
           recoveryRef: _messageRecoveryRef(message),
         );
@@ -454,23 +455,46 @@ class TencentAdvancedMessageAdapter {
     final sdkRealtime = onSdkRealtimeEvent != null &&
         kind == ImEventKind.realtimeMessage &&
         usesSdkRealtimeDelivery(payload, scope);
+    final realtimeClearEpoch =
+        sdkRealtime ? sdkRealtimeClearEpoch?.call(scope) ?? 0 : 0;
+    var effectiveKind = kind;
+    var effectiveEventId = eventId;
+    var effectivePayloadHash = payloadHash;
+    if (sdkRealtime) {
+      final msgID = payload.msgID!.trim();
+      final key = '${scope.storageKey}:$realtimeClearEpoch:$msgID';
+      final digest = _payloadDigest(payload);
+      final previous = _sdkRealtimePayloadDigests.remove(key);
+      _sdkRealtimePayloadDigests[key] = digest;
+      while (_sdkRealtimePayloadDigests.length > 512) {
+        _sdkRealtimePayloadDigests
+            .remove(_sdkRealtimePayloadDigests.keys.first);
+      }
+      if (previous != null && previous != digest) {
+        effectiveKind = ImEventKind.messageMutation;
+        effectiveEventId = 'modified:$msgID:$digest';
+        effectivePayloadHash = digest;
+      }
+    }
+    final deliverRealtime =
+        sdkRealtime && effectiveKind == ImEventKind.realtimeMessage;
     _submit(
       ImIngressDraft<V2TimMessage>(
-        eventId: eventId,
-        eventNamespace: sdkRealtime ? sdkRealtimeNamespace : 'chat',
-        kind: kind,
+        eventId: effectiveEventId,
+        eventNamespace: deliverRealtime ? sdkRealtimeNamespace : 'chat',
+        kind: effectiveKind,
         scope: scope,
         ownerUserId: ownerUserId,
         accountGeneration: accountGeneration,
         domainGeneration: domainGeneration,
-        clearEpoch: sdkRealtime ? sdkRealtimeClearEpoch?.call(scope) ?? 0 : 0,
+        clearEpoch: deliverRealtime ? realtimeClearEpoch : 0,
         source: ImEventSource.sdkListener,
         authority: ImEventAuthority.provider,
         observedAtMs: DateTime.now().millisecondsSinceEpoch,
-        payloadHash: sdkRealtime
+        payloadHash: deliverRealtime
             ? eventId
-            : payloadHash ??
-                (kind == ImEventKind.realtimeMessage
+            : effectivePayloadHash ??
+                (effectiveKind == ImEventKind.realtimeMessage
                     ? _messageIdentityPayloadHash(payload)
                     : _payloadDigest(payload)),
         recoveryMode: recoveryMode,

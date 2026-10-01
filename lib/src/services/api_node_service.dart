@@ -67,7 +67,7 @@ class ApiNodeService extends ChangeNotifier {
       id: 'apiios',
       name: '节点02(US)',
       apiBaseUrl: 'https://apiios.99chat.vip',
-      realtimeTcpBase: 'http://119.28.179.146:8082',
+      realtimeTcpBase: 'http://tcp.9chat.vip:8082',
     ),
   ];
 

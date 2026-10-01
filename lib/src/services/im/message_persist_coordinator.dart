@@ -82,10 +82,11 @@ class MessagePersistJob<T> {
   final Future<void> Function(T value)? publish;
   final Completer<T> completer = Completer<T>();
   final int enqueuedAtUs = DateTime.now().microsecondsSinceEpoch;
+  ChatTraceOperation? trace;
 }
 
 class _PersistOperation {
-  _PersistOperation(this.job) : id = ChatRecoveryTrace.nextOperation('persist');
+  _PersistOperation(this.job) : id = job.trace?.operationID ?? ChatRecoveryTrace.nextOperation('persist');
   final MessagePersistJob<dynamic> job;
   final String id;
   final Stopwatch elapsed = Stopwatch()..start();
@@ -96,6 +97,7 @@ class _PersistOperation {
   void enter(String value) {
     stage = value;
     stageElapsed.reset();
+    job.trace?.enter(value);
   }
 }
 
@@ -316,12 +318,15 @@ class MessagePersistCoordinator {
             _queueFor(priority).length + (_reservedAdmissions[priority] ?? 0) >=
                 foregroundQueueLimit)) {
       final available = Completer<void>();
+      final admissionTrace = ChatTraceOperation('persist_admission',
+          conversationID: conversationId, generation: admittedGeneration);
       (_admissionWaiters[priority] ??= Queue<Completer<void>>()).add(available);
       _waitingAdmissions++;
       _wakeAdmissions();
       try {
         await available.future;
       } finally {
+        admissionTrace.finish();
         _waitingAdmissions--;
         _reservedAdmissions[priority] =
             (_reservedAdmissions[priority] ?? 1) - 1;
@@ -360,6 +365,10 @@ class MessagePersistCoordinator {
       publish: publish,
     );
     _queueFor(priority).add(job);
+    job.trace = ChatTraceOperation('MessagePersistCoordinator',
+        conversationID: job.conversationId, generation: admittedGeneration);
+    unawaited(job.completer.future.then<void>((_) => job.trace?.finish(),
+        onError: (Object error, StackTrace _) => job.trace?.finish(error: error)));
     unawaited(_pump());
     return job.completer.future;
   }
@@ -458,6 +467,7 @@ class MessagePersistCoordinator {
   }
 
   Future<void> _execute(MessagePersistJob<dynamic> job) async {
+    job.trace?.enter('start');
     if (_accountGeneration != 0 &&
         job.accountGeneration != 0 &&
         job.accountGeneration != _accountGeneration) {
@@ -491,6 +501,7 @@ class MessagePersistCoordinator {
           });
     });
     try {
+      job.trace?.enter('prepare');
       if (job.prepare != null) {
         final prepareWatch = Stopwatch()..start();
         await job.prepare!();

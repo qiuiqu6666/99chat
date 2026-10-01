@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart'
+    if (dart.library.html) 'package:tencent_cloud_chat_sdk/web/compatible_models/v2_tim_message.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/conversation_read_policy.dart';
 
 import 'package:flutter/foundation.dart';
@@ -69,6 +72,76 @@ class _ConversationReadWatermark {
 /// 会话未读清零：进聊天、离开聊天共用，含 SDK 重试。
 class ConversationUnreadClearService {
   ConversationUnreadClearService._();
+
+  /// The measured reading edge is the proof, not active-route membership.
+  /// Persist through the existing outbox before exposing the UI watermark.
+  static Future<void> acknowledgeVisibleMessages(
+      String conversationID, Iterable<V2TimMessage> messages,
+      {required bool Function() isCurrent}) async {
+    final generation = SessionIdentityService.instance.generation;
+    final owner = ConversationLocalStore.instance.resolvedOwnerUserId();
+    if (owner.isEmpty || !isCurrent()) return;
+    final candidates = messages
+        .where((m) =>
+            m.isSelf != true && (m.msgID?.isNotEmpty ?? false) && m.status == 2)
+        .toList();
+    if (candidates.isEmpty) return;
+    final group = (candidates.first.groupID?.isNotEmpty ?? false) ||
+        conversationID.startsWith('group_') ||
+        conversationID.startsWith('@TGS#');
+    final id =
+        conversationID.startsWith('group_') || conversationID.startsWith('c2c_')
+            ? conversationID
+            : '${group ? 'group' : 'c2c'}_$conversationID';
+    candidates.sort((a, b) => group
+        ? (int.tryParse(a.seq ?? '') ?? 0)
+            .compareTo(int.tryParse(b.seq ?? '') ?? 0)
+        : (a.timestamp ?? 0).compareTo(b.timestamp ?? 0));
+    final target = candidates.last;
+    final snapshot = V2TimConversation(
+        conversationID: id,
+        type: group ? 2 : 1,
+        groupID: group ? id.substring(6) : null,
+        userID: group ? null : id.substring(4),
+        lastMessage: target);
+    final watermark = _watermarkFor(snapshot);
+    if (!watermark.isValid) return;
+    final previous =
+        ConversationLocalStore.instance.readBarrierFor(id, ownerUserId: owner);
+    if (previous?.projectionEligible == true &&
+        (target.msgID == previous!.lastMessageId ||
+            (group && watermark.sequence <= previous.lastMessageSeq) ||
+            (!group &&
+                (target.timestamp ?? 0) < previous.lastMessageTimestamp))) {
+      return; // Repeated geometry proofs do not produce duplicate SDK work.
+    }
+    await ConversationReadOutboxStore.instance.enqueue(
+        ownerUserId: owner,
+        conversationId: id,
+        lastReadMessageId: target.msgID!,
+        cleanTimestamp: watermark.timestamp,
+        cleanSequence: watermark.sequence);
+    if (!_isCurrentSession(generation) ||
+        !isCurrent() ||
+        owner != ConversationLocalStore.instance.resolvedOwnerUserId()) {
+      return;
+    }
+    ConversationLocalStore.instance.recordReadClearedAnchor(id,
+        ownerUserId: owner,
+        reliableReadTarget: true,
+        lastMessageId: target.msgID,
+        exactReadMessageIds: candidates
+            .where((message) => message.timestamp == target.timestamp)
+            .map((message) => message.msgID!),
+        lastMessageTimestamp: target.timestamp,
+        lastMessageSeq: int.tryParse(target.seq ?? ''));
+    _recordReadIntent(id);
+    ConversationUnreadAggregate.instance.readTargetPersisted(id);
+    unawaited(scheduleSdkUnreadClean(
+        conversationID: id,
+        trigger: SdkUnreadCleanTrigger.chatVisible,
+        hadUnread: true));
+  }
 
   static const openSdkRetryDelays = <Duration>[
     Duration.zero,
@@ -642,13 +715,6 @@ class ConversationUnreadClearService {
     final owner = ConversationLocalStore.instance.resolvedOwnerUserId();
     final watermark = _watermarkFor(conversation);
     beginConversationChatSession(conversationID);
-    ConversationLocalStore.instance.recordReadClearedAnchor(
-      conversationID,
-      lastMessageId: conversation.lastMessage?.msgID,
-      lastMessageTimestamp: conversation.lastMessage?.timestamp,
-      lastMessageSeq: int.tryParse(conversation.lastMessage?.seq ?? ''),
-      orderKey: conversation.orderkey,
-    );
     ConversationUnreadTrace.log(
       'clear_local_open_fast',
       conversationID: conversationID,
@@ -674,6 +740,8 @@ class ConversationUnreadClearService {
         ownerUserId: owner,
         conversationID: conversationID,
         lastReadMessageId: conversation.lastMessage?.msgID ?? '',
+        targetTimestamp: conversation.lastMessage?.timestamp ?? 0,
+        targetSequence: int.tryParse(conversation.lastMessage?.seq ?? '') ?? 0,
         watermark: watermark,
         sessionGeneration: sessionGeneration,
         dispatchSdk: dispatchSdk,
@@ -685,6 +753,8 @@ class ConversationUnreadClearService {
     required String ownerUserId,
     required String conversationID,
     required String lastReadMessageId,
+    required int targetTimestamp,
+    required int targetSequence,
     required _ConversationReadWatermark watermark,
     required int sessionGeneration,
     required bool dispatchSdk,
@@ -698,8 +768,20 @@ class ConversationUnreadClearService {
         cleanSequence: watermark.sequence,
         retryPausedOnUserAction: true,
       );
+      if (!_isCurrentSession(sessionGeneration) ||
+          ownerUserId !=
+              ConversationLocalStore.instance.resolvedOwnerUserId()) {
+        return;
+      }
+      ConversationLocalStore.instance.recordReadClearedAnchor(conversationID,
+          ownerUserId: ownerUserId,
+          reliableReadTarget: true,
+          lastMessageId: lastReadMessageId,
+          lastMessageTimestamp: targetTimestamp,
+          lastMessageSeq: targetSequence);
       _recordReadIntent(conversationID);
-      if (!_isCurrentSession(sessionGeneration) || !dispatchSdk) return;
+      ConversationUnreadAggregate.instance.readTargetPersisted(conversationID);
+      if (!dispatchSdk) return;
       await scheduleSdkUnreadClean(
         conversationID: conversationID,
         trigger: SdkUnreadCleanTrigger.open,
@@ -745,8 +827,14 @@ class ConversationUnreadClearService {
       );
       return;
     }
+    if (!_isCurrentSession(sessionGeneration) ||
+        owner != ConversationLocalStore.instance.resolvedOwnerUserId()) {
+      return;
+    }
     ConversationLocalStore.instance.recordReadClearedAnchor(
       conversationID,
+      ownerUserId: owner,
+      reliableReadTarget: true,
       lastMessageId: conversation.lastMessage?.msgID,
       lastMessageTimestamp: conversation.lastMessage?.timestamp,
       lastMessageSeq: int.tryParse(conversation.lastMessage?.seq ?? ''),
@@ -755,6 +843,7 @@ class ConversationUnreadClearService {
     if (!_isCurrentSession(sessionGeneration)) {
       return;
     }
+    aggregate.readTargetPersisted(conversationID);
     ConversationUnreadTrace.log(
       'clear_local_open_done',
       conversationID: conversationID,
@@ -1122,6 +1211,8 @@ class ConversationUnreadClearService {
       final lastSuccess = _lastSuccessfulSdkClean[id];
       if (lastSuccess != null &&
           now.difference(lastSuccess) < _sdkCleanMinInterval) {
+        unawaited(_armReadOutboxRetryTimer(
+            notBefore: lastSuccess.add(_sdkCleanMinInterval)));
         ConversationUnreadTrace.log(
           'sdk_clean_skip',
           conversationID: id,
@@ -1236,6 +1327,9 @@ class ConversationUnreadClearService {
   }) async {
     final owner = ConversationLocalStore.instance.resolvedOwnerUserId();
     if (owner.isEmpty) return;
+    final trace = ChatTraceOperation('ConversationUnreadClearService',
+        conversationID: conversationID, generation: sessionGeneration);
+    trace.enter('start');
     try {
       if (sdkCleanOverride != null) {
         final code = await _cleanSdkWithRetry(
@@ -1250,6 +1344,7 @@ class ConversationUnreadClearService {
         }
         return;
       }
+      trace.enter('outbox_read');
       var row = await ConversationReadOutboxStore.instance.find(
         ownerUserId: owner,
         conversationId: conversationID,
@@ -1349,6 +1444,15 @@ class ConversationUnreadClearService {
         return;
       }
       if (!_isCurrentSession(sessionGeneration)) return;
+      trace.enter('sdk_clean_request');
+      ChatRecoveryTrace.log('unread_sdk_request',
+          conversationID: conversationID,
+          operation: trace.operationID,
+          fields: {
+            'cleanTimestamp': row.cleanTimestamp,
+            'cleanSequence': row.cleanSequence,
+            'attempt': row.attemptCount,
+          });
       final lastCode = await _cleanSdkWithRetry(
         conversationID,
         // Only replay the precise, persisted target captured above.
@@ -1359,8 +1463,17 @@ class ConversationUnreadClearService {
         cleanSequence: row.cleanSequence,
         allowFullTypeClean: false,
       );
+      trace.enter('sdk_result_$lastCode');
+      ChatRecoveryTrace.log('unread_sdk_result',
+          conversationID: conversationID,
+          operation: trace.operationID,
+          fields: {
+            'code': lastCode,
+            'sessionCurrent': _isCurrentSession(sessionGeneration),
+          });
       if (!_isCurrentSession(sessionGeneration)) return;
       if (lastCode == 0) {
+        trace.enter('outbox_ack');
         _watermarkUnavailableUntil.remove(conversationID);
         _lastSuccessfulSdkClean[conversationID] = DateTime.now();
         await ConversationReadOutboxStore.instance.acknowledge(
@@ -1377,6 +1490,7 @@ class ConversationUnreadClearService {
           aggregate.scheduleRefresh(reason: 'sdk_read_confirmed');
         }
       } else {
+        trace.finish(error: StateError('sdk_$lastCode'));
         await ConversationReadOutboxStore.instance.markRetry(row,
             sdkCode: lastCode,
             notBeforeAtMs: lastCode == _sdkFrequencyBlockCode
@@ -1395,11 +1509,14 @@ class ConversationUnreadClearService {
         },
       );
     } catch (e) {
+      trace.finish(error: e);
       debugPrint(
         'persist read outbox before SDK clean failed '
         'errorType=${e.runtimeType}',
       );
       await _armReadOutboxRetryTimer();
+    } finally {
+      trace.finish();
     }
   }
 

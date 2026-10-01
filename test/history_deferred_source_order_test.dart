@@ -107,8 +107,10 @@ void main() {
     expect(state.receivedCount, 2);
     expect(state.firstIngressSequence, 102);
     expect(state.lastIngressSequence, 103);
-    expect((await store.readDeferredTail(scope: _scope)).map((m) => m.msgID),
-        ['fallback2', 'formal101']);
+    expect(await store.readDeferredMessageIDs(scope: _scope),
+        {'fallback2', 'formal101'});
+    expect(await store.readDeferredTail(scope: _scope), isEmpty,
+        reason: 'deferred receipts retain identity metadata, not message bodies');
   });
 
   test('fallback ignores synthetic sequence and survives reopen after full ACK',
@@ -140,7 +142,7 @@ void main() {
   });
 
   test(
-      'real v3 additive migration keeps pending bodies and conservatively retains unknown old source fences',
+      'real v3 additive migration keeps pending identities and conservatively retains unknown old source fences',
       () async {
     await append('formal99', 99);
     await ack(99);
@@ -153,8 +155,8 @@ void main() {
     final state = await store.deferredState(_scope);
     expect(state.receivedCount, 2);
     expect(state.lastIngressSequence, 101);
-    expect((await store.readDeferredTail(scope: _scope)).map((m) => m.msgID),
-        ['received:legacy-fallback', 'received:formal100']);
+    expect(await store.readDeferredMessageIDs(scope: _scope),
+        {'received:legacy-fallback', 'received:formal100'});
     expect((await append('received:formal100-replay', 100)).inserted, isFalse);
     await ack(101);
     // Legacy fallback source identity was never recorded, so its old fence
@@ -234,7 +236,11 @@ void main() {
     await ack(101);
     await store.closeIfOpen();
     final legacy = await openDatabase(path, version: 3);
-    final previous = (await legacy.query('hw_deferred')).single;
+    final previous = (await legacy.query('hw_deferred',
+        where: 'acknowledged=0')).single;
+    // The v3 writer physically removed ACKed rows. Reproduce that legacy
+    // shape before reusing its ordinal; current storage retains ACK metadata.
+    await legacy.delete('hw_deferred', where: 'acknowledged=1');
     await legacy.insert('hw_deferred', {
       'bucket': previous['bucket'],
       'event_id': 'legacy-replay101',
@@ -250,9 +256,10 @@ void main() {
         ['legacy101']);
     await legacy.close();
     // The old writer did not preserve source/ordinal semantics. Keep every
-    // pending body and open normally instead of letting backfill hit UNIQUE.
+    // pending identity and open normally instead of letting backfill hit UNIQUE.
     expect((await store.deferredState(_scope)).receivedCount, 2);
-    expect(await store.readDeferredTail(scope: _scope), hasLength(2));
+    expect(await store.readDeferredMessageIDs(scope: _scope),
+        {'formal101', 'legacy101'});
     expect((await append('formal101-replay', 101)).inserted, isFalse);
     await ack(102);
     expect((await append('formal101-replay', 101)).inserted, isFalse);

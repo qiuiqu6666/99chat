@@ -243,7 +243,22 @@ ImagePreviewDisplayConfig imagePreviewDisplayConfig({
   /// 聊天消息预览为 true：长图贴宽（可放大）避免黑边。
   /// 头像 / 群头像 / 朋友圈等为 false：长图只 scaleDown，不拉成全屏宽。
   bool fitTallImagesToScreenWidth = true,
+  bool fitToViewport = false,
 }) {
+  // Avatars should fill one viewport axis even when the source is small.
+  // Keep this opt-in: chat photos retain their original reading-size policy.
+  if (fitToViewport) {
+    return ImagePreviewDisplayConfig(
+      mode: ImagePreviewDisplayMode.normal,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
+      initialAlignment: InitialAlignment.center,
+      verticallyScrollable: false,
+      isTallImage: false,
+      imageWidth: imageWidth,
+      imageHeight: imageHeight,
+    );
+  }
   if (imageWidth <= 0 ||
       imageHeight <= 0 ||
       screenWidth <= 0 ||
@@ -379,6 +394,7 @@ ImagePreviewDisplayConfig imagePreviewDisplayConfigResolved({
   int decodedHeight = 0,
   bool trustDecodedSize = true,
   bool fitTallImagesToScreenWidth = true,
+  bool fitToViewport = false,
 }) {
   final pixels = imagePreviewPreferredPixelSize(
     meta: imagePreviewMetaSizeFromMessage(sourceMessage),
@@ -393,6 +409,7 @@ ImagePreviewDisplayConfig imagePreviewDisplayConfigResolved({
     screenWidth: screenWidth,
     screenHeight: screenHeight,
     fitTallImagesToScreenWidth: fitTallImagesToScreenWidth,
+    fitToViewport: fitToViewport,
   );
 }
 

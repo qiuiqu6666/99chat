@@ -153,6 +153,10 @@ class ConversationReadBarrier {
     required this.lastMessageTimestamp,
     required this.lastMessageSeq,
     required this.orderKey,
+    this.projectionEligible = false,
+    this.snapshotCovered = false,
+    this.exactReadMessageIds = const {},
+    this.confirmedReadMessageIds = const {},
   });
 
   final int version;
@@ -161,6 +165,10 @@ class ConversationReadBarrier {
   final int lastMessageTimestamp;
   final int lastMessageSeq;
   final int orderKey;
+  final bool projectionEligible;
+  final bool snapshotCovered;
+  final Set<String> exactReadMessageIds;
+  final Set<String> confirmedReadMessageIds;
 }
 
 @immutable
@@ -464,6 +472,12 @@ class ConversationLocalStore {
           lastMessageTimestamp: data['timestamp'] as int,
           lastMessageSeq: data['seq'] as int,
           orderKey: data['order'] as int,
+          projectionEligible: data['projectionEligible'] == true,
+          snapshotCovered: data['snapshotCovered'] == true,
+          exactReadMessageIds: Set<String>.unmodifiable(
+              (data['exactReadMessageIds'] as List? ?? const []).whereType<String>()),
+          confirmedReadMessageIds: Set<String>.unmodifiable(
+              (data['confirmedReadMessageIds'] as List? ?? const []).whereType<String>()),
         );
         if (owner.isEmpty || id.isEmpty) continue;
         final cacheKey = _readClearCacheKey(owner, id);
@@ -495,6 +509,10 @@ class ConversationLocalStore {
       'at': barrier.recordedAtMs, 'message': barrier.lastMessageId,
       'timestamp': barrier.lastMessageTimestamp, 'seq': barrier.lastMessageSeq,
       'order': barrier.orderKey,
+      'projectionEligible': barrier.projectionEligible,
+      'snapshotCovered': barrier.snapshotCovered,
+      'exactReadMessageIds': barrier.exactReadMessageIds.toList(growable: false),
+      'confirmedReadMessageIds': barrier.confirmedReadMessageIds.toList(growable: false),
     });
     // Serialize writes/removals so an older read cannot win a disk-write race.
     _readBarrierWriteTail = _readBarrierWriteTail.then((_) async {
@@ -2344,6 +2362,8 @@ class ConversationLocalStore {
     int? lastMessageTimestamp,
     int? lastMessageSeq,
     int? orderKey,
+    bool reliableReadTarget = false,
+    Iterable<String> exactReadMessageIds = const [],
   }) {
     final id = conversationID.trim();
     if (id.isEmpty) {
@@ -2354,10 +2374,12 @@ class ConversationLocalStore {
       return null;
     }
     final now = DateTime.now().toUtc().millisecondsSinceEpoch;
-    _recordReadCleared(owner, id, now);
     final current = _conversationFor(owner, id);
     final currentMessage = current?.lastMessage;
     final previous = readBarrierFor(id, ownerUserId: owner);
+    // Legacy leave/preview callers do not carry measured or explicit-action
+    // proof. They must neither create nor advance a presentation watermark.
+    if (previous?.projectionEligible == true && !reliableReadTarget) return previous;
     // SDK-primary rows need not exist in the SQLite mirror. A later local
     // persistence call without a target must preserve the captured read, not
     // replace it with an empty anchor (or a newer, unseen mirror snapshot).
@@ -2367,10 +2389,6 @@ class ConversationLocalStore {
         previous.lastMessageId == resolvedLastMessageId;
     final sameCurrent = currentMessage != null &&
         (currentMessage.msgID?.trim() ?? '') == resolvedLastMessageId;
-    if (resolvedLastMessageId.isNotEmpty) {
-      _readClearedLastMsgId[_readClearCacheKey(owner, id)] =
-          resolvedLastMessageId;
-    }
     final timestamp = ((lastMessageTimestamp ?? 0) > 0
             ? lastMessageTimestamp : null) ??
         (samePrevious && previous.lastMessageTimestamp > 0
@@ -2385,6 +2403,17 @@ class ConversationLocalStore {
         0;
     final order = orderKey ??
         (samePrevious ? previous.orderKey : null) ?? current?.orderkey ?? 0;
+    final group = id.startsWith('group_') || id.startsWith('@TGS#');
+    if (previous != null && (!reliableReadTarget || previous.projectionEligible) &&
+        (group && previous.lastMessageSeq > 0
+            ? seq < previous.lastMessageSeq
+            : timestamp < previous.lastMessageTimestamp)) {
+      return previous;
+    }
+    _recordReadCleared(owner, id, now);
+    if (resolvedLastMessageId.isNotEmpty) {
+      _readClearedLastMsgId[_readClearCacheKey(owner, id)] = resolvedLastMessageId;
+    }
     final key = _readClearCacheKey(owner, id);
     // `orderkey` is a sorting token, not evidence of a newer message. Keep it
     // out of the read-watermark clock so an old SDK page cannot consume this
@@ -2402,6 +2431,26 @@ class ConversationLocalStore {
       lastMessageTimestamp: timestamp,
       lastMessageSeq: seq,
       orderKey: order,
+      projectionEligible: reliableReadTarget,
+      snapshotCovered: samePrevious && previous.snapshotCovered,
+      // A timestamp is not an identity. Keep explicitly read peers at this
+      // boundary second; discard this set when the time watermark advances.
+      exactReadMessageIds: group ? const {} : Set<String>.unmodifiable({
+        if (reliableReadTarget) ...exactReadMessageIds.where((id) => id.isNotEmpty),
+        if (previous?.projectionEligible == true &&
+            previous!.lastMessageTimestamp == timestamp)
+          ...previous.exactReadMessageIds,
+        if (previous?.projectionEligible == true &&
+            previous!.lastMessageTimestamp == timestamp && previous.lastMessageId.isNotEmpty)
+          previous.lastMessageId,
+        if (resolvedLastMessageId.isNotEmpty) resolvedLastMessageId,
+      }),
+      confirmedReadMessageIds: group ? const {} : Set<String>.unmodifiable({
+        if (previous?.projectionEligible == true &&
+            previous!.lastMessageTimestamp == timestamp) ...previous.confirmedReadMessageIds,
+        if (previous?.projectionEligible == true && previous!.snapshotCovered &&
+            previous.lastMessageTimestamp == timestamp) previous.lastMessageId,
+      }),
     );
     _readBarriers[key] = barrier;
     _persistReadBarrier(owner, id, barrier);
@@ -2452,6 +2501,55 @@ class ConversationLocalStore {
       }
     }
     return null;
+  }
+
+  /// Pure presentation policy over the existing durable read anchor. No raw
+  /// SDK mutation and no wall-clock grace period. Unknown boundaries pass
+  /// through, including another C2C message in the same second.
+  int projectUnreadAgainstReadTarget(
+      V2TimConversation row, ConversationReadBarrier target) {
+    final raw = math.max(0, row.unreadCount ?? 0);
+    if (raw == 0) return 0;
+    final message = row.lastMessage;
+    if (message == null || message.isSelf == true) return raw;
+    final id = message.msgID?.trim() ?? '';
+    final seq = int.tryParse(message.seq ?? '') ?? 0;
+    if (ConversationUnreadUtils.isGroupConversation(row)) {
+      if (seq > 0 && target.lastMessageSeq > 0) {
+        // A shared group sequence bounds the number of messages beyond the
+        // target. This is a causal range bound, not min(previous, incoming).
+        return math.min(raw, math.max(0, seq - target.lastMessageSeq));
+      }
+      return raw; // No shared ordering proof.
+    }
+    final time = message.timestamp ?? 0;
+    if (time > 0 && target.lastMessageTimestamp > 0 &&
+        time < target.lastMessageTimestamp) { return 0; }
+    // Only this exact identity is proven read at the boundary second. An
+    // unread count > 1 may include other, unseen messages at that second.
+    if (id.isNotEmpty && (id == target.lastMessageId || target.exactReadMessageIds.contains(id))) {
+      return ((target.snapshotCovered && id == target.lastMessageId) ||
+          target.confirmedReadMessageIds.contains(id)) ? 0 : math.max(0, raw - 1);
+    }
+    return raw;
+  }
+
+  /// SDK covering evidence finishes the pending phase, but the identity
+  /// watermark survives. Request ACKs never call this method.
+  void confirmReadTargetSnapshot(String conversationID, ConversationReadBarrier target) {
+    final owner = _resolveOwner(null);
+    final current = readBarrierFor(conversationID, ownerUserId: owner);
+    if (owner.isEmpty || current?.version != target.version || target.snapshotCovered) return;
+    final confirmed = ConversationReadBarrier(version: target.version,
+        recordedAtMs: target.recordedAtMs, lastMessageId: target.lastMessageId,
+        lastMessageTimestamp: target.lastMessageTimestamp,
+        lastMessageSeq: target.lastMessageSeq, orderKey: target.orderKey,
+        projectionEligible: target.projectionEligible, snapshotCovered: true,
+        exactReadMessageIds: target.exactReadMessageIds,
+        confirmedReadMessageIds: Set<String>.unmodifiable({
+          ...target.confirmedReadMessageIds, target.lastMessageId}));
+    _readBarriers[_readClearCacheKey(owner, conversationID)] = confirmed;
+    _persistReadBarrier(owner, conversationID, confirmed);
   }
 
   /// Applies the read barrier before an SDK row enters the mutation
@@ -2510,7 +2608,9 @@ class ConversationLocalStore {
             ? incomingSeq > barrier.lastMessageSeq
             : incomingTimestamp > barrier.lastMessageTimestamp);
     if (advanced) {
-      _clearReadCleared(owner, id);
+      // New messages pass through, but do not erase the already-read target:
+      // a later replay of that target must still be rejected.
+      if (!barrier.projectionEligible) _clearReadCleared(owner, id);
       return barrier.version + 1;
     }
     // C2C timestamps have second precision and sender seq is not a shared

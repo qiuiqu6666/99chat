@@ -365,6 +365,44 @@ void main() {
     expect(writer.recordsFor('c2c_peer').single.value, 'first');
   });
 
+  test('same msgID field update survives an overlapping stale history page',
+      () {
+    final writer = _writer();
+    writer.seedAuthoritative(
+      conversationID: 'c2c_peer',
+      records: <MessageReconciliationRecord<String>>[
+        _record('partial', msgID: 'm1', seq: 1),
+      ],
+    );
+    final request = writer.beginCloudCatchUp(
+      conversationID: 'c2c_peer',
+      networkState: MessageReconciliationNetworkState.online,
+    );
+    final update = writer.applyDelta(MessageDelta<String>(
+      conversationKey: 'c2c_peer',
+      eventID: 'modified:m1:complete',
+      kind: MessageDeltaKind.edit,
+      source: MessageDeltaSource.sdkRealtime,
+      generation: request.generation,
+      clearEpoch: request.clearEpoch,
+      upserts: <MessageReconciliationRecord<String>>[
+        _record('complete', msgID: 'm1', seq: 1),
+      ],
+    ));
+    expect(update!.records.single.value, 'complete');
+
+    final commit = writer.completeHistory(
+      request: request,
+      history: <MessageReconciliationRecord<String>>[
+        _record('stale cloud page', msgID: 'm1', seq: 1),
+      ],
+      actualSource: MessageReconciliationSource.cloud,
+      networkState: MessageReconciliationNetworkState.online,
+    );
+    expect(commit!.records, hasLength(1));
+    expect(commit.records.single.value, 'complete');
+  });
+
   test('C2C per-sender Seq never creates group continuity gaps', () {
     final writer = _writer();
     writer.seedAuthoritative(

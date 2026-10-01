@@ -7,6 +7,7 @@ import 'dart:io' show File;
 import 'package:flutter_plugin_record_plus/const/response.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/message_history_around_loader.dart';
 import 'dart:async';
+import 'package:tencent_cloud_chat_uikit/ui/utils/error_message_converter.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 import 'package:tencent_cloud_chat_demo/src/services/sqflite_lifecycle_guard.dart';
 import 'package:tencent_cloud_chat_demo/src/services/sqflite_lifecycle_host.dart';
@@ -7625,6 +7626,13 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
   V2TimMessage? _currentResendMessage(String convID, V2TimMessage original) {
     final clientId = original.id?.trim() ?? '';
     final msgID = original.msgID?.trim() ?? '';
+    // A retained row/confirmation may refer to an earlier retry attempt.
+    // Resolve its alias before testing status or constructing the single-flight
+    // key, otherwise the next retry cannot find the current failed attempt.
+    final aliased = globalModel.messageInConversationByKey(
+      convID, ChatUiStateStore.messageKeyOf(original),
+    );
+    if (aliased != null) return aliased;
     for (final current in globalModel.rawMessageList(convID) ??
         const <V2TimMessage>[]) {
       if ((clientId.isNotEmpty && current.id == clientId) ||
@@ -7734,6 +7742,15 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
       return null;
     }
     final outgoing = tools.setUserInfoForMessage(recreatedMessage, recreatedId);
+    outgoing.localCustomData = message.localCustomData;
+    ErrorMessageConverter.clearSendFailCode(outgoing);
+    if (faceFailedBeforeSdkCreation) {
+      final metadata = jsonDecode(outgoing.localCustomData ?? '{}');
+      if (metadata is Map) {
+        metadata.remove('faceCreatePending');
+        outgoing.localCustomData = jsonEncode(metadata);
+      }
+    }
     applyOutgoingStableIdToMessage(outgoing, recreatedId);
     return _sendMessage(
       id: recreatedId,
@@ -7746,6 +7763,7 @@ class TUIChatSeparateViewModel extends ChangeNotifier {
         outgoing.status = MessageStatus.V2TIM_MSG_STATUS_SENDING;
         addSendingMessageID(recreatedId);
         _prependOutgoingMessageForConversation(convID, outgoing, skipEnterAnimation: true);
+        globalModel.bindOutgoingRetryRows(convID, message, outgoing);
         if (msgID.isNotEmpty) unawaited(_messageService.deleteMessageFromLocalStorage(
           msgID: msgID, webMessageInstance: message.messageFromWeb).then<void>((_) {}, onError: (Object _, StackTrace __) {}));
       },

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:tencent_chat_i18n_tool/tencent_chat_i18n_tool.dart';
 import 'package:tencent_cloud_chat_demo/src/i18n/app_i18n.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/wallet/red_packet/red_packet_models.dart';
+import 'package:tencent_cloud_chat_demo/src/pages/wallet/order/wallet_business_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/provider/theme.dart';
 import 'package:tencent_cloud_chat_demo/src/services/call_result_record.dart';
 import 'package:tencent_cloud_chat_demo/src/services/call_result_repository.dart';
@@ -190,8 +191,7 @@ String? _callConversationPreviewLabel(V2TimMessage message) {
     final callId = provider.inviteID.trim();
     if (callId.isNotEmpty) {
       final record = CallResultRepository.instance.get(callId);
-      if (record != null &&
-          record.protocolType != CallProtocolType.unknown) {
+      if (record != null && record.protocolType != CallProtocolType.unknown) {
         final fromRecord = _previewFromCallResult(record);
         if (fromRecord.isNotEmpty) {
           return fromRecord;
@@ -199,9 +199,7 @@ String? _callConversationPreviewLabel(V2TimMessage message) {
       }
     }
     final content = provider.content.trim();
-    if (content.isNotEmpty &&
-        content != '未知通话' &&
-        !content.contains('未知通话')) {
+    if (content.isNotEmpty && content != '未知通话' && !content.contains('未知通话')) {
       if (provider.protocolType == CallProtocolType.send ||
           provider.protocolType == CallProtocolType.accept) {
         return null;
@@ -223,24 +221,64 @@ String _previewFromCallResult(CallResultRecord record) {
     case CallProtocolType.cancel:
       final cancelledByMe = record.isOutgoing == true;
       return cancelledByMe
-          ? i18n.t(zhHans: '已取消', zhHant: '已取消', en: 'Cancelled', ja: 'キャンセルしました', ko: '취소함')
-          : i18n.t(zhHans: '对方已取消', zhHant: '對方已取消', en: 'Cancelled by other party', ja: '相手がキャンセルしました', ko: '상대방이 취소했습니다');
+          ? i18n.t(
+              zhHans: '已取消',
+              zhHant: '已取消',
+              en: 'Cancelled',
+              ja: 'キャンセルしました',
+              ko: '취소함')
+          : i18n.t(
+              zhHans: '对方已取消',
+              zhHant: '對方已取消',
+              en: 'Cancelled by other party',
+              ja: '相手がキャンセルしました',
+              ko: '상대방이 취소했습니다');
     case CallProtocolType.reject:
       final rejectedByMe = record.isOutgoing == false;
       return rejectedByMe
-          ? i18n.t(zhHans: '已拒绝', zhHant: '已拒絕', en: 'Declined', ja: '拒否しました', ko: '거절함')
-          : i18n.t(zhHans: '对方已拒绝', zhHant: '對方已拒絕', en: 'Declined by other party', ja: '相手が拒否しました', ko: '상대방이 거절했습니다');
+          ? i18n.t(
+              zhHans: '已拒绝',
+              zhHant: '已拒絕',
+              en: 'Declined',
+              ja: '拒否しました',
+              ko: '거절함')
+          : i18n.t(
+              zhHans: '对方已拒绝',
+              zhHant: '對方已拒絕',
+              en: 'Declined by other party',
+              ja: '相手が拒否しました',
+              ko: '상대방이 거절했습니다');
     case CallProtocolType.timeout:
     case CallProtocolType.lineBusy:
       final isCaller = record.isOutgoing == true;
       if (record.protocolType == CallProtocolType.lineBusy) {
         return isCaller
-            ? i18n.t(zhHans: '对方忙线中', zhHant: '對方忙線中', en: 'Line busy', ja: '話し中', ko: '통화 중')
-            : i18n.t(zhHans: '忙线未接', zhHant: '忙線未接', en: 'Line busy, missed', ja: '話し中で不在', ko: '통화 중 부재');
+            ? i18n.t(
+                zhHans: '对方忙线中',
+                zhHant: '對方忙線中',
+                en: 'Line busy',
+                ja: '話し中',
+                ko: '통화 중')
+            : i18n.t(
+                zhHans: '忙线未接',
+                zhHant: '忙線未接',
+                en: 'Line busy, missed',
+                ja: '話し中で不在',
+                ko: '통화 중 부재');
       }
       return isCaller
-          ? i18n.t(zhHans: '对方无应答', zhHant: '對方無應答', en: 'No answer', ja: '応答なし', ko: '응답 없음')
-          : i18n.t(zhHans: '未接听', zhHant: '未接聽', en: 'Missed call', ja: '不在着信', ko: '부재중 전화');
+          ? i18n.t(
+              zhHans: '对方无应答',
+              zhHant: '對方無應答',
+              en: 'No answer',
+              ja: '応答なし',
+              ko: '응답 없음')
+          : i18n.t(
+              zhHans: '未接听',
+              zhHant: '未接聽',
+              en: 'Missed call',
+              ja: '不在着信',
+              ko: '부재중 전화');
     default:
       return record.mediaType == 'video' ? '[视频通话]' : '[语音通话]';
   }
@@ -280,8 +318,7 @@ String? conversationCallPreviewIfAuthoritative(
               lastMsg.elemType == null));
   final isCall = lastMsg != null &&
       CallingMessageDataProvider.looksLikeCallMessage(lastMsg);
-  final recordNewerOrSame =
-      record.endedAtMs >= _messageTimestampMs(lastMsg);
+  final recordNewerOrSame = record.endedAtMs >= _messageTimestampMs(lastMsg);
   if (!isEmptyShell && !isCall && !recordNewerOrSame) {
     return null;
   }
@@ -325,16 +362,14 @@ String? _customConversationPreviewLabel(V2TimMessage message) {
     return redPacketClaimNoticeDisplayText(data);
   }
 
-  if (type == 'wallet_red_packet' ||
-      (businessID == 'wallet_order' && legacyType == 'wallet_red_packet')) {
+  final walletFamily = WalletBusinessIdentity.fromMap(data)?.family;
+  if (walletFamily == WalletBusinessFamily.redPacket) {
     return _walletRedPacketPreview(message, data);
   }
-  if (type == 'wallet_group_transfer' ||
-      (businessID == 'wallet_order' && legacyType == 'wallet_group_transfer')) {
+  if (walletFamily == WalletBusinessFamily.groupTransfer) {
     return _walletGroupTransferPreview(data);
   }
-  if (type == 'wallet_transfer' ||
-      (businessID == 'wallet_order' && legacyType == 'wallet_transfer')) {
+  if (walletFamily == WalletBusinessFamily.transfer) {
     return _walletTransferPreview(message, data);
   }
 
@@ -343,12 +378,14 @@ String? _customConversationPreviewLabel(V2TimMessage message) {
     if (businessID == GroupLiveMessageIds.started) {
       return roomName == null
           ? TIM_t('[群直播] 直播中')
-          : TIM_t_para('[群直播] {{option1}}', '[群直播] $roomName')(option1: roomName);
+          : TIM_t_para('[群直播] {{option1}}', '[群直播] $roomName')(
+              option1: roomName);
     }
     if (businessID == GroupLiveMessageIds.ended) {
       return roomName == null
           ? TIM_t('[群直播] 已结束')
-          : TIM_t_para('[群直播] {{option1}}', '[群直播] $roomName')(option1: roomName);
+          : TIM_t_para('[群直播] {{option1}}', '[群直播] $roomName')(
+              option1: roomName);
     }
     return roomName == null
         ? TIM_t('[群直播]')
@@ -364,7 +401,8 @@ String? _customConversationPreviewLabel(V2TimMessage message) {
   }
 
   if (businessID == 'group_create' || type == 'group_create') {
-    final detailed = MessageUtils.getCustomGroupCreatedOrDismissedString(message);
+    final detailed =
+        MessageUtils.getCustomGroupCreatedOrDismissedString(message);
     if (detailed.isNotEmpty) {
       return detailed;
     }
@@ -619,14 +657,12 @@ String groupTipsPreviewFingerprint(V2TimMessage lastMsg) {
       .map((m) => m?.userID?.trim() ?? '')
       .where((id) => id.isNotEmpty)
       .join(',');
-  final changes = (tip.groupChangeInfoList ?? const [])
-      .map((c) {
-        if (c == null) {
-          return '';
-        }
-        return '${c.type}:${c.value ?? ''}';
-      })
-      .join(',');
+  final changes = (tip.groupChangeInfoList ?? const []).map((c) {
+    if (c == null) {
+      return '';
+    }
+    return '${c.type}:${c.value ?? ''}';
+  }).join(',');
   return '${tip.type}|${tip.groupID}|${tip.opMember.userID}|$members|$changes|${tip.memberCount ?? ''}';
 }
 
@@ -716,9 +752,9 @@ String? conversationListLastMessageAbstract(
     final cached = convId == null
         ? null
         : ConversationPreviewTextCache.instance.getForMessage(
-            convId,
-            messageKey,
-          ) ??
+              convId,
+              messageKey,
+            ) ??
             ConversationPreviewTextCache.instance.get(convId);
     if (cached != null && cached.isNotEmpty) {
       return cached;

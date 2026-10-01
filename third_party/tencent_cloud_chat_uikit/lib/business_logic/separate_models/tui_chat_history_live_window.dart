@@ -257,7 +257,8 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
     if (globalModel.unadmittedRemainingLiveCountFor(conv) > 0) {
       return false;
     }
-    if (!coveredIds.containsAll(globalModel.remainingLiveIncomingIdsFor(conv))) {
+    if (!coveredIds.containsAll(
+        globalModel.remainingLiveIncomingIdsFor(conv, excludeRead: true))) {
       return false;
     }
     _clearHistoryReadingWindow();
@@ -394,7 +395,8 @@ extension HistoryLiveWindow on TUIChatSeparateViewModel {
     if (!globalModel.hasDurableHistoryDeferred(conv)) {
       final projectedIDs = visibleMessages
           .map(TUIChatGlobalModel.liveIncomingIdentity).toSet();
-      if (!projectedIDs.containsAll(globalModel.remainingLiveIncomingIdsFor(conv))) {
+      if (!projectedIDs.containsAll(
+          globalModel.remainingLiveIncomingIdsFor(conv, excludeRead: true))) {
         return Future<bool>.value(false);
       }
       if (!current()) return Future<bool>.value(false);

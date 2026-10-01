@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
+import 'package:tencent_cloud_chat_demo/src/pages/wallet/order/wallet_business_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/models/chat_attachment.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/chat_attachment_message_card.dart';
 import 'package:tencent_cloud_chat_sdk/enum/message_status.dart';
@@ -210,6 +212,26 @@ class CustomMessageElem extends StatefulWidget {
 }
 
 class _CustomMessageElemState extends State<CustomMessageElem> {
+  int _metadataGeneration = 0;
+
+  String _metadataIdentity(V2TimMessage message) {
+    final data = _walletPayload(message.customElem?.data);
+    return '${message.groupID}|${message.userID}|${message.sender}|'
+        '${message.msgID}|${data == null ? '' : _walletIdentityKey(data)}|'
+        '${data?['cardId']}|${data?['conversationId']}|${data?['target']}';
+  }
+
+  bool Function() _captureMetadataFence() {
+    final generation = _metadataGeneration;
+    final identity = _metadataIdentity(widget.message);
+    final session = SessionIdentityService.instance.capture();
+    return () =>
+        mounted &&
+        generation == _metadataGeneration &&
+        identity == _metadataIdentity(widget.message) &&
+        SessionIdentityService.instance.isCurrent(session);
+  }
+
   bool isShowJumpState = false;
   bool isShining = false;
   bool isShowBorder = false;
@@ -320,6 +342,11 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
   @override
   void didUpdateWidget(CustomMessageElem oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (_metadataIdentity(oldWidget.message) !=
+        _metadataIdentity(widget.message)) {
+      _metadataGeneration++;
+      _packetTypeResolveKey = null;
+    }
     if (widget.isShowJump && !oldWidget.isShowJump && !isShining) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -365,6 +392,8 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
   }
 
   void _clearWalletState() {
+    _metadataGeneration++;
+    _walletQuietRefreshInFlight = false;
     _walletCacheKey = null;
     _walletData = null;
     _walletCard = null;
@@ -489,6 +518,9 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
   }
 
   void _scheduleWalletCardLoad(Map<String, dynamic> data) {
+    _metadataGeneration++;
+    _walletQuietRefreshInFlight = false;
+    final current = _captureMetadataFence();
     final cacheKey = _walletCacheKeyFromData(data);
     _walletCacheKey = cacheKey;
     _walletData = data;
@@ -509,6 +541,7 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
       _scheduleExclusiveReceiverFaceResolve(data, _exclusiveMeta);
       _maybeLoadExclusiveMeta(data, card);
       await _hydrateRedPacketOpenedBeforeFirstPaint(data);
+      if (!current()) return;
       _scheduleRedPacketOpenedCheck(data);
       if (mounted) {
         setState(() {});
@@ -575,11 +608,13 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
     }
 
     _loadWalletCardFromData(data).then((card) {
+      if (!current()) return;
       _mergeWalletCardFromNetwork(
         card: card,
         cacheKey: cacheKey,
         data: data,
         isFirstPaint: true,
+        isCurrent: current,
       );
     });
   }
@@ -589,9 +624,11 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
     required String cacheKey,
     required Map<String, dynamic> data,
     required bool isFirstPaint,
+    bool Function()? isCurrent,
     int attempt = 0,
   }) {
-    if (!mounted || _walletCacheKey != cacheKey) return;
+    final current = isCurrent ?? _captureMetadataFence();
+    if (!current() || _walletCacheKey != cacheKey) return;
     if ('${data['cardStateVersion']}' !=
         '${_walletData?['cardStateVersion']}') {
       return;
@@ -604,6 +641,7 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
           cacheKey: cacheKey,
           data: data,
           isFirstPaint: isFirstPaint,
+          isCurrent: current,
           attempt: attempt + 1,
         );
       });
@@ -672,25 +710,29 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
   }
 
   Future<void> _fetchAndMergeWalletCard(Map<String, dynamic> data) async {
+    final current = _captureMetadataFence();
     if (_walletQuietRefreshInFlight) return;
     _walletQuietRefreshInFlight = true;
     final cacheKey = _walletCacheKeyFromData(data);
     try {
       final card = await _loadWalletCardFromData(data);
-      if (!mounted || _walletCacheKey != cacheKey) return;
+      if (!current() || _walletCacheKey != cacheKey) return;
       _mergeWalletCardFromNetwork(
         card: card,
         cacheKey: cacheKey,
         data: data,
         isFirstPaint: false,
+        isCurrent: current,
       );
     } finally {
-      _walletQuietRefreshInFlight = false;
-      final latest = _walletData;
-      if (mounted && latest != null &&
-          '${latest['cardStateVersion']}' != '${data['cardStateVersion']}') {
-        _invalidateWalletCardCache(latest);
-        _scheduleWalletQuietRefresh(latest);
+      if (current()) {
+        _walletQuietRefreshInFlight = false;
+        final latest = _walletData;
+        if (latest != null &&
+            '${latest['cardStateVersion']}' != '${data['cardStateVersion']}') {
+          _invalidateWalletCardCache(latest);
+          _scheduleWalletQuietRefresh(latest);
+        }
       }
     }
   }
@@ -799,11 +841,12 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
     Map<String, dynamic> data, {
     Duration delay = const Duration(milliseconds: 320),
   }) async {
+    final current = _captureMetadataFence();
     if (_walletQuietRefreshInFlight) return;
     if (delay > Duration.zero) {
       await Future<void>.delayed(delay);
     }
-    if (!mounted) return;
+    if (!current()) return;
     await _fetchAndMergeWalletCard(data);
   }
 
@@ -858,6 +901,7 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
   Future<void> _hydrateRedPacketOpenedBeforeFirstPaint(
     Map<String, dynamic> data,
   ) async {
+    final current = _captureMetadataFence();
     if (kIsWeb) return;
     if (data['type']?.toString() != 'wallet_red_packet') return;
     final keys = _redPacketStorageKeys(data);
@@ -877,7 +921,7 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
             .timeout(const Duration(milliseconds: 80));
         if (record != null) break;
       }
-      if (record != null) {
+      if (current() && record != null) {
         _applyRedPacketOpenedRecord(record, notify: false);
       }
     } on TimeoutException {
@@ -914,6 +958,7 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
     List<String> keys, {
     bool notify = true,
   }) async {
+    final current = _captureMetadataFence();
     final checkKey = keys.join('|');
     try {
       RedPacketOpenedRecord? record;
@@ -921,12 +966,12 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
         record = await RedPacketLocalStore.instance.getOpened(orderId: key);
         if (record != null) break;
       }
-      if (!mounted || _redPacketOpenedCheckKey != checkKey) return;
+      if (!current() || _redPacketOpenedCheckKey != checkKey) return;
       if (record != null || !_redPacketOpenedLocally) {
         _applyRedPacketOpenedRecord(record, notify: notify);
       }
     } finally {
-      if (mounted && _redPacketOpenedCheckKey == checkKey) {
+      if (current() && _redPacketOpenedCheckKey == checkKey) {
         _redPacketOpenedCheckInFlight = false;
       }
     }
@@ -1036,6 +1081,7 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
   }
 
   Future<String> _resolveRedPacketApiId(Map<String, dynamic> data) async {
+    final current = _captureMetadataFence();
     final serverId = resolveRedPacketServerId(data);
     if (serverId.isNotEmpty) return serverId;
 
@@ -1044,6 +1090,7 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
 
     final draft =
         await WalletCardSendService().pendingCardForOrderKeys([clientId]);
+    if (!current()) return '';
     final recovered = draft?.serverOrderId.trim() ?? '';
     if (isRedPacketServerId(recovered)) {
       if (mounted) {
@@ -1076,10 +1123,17 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
     String orderId,
     Map<String, dynamic> data,
   ) async {
+    final current = _captureMetadataFence();
+    final requestKey = _packetTypeResolveKey;
     try {
       final order = await WalletApi.instance.getRedPacketOrder(orderId);
       final packetType = order.data['packetType']?.toString().trim() ?? '';
-      if (!mounted || packetType.isEmpty) return;
+      if (!current() ||
+          _packetTypeResolveKey != requestKey ||
+          resolveRedPacketServerId(_walletData ?? data) != orderId ||
+          packetType.isEmpty) {
+        return;
+      }
       setState(() {
         _walletData = Map<String, dynamic>.from(_walletData ?? data)
           ..['packetType'] = packetType;
@@ -1434,9 +1488,9 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
       return;
     }
     _exclusiveMetaKey = metaKey;
-
+    final current = _captureMetadataFence();
     _loadExclusiveMeta(serverOrderId, data).then((meta) {
-      if (!mounted || _exclusiveMetaKey != metaKey) return;
+      if (!current() || _exclusiveMetaKey != metaKey) return;
       if (meta == null) return;
 
       final mergedMeta = _mergeExclusiveMetaStable(_exclusiveMeta, meta);
@@ -1504,23 +1558,9 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
       );
       if (data == null) return null;
 
-      final customType = data['customType']?.toString() ?? '';
-      final legacyType = data['type']?.toString() ?? '';
-      final businessID = data['businessID']?.toString() ?? '';
-
-      String? cardType;
-      if (customType == 'wallet_transfer' || legacyType == 'wallet_transfer') {
-        cardType = 'wallet_transfer';
-      } else if (customType == 'wallet_group_transfer' ||
-          legacyType == 'wallet_group_transfer') {
-        cardType = 'wallet_group_transfer';
-      } else if (customType == 'wallet_red_packet' ||
-          legacyType == 'wallet_red_packet') {
-        cardType = 'wallet_red_packet';
-      } else if (businessID == 'wallet_order') {
-        cardType = legacyType;
-      }
-      if (cardType == null || cardType.isEmpty) return null;
+      final identity = WalletBusinessIdentity.fromMap(data);
+      if (identity == null) return null;
+      final cardType = identity.family.wireType;
 
       final serverOrderId = resolveRedPacketServerId(data);
       final clientOrderId = resolveRedPacketClientOrderId(data);
@@ -1543,6 +1583,9 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
             '',
       };
       for (final key in const [
+        'cardId',
+        'conversationId',
+        'target',
         'cardStateVersion',
         'remainingCount',
         'remainingAmount',
@@ -1822,8 +1865,7 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
     final greeting = card.msg.isNotEmpty ? card.msg : TIM_t('恭喜发财，大吉大利');
     final alreadyClaimed = _redPacketClaimedLocally ||
         (_peekRedPacketOpenedRecord(walletData)?.claimed ?? false);
-    var autoClaim =
-        _isRedPacketClaimableStatus(card.status) && !alreadyClaimed;
+    var autoClaim = _isRedPacketClaimableStatus(card.status) && !alreadyClaimed;
 
     _redPacketOverlayOpening = true;
 
@@ -1833,14 +1875,22 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
       // the final share since it was rendered. Resolve before showing "开".
       if (autoClaim) {
         try {
-          final state = await WalletApi.instance.getRedPacketClaimState(orderId);
+          final state =
+              await WalletApi.instance.getRedPacketClaimState(orderId);
           if (!mounted) return;
           final terminal = const {
-            'FINISHED', 'COMPLETED', 'FULLY_CLAIMED', 'CLAIMED_ALL',
-            'EMPTY', 'EXPIRED', 'REFUNDED',
+            'FINISHED',
+            'COMPLETED',
+            'FULLY_CLAIMED',
+            'CLAIMED_ALL',
+            'EMPTY',
+            'EXPIRED',
+            'REFUNDED',
           }.contains(state.packetStatus.toUpperCase());
-          autoClaim = state.canOpen && !state.received &&
-              state.remainingCount > 0 && !terminal;
+          autoClaim = state.canOpen &&
+              !state.received &&
+              state.remainingCount > 0 &&
+              !terminal;
         } catch (_) {
           if (mounted) ToastUtils.toast(TIM_t('红包状态加载失败，请重试'));
           return;
@@ -3096,7 +3146,8 @@ class _CustomMessageElemState extends State<CustomMessageElem> {
     final attachment = ChatAttachment.tryParse(widget.message.customElem?.data);
     if (attachment != null) {
       return ChatAttachmentMessageCard(
-        key: ValueKey('attachment:${attachment.attachmentId}:${attachment.referenceId}'),
+        key: ValueKey(
+            'attachment:${attachment.attachmentId}:${attachment.referenceId}'),
         attachment: attachment,
         message: widget.message,
         conversationID: widget.chatController.model?.conversationID,

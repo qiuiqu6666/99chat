@@ -12,6 +12,7 @@ class ChatWebImageLightbox extends StatefulWidget {
   const ChatWebImageLightbox({
     required this.imageUrl,
     this.imageUrlResolver,
+    this.fitToViewport = false,
     this.onDownload,
     this.onDownloadUrl,
     this.onOpenExternal,
@@ -19,6 +20,7 @@ class ChatWebImageLightbox extends StatefulWidget {
   });
 
   final String imageUrl;
+  final bool fitToViewport;
   final Future<String?> Function()? imageUrlResolver;
   final VoidCallback? onDownload;
   final Future<void> Function(String imageUrl)? onDownloadUrl;
@@ -27,6 +29,7 @@ class ChatWebImageLightbox extends StatefulWidget {
   static Future<void> show({
     required BuildContext context,
     required String imageUrl,
+    bool fitToViewport = false,
     Future<String?> Function()? imageUrlResolver,
     VoidCallback? onDownload,
     Future<void> Function(String imageUrl)? onDownloadUrl,
@@ -41,6 +44,7 @@ class ChatWebImageLightbox extends StatefulWidget {
       pageBuilder: (context, animation, secondaryAnimation) {
         return ChatWebImageLightbox(
           imageUrl: imageUrl,
+          fitToViewport: fitToViewport,
           imageUrlResolver: imageUrlResolver,
           onDownload: onDownload,
           onDownloadUrl: onDownloadUrl,
@@ -161,6 +165,8 @@ class _ChatWebImageLightboxState extends State<ChatWebImageLightbox> {
     return Image.network(
       url,
       fit: BoxFit.contain,
+      width: widget.fitToViewport ? MediaQuery.sizeOf(context).width : null,
+      height: widget.fitToViewport ? MediaQuery.sizeOf(context).height : null,
       gaplessPlayback: true,
       webHtmlElementStrategy: kIsWeb
           ? _webImageElementStrategyFor(url)

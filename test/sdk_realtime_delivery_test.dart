@@ -8,6 +8,7 @@ import 'package:tencent_cloud_chat_demo/src/services/im/im_ingress_store.dart';
 import 'package:tencent_cloud_chat_demo/src/services/im/tencent_advanced_message_adapter.dart';
 import 'package:tencent_cloud_chat_sdk/enum/V2TimAdvancedMsgListener.dart';
 import 'package:tencent_cloud_chat_sdk/models/v2_tim_message.dart';
+import 'package:tencent_cloud_chat_sdk/models/v2_tim_text_elem.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/message/message_services.dart';
 
 class _Service implements MessageService {
@@ -38,6 +39,10 @@ V2TimMessage _message(String id, {int type = 1}) => V2TimMessage.fromJson({
     })
       ..elemType = type
       ..isSelf = false;
+
+V2TimMessage _textMessage(String id, String text) => _message(id)
+  ..textElem = V2TimTextElem(text: text)
+  ..elemList = <V2TimTextElem>[V2TimTextElem(text: text)];
 
 void main() {
   test(
@@ -116,6 +121,47 @@ void main() {
     expect(events, hasLength(3));
     expect(store.inbox, hasLength(3));
     expect(events.every((event) => event.eventNamespace == 'chat'), isTrue);
+    await adapter.unregister();
+  });
+
+  test(
+      'a hydrated callback updates an existing msgID without a second new-message notification',
+      () async {
+    final service = _Service();
+    final store = InMemoryImIngressStore();
+    final live = <EventEnvelope<dynamic>>[];
+    final changed = Completer<EventEnvelope<dynamic>>();
+    var clearEpoch = 7;
+    final adapter = TencentAdvancedMessageAdapter(
+      messageService: service,
+      ingress: DurableIngressGateway(store: store),
+      ownerUserId: 'alice',
+      accountGeneration: 2,
+      domainGeneration: 3,
+      onEvent: changed.complete,
+      onSdkRealtimeEvent: live.add,
+      sdkRealtimeClearEpoch: (_) => clearEpoch,
+    );
+    await adapter.register();
+
+    service.listener!.onRecvNewMessage(_textMessage('same', 'partial'));
+    await Future<void>.delayed(Duration.zero);
+    service.listener!.onRecvNewMessage(_textMessage('same', 'complete'));
+    final update = await changed.future.timeout(const Duration(seconds: 2));
+
+    expect(live, hasLength(1));
+    expect(update.kind, ImEventKind.messageMutation);
+    expect((update.payload as V2TimMessage).textElem?.text, 'complete');
+    expect(store.inbox, hasLength(1));
+
+    // The same server ID after a history clear belongs to a new visibility
+    // epoch and must start as a new delivery, not inherit the old edit cache.
+    clearEpoch = 8;
+    service.listener!.onRecvNewMessage(_textMessage('same', 'post-clear'));
+    await Future<void>.delayed(Duration.zero);
+    expect(live, hasLength(2));
+    expect(live.last.clearEpoch, 8);
+    expect(store.inbox, hasLength(1));
     await adapter.unregister();
   });
 

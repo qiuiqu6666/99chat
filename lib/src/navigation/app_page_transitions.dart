@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/ios_back_gesture.dart';
 
+import 'app_route_depth_transition.dart';
 import 'full_screen_back_route.dart';
 import 'route_visibility_host.dart';
 
@@ -16,6 +17,7 @@ abstract class AppRoutes {
   static const searchAllGroups = 'search_all_groups';
   static const searchAllMessages = 'search_all_messages';
   static const walletOverlay = 'wallet_overlay';
+
   /// 通讯录 →「我的群聊」列表页。
   static const myGroupList = 'myGroupList';
 }
@@ -24,6 +26,10 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
   const AppPageTransitionsBuilder();
 
   static const _cupertino = CupertinoPageTransitionsBuilder();
+
+  @override
+  DelegatedTransitionBuilder? get delegatedTransition =>
+      AppRouteDepthTransition.delegatedTransition;
 
   @override
   Widget buildTransitions<T>(
@@ -37,17 +43,21 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
       route,
       context,
       animation,
-      secondaryAnimation,
+      kAlwaysDismissedAnimation,
       child,
+    );
+    final transition = AppRouteDepthTransition(
+      animation: secondaryAnimation,
+      child: page,
     );
     // 全屏返回路由自带手势；仅模态等 IosBackGestureRoute 再挂边缘手势。
     if (route is FullScreenBackPageRoute) {
-      return page;
+      return transition;
     }
     if (route is IosBackGestureRoute) {
-      return (route as IosBackGestureRoute).wrapWithIosBackGesture(page);
+      return (route as IosBackGestureRoute).wrapWithIosBackGesture(transition);
     }
-    return page;
+    return transition;
   }
 }
 
@@ -77,10 +87,11 @@ class AppFullscreenDialogRoute<T> extends PageRoute<T>
   String? get title => null;
 
   @override
-  Duration get transitionDuration => const Duration(milliseconds: 300);
+  Duration get transitionDuration => AppRouteDepthTransition.transitionDuration;
 
   @override
-  Duration get reverseTransitionDuration => const Duration(milliseconds: 300);
+  Duration get reverseTransitionDuration =>
+      AppRouteDepthTransition.transitionDuration;
 
   @override
   bool get popGestureEnabled => false;
@@ -112,7 +123,7 @@ class AppMaterialPageRoute<T> extends FullScreenBackPageRoute<T> {
     bool enableFullScreenBackGesture = true,
     double edgeStartWidthPx = 24.0,
     int routeVisibilityDeferredFrames = 1,
-    Duration transitionDuration = const Duration(milliseconds: 300),
+    Duration transitionDuration = AppRouteDepthTransition.transitionDuration,
   }) : super(
           settings: settings,
           maintainState: maintainState,

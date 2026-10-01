@@ -152,6 +152,7 @@ void main() {
         V2TimMessage.fromJson({'message_risk_type_identified': 0})
           ..msgID = id
           ..sender = 'owner'
+          ..userID = 'peer'
           ..elemType = 2
           ..seq = id == 'a' ? '10' : '11'
           ..timestamp = 101

@@ -98,14 +98,15 @@ void main() {
     expectUnread(3);
   });
 
-  test('a local read marker cannot suppress an SDK count', () {
+  test('read watermark suppresses UI replay without changing raw SDK count', () {
     sdk(_row(4));
-    store.recordReadClearedAnchor(_id,
+    store.recordReadClearedAnchor(_id, reliableReadTarget: true,
         lastMessageId: 'message_10',
         lastMessageTimestamp: 1800000010,
         lastMessageSeq: 10);
     sdk(_row(4));
-    expectUnread(4);
+    expectUnread(0);
+    expect(aggregate.sdkUnreadCountFor(_id), 4);
   });
 
   test('metadata and preview projections do not invent unread counts', () {
@@ -198,7 +199,7 @@ void main() {
   });
 
   for (final fast in [false, true]) {
-    test('offline read retains counts and a durable bounded intent: fast=$fast',
+    test('offline read retains raw counts and durable intent, projects read: fast=$fast',
         () async {
       final called = Completer<void>();
       TencentConversationReadService.cleanUnreadForTesting = ({
@@ -226,7 +227,8 @@ void main() {
       }
       await ConversationUnreadClearService.scheduleSdkUnreadClean(
           conversationID: _id, trigger: SdkUnreadCleanTrigger.open);
-      expectUnread(40);
+      expectUnread(0);
+      expect(aggregate.sdkUnreadCountFor(_id), 40);
       expect(row.unreadCount, 40);
       expect(syntheticClears, 0);
       final pending = await ConversationReadOutboxStore.instance

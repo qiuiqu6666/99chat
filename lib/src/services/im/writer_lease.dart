@@ -74,6 +74,30 @@ class ImWriterLease {
       );
 }
 
+/// Rechecks the in-memory ownership after the authoritative store read.
+/// Kept separate so renewal and account changes can be exercised deterministically.
+Future<bool> isWriterLeaseCurrentAcrossAwait({
+  required ImWriterLease? Function() currentLease,
+  required bool Function() isOwnerCurrent,
+  required Future<bool> Function(ImWriterLease lease) validate,
+  required int Function() nowMs,
+}) async {
+  final captured = currentLease();
+  if (captured == null || !isOwnerCurrent()) return false;
+  final valid = await validate(captured);
+  final current = currentLease();
+  // Renewal replaces the snapshot, not its ownership. Compare the same
+  // fencing identity used by the store; never accept a takeover or logout.
+  // The read may have queued past expiry, so check time again after await.
+  return valid &&
+      current != null &&
+      current.ownerUserId == captured.ownerUserId &&
+      current.leaseOwnerId == captured.leaseOwnerId &&
+      current.fencingToken == captured.fencingToken &&
+      !current.isExpiredAt(nowMs()) &&
+      isOwnerCurrent();
+}
+
 class ImMessageCoreLeaseContext {
   const ImMessageCoreLeaseContext({
     required this.store,

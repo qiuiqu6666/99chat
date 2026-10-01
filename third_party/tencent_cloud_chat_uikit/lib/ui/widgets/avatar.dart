@@ -364,6 +364,7 @@ class Avatar extends TIMUIKitStatelessWidget {
         context: context,
         enableGestureBack: false,
         child: ImageScreen(
+          fitToViewport: true,
           imageProvider: getImageProvider(),
           heroTag: '',
           downloadFn: assetDownloadFn,
@@ -415,6 +416,7 @@ class Avatar extends TIMUIKitStatelessWidget {
     // Web：禁止走 ImageScreen（会读像素触发 Same-Origin / CORS 红屏）。
     if (kIsWeb) {
       await ChatWebImageLightbox.show(
+        fitToViewport: true,
         context: context,
         imageUrl: trimmed,
         imageUrlResolver: () async {
@@ -650,6 +652,7 @@ class _AvatarNetworkPreviewPageState extends State<_AvatarNetworkPreviewPage> {
       return const SizedBox.expand();
     }
     return ImageScreen(
+      fitToViewport: true,
       key: ValueKey<String>(previewUrl.isEmpty ? widget.thumbUrl : previewUrl),
       imageProvider: _imageProvider,
       // The resolved provider is the first full-screen image. An unavailable
@@ -773,8 +776,8 @@ class _AvatarAssetPreviewPageState extends State<_AvatarAssetPreviewPage> {
                       height: screenSize.height,
                       child: Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: screenSize.width * 0.08,
-                          vertical: 24,
+                          horizontal: 0,
+                          vertical: 0,
                         ),
                         child: isSvg
                             ? SvgPicture.asset(

@@ -1251,6 +1251,36 @@ class _ProfileNicknameEditPageState extends State<ProfileNicknameEditPage> {
                     borderColor: avatarInputBorder,
                     clearIconColor: clearIconColor,
                   ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: 12,
+                      runSpacing: 4,
+                      children: [
+                        Text(
+                          AppI18n.of(context).t(
+                            zhHans: '最多输入${widget.maxLength}个字',
+                            zhHant: '最多輸入${widget.maxLength}個字',
+                            en: 'Maximum ${widget.maxLength} characters',
+                            ja: '最大${widget.maxLength}文字',
+                            ko: '최대 ${widget.maxLength}자',
+                          ),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTokens.appTextSecondary(isDark),
+                          ),
+                        ),
+                        Text(
+                          '$_inputCharacterCount/${widget.maxLength}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTokens.appTextSecondary(isDark),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   ...statusHints,
                 ],
               ),

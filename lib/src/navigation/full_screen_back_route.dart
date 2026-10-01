@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+import 'app_route_depth_transition.dart';
+
 /// 栈底一级页：不参与全屏右滑（首页 Tab 容器、登录页）。
 const Set<String> kRootRoutesWithoutBackGesture = {
   '/homePage',
@@ -17,11 +19,12 @@ class FullScreenBackPageRoute<T> extends PageRouteBuilder<T> {
     bool maintainState = true,
     bool allowSnapshotting = false,
     this.edgeStartWidthPx = 24.0,
-    this.pushCurve = Curves.fastEaseInToSlowEaseOut,
-    this.popCurve = Curves.fastEaseInToSlowEaseOut,
+    this.pushCurve = AppRouteDepthTransition.defaultCurve,
+    this.popCurve = AppRouteDepthTransition.defaultCurve,
     this.enableFullScreenBackGesture = true,
-    Duration transitionDuration = const Duration(milliseconds: 300),
-    Duration reverseTransitionDuration = const Duration(milliseconds: 300),
+    Duration transitionDuration = AppRouteDepthTransition.transitionDuration,
+    Duration reverseTransitionDuration =
+        AppRouteDepthTransition.transitionDuration,
   }) : super(
           settings: settings,
           maintainState: maintainState,
@@ -36,6 +39,7 @@ class FullScreenBackPageRoute<T> extends PageRouteBuilder<T> {
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return _FullScreenBackTransition(
               animation: animation,
+              secondaryAnimation: secondaryAnimation,
               pushCurve: pushCurve,
               popCurve: popCurve,
               edgeStartWidthPx: edgeStartWidthPx,
@@ -53,6 +57,10 @@ class FullScreenBackPageRoute<T> extends PageRouteBuilder<T> {
   @override
   bool get popGestureEnabled => false;
 
+  @override
+  DelegatedTransitionBuilder? get delegatedTransition =>
+      AppRouteDepthTransition.delegatedTransition;
+
   AnimationController? get routeAnimationController => controller;
 }
 
@@ -61,6 +69,7 @@ class FullScreenBackPageRoute<T> extends PageRouteBuilder<T> {
 class _FullScreenBackTransition extends StatefulWidget {
   const _FullScreenBackTransition({
     required this.animation,
+    required this.secondaryAnimation,
     required this.pushCurve,
     required this.popCurve,
     required this.edgeStartWidthPx,
@@ -69,6 +78,7 @@ class _FullScreenBackTransition extends StatefulWidget {
   });
 
   final Animation<double> animation;
+  final Animation<double> secondaryAnimation;
   final Curve pushCurve;
   final Curve popCurve;
   final double edgeStartWidthPx;
@@ -140,7 +150,12 @@ class _FullScreenBackTransitionState extends State<_FullScreenBackTransition> {
   Widget build(BuildContext context) {
     return SlideTransition(
       position: _position,
-      child: _stableGestureLayer,
+      child: AppRouteDepthTransition(
+        animation: widget.secondaryAnimation,
+        curve: widget.pushCurve,
+        reverseCurve: widget.popCurve,
+        child: _stableGestureLayer,
+      ),
     );
   }
 }

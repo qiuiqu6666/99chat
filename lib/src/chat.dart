@@ -1,6 +1,7 @@
 // ignore_for_file: unused_field, unused_element, avoid_print, deprecated_member_use
 
 import 'dart:async';
+import 'package:tencent_cloud_chat_demo/src/services/chat_liveness_diagnostics.dart';
 import 'package:tencent_cloud_chat_demo/src/pages/wallet/order/wallet_conversation_cards.dart';
 import 'package:tencent_cloud_chat_demo/src/bootstrap/startup_entry_preferences.dart';
 import 'package:tencent_cloud_chat_demo/src/widgets/lottery_chat_entry.dart';
@@ -9456,6 +9457,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
   @override
   void initState() {
     super.initState();
+    ChatLivenessDiagnostics.instance.attach(this, _getConvID() ?? '');
     final walletGroup = _getConvType() == ConvType.group;
     _walletConversationCards = WalletConversationCards(
       target: walletGroup
@@ -9978,12 +9980,14 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
 
   @override
   void didPushNext() {
+    ChatLivenessDiagnostics.instance.routeState(this, _getConvID() ?? '', 'covered');
     // A maintained chat route is not deactivated when another page covers it.
     ActiveChatRegistry.instance.updateRouteVisible(false);
   }
 
   @override
   void didPopNext() {
+    ChatLivenessDiagnostics.instance.routeState(this, _getConvID() ?? '', 'resumed');
     _scheduleRouteReturnRecovery();
   }
 
@@ -10052,6 +10056,7 @@ class _ChatState extends State<Chat> with WidgetsBindingObserver, RouteAware {
 
   @override
   void dispose() {
+    ChatLivenessDiagnostics.instance.detach(this);
     _walletConversationCards.dispose();
     StartupEntryPreferences.readiness.removeListener(_onEntryWarmupReady);
     appRouteObserver.unsubscribe(this);

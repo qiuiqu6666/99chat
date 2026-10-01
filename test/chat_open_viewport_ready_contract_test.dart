@@ -82,12 +82,12 @@ void main() {
     test('tap path starts local snapshot without blocking navigation', () {
       final conv = File('lib/src/conversation.dart').readAsStringSync();
       expect(
-        conv.contains('final prepareTask = coordinator.prepareOpenViewport('),
+        conv.contains('coordinator.prepareOpenViewport('),
         isTrue,
       );
       expect(conv.contains('markTransitioning'), isTrue);
-      final prepareAt = conv.indexOf('prepareOpenViewport');
-      final pushAt = conv.indexOf('openOrReuseAppChat');
+      final prepareAt = conv.indexOf('coordinator.prepareOpenViewport(');
+      final pushAt = conv.indexOf('await openOrReuseAppChat(');
       expect(prepareAt, greaterThanOrEqualTo(0));
       expect(pushAt, greaterThan(prepareAt));
       expect(
@@ -105,8 +105,10 @@ void main() {
         'lib/src/services/chat_open_viewport_coordinator.dart',
       ).readAsStringSync();
       final localAt = route.indexOf('prepareOpenViewport');
-      final pushAt = route.indexOf('return navigator.push<T>');
-      expect(route.contains('await ChatOpenViewportCoordinator.instance'), isTrue);
+      final pushAt = route.indexOf('return navigator.push<');
+      expect(route.contains('await ChatOpenPerfLog.measure('), isTrue);
+      expect(route.contains('.timeout(ChatOpenViewportCoordinator.localBudget)'),
+          isTrue);
       expect(localAt, greaterThanOrEqualTo(0));
       expect(pushAt, greaterThan(localAt));
       expect(route.contains('cloudGraceBudget'), isFalse);

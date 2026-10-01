@@ -1135,8 +1135,8 @@ class ConversationSyncService {
           expectedStatus: from,
           nextStatus: to,
         ),
-        adoptOutgoing: () => _adoptProviderOutgoingMessage(
-          event, identity: identity, lease: lease),
+        adoptOutgoing: () => _adoptProviderOutgoingMessage(event,
+            identity: identity, lease: lease),
         publish: () =>
             _publishMessageIngressProjection(event, identity: identity),
         completeOutgoing: () async {
@@ -1726,6 +1726,12 @@ class ConversationSyncService {
         return;
       }
       _conversationListenerAttached = true;
+      ChatRecoveryTrace.log('realtime_listener_attached',
+          conversationID: '',
+          fields: {
+            'type': 'conversation',
+            'generation': identity.generation,
+          });
       _log(
         'event=realtime_listener_attached type=conversation '
         'generation=${identity.generation}',
@@ -1735,6 +1741,13 @@ class ConversationSyncService {
     } catch (error) {
       if (identical(_listener, conversationListener)) _listener = null;
       _conversationListenerAttached = false;
+      ChatRecoveryTrace.log('realtime_listener_attach_failed',
+          conversationID: '',
+          fields: {
+            'type': 'conversation',
+            'generation': identity.generation,
+            'errorType': error.runtimeType,
+          });
       _log(
         'conversation listener attach failed '
         'errorType=${error.runtimeType}',
@@ -1819,15 +1832,15 @@ class ConversationSyncService {
   }
 
   Future<bool> _hasCurrentMessageCoreLease(SessionIdentity identity) async {
-    final lease = _messageCoreLease;
-    if (lease == null || !_isCurrentRealtimeIdentity(identity)) return false;
-    final isCurrent = await _messageWriterLeaseService.isCurrent(
-      lease: lease,
-      nowMs: DateTime.now().millisecondsSinceEpoch,
+    return isWriterLeaseCurrentAcrossAwait(
+      currentLease: () => _messageCoreLease,
+      isOwnerCurrent: () => _isCurrentRealtimeIdentity(identity),
+      validate: (lease) => _messageWriterLeaseService.isCurrent(
+        lease: lease,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+      ),
+      nowMs: () => DateTime.now().millisecondsSinceEpoch,
     );
-    return isCurrent &&
-        identical(_messageCoreLease, lease) &&
-        _isCurrentRealtimeIdentity(identity);
   }
 
   /// Sending is P0 and must not wait behind listener teardown/startup work.
@@ -2069,21 +2082,25 @@ class ConversationSyncService {
   }
 
   Future<T> _enqueueRealtimeLifecycle<T>(Future<T> Function() action) {
+    final trace = ChatTraceOperation('ConversationSyncService.lifecycle',
+        generation: SessionIdentityService.instance.generation);
     final previous = _realtimeLifecycleTail;
     final operation = ChatRecoveryTrace.nextOperation('realtime-lifecycle');
     var stage = 'queued';
     final elapsed = Stopwatch()..start();
     // Observe, never force-release, a writer whose native I/O may still commit.
     final watchdog = Timer(const Duration(seconds: 25), () {
-      ChatRecoveryTrace.log('realtime_lifecycle_waiting', conversationID: '',
-          operation: operation, fields: {
-        'stage': stage,
-        'elapsedMs': elapsed.elapsedMilliseconds,
-        'mailboxPending': _messageMailbox.pendingEventCount,
-        'mailboxActive': _messageMailbox.activeWorkerCount,
-        'oldestInflightMs': _messageMailbox.oldestInflightMs,
-        'teardown': _realtimeTeardownInFlight,
-      });
+      ChatRecoveryTrace.log('realtime_lifecycle_waiting',
+          conversationID: '',
+          operation: operation,
+          fields: {
+            'stage': stage,
+            'elapsedMs': elapsed.elapsedMilliseconds,
+            'mailboxPending': _messageMailbox.pendingEventCount,
+            'mailboxActive': _messageMailbox.activeWorkerCount,
+            'oldestInflightMs': _messageMailbox.oldestInflightMs,
+            'teardown': _realtimeTeardownInFlight,
+          });
     });
     late final Future<T> task;
     task = () async {
@@ -2094,16 +2111,23 @@ class ConversationSyncService {
           // A failed teardown must not prevent the next login from retrying.
         }
         stage = 'running';
+        trace.enter('start');
         return await action();
       } catch (error) {
-        ChatRecoveryTrace.log('realtime_lifecycle_failed', conversationID: '',
-            operation: operation, fields: {'stage': stage, 'errorType': error.runtimeType});
+        trace.finish(error: error);
+        ChatRecoveryTrace.log('realtime_lifecycle_failed',
+            conversationID: '',
+            operation: operation,
+            fields: {'stage': stage, 'errorType': error.runtimeType});
         rethrow;
       } finally {
+        trace.finish();
         watchdog.cancel();
         if (elapsed.elapsedMilliseconds >= 25000) {
-          ChatRecoveryTrace.log('realtime_lifecycle_resumed', conversationID: '',
-              operation: operation, fields: {'elapsedMs': elapsed.elapsedMilliseconds});
+          ChatRecoveryTrace.log('realtime_lifecycle_resumed',
+              conversationID: '',
+              operation: operation,
+              fields: {'elapsedMs': elapsed.elapsedMilliseconds});
         }
       }
     }();
@@ -2136,21 +2160,25 @@ class ConversationSyncService {
       await _detachRealtimeSdkListeners();
       final heartbeat = _messageCoreHeartbeatInFlight;
       if (heartbeat != null) {
-        ChatRecoveryTrace.log('realtime_teardown_wait', conversationID: '',
-            fields: {'stage': 'heartbeat'});
+        ChatRecoveryTrace.log('realtime_teardown_wait',
+            conversationID: '', fields: {'stage': 'heartbeat'});
         try {
           await heartbeat;
         } catch (_) {}
       }
-      ChatRecoveryTrace.log('realtime_teardown_wait', conversationID: '',
-          fields: {'stage': 'mailbox', 'pending': _messageMailbox.pendingEventCount});
+      ChatRecoveryTrace.log('realtime_teardown_wait',
+          conversationID: '',
+          fields: {
+            'stage': 'mailbox',
+            'pending': _messageMailbox.pendingEventCount
+          });
       await _messageMailbox.drain();
       final lease = _messageCoreLease;
       _messageCoreLease = null;
       if (lease != null) {
         try {
-          ChatRecoveryTrace.log('realtime_teardown_wait', conversationID: '',
-              fields: {'stage': 'lease_release'});
+          ChatRecoveryTrace.log('realtime_teardown_wait',
+              conversationID: '', fields: {'stage': 'lease_release'});
           await _messageWriterLeaseService.release(lease);
         } catch (_) {}
       }
@@ -2161,6 +2189,12 @@ class ConversationSyncService {
   }
 
   Future<void> _detachRealtimeSdkListeners() async {
+    ChatRecoveryTrace.log('realtime_listener_detach_start',
+        conversationID: '',
+        fields: {
+          'conversationAttached': _conversationListenerAttached,
+          'messageAttached': _messageListenerAttached,
+        });
     _messageListenerRetryTimer?.cancel();
     _messageListenerRetryTimer = null;
     _conversationListenerRetryTimer?.cancel();
@@ -2198,6 +2232,12 @@ class ConversationSyncService {
       } catch (_) {}
     }
     _messageListenerAttached = false;
+    ChatRecoveryTrace.log('realtime_listener_detach_finish',
+        conversationID: '',
+        fields: {
+          'conversationAttached': _conversationListenerAttached,
+          'messageAttached': _messageListenerAttached,
+        });
   }
 
   /// The service is installed before login, while the SDK may still be
@@ -2248,12 +2288,25 @@ class ConversationSyncService {
             await _hasCurrentMessageCoreLease(identity) &&
             _isCurrentRealtimeIdentity(identity);
         if (_messageListenerAttached) {
+          ChatRecoveryTrace.log('realtime_listener_attached',
+              conversationID: '',
+              fields: {
+                'type': 'message',
+                'generation': identity.generation,
+              });
           _log(
             'event=realtime_listener_attached type=message '
             'generation=${identity.generation}',
           );
         }
       } catch (e) {
+        ChatRecoveryTrace.log('realtime_listener_attach_failed',
+            conversationID: '',
+            fields: {
+              'type': 'message',
+              'generation': identity.generation,
+              'errorType': e.runtimeType,
+            });
         _log('message listener attach failed: $e');
         _scheduleMessageListenerRetry(identity);
       }
@@ -2524,9 +2577,8 @@ class ConversationSyncService {
       await ChatSessionController.instance.applySdkProjectionPatch(
         reason: ConversationStoreProjectionReason.sdkProjectionRestore,
         upserted: [updated],
-        forceAdmitIds: updatedId.isEmpty
-            ? const <String>{}
-            : <String>{updatedId},
+        forceAdmitIds:
+            updatedId.isEmpty ? const <String>{} : <String>{updatedId},
       );
       return;
     }
@@ -4989,8 +5041,8 @@ class ConversationSyncService {
     if (conversation != null) {
       // This is an SDK query, unlike the preview overlay below. A newer
       // callback received during the await must win over its result.
-      unreadAggregate.applySdkPage([conversation],
-          startedAtRevision: unreadRevision);
+      unreadAggregate
+          .applySdkPage([conversation], startedAtRevision: unreadRevision);
     }
     final msgId = message.msgID?.trim() ?? '';
     if (conversation == null) {
@@ -5865,8 +5917,33 @@ class ConversationSyncService {
 
   Future<void> _flushPersistEventQueue({required String reason}) async {
     _persistDedupTimer = null;
+    final queuedIds = _pendingPersistEvents
+        .map((event) => event.canonicalConversationId)
+        .toSet();
+    final traceConversation =
+        queuedIds.length == 1 ? queuedIds.single : 'mixed';
+    final trace = ChatTraceOperation('ConversationSyncService.persist',
+        conversationID: traceConversation,
+        generation: _pendingPersistOwnerGeneration);
+    ChatRecoveryTrace.log('conversation_persist_admitted',
+        conversationID: traceConversation,
+        operation: trace.operationID,
+        fields: {
+          'reason': reason,
+          'queuedCount': _pendingPersistEvents.length,
+          'conversationIds': queuedIds.take(6).join(','),
+        });
     final previous = _persistFlushTail;
-    final current = previous.then((_) => _drainPersistEventQueue(reason));
+    final current = previous.then((_) async {
+      trace.enter('persist_commit');
+      try {
+        await _drainPersistEventQueue(reason);
+        trace.finish();
+      } catch (error) {
+        trace.finish(error: error);
+        rethrow;
+      }
+    });
     _persistFlushTail = current.then<void>(
       (_) {},
       onError: (Object _, StackTrace __) {},

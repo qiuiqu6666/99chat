@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:tencent_cloud_chat_demo/src/services/im/outgoing_send_coordinator.dart';
+import 'package:tencent_cloud_chat_demo/src/services/im/contracts/contracts.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,7 +44,8 @@ class _ResendService implements MessageService {
   final List<String> deletedLocalMsgIDs = <String>[];
 
   @override
-  Future<V2TimMsgCreateInfoResult?> createTextMessage({required String text}) async {
+  Future<V2TimMsgCreateInfoResult?> createTextMessage(
+      {required String text}) async {
     creates++;
     const id = 'resend-new';
     final message = V2TimMessage.fromJson({'message_risk_type_identified': 0})
@@ -203,6 +206,19 @@ void main() {
       text: 'retry',
     );
     applyOutgoingStableIdToMessage(failed, 'failed-original');
+    // Resend requires a durable failed dispatch, not just a red UI status.
+    final previousCode = sdk.resultCode;
+    sdk.resultCode = 20007;
+    final initial = await ImOutgoingSendCoordinator.instance.send(
+        messageService: sdk,
+        sdkLocalId: failed.id!,
+        conversationId: 'peer',
+        conversationType: ImConversationType.c2c,
+        receiver: 'peer',
+        groupID: '',
+        fallbackMessage: failed);
+    expect(initial.outcomeUnknown, isFalse);
+    sdk.resultCode = previousCode;
     global.setMessageList('peer', <V2TimMessage>[failed, older], replace: true);
 
     final result = await page.reSendFailMessage(
@@ -249,6 +265,19 @@ void main() {
       status: MessageStatus.V2TIM_MSG_STATUS_SEND_FAIL,
       text: 'retry',
     );
+    // Resend requires a durable failed dispatch, not just a red UI status.
+    final previousCode = sdk.resultCode;
+    sdk.resultCode = 20007;
+    final initial = await ImOutgoingSendCoordinator.instance.send(
+        messageService: sdk,
+        sdkLocalId: failed.id!,
+        conversationId: 'peer',
+        conversationType: ImConversationType.c2c,
+        receiver: 'peer',
+        groupID: '',
+        fallbackMessage: failed);
+    expect(initial.outcomeUnknown, isFalse);
+    sdk.resultCode = previousCode;
     global.setMessageList('peer', <V2TimMessage>[failed, older], replace: true);
 
     final result = await page.reSendFailMessage(
@@ -289,6 +318,19 @@ void main() {
       text: 'retry',
     );
     applyOutgoingStableIdToMessage(failed, 'failed-original');
+    // Resend requires a durable failed dispatch, not just a red UI status.
+    final previousCode = sdk.resultCode;
+    sdk.resultCode = 20007;
+    final initial = await ImOutgoingSendCoordinator.instance.send(
+        messageService: sdk,
+        sdkLocalId: failed.id!,
+        conversationId: 'peer',
+        conversationType: ImConversationType.c2c,
+        receiver: 'peer',
+        groupID: '',
+        fallbackMessage: failed);
+    expect(initial.outcomeUnknown, isFalse);
+    sdk.resultCode = previousCode;
     global.setMessageList('peer', <V2TimMessage>[failed, older], replace: true);
     global.insertPeerRejectedLocalTip(
       'peer',

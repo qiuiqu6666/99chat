@@ -38,6 +38,18 @@ void main() {
     expect(ChatRecoveryTrace.recentEvents.last, contains('index=299'));
   });
 
+  test('recovery events carry a monotonic process timestamp', () {
+    ChatRecoveryTrace.log('clock_first', conversationID: 'c');
+    final first = ChatRecoveryTrace.recentEvents.last;
+    ChatRecoveryTrace.log('clock_second', conversationID: 'c');
+    final second = ChatRecoveryTrace.recentEvents.last;
+    int clock(String line) =>
+        int.parse(RegExp(r'\bmonoUs=(\d+)').firstMatch(line)!.group(1)!);
+    expect(clock(second), greaterThanOrEqualTo(clock(first)));
+    expect(RegExp(r'\brun=\S+').firstMatch(first)!.group(0),
+        RegExp(r'\brun=\S+').firstMatch(second)!.group(0));
+  });
+
   test('failed file write retries in order and does not poison later events',
       () async {
     var calls = 0;

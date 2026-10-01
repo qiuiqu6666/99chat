@@ -45,7 +45,7 @@ void main() {
     await store.restoreReadBarriers();
   }
 
-  test('own reply does not restore old unread or swallow delayed peer message', () async {
+  test('own reply cannot prove unknown peer unread is covered after restart', () async {
     store.recordReadClearedAnchor('c2c_peer', ownerUserId: 'alice',
         lastMessageId: 'seen', lastMessageTimestamp: 100);
     await restart();
@@ -56,7 +56,8 @@ void main() {
     final own = row('c2c_peer', 'reply', 102);
     own.lastMessage!.isSelf = true;
     aggregate.applySdkConversations([own]);
-    expect(aggregate.c2cNotifiableUnreadSum, 0);
+    // A self preview carries no ordering proof for these three peer messages.
+    expect(aggregate.c2cNotifiableUnreadSum, 3);
     expect(store.readBarrierFor('c2c_peer')?.lastMessageId, 'seen');
     final delayed = row('c2c_peer', 'new-peer', 101);
     delayed.lastMessage!.isSelf = false;
@@ -81,6 +82,7 @@ void main() {
     test('$id read survives process restart and rejects old SDK unread',
         () async {
       store.recordReadClearedAnchor(id,
+          reliableReadTarget: true,
           ownerUserId: 'alice',
           lastMessageId: 'seen',
           lastMessageTimestamp: 100,
@@ -102,7 +104,7 @@ void main() {
       store.resolveSdkUnreadAgainstReadBarrier(newer, ownerUserId: 'alice');
       expect(newer.unreadCount, 3);
       await restart();
-      expect(store.readBarrierFor(id, ownerUserId: 'alice'), isNull);
+      expect(store.readBarrierFor(id, ownerUserId: 'alice')?.lastMessageId, 'seen');
     });
   }
 

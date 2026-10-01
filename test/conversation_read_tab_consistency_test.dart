@@ -19,9 +19,9 @@ import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 V2TimConversation _row(String peer, String message, int unread,
         {int timestamp = 100, int? seq, bool group = false}) =>
     V2TimConversation(
-      conversationID: '${group ? 'group' : 'c2c'}_$peer',
+      conversationID: '${group ? 'group_@TGS#' : 'c2c_'}$peer',
       userID: group ? null : peer,
-      groupID: group ? peer : null,
+      groupID: group ? '@TGS#$peer' : null,
       type: group ? 2 : 1,
       unreadCount: unread,
       lastMessage: V2TimMessage.fromJson({
@@ -32,7 +32,7 @@ V2TimConversation _row(String peer, String message, int unread,
         ..elemType = 1
         ..seq = seq?.toString()
         ..userID = group ? null : peer
-        ..groupID = group ? peer : null,
+        ..groupID = group ? '@TGS#$peer' : null,
     );
 
 void main() {
@@ -64,11 +64,13 @@ void main() {
   });
 
   void markSeen({bool group = false}) {
-    final id = '${group ? 'group' : 'c2c'}_read';
+    final id = '${group ? 'group_@TGS#' : 'c2c_'}read';
     store.recordReadClearedAnchor(id,
+        reliableReadTarget: true,
         lastMessageId: 'seen',
         lastMessageTimestamp: 100,
         lastMessageSeq: group ? 10 : 0);
+    aggregate.readTargetPersisted(id);
     controller.zeroUnreadLocally(id);
   }
 
@@ -89,7 +91,7 @@ void main() {
 
       expect(
           tabs
-              .conversationForId('${group ? 'group' : 'c2c'}_read')!
+              .conversationForId('${group ? 'group_@TGS#' : 'c2c_'}read')!
               .unreadCount,
           0);
       expect(
@@ -122,11 +124,13 @@ void main() {
               : aggregate.c2cNotifiableUnreadSum,
           2);
       expect(sdkRow.unreadCount, 1, reason: 'SDK input is not mutated');
+      expect(aggregate.sdkUnreadCountFor(sdkRow.conversationID), 1,
+          reason: 'raw SDK authority remains separate from folder projection');
       expect(
           await aggregate.readSdkUnreadCountsForIds([
-            '${group ? 'group' : 'c2c'}_read',
+            '${group ? 'group_@TGS#' : 'c2c_'}read',
           ]),
-          {'${group ? 'group' : 'c2c'}_read': 0});
+          {'${group ? 'group_@TGS#' : 'c2c_'}read': 0});
     });
   }
 
@@ -138,7 +142,8 @@ void main() {
     final after = store.readBarrierFor('c2c_read')!;
     expect(after.lastMessageId, 'seen');
     expect(after.lastMessageTimestamp, 100);
-    expect(after.version, greaterThan(before.version));
+    expect(after.version, before.version,
+        reason: 'legacy persistence cannot advance a reliable read target');
     final replay = _row('read', 'seen', 1);
     store.resolveSdkUnreadAgainstReadBarrier(replay);
     expect(replay.unreadCount, 0);
@@ -146,37 +151,17 @@ void main() {
 
   test('read anchor survives an ID-only duplicate from leave persistence', () {
     markSeen(group: true);
-    store.recordReadClearedAnchor('group_read', lastMessageId: 'seen');
-    final after = store.readBarrierFor('group_read')!;
+    store.recordReadClearedAnchor('group_@TGS#read', lastMessageId: 'seen');
+    final after = store.readBarrierFor('group_@TGS#read')!;
     expect(after.lastMessageTimestamp, 100);
     expect(after.lastMessageSeq, 10);
   });
 
-  test(
-      'opening an SDK-only row captures message order before local persistence',
-      () async {
-    ConversationTabStore.debugFetchOverride =
-        ({required convType, required nextSeq, required count}) async => (
-              conversationList: <V2TimConversation>[],
-              nextSeq: '0',
-              isFinished: true,
-              code: 0,
-              desc: '',
-            );
+  test('opening a zero-unread SDK row does not invent a read target', () async {
     ConversationSyncService.instance.markReadStoreOverride = (_) async {};
-    // No unread means no SDK network dispatch; anchor capture is identical to
-    // an unread open and must not depend on the absent SQLite row.
     await ConversationUnreadClearService.clearLocalForOpenFast(
         conversation: _row('read', 'seen', 0, group: true, seq: 10));
-    await Future<void>.delayed(Duration.zero);
-    final captured = store.readBarrierFor('group_read')!;
-    expect(captured.lastMessageId, 'seen');
-    expect(captured.lastMessageTimestamp, 100);
-    expect(captured.lastMessageSeq, 10);
-    store.recordReadClearedAnchor('group_read');
-    final persisted = store.readBarrierFor('group_read')!;
-    expect(persisted.lastMessageTimestamp, 100);
-    expect(persisted.lastMessageSeq, 10);
+    expect(store.readBarrierFor('group_@TGS#read'), isNull);
   });
 
   test('new group sequence survives read protection within the same second',
@@ -189,7 +174,7 @@ void main() {
         isFinished: true);
     await aggregate.refreshFromStore();
     expect(aggregate.groupNotifiableUnreadSum, 1);
-    expect(store.readBarrierFor('group_read'), isNull);
+    expect(store.readBarrierFor('group_@TGS#read'), isNotNull);
   });
 
   test('in-flight SDK page cannot restore a read count after account switch',

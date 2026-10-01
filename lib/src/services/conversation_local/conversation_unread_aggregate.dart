@@ -19,6 +19,7 @@ import 'package:tencent_cloud_chat_demo/src/services/platform_official_account_s
 import 'package:tencent_cloud_chat_demo/src/services/session_identity.dart';
 import 'package:tencent_cloud_chat_demo/src/utils/conversation_unread_utils.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitConversation/archived_conversation_store.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/chat_recovery_trace.dart';
 
 /// Tab / 桌面角标用的会话未读聚合（不依赖 UI 窗口全表）。
 class ConversationUnreadAggregate extends ChangeNotifier {
@@ -94,6 +95,10 @@ class ConversationUnreadAggregate extends ChangeNotifier {
   int _sdkRevision = 0;
   int _sdkCalibrationFence = 0;
   final Map<String, V2TimConversation> _sdkRows = {};
+  // Presentation only. Never write these values back into the SDK snapshot.
+  final Map<String, V2TimConversation> _readProjectionRows = {};
+  final Map<String, int> _awaitingReadSnapshot = {};
+  final Set<String> _unprovenUnreadBoundaries = {};
   final Map<String, int> _sdkRowRevisions = {};
   final Map<String, ({bool group, int count})> _sdkContributions = {};
   int _sdkC2cSum = 0, _sdkGroupSum = 0;
@@ -111,6 +116,8 @@ class ConversationUnreadAggregate extends ChangeNotifier {
         userID: row.userID,
         groupID: row.groupID,
         groupType: row.groupType,
+        groupReadSequence: row.groupReadSequence,
+        c2cReadTimestamp: row.c2cReadTimestamp,
         unreadCount: row.unreadCount,
         recvOpt: row.recvOpt,
         // Retain only the identity/order needed for read reconciliation, not
@@ -165,6 +172,13 @@ class ConversationUnreadAggregate extends ChangeNotifier {
       final key = ConversationIdCanonical.forStorage(row.conversationID);
       if (key.isEmpty) continue;
       final snapshot = _unreadSnapshot(row);
+      if (row.unreadCount != null) {
+        if (row.lastMessage == null) {
+          _unprovenUnreadBoundaries.add(key);
+        } else {
+          _unprovenUnreadBoundaries.remove(key);
+        }
+      }
       _sdkRows[key] = _resolveSdkUnread(snapshot);
       _sdkRowRevisions[key] = ++_sdkRevision;
       changedKeys.add(key);
@@ -229,6 +243,117 @@ class ConversationUnreadAggregate extends ChangeNotifier {
         (_sdkUnreadSeeded || _sdkRowRevisions.containsKey(key) ? 0 : null);
   }
 
+  int? projectedUnreadCountFor(String conversationId) {
+    final key = ConversationIdCanonical.forStorage(conversationId);
+    return _readProjectionRows[key]?.unreadCount ?? sdkUnreadCountFor(key);
+  }
+
+  bool awaitingReadSnapshot(String conversationId) => _awaitingReadSnapshot
+      .containsKey(ConversationIdCanonical.forStorage(conversationId));
+
+  /// Called only after the existing durable outbox accepted the read target.
+  void readTargetPersisted(String conversationId) {
+    final key = ConversationIdCanonical.forStorage(conversationId);
+    final target = ConversationLocalStore.instance.readBarrierFor(key);
+    if (target == null || !target.projectionEligible) return;
+    ChatRecoveryTrace.log('unread_intent_persisted',
+        conversationID: key,
+        messageID: target.lastMessageId,
+        fields: {
+          'targetVersion': target.version,
+          'targetSeq': target.lastMessageSeq,
+          'targetTime': target.lastMessageTimestamp,
+        });
+    _awaitingReadSnapshot[key] = target.version;
+    _publishSdkSums(changedKeys: {key});
+    sdkCalibrationRevision.value++;
+  }
+
+  V2TimConversation _projectRead(V2TimConversation raw) {
+    final key = ConversationIdCanonical.forStorage(raw.conversationID);
+    final projected = _unreadSnapshot(raw);
+    final waitingVersion = _awaitingReadSnapshot[key];
+    final target = ConversationLocalStore.instance.readBarrierFor(key);
+    if (target == null || !target.projectionEligible) {
+      _awaitingReadSnapshot.remove(key);
+      return _readProjectionRows[key] = projected;
+    }
+    if (_unprovenUnreadBoundaries.contains(key)) {
+      if (waitingVersion != null) {
+        ChatRecoveryTrace.log('unread_snapshot_unproven',
+            conversationID: key,
+            fields: {
+              'targetVersion': waitingVersion,
+              'raw': raw.unreadCount,
+            });
+      }
+      return _readProjectionRows[key] = projected;
+    }
+    final count = raw.unreadCount ?? 0;
+    final last = raw.lastMessage;
+    final group = ConversationUnreadUtils.isGroupConversation(raw);
+    final covering = group
+        ? target.lastMessageSeq > 0 &&
+            ((raw.groupReadSequence ?? 0) >= target.lastMessageSeq ||
+                (count == 0 &&
+                    (int.tryParse(last?.seq ?? '') ?? 0) >=
+                        target.lastMessageSeq))
+        : (raw.c2cReadTimestamp ?? 0) > target.lastMessageTimestamp ||
+            (count == 0 && last?.msgID == target.lastMessageId);
+    if (covering) {
+      _awaitingReadSnapshot.remove(key);
+      ConversationLocalStore.instance.confirmReadTargetSnapshot(key, target);
+    }
+    // A snapshot is confirmation, a request ACK is not. Retain the compact
+    // read watermark after this pending phase to reject later replay.
+    final effectiveTarget =
+        ConversationLocalStore.instance.readBarrierFor(key) ?? target;
+    projected.unreadCount = ConversationLocalStore.instance
+        .projectUnreadAgainstReadTarget(raw, effectiveTarget);
+    final previous = _readProjectionRows[key];
+    final previousSeq = int.tryParse(previous?.lastMessage?.seq ?? '') ?? 0;
+    final incomingSeq = int.tryParse(last?.seq ?? '') ?? 0;
+    final previousTime = previous?.lastMessage?.timestamp ?? 0;
+    final incomingTime = last?.timestamp ?? 0;
+    final incomingId = last?.msgID ?? '';
+    // Zero is a count, not a causal fence. A zero for A cannot acknowledge B.
+    // Same-second C2C identities are only ordered when A is a known read ID.
+    final olderBoundary = group
+        ? incomingSeq > 0 && previousSeq > incomingSeq
+        : incomingId.isNotEmpty &&
+            incomingId != previous?.lastMessage?.msgID &&
+            ((incomingTime > 0 && previousTime > incomingTime) ||
+                incomingId == effectiveTarget.lastMessageId ||
+                effectiveTarget.exactReadMessageIds.contains(incomingId));
+    final coversPrevious = group
+        ? previousSeq > 0 && (raw.groupReadSequence ?? 0) >= previousSeq
+        : previousTime > 0 && (raw.c2cReadTimestamp ?? 0) > previousTime;
+    if (olderBoundary &&
+        !coversPrevious &&
+        previous != null &&
+        (previous.unreadCount ?? 0) > 0 &&
+        ConversationLocalStore.instance
+                .projectUnreadAgainstReadTarget(previous, effectiveTarget) ==
+            previous.unreadCount) {
+      projected.lastMessage = previous.lastMessage;
+      projected.unreadCount = previous.unreadCount;
+    }
+    if (waitingVersion != null) {
+      ChatRecoveryTrace.log('unread_snapshot_projected',
+          conversationID: key,
+          messageID: last?.msgID,
+          fields: {
+            'targetVersion': waitingVersion,
+            'raw': count,
+            'projected': projected.unreadCount,
+            'targetCovered': covering,
+            'lastSeq': last?.seq,
+            'lastTime': last?.timestamp,
+          });
+    }
+    return _readProjectionRows[key] = projected;
+  }
+
   V2TimConversation? sdkSnapshotFor(String conversationId) {
     final row = _sdkRows[ConversationIdCanonical.forStorage(conversationId)];
     return row == null ? null : _unreadSnapshot(row);
@@ -267,7 +392,13 @@ class ConversationUnreadAggregate extends ChangeNotifier {
     final rawChangedIds = <String>{};
     for (final key
         in changedKeys ?? {..._sdkRows.keys, ..._publishedRawCounts.keys}) {
-      final row = _sdkRows[key];
+      final raw = _sdkRows[key];
+      final row = raw == null ? null : _projectRead(raw);
+      if (raw == null) {
+        _readProjectionRows.remove(key);
+        _awaitingReadSnapshot.remove(key);
+        _unprovenUnreadBoundaries.remove(key);
+      }
       final next = row?.unreadCount ?? 0;
       if (next != (_publishedRawCounts[key] ?? 0)) {
         rawChangedIds.add(row?.conversationID ?? _publishedRawIds[key] ?? key);
@@ -294,7 +425,7 @@ class ConversationUnreadAggregate extends ChangeNotifier {
           _sdkC2cSum -= old.count;
         }
       }
-      final row = _sdkRows[key];
+      final row = _readProjectionRows[key];
       if (row == null) continue;
       sdkRowsEvaluatedForTest++;
       final count = GroupMembershipSyncService.instance
@@ -378,6 +509,14 @@ class ConversationUnreadAggregate extends ChangeNotifier {
         }
       }
       for (final row in snapshot.values) {
+        final key = ConversationIdCanonical.forStorage(row.conversationID);
+        if ((_sdkRowRevisions[key] ?? 0) <= revision) {
+          if (row.lastMessage == null) {
+            _unprovenUnreadBoundaries.add(key);
+          } else {
+            _unprovenUnreadBoundaries.remove(key);
+          }
+        }
         _resolveSdkUnread(row);
       }
       // The completed query fences other queries started earlier, including
@@ -442,9 +581,9 @@ class ConversationUnreadAggregate extends ChangeNotifier {
     }
     return <String, int>{
       for (final id in requested)
-        id: (_sdkRows[ConversationIdCanonical.forStorage(id)] ??
+        id: (_readProjectionRows[ConversationIdCanonical.forStorage(id)] ??
                     (!id.startsWith('c2c_') && !id.startsWith('group_')
-                        ? _sdkRows[
+                        ? _readProjectionRows[
                             ConversationIdCanonical.forStorage('c2c_$id')]
                         : null))
                 ?.unreadCount ??
@@ -820,6 +959,9 @@ class ConversationUnreadAggregate extends ChangeNotifier {
 
   @visibleForTesting
   void resetForTest() {
+    _unprovenUnreadBoundaries.clear();
+    _readProjectionRows.clear();
+    _awaitingReadSnapshot.clear();
     _publishedRawCounts.clear();
     _publishedRawIds.clear();
     _rawUnreadChanges.reset(revision: sdkUnreadRevision.value);
@@ -874,6 +1016,9 @@ class ConversationUnreadAggregate extends ChangeNotifier {
   }
 
   void clearSession() {
+    _unprovenUnreadBoundaries.clear();
+    _readProjectionRows.clear();
+    _awaitingReadSnapshot.clear();
     _sdkUnreadSeeded = false;
     _sdkContributions.clear();
     _sdkC2cSum = 0;

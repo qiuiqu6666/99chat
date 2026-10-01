@@ -175,4 +175,32 @@ void main() {
     expect(modelNotifies, 0,
         reason: 'a compatibility scalar is not pending live presentation');
   });
+
+  uiTest('visible ACK consumes reading ledger without decrementing capsule',
+      (tester) async {
+    await away(tester);
+    await receive(tester, 101);
+    await receive(tester, 102);
+    expect(find.text('showUnread:2').hitTestable(), findsOneWidget);
+    global.markLiveIncomingSeen(
+        conversationID: conv,
+        ids: ['$conv-101'],
+        preserveReminder: true);
+    await frame(tester, 250);
+    expect(find.text('showUnread:2').hitTestable(), findsOneWidget);
+    await global.acknowledgeVisibleHistoryMessages(conv, [row(101)],
+        isCurrent: () => true);
+    await frame(tester, 250);
+    expect(global.remainingLiveIncomingCountFor(conv), 2);
+    expect(find.text('showUnread:2').hitTestable(), findsOneWidget);
+    expect(await global.acknowledgeVisibleHistoryMessages(conv, [row(101)],
+        isCurrent: () => true), isFalse,
+        reason: 'the exact reading identity was already consumed');
+    scroll.jumpTo(0);
+    await frame(tester, 300);
+    global.settleAtTrueLatestEnd(conv);
+    await frame(tester, 250);
+    expect(global.remainingLiveIncomingCountFor(conv), 0);
+    expect(find.text('showUnread:2').hitTestable(), findsNothing);
+  });
 }

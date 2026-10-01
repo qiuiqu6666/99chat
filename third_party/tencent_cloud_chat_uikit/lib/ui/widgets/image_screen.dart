@@ -69,6 +69,7 @@ class ImageScreen extends StatefulWidget {
     this.forceGalleryMode = false,
     /// 聊天消息默认 true；头像 / 群头像 / 朋友圈传 false，避免长图贴宽拉满。
     this.fitTallImagesToScreenWidth = true,
+    this.fitToViewport = false,
     /// 会话媒体网格等无源 Hero 的入口必须 false：零时长入场 + HeroMode
     /// 会在 iOS 留下空飞行层，只剩半透明灰罩看不见图。
     this.enableHero = true,
@@ -100,6 +101,8 @@ class ImageScreen extends StatefulWidget {
   final V2TimMessage? sourceMessage;
   final bool forceGalleryMode;
   final bool fitTallImagesToScreenWidth;
+  /// Fit the entire image to the viewport, including upscaling small avatars.
+  final bool fitToViewport;
   final bool enableHero;
   final ValueChanged<int>? onGalleryIndexChanged;
 
@@ -1543,6 +1546,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
     final screenSize = MediaQuery.sizeOf(context);
     final display = _loadedDisplayByIndex[index] ??
         imagePreviewDisplayConfigResolved(
+          fitToViewport: widget.fitToViewport,
           sourceMessage: item.sourceMessage ?? widget.sourceMessage,
           screenWidth: screenSize.width,
           screenHeight: screenSize.height,
@@ -1802,6 +1806,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
       _heroLockedBoxSizeByIndex.clear();
       for (final entry in _loadedDisplayByIndex.entries.toList()) {
         _loadedDisplayByIndex[entry.key] = imagePreviewDisplayConfig(
+          fitToViewport: widget.fitToViewport,
           imageWidth: entry.value.imageWidth,
           imageHeight: entry.value.imageHeight,
           screenWidth: screenSize.width,
@@ -1813,6 +1818,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
     final message = item.sourceMessage ?? widget.sourceMessage;
     final display = _loadedDisplayByIndex[index] ??
         imagePreviewDisplayConfigResolved(
+          fitToViewport: widget.fitToViewport,
           sourceMessage: message,
           screenWidth: screenSize.width,
           screenHeight: screenSize.height,
@@ -1895,6 +1901,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
         final screenSize = MediaQuery.sizeOf(context);
         final info = state.extendedImageInfo;
         final display = imagePreviewDisplayConfigResolved(
+          fitToViewport: widget.fitToViewport,
           sourceMessage: item.sourceMessage ?? widget.sourceMessage,
           screenWidth: screenSize.width,
           screenHeight: screenSize.height,
@@ -1927,12 +1934,14 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
             final imgWidth = state.extendedImageInfo?.image.width ?? 0;
             final builtDisplay = _loadedDisplayByIndex[index] ??
                 imagePreviewDisplayConfigResolved(
+                  fitToViewport: widget.fitToViewport,
                   sourceMessage: item.sourceMessage ?? widget.sourceMessage,
                   screenWidth: screenWidth,
                   screenHeight: screenHeight,
                   fitTallImagesToScreenWidth: widget.fitTallImagesToScreenWidth,
                 );
             final display = imagePreviewDisplayConfigResolved(
+              fitToViewport: widget.fitToViewport,
               sourceMessage: item.sourceMessage ?? widget.sourceMessage,
               screenWidth: screenWidth,
               screenHeight: screenHeight,
